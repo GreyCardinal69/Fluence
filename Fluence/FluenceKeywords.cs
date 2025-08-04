@@ -1,4 +1,4 @@
-﻿namespace Testing_Chamber.Fluid
+﻿namespace Fluence
 {
     internal static class FluenceKeywords
     {
@@ -23,7 +23,9 @@
             "use",
             "type",
             "struct",
-            "enum"
+            "enum",
+            "match",
+            "self"
         };
 
         internal static bool IsAKeyword( string key ) => _keyWords.Contains( key );

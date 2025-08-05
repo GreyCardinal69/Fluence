@@ -78,7 +78,7 @@
             SCAN_PIPE,          // |~>
             COMPOSITION_PIPE,   // ~>
 
-            // Distributive Famile Pipe operators.
+            // Distributive Family Pipe operators.
             CHAIN_ASSIGN_N,     // <n|
             REST_ASSIGN,        // <|
             OPTIONAL_ASSIGN_N,  // <n?|
@@ -92,13 +92,15 @@
             COLLECTIVE_GREATER,         // <>|
             COLLECTIVE_GREATER_EQUAL,   // <>=|
 
-            // The OR variants
+            // The OR variants.
             COLLECTIVE_OR_EQUAL,        // <||==|
             COLLECTIVE_OR_NOT_EQUAL,    // <||!=|
             COLLECTIVE_OR_LESS,         // <||<|
             COLLECTIVE_OR_LESS_EQUAL,   // <||<=|
             COLLECTIVE_OR_GREATER,      // <||>|
             COLLECTIVE_OR_GREATER_EQUAL,// <||>=|
+
+            UNDERSCORE,
 
             EOF
         }

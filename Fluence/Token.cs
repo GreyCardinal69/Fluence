@@ -35,6 +35,8 @@
             DOT_DOT,                // For Ranges
             BITWISE_LEFT_SHIFT,     // <<
             BITWISE_RIGHT_SHIFT,    // >>
+            AND,                    // &&
+            OR,                     // ||
 
             // Function and labdas.
             ARROW,      // =>

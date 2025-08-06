@@ -216,3 +216,117 @@ public class LexerLessThanTests
         Assert.Equal(Token.TokenType.LESS, token.Type);
     }
 }
+
+public class LexerPipeTests
+{
+    private readonly ITestOutputHelper _output;
+
+    public LexerPipeTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
+    private Token LexFirstToken(string source)
+    {
+        var lexer = new FluenceLexer(source);
+        return lexer.GetNextToken();
+    }
+
+    // --- 4-Character Operator Test ---
+    [Fact]
+    public void Scans_ReducerPipe_Operator()
+    {
+        string source = "|>>=";
+        var token = LexFirstToken(source);
+        Assert.Equal(Token.TokenType.REDUCER_PIPE, token.Type);
+    }
+
+    // --- 3-Character Operator Test ---
+    [Fact]
+    public void Scans_MapPipe_Operator()
+    {
+        string source = "|>>";
+        var token = LexFirstToken(source);
+        Assert.Equal(Token.TokenType.MAP_PIPE, token.Type);
+    }
+
+    // --- 2-Character Operator Tests ---
+    [Fact]
+    public void Scans_GuardPipe_Operator()
+    {
+        string source = "|??";
+        var token = LexFirstToken(source);
+        Assert.Equal(Token.TokenType.GUARD_PIPE, token.Type);
+    }
+
+    [Fact]
+    public void Scans_ScanPipe_Operator()
+    {
+        string source = "|~>";
+        var token = LexFirstToken(source);
+        Assert.Equal(Token.TokenType.SCAN_PIPE, token.Type);
+    }
+
+    [Fact]
+    public void Scans_LogicalOr_Operator()
+    {
+        string source = "||";
+        var token = LexFirstToken(source);
+        Assert.Equal(Token.TokenType.OR, token.Type);
+    }
+
+    [Fact]
+    public void Scans_Pipe_Operator()
+    {
+        string source = "|>";
+        var token = LexFirstToken(source);
+        Assert.Equal(Token.TokenType.PIPE, token.Type);
+    }
+
+    [Fact]
+    public void Scans_OptionalPipe_Operator()
+    {
+        string source = "|?";
+        var token = LexFirstToken(source);
+        Assert.Equal(Token.TokenType.OPTIONAL_PIPE, token.Type);
+    }
+
+    // --- Fallback and Edge Case Tests ---
+
+    [Fact]
+    public void Scans_Single_BitwiseOr_As_Fallback()
+    {
+        string source = "| variable";
+        var token = LexFirstToken(source);
+        Assert.Equal(Token.TokenType.PIPE_CHAR, token.Type);
+    }
+
+    [Fact]
+    public void Scans_Longest_Operator_Correctly_At_EndOfFile()
+    {
+        string source = "|>>=";
+        var token = LexFirstToken(source);
+        Assert.Equal(Token.TokenType.REDUCER_PIPE, token.Type);
+
+        var lexer = new FluenceLexer(source);
+        lexer.GetNextToken();
+        Assert.True(lexer.HasReachedEnd);
+    }
+
+    [Fact]
+    public void Scans_Single_BitwiseOr_At_EndOfFile()
+    {
+        string source = "|";
+        var token = LexFirstToken(source);
+        Assert.Equal(Token.TokenType.PIPE_CHAR, token.Type);
+    }
+
+    [Fact]
+    public void Distinguishes_From_Non_Operator_Characters()
+    {
+        var lexer = new FluenceLexer("|a");
+        var token1 = lexer.GetNextToken();
+
+        Assert.Equal(Token.TokenType.PIPE_CHAR, token1.Type);
+    }
+}

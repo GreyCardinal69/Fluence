@@ -11,8 +11,6 @@ namespace Fluence
         private int _currentLine;
         private Queue<Token> _tokenQueue;
 
-        private int _chainAssignNumber = 0;
-
         internal int CurrentLine => _currentLine;
         internal bool HasReachedEnd => _currentPosition >= _sourceLength && _tokenQueue.Count == 0;
         internal int CurrentPosition => _currentPosition;
@@ -66,99 +64,61 @@ namespace Fluence
 
             switch (currChar)
             {
-                case '<':
-                    newToken.Type = ScanLessThanOperator();
-                    if (_chainAssignNumber > 0)
-                    {
-                        // <n| and <n|? assign n variables to the left, n needs to be kept for the parser to know.
-                        newToken.Text = _chainAssignNumber.ToString();
-                        newToken.Literal = _chainAssignNumber;
-                        _chainAssignNumber = 0;
-                    }
-                    break;
-                case '|':
-                    newToken.Type = ScanPipe();
-                    break;
+                case '<': return ScanLessThanOperator();
+                case '|': return ScanPipe();
                 case '+':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "++") newToken.Type = ReturnTokenTypeAndAdvance(TokenType.INCREMENT, 2);
-                    else newToken.Type = ReturnTokenTypeAndAdvance(TokenType.PLUS, 1);
-                    break;
+                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "++") return MakeTokenAndTryAdvance(TokenType.INCREMENT, 2);
+                    else return MakeTokenAndTryAdvance(TokenType.PLUS, 1);
                 case '-':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "--") newToken.Type = ReturnTokenTypeAndAdvance(TokenType.DECREMENT, 2);
-                    else newToken.Type = ReturnTokenTypeAndAdvance(TokenType.MINUS, 1);
-                    break;
-                case '/':
-                    newToken.Type = ReturnTokenTypeAndAdvance(TokenType.SLASH, 1);
-                    break;
-                case '%':
-                    newToken.Type = ReturnTokenTypeAndAdvance(TokenType.PERCENT, 1);
-                    break;
-                case '^':
-                    newToken.Type = ReturnTokenTypeAndAdvance(TokenType.CARET, 1);
-                    break;
+                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "--") return MakeTokenAndTryAdvance(TokenType.DECREMENT, 2);
+                    else if (CanLookAheadStartInclusive(2) && PeekString(2) == "->") return MakeTokenAndTryAdvance(TokenType.THIN_ARROW, 2);
+                    else return MakeTokenAndTryAdvance(TokenType.MINUS, 1);
+                case '/': return MakeTokenAndTryAdvance(TokenType.SLASH, 1); ;
+                case '%': return MakeTokenAndTryAdvance(TokenType.PERCENT, 1);
+                case '^': return MakeTokenAndTryAdvance(TokenType.CARET, 1);
                 case '*':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "**") newToken.Type = ReturnTokenTypeAndAdvance(TokenType.EXPONENT, 2);
-                    else newToken.Type = ReturnTokenTypeAndAdvance(TokenType.STAR, 1);
-                    break;
+                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "**") return MakeTokenAndTryAdvance(TokenType.EXPONENT, 2);
+                    else return MakeTokenAndTryAdvance(TokenType.STAR, 1);
                 case '&':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "&&") newToken.Type = ReturnTokenTypeAndAdvance(TokenType.AND, 2);
-                    else newToken.Type = ReturnTokenTypeAndAdvance(TokenType.AMPERSAND, 1);
-                    break;
+                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "&&") return MakeTokenAndTryAdvance(TokenType.AND, 2);
+                    else return MakeTokenAndTryAdvance(TokenType.AMPERSAND, 1);
                 case '>':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == ">>") newToken.Type = ReturnTokenTypeAndAdvance(TokenType.BITWISE_RIGHT_SHIFT, 2);
-                    else newToken.Type = ReturnTokenTypeAndAdvance(TokenType.GREATER, 1);
-                    break;
+                    if (CanLookAheadStartInclusive(2) && PeekString(2) == ">>") return MakeTokenAndTryAdvance(TokenType.BITWISE_RIGHT_SHIFT, 2);
+                    else return MakeTokenAndTryAdvance(TokenType.GREATER, 1);
                 case '~':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "~>") newToken.Type = ReturnTokenTypeAndAdvance(TokenType.COMPOSITION_PIPE, 2);
-                    else newToken.Type = ReturnTokenTypeAndAdvance(TokenType.TILDE, 1);
-                    break;
+                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "~>") return MakeTokenAndTryAdvance(TokenType.COMPOSITION_PIPE, 2);
+                    else return MakeTokenAndTryAdvance(TokenType.TILDE, 1);
                 case '!':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "!=") newToken.Type = ReturnTokenTypeAndAdvance(TokenType.BANG_EQUAL, 2);
-                    else newToken.Type = ReturnTokenTypeAndAdvance(TokenType.BANG, 1);
-                    break;
+                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "!=") return MakeTokenAndTryAdvance(TokenType.BANG_EQUAL, 2);
+                    else return MakeTokenAndTryAdvance(TokenType.BANG, 1);
                 case '=':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "==") newToken.Type = ReturnTokenTypeAndAdvance(TokenType.EQUAL_EQUAL, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "==") return MakeTokenAndTryAdvance(TokenType.EQUAL_EQUAL, 2);
                     // => is either for function declaration or greater equal, parser will have to find out.
-                    else if (CanLookAheadStartInclusive(2) && PeekString(2) == "=>") newToken.Type = ReturnTokenTypeAndAdvance(TokenType.ARROW, 2);
-                    else newToken.Type = ReturnTokenTypeAndAdvance(TokenType.EQUAL, 1);
-                    break;
-                case '[':
-                    newToken.Type = ReturnTokenTypeAndAdvance(TokenType.L_BRACE, 1);
-                    break;
-                case ']':
-                    newToken.Type = ReturnTokenTypeAndAdvance(TokenType.R_BRACE, 1);
-                    break;
-                case '{':
-                    newToken.Type = ReturnTokenTypeAndAdvance(TokenType.L_BRACKET, 1);
-                    break;
-                case '}':
-                    newToken.Type = ReturnTokenTypeAndAdvance(TokenType.R_BRACKET, 1);
-                    break;
-                case '(':
-                    newToken.Type = ReturnTokenTypeAndAdvance(TokenType.L_PAREN, 1);
-                    break;
-                case ')':
-                    newToken.Type = ReturnTokenTypeAndAdvance(TokenType.R_PAREN, 1);
-                    break;
-                case ';':
-                    newToken.Type = ReturnTokenTypeAndAdvance(TokenType.EOL, 1);
-                    newToken.Text = ";";
-                    break;
+                    else if (CanLookAheadStartInclusive(2) && PeekString(2) == "=>") return MakeTokenAndTryAdvance(TokenType.ARROW, 2);
+                    else return MakeTokenAndTryAdvance(TokenType.EQUAL, 1);
+                case '[': return MakeTokenAndTryAdvance(TokenType.L_BRACKET, 1);
+                case ']': return MakeTokenAndTryAdvance(TokenType.R_BRACKET, 1);
+                case '{': return MakeTokenAndTryAdvance(TokenType.L_BRACE, 1);
+                case '}': return MakeTokenAndTryAdvance(TokenType.R_BRACE, 1);
+                case '(': return MakeTokenAndTryAdvance(TokenType.L_PAREN, 1);
+                case ')': return MakeTokenAndTryAdvance(TokenType.R_PAREN, 1);
+                case ';': return MakeTokenAndTryAdvance(TokenType.EOL, 1, ";");
+                case ',': return MakeTokenAndTryAdvance(TokenType.COMMA, 1);
                 case '\n':
-                    newToken.Type = ReturnTokenTypeAndAdvance(TokenType.EOL, 1);
                     _currentLine++;
-                    break;
+                    return MakeTokenAndTryAdvance(TokenType.EOL, 1);
                 case '\r':
-                    newToken.Type = ReturnTokenTypeAndAdvance(TokenType.EOL, 1);
+                    string text = "";
                     if (_currentPosition < _sourceLength && _sourceCode[_currentPosition] == '\n')
                     {
                         _currentPosition++;
-                        newToken.Text = "\r\n";
+                        text = "\r\n";
                     }
                     else
                     {
-                        newToken.Text = "\r";
+                        text = "\r";
                     }
+                    newToken = MakeTokenAndTryAdvance(TokenType.EOL, 1, text, text);
                     _currentLine++;
                     break;
             }
@@ -170,72 +130,73 @@ namespace Fluence
             // Used for peeking ahead, size unknown so universal.
             string peek;
 
-            if (currChar == '.')
+            if (currChar == '.' || IsNumeric(currChar))
             {
-                // Several cases here.
-                // Just '.' -> Token.Dot
-                // .. -> Range
-                // 1.000 Decimal
-                // 1.000f Float
-
+                // Check for a range first, then number.
                 if (CanLookAheadStartInclusive(2))
                 {
-                    startPos = _currentPosition;
                     peek = PeekString(2);
                     if (peek == "..")
                     {
                         // A range.
-                        newToken.Type = TokenType.DOT_DOT;
+                        // Advance by 2 since "..".
+                        return MakeTokenAndTryAdvance(TokenType.DOT_DOT, 2);
                     }
-                    else if (IsNumeric(peek[1]))
+                }
+
+                // Several cases here.
+                // Just '.' -> Token.Dot
+                // 1.000 Decimal
+                // 1.000f Float
+                startPos = _currentPosition;
+
+                // Can be 0.5 or just .5 
+                bool dotOnlyFraction = currChar == '.' && IsNumeric(PeekNext());
+
+                if (IsNumeric(Peek()) || dotOnlyFraction )
+                {
+                    newToken.Type = TokenType.NUMBER;
+                    while (_currentPosition < _sourceLength)
                     {
-                        newToken.Type = TokenType.NUMBER;
-                        while (_currentPosition < _sourceLength)
+                        char lastc = currChar;
+                        currChar = _sourceCode[_currentPosition];
+                        if (IsNumeric(currChar) || currChar == '.' || currChar == 'E' || currChar == 'e' ||
+                            ((currChar == '-' || currChar == '+') && (lastc == 'E' || lastc == 'e')))
                         {
-                            char lastc = currChar;
-                            currChar = _sourceCode[_currentPosition];
-                            if (IsNumeric(currChar) || currChar == '.' || currChar == 'E' || currChar == 'e' ||
-                                ((currChar == '-' || currChar == '+') && (lastc == 'E' || lastc == 'e')))
-                            {
-                                _currentPosition++;
-                            }
-                            else break;
+                            _currentPosition++;
                         }
-                        // Float here.
-                        if (Peek() == 'f')
+                        else break;
+                    }
+                    // Float here.
+                    if (Peek() == 'f')
+                    {
+                        char previousChar = _sourceCode[_currentPosition - 1];
+                        if (char.IsDigit(previousChar))
                         {
-                            char previousChar = _sourceCode[_currentPosition - 1];
-                            if (char.IsDigit(previousChar))
-                            {
-                                _ = Advance();
-                            }
+                            _ = Advance();
                         }
-
-                        string lexeme = _sourceCode.Substring(startPos, _currentPosition - startPos);
-                        newToken.Text = lexeme;
-                        newToken.Literal = lexeme;
                     }
 
-                    return newToken;
+                    string lexeme = _sourceCode.Substring(startPos, _currentPosition - startPos);
+
+                    if (dotOnlyFraction) lexeme = lexeme.Insert(0, "0");
+
+                    // We already advanced in the loop and "f" check.
+                    return MakeTokenAndTryAdvance(TokenType.NUMBER, 0, lexeme, lexeme);
                 }
 
                 // Can't look ahead, just a random dot?
-                newToken.Type = TokenType.DOT;
-                return newToken;
+                return MakeTokenAndTryAdvance(TokenType.DOT, 1);
             }
 
             // _ is used for pipes, next char must not be an identifier if it is for a pipe.
-            if (currChar == '_' && !IsIdentifier(Peek()))
-            {
-                newToken.Type = ReturnTokenTypeAndAdvance(TokenType.UNDERSCORE, 1);
-                return newToken;
-            }
+            if (currChar == '_' && !IsIdentifier(PeekNext())) return MakeTokenAndTryAdvance(TokenType.UNDERSCORE, 1);
 
             // Lex an identifier, unless an F string.
-            if (IsIdentifier(currChar) && !(currChar == 'f' && Peek() == '"'))
+            if (IsIdentifier(currChar) && !(currChar == 'f' && PeekNext() == '"'))
             {
                 startPos = _currentPosition;
-                while (_currentPosition < _sourceCode.Length)
+                while (!HasReachedEnd)
                 {
                     if (IsIdentifier(Peek())) _currentPosition++;
                     else break;
@@ -244,22 +205,15 @@ namespace Fluence
                 string text = _sourceCode.Substring(startPos, _currentPosition - startPos);
                 if (FluenceKeywords.IsAKeyword(text))
                 {
-                    newToken.Type = FluenceKeywords.GetTokenTypeFromKeyword(text);
-                }
-                else
-                {
-                    newToken.Text = text;
-                    newToken.Type = TokenType.IDENTIFIER;
+                    return MakeTokenAndTryAdvance(FluenceKeywords.GetTokenTypeFromKeyword(text));
                 }
 
-                newToken.Literal = text;
-
-                return newToken;
+                return MakeTokenAndTryAdvance(TokenType.IDENTIFIER, 0, text, text);
             }
 
             // Unless it is something alien, this should be the last match, otherwise 
             // TokenType.Unknown will be thrown.
-            if (currChar == 'f' && Peek() == '"')
+            if (CanLookAheadStartInclusive(2) && currChar == 'f' && PeekNext() == '"')
             {
                 Advance(); // consume 'f'
                 Advance(); // consume '"'
@@ -285,7 +239,6 @@ namespace Fluence
                 if (Peek() == '\\')
                 {
                     Advance(); // Consume the '\'
-                               // Consume the character being escaped (e.g., the '"' in '\"')
                 }
                 Advance();
             }
@@ -308,7 +261,7 @@ namespace Fluence
             return new Token(type, lexeme, literalValue);
         }
 
-        private TokenType ScanPipe()
+        private Token ScanPipe()
         {
             // |>>=
             // |??, |>>, |~>,
@@ -316,7 +269,7 @@ namespace Fluence
             // |
 
             if (CanLookAheadStartInclusive(4))
-                if (PeekString(4) == "|>>=") return ReturnTokenTypeAndAdvance(TokenType.REDUCER_PIPE, 4);
+                if (PeekString(4) == "|>>=") return MakeTokenAndTryAdvance(TokenType.REDUCER_PIPE, 4);
 
             if (CanLookAheadStartInclusive(3))
             {
@@ -324,9 +277,9 @@ namespace Fluence
 
                 switch (threeChar)
                 {
-                    case "|??": return ReturnTokenTypeAndAdvance(TokenType.GUARD_PIPE, 3);
-                    case "|>>": return ReturnTokenTypeAndAdvance(TokenType.MAP_PIPE, 3);
-                    case "|~>": return ReturnTokenTypeAndAdvance(TokenType.SCAN_PIPE, 3);
+                    case "|??": return MakeTokenAndTryAdvance(TokenType.GUARD_PIPE, 3);
+                    case "|>>": return MakeTokenAndTryAdvance(TokenType.MAP_PIPE, 3);
+                    case "|~>": return MakeTokenAndTryAdvance(TokenType.SCAN_PIPE, 3);
                 }
             }
 
@@ -336,16 +289,16 @@ namespace Fluence
 
                 switch (twoChar)
                 {
-                    case "||": return ReturnTokenTypeAndAdvance(TokenType.OR, 2);
-                    case "|>": return ReturnTokenTypeAndAdvance(TokenType.PIPE, 2);
-                    case "|?": return ReturnTokenTypeAndAdvance(TokenType.OPTIONAL_PIPE, 2);
+                    case "||": return MakeTokenAndTryAdvance(TokenType.OR, 2);
+                    case "|>": return MakeTokenAndTryAdvance(TokenType.PIPE, 2);
+                    case "|?": return MakeTokenAndTryAdvance(TokenType.OPTIONAL_PIPE, 2);
                 }
             }
 
-            return ReturnTokenTypeAndAdvance(TokenType.PIPE_CHAR, 1);
+            return MakeTokenAndTryAdvance(TokenType.PIPE_CHAR, 1);
         }
 
-        private TokenType ScanLessThanOperator()
+        private Token ScanLessThanOperator()
         {
             // <||!=| <||==| <||??|
             // <==|, <!=|, <<=|, <>=|, <??|, <n?| 
@@ -360,11 +313,11 @@ namespace Fluence
                 switch (sixChar)
                 {
                     case "<||!=|":
-                        return ReturnTokenTypeAndAdvance(TokenType.COLLECTIVE_OR_NOT_EQUAL, 6);
+                        return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_OR_NOT_EQUAL, 6);
                     case "<||==|":
-                        return ReturnTokenTypeAndAdvance(TokenType.COLLECTIVE_OR_EQUAL, 6);
+                        return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_OR_EQUAL, 6);
                     case "<||??|":
-                        return ReturnTokenTypeAndAdvance(TokenType.OR_GUARD_CHAIN, 6);
+                        return MakeTokenAndTryAdvance(TokenType.OR_GUARD_CHAIN, 6);
                 }
             }
 
@@ -376,15 +329,15 @@ namespace Fluence
                 switch (fourChar)
                 {
                     case "<==|":
-                        return ReturnTokenTypeAndAdvance(TokenType.COLLECTIVE_EQUAL, 4);
+                        return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_EQUAL, 4);
                     case "<!=|":
-                        return ReturnTokenTypeAndAdvance(TokenType.COLLECTIVE_NOT_EQUAL, 4);
+                        return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_NOT_EQUAL, 4);
                     case "<<=|":
-                        return ReturnTokenTypeAndAdvance(TokenType.COLLECTIVE_LESS_EQUAL, 4);
+                        return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_LESS_EQUAL, 4);
                     case "<>=|":
-                        return ReturnTokenTypeAndAdvance(TokenType.COLLECTIVE_GREATER_EQUAL, 4);
+                        return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_GREATER_EQUAL, 4);
                     case "<??|":
-                        return ReturnTokenTypeAndAdvance(TokenType.GUARD_CHAIN, 4);
+                        return MakeTokenAndTryAdvance(TokenType.GUARD_CHAIN, 4);
                 }
             }
 
@@ -393,16 +346,18 @@ namespace Fluence
             {
                 _ = Advance();
                 // Store the number for the Token in GetNextToken().
-                _chainAssignNumber = Convert.ToInt32(ReadNumber());
+                string n = ReadNumber();
+                string op;
 
                 if (Match("|?"))
                 {
                     // We matched <n|?
-                    return ReturnTokenTypeAndAdvance(TokenType.OPTIONAL_ASSIGN_N, 0);
+                    // Only assign the number as text/literal, the rest of the operator is in the TokenType.
+                    return new Token(TokenType.OPTIONAL_ASSIGN_N, n, n);
                 }
                 if (Match("|"))
                 {
-                    return ReturnTokenTypeAndAdvance(TokenType.CHAIN_ASSIGN_N, 0);
+                    return new Token(TokenType.CHAIN_ASSIGN_N, n, n);
                 }
                 // If we get here then we have an error, backtrack or throw.
                 // incomplete chain assignment.
@@ -415,9 +370,9 @@ namespace Fluence
 
                 switch (threeChar)
                 {
-                    case "<<|": return ReturnTokenTypeAndAdvance(TokenType.COLLECTIVE_LESS, 3);
-                    case "<>|": return ReturnTokenTypeAndAdvance(TokenType.COLLECTIVE_GREATER, 3);
-                    case "<?|": return ReturnTokenTypeAndAdvance(TokenType.OPTIONAL_ASSIGN, 3);
+                    case "<<|": return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_LESS, 3);
+                    case "<>|": return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_GREATER, 3);
+                    case "<?|": return MakeTokenAndTryAdvance(TokenType.OPTIONAL_ASSIGN, 3);
                 }
             }
 
@@ -428,14 +383,14 @@ namespace Fluence
 
                 switch (twoChar)
                 {
-                    case "<=": return ReturnTokenTypeAndAdvance(TokenType.LESS_EQUAL, 2);
-                    case "<<": return ReturnTokenTypeAndAdvance(TokenType.BITWISE_LEFT_SHIFT, 2);
-                    case "<|": return ReturnTokenTypeAndAdvance(TokenType.REST_ASSIGN, 2);
+                    case "<=": return MakeTokenAndTryAdvance(TokenType.LESS_EQUAL, 2);
+                    case "<<": return MakeTokenAndTryAdvance(TokenType.BITWISE_LEFT_SHIFT, 2);
+                    case "<|": return MakeTokenAndTryAdvance(TokenType.REST_ASSIGN, 2);
                 }
             }
 
             // One character here.
-            return ReturnTokenTypeAndAdvance(TokenType.LESS, 1);
+            return MakeTokenAndTryAdvance(TokenType.LESS, 1);
         }
 
         private char Advance() => _sourceCode[_currentPosition++];
@@ -453,10 +408,12 @@ namespace Fluence
             return c == '\u009F'
                 || (c >= 'a' && c <= 'z')
                 || (c >= 'A' && c <= 'Z')
+                || (c == '_') // Unless by itself, should be an identifier.
                 || (c >= '0' && c <= '9');
         }
 
         private char Peek() => _currentPosition >= _sourceLength ? '\0' : _sourceCode[_currentPosition];
+        private char PeekNext() => _currentPosition + 1 >= _sourceLength ? '\0' : _sourceCode[_currentPosition + 1];
 
         private string ReadNumber()
         {
@@ -525,6 +482,10 @@ namespace Fluence
                     _currentPosition += 2;
                     while (!HasReachedEnd)
                     {
+                        if (!CanLookAheadStartInclusive(2))
+                        {
+                            // error here, we are in multiline comment, yet can't look ahead two chars, so it ends as "#* .... *".
+                        }
                         if (_sourceCode[_currentPosition] != '*' && _sourceCode[_currentPosition + 1] != '#') _currentPosition++;
                         else
                         {
@@ -543,6 +504,12 @@ namespace Fluence
 
                 break;
             }
+        }
+
+        private Token MakeTokenAndTryAdvance(TokenType type, int len = 0, string text = null, object lieteral = null)
+        {
+            _currentPosition += len;
+            return new Token(type, text, lieteral);
         }
 
         private bool IsMultiLineComment()

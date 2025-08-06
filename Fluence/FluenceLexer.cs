@@ -260,7 +260,7 @@ namespace Fluence
             // Extract the full text (including quotes) and the inner value.
             string lexeme = _sourceCode[startPos.._currentPosition];
 
-            string literalValue = _sourceCode.Substring(startPos + 1, _currentPosition - startPos - 2);
+            string literalValue = _sourceCode.Substring(startPos + (isFString ? 2 : 1), _currentPosition - startPos - (isFString ? 3 : 2));
 
             TokenType type = isFString ? TokenType.F_STRING : TokenType.STRING;
 

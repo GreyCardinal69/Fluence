@@ -7,4 +7,14 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Remove="Fluence.Tests\**" />
+    <EmbeddedResource Remove="Fluence.Tests\**" />
+    <None Remove="Fluence.Tests\**" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="Fluence.Tests" />
+	</ItemGroup>
+
 </Project>

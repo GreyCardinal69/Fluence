@@ -33,6 +33,8 @@
             LESS, LESS_EQUAL,       // <, <=
             STAR_STAR,              // ** (Power)
             DOT_DOT,                // For Ranges
+            BITWISE_LEFT_SHIFT,     // <<
+            BITWISE_RIGHT_SHIFT,    // >>
 
             // Function and labdas.
             ARROW,      // =>
@@ -82,6 +84,7 @@
             CHAIN_ASSIGN_N,     // <n|
             REST_ASSIGN,        // <|
             OPTIONAL_ASSIGN_N,  // <n?|
+            OPTIONAL_ASSIGN,    // <?|
             GUARD_CHAIN,        // <??|
             OR_GUARD_CHAIN,     // <||??|
 
@@ -95,21 +98,20 @@
             // The OR variants.
             COLLECTIVE_OR_EQUAL,        // <||==|
             COLLECTIVE_OR_NOT_EQUAL,    // <||!=|
-            COLLECTIVE_OR_LESS,         // <||<|
-            COLLECTIVE_OR_LESS_EQUAL,   // <||<=|
-            COLLECTIVE_OR_GREATER,      // <||>|
-            COLLECTIVE_OR_GREATER_EQUAL,// <||>=|
 
             UNDERSCORE,
 
-            EOF
+            UNKNOWN,
+            EOL
         }
 
-        internal readonly TokenType Type;
-        internal readonly string Text;
-        internal readonly object Literal;
+        internal TokenType Type;
+        internal string Text;
+        internal object Literal;
 
-        internal Token(TokenType type, string text, object literal = null )
+        internal static Token EOL => new Token( TokenType.EOL, "\n" );
+
+        internal Token(TokenType type = TokenType.UNDERSCORE, string text = "", object literal = null )
         {
             Type = type;
             Text = text;

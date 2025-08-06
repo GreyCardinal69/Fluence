@@ -1,5 +1,4 @@
-﻿using Testing_Chamber.Minis;
-using static Fluence.Token;
+﻿using static Fluence.Token;
 
 namespace Fluence
 {
@@ -91,6 +90,7 @@ namespace Fluence
                     else return MakeTokenAndTryAdvance(TokenType.BANG, 1);
                 case '=':
                     if (CanLookAheadStartInclusive(2) && PeekString(2) == "==") return MakeTokenAndTryAdvance(TokenType.EQUAL_EQUAL, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2) == ">=") return MakeTokenAndTryAdvance(TokenType.GREATER_EQUAL, 2);
                     // => is either for function declaration or greater equal, parser will have to find out.
                     else if (CanLookAheadStartInclusive(2) && PeekString(2) == "=>") return MakeTokenAndTryAdvance(TokenType.ARROW, 2);
                     else return MakeTokenAndTryAdvance(TokenType.EQUAL, 1);
@@ -148,7 +148,7 @@ namespace Fluence
                 // Can be 0.5 or just .5 
                 bool dotOnlyFraction = currChar == '.' && IsNumeric(PeekNext());
 
-                if (IsNumeric(Peek()) || dotOnlyFraction )
+                if (IsNumeric(Peek()) || dotOnlyFraction)
                 {
                     newToken.Type = TokenType.NUMBER;
                     while (_currentPosition < _sourceLength)
@@ -156,9 +156,9 @@ namespace Fluence
                         char lastc = currChar;
                         currChar = _sourceCode[_currentPosition];
                         if (IsNumeric(currChar) ||
-                            currChar == '.'     ||
-                            currChar == 'E'     ||
-                            currChar == 'e'     ||
+                            currChar == '.' ||
+                            currChar == 'E' ||
+                            currChar == 'e' ||
                             ((currChar == '-' || currChar == '+') && (lastc == 'E' || lastc == 'e')))
                         {
                             _currentPosition++;
@@ -213,13 +213,13 @@ namespace Fluence
             // TokenType.Unknown will be thrown.
             if (CanLookAheadStartInclusive(2) && isFString)
             {
-                Advance(); // consume 'f'
-                Advance(); // consume '"'
+                _ = Advance(); // consume 'f'
+                _ = Advance(); // consume '"'
                 return ScanString(startPos, true);
             }
             else if (currChar == '"')
             {
-                Advance(); // consume '"'
+                _ = Advance(); // consume '"'
                 return ScanString(startPos, false);
             }
 
@@ -236,9 +236,9 @@ namespace Fluence
 
                 if (Peek() == '\\')
                 {
-                    Advance(); // Consume the '\'
+                    _ = Advance(); // Consume the '\'
                 }
-                Advance();
+                _ = Advance();
             }
 
             if (HasReachedEnd)
@@ -247,7 +247,7 @@ namespace Fluence
                 // Error here.
             }
 
-            Advance(); // Consume the closing quote "
+            _ = Advance(); // Consume the closing quote "
 
             // Extract the full text (including quotes) and the inner value.
             string lexeme = _sourceCode[startPos.._currentPosition];
@@ -423,22 +423,6 @@ namespace Fluence
         {
             return c >= '0' && c <= '9';
         }
-
-        private bool IsOperatorChar(char c) =>
-            c == '!' ||
-            c == '%' ||
-            c == '^' ||
-            c == '&' ||
-            c == '*' ||
-            c == '-' ||
-            c == '+' ||
-            c == '=' ||
-            c == '|' ||
-            c == '/' ||
-            c == '<' ||
-            c == '>' ||
-            c == '~' ||
-            c == '?';
 
         private string PeekString(int length) => _sourceCode.Substring(_currentPosition, length);
 

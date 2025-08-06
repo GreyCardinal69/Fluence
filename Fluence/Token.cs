@@ -28,7 +28,7 @@
             // One or two characters.
             BANG, BANG_EQUAL,       // !, !=
             EQUAL, EQUAL_EQUAL,     // =, ==
-            GREATER, // >, >=
+            GREATER, GREATER_EQUAL, // >, >=
             LESS, LESS_EQUAL,       // <, <=
             DOT_DOT,                // For Ranges
             BITWISE_LEFT_SHIFT,     // <<

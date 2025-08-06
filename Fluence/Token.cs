@@ -13,7 +13,6 @@
             R_BRACKET,    // ]
             COMMA,        // ,
             DOT,          // .
-            SEMICOLON,    // ;
             COLON,        // :
             PLUS,         // +
             MINUS,        // -
@@ -29,14 +28,16 @@
             // One or two characters.
             BANG, BANG_EQUAL,       // !, !=
             EQUAL, EQUAL_EQUAL,     // =, ==
-            GREATER, GREATER_EQUAL, // >, >=
+            GREATER, // >, >=
             LESS, LESS_EQUAL,       // <, <=
-            STAR_STAR,              // ** (Power)
             DOT_DOT,                // For Ranges
             BITWISE_LEFT_SHIFT,     // <<
             BITWISE_RIGHT_SHIFT,    // >>
             AND,                    // &&
             OR,                     // ||
+            INCREMENT,              // ++
+            DECREMENT,              // --
+            EXPONENT,               // **
 
             // Function and labdas.
             ARROW,      // =>

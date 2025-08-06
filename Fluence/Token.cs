@@ -114,7 +114,7 @@
 
         internal static Token EOL => new Token(TokenType.EOL, "\n");
 
-        internal Token(TokenType type = TokenType.UNDERSCORE, string text = "", object literal = null)
+        internal Token(TokenType type = TokenType.UNKNOWN, string text = "", object literal = null)
         {
             Type = type;
             Text = text;

@@ -9,10 +9,9 @@ namespace Fluence
         private readonly int _sourceLength;
         private int _currentPosition;
         private int _currentLine;
-        private Queue<Token> _tokenQueue;
 
         internal int CurrentLine => _currentLine;
-        internal bool HasReachedEnd => _currentPosition >= _sourceLength && _tokenQueue.Count == 0;
+        internal bool HasReachedEnd => _currentPosition >= _sourceLength;
         internal int CurrentPosition => _currentPosition;
         internal char CharAtCurrentPosition => _sourceCode[_currentPosition];
 
@@ -22,7 +21,6 @@ namespace Fluence
             _sourceLength = source.Length;
             _currentPosition = 0;
             _currentLine = 0;
-            _tokenQueue = new Queue<Token>();
         }
 
         internal Token GetNextToken()
@@ -37,7 +35,7 @@ namespace Fluence
             Token newToken = new Token();
             newToken.Type = TokenType.UNKNOWN;
 
-            /* The operator suite is quite large
+            /* The operator suite is quite large.
              * 1 Char: + - * / % < > = ! ^ ~ | &
              * 2 Char: == != <= => || && ** is >> << |> |? <| ~> .. ++ --
              * 3 Char: |?? |>> |~> <<| <>| <n| <?| not
@@ -108,7 +106,7 @@ namespace Fluence
                     _currentLine++;
                     return MakeTokenAndTryAdvance(TokenType.EOL, 1);
                 case '\r':
-                    string text = "";
+                    string text;
                     if (_currentPosition < _sourceLength && _sourceCode[_currentPosition] == '\n')
                     {
                         _currentPosition++;
@@ -127,15 +125,12 @@ namespace Fluence
 
             // Other cases done individually.
 
-            // Used for peeking ahead, size unknown so universal.
-            string peek;
-
             if (currChar == '.' || IsNumeric(currChar))
             {
-                // Check for a range first, then number.
+                // Check for a range first, then a number.
                 if (CanLookAheadStartInclusive(2))
                 {
-                    peek = PeekString(2);
+                    string peek = PeekString(2);
                     if (peek == "..")
                     {
                         // A range.
@@ -160,13 +155,17 @@ namespace Fluence
                     {
                         char lastc = currChar;
                         currChar = _sourceCode[_currentPosition];
-                        if (IsNumeric(currChar) || currChar == '.' || currChar == 'E' || currChar == 'e' ||
+                        if (IsNumeric(currChar) ||
+                            currChar == '.'     ||
+                            currChar == 'E'     ||
+                            currChar == 'e'     ||
                             ((currChar == '-' || currChar == '+') && (lastc == 'E' || lastc == 'e')))
                         {
                             _currentPosition++;
                         }
                         else break;
                     }
+
                     // Float here.
                     if (Peek() == 'f')
                     {
@@ -177,7 +176,7 @@ namespace Fluence
                         }
                     }
 
-                    string lexeme = _sourceCode.Substring(startPos, _currentPosition - startPos);
+                    string lexeme = _sourceCode[startPos.._currentPosition];
 
                     if (dotOnlyFraction) lexeme = lexeme.Insert(0, "0");
 
@@ -192,8 +191,10 @@ namespace Fluence
             // _ is used for pipes, next char must not be an identifier if it is for a pipe.
             if (currChar == '_' && !IsIdentifier(PeekNext())) return MakeTokenAndTryAdvance(TokenType.UNDERSCORE, 1);
 
+            bool isFString = currChar == 'f' && PeekNext() == '"';
+
             // Lex an identifier, unless an F string.
-            if (IsIdentifier(currChar) && !(currChar == 'f' && PeekNext() == '"'))
+            if (IsIdentifier(currChar) && !isFString)
             {
                 startPos = _currentPosition;
                 while (!HasReachedEnd)
@@ -202,18 +203,15 @@ namespace Fluence
                     else break;
                 }
 
-                string text = _sourceCode.Substring(startPos, _currentPosition - startPos);
-                if (FluenceKeywords.IsAKeyword(text))
-                {
-                    return MakeTokenAndTryAdvance(FluenceKeywords.GetTokenTypeFromKeyword(text));
-                }
+                string text = _sourceCode[startPos.._currentPosition];
+                if (FluenceKeywords.IsAKeyword(text)) return MakeTokenAndTryAdvance(FluenceKeywords.GetTokenTypeFromKeyword(text));
 
                 return MakeTokenAndTryAdvance(TokenType.IDENTIFIER, 0, text, text);
             }
 
-            // Unless it is something alien, this should be the last match, otherwise 
+            // Unless it is something alien, this should be the last match, otherwise
             // TokenType.Unknown will be thrown.
-            if (CanLookAheadStartInclusive(2) && currChar == 'f' && PeekNext() == '"')
+            if (CanLookAheadStartInclusive(2) && isFString)
             {
                 Advance(); // consume 'f'
                 Advance(); // consume '"'
@@ -226,7 +224,7 @@ namespace Fluence
             }
 
             newToken.Type = TokenType.UNKNOWN;
-            newToken.Text = _sourceCode.Substring(startPos, _currentPosition - startPos);
+            newToken.Text = _sourceCode[startPos.._currentPosition];
             return newToken;
         }
 
@@ -252,7 +250,7 @@ namespace Fluence
             Advance(); // Consume the closing quote "
 
             // Extract the full text (including quotes) and the inner value.
-            string lexeme = _sourceCode.Substring(startPos, _currentPosition - startPos);
+            string lexeme = _sourceCode[startPos.._currentPosition];
 
             string literalValue = _sourceCode.Substring(startPos + 1, _currentPosition - startPos - 2);
 
@@ -347,7 +345,6 @@ namespace Fluence
                 _ = Advance();
                 // Store the number for the Token in GetNextToken().
                 string n = ReadNumber();
-                string op;
 
                 if (Match("|?"))
                 {
@@ -427,21 +424,6 @@ namespace Fluence
             return c >= '0' && c <= '9';
         }
 
-        private TokenType ReturnTokenTypeAndAdvance(TokenType type, int length)
-        {
-            _currentPosition += length;
-            return type;
-        }
-
-        private bool StringHasOnlyOperatorChars(int to)
-        {
-            for (int i = _currentPosition; i < _currentPosition + to; i++)
-            {
-                if (!IsOperatorChar(_sourceCode[i])) return false;
-            }
-            return true;
-        }
-
         private bool IsOperatorChar(char c) =>
             c == '!' ||
             c == '%' ||
@@ -519,6 +501,6 @@ namespace Fluence
             return _sourceCode[_currentPosition] == '#' && _sourceCode[_currentPosition + 1] == '*';
         }
 
-        private bool IsWhiteSpace(char c) => c == ' ' || c == '\t';
+        private static bool IsWhiteSpace(char c) => c == ' ' || c == '\t';
     }
 }

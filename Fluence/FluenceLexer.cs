@@ -102,12 +102,14 @@ namespace Fluence
                 case ')': return MakeTokenAndTryAdvance(TokenType.R_PAREN, 1);
                 case ';': return MakeTokenAndTryAdvance(TokenType.EOL, 1, ";");
                 case ',': return MakeTokenAndTryAdvance(TokenType.COMMA, 1);
+                case '?': return MakeTokenAndTryAdvance(TokenType.QUESTION, 1);
+                case ':': return MakeTokenAndTryAdvance(TokenType.COLON, 1);
                 case '\n':
                     _currentLine++;
                     return MakeTokenAndTryAdvance(TokenType.EOL, 1);
                 case '\r':
                     string text;
-                    if (_currentPosition < _sourceLength && _sourceCode[_currentPosition] == '\n')
+                    if (_currentPosition < _sourceLength && PeekNext() == '\n')
                     {
                         _currentPosition++;
                         text = "\r\n";
@@ -116,9 +118,8 @@ namespace Fluence
                     {
                         text = "\r";
                     }
-                    newToken = MakeTokenAndTryAdvance(TokenType.EOL, 1, text, text);
                     _currentLine++;
-                    break;
+                    return MakeTokenAndTryAdvance(TokenType.EOL, 1, text, text);
             }
 
             if (newToken.Type != TokenType.UNKNOWN) return newToken;

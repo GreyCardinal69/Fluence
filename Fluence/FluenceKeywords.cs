@@ -25,7 +25,8 @@
             "struct",
             "enum",
             "match",
-            "self"
+            "self",
+            "rest"
         };
 
         internal static bool IsAKeyword(string key) => _keyWords.Contains(key);
@@ -54,6 +55,7 @@
             "enum" => Token.TokenType.ENUM,
             "match" => Token.TokenType.MATCH,
             "self" => Token.TokenType.SELF,
+            "rest" => Token.TokenType.REST,
             _ => Token.TokenType.UNKNOWN,
         };
     }

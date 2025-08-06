@@ -73,6 +73,7 @@
             ENUM,
             MATCH,
             SELF,
+            REST,
 
             // Pipe operators.
             PIPE,               // |>

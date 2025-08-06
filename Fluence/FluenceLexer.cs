@@ -101,11 +101,23 @@ namespace Fluence
                 case '(': return MakeTokenAndTryAdvance(TokenType.L_PAREN, 1);
                 case ')': return MakeTokenAndTryAdvance(TokenType.R_PAREN, 1);
                 case ';':
+                    string result;
                     // Check for cases like ;\r\n
                     if (CanLookAheadStartInclusive(3))
                     {
-                        if (PeekString(3) == ";\r\n") ;
-                        return MakeTokenAndTryAdvance(TokenType.EOL, 3, ";\r\n");
+                        if (PeekString(3) == ";\r\n")
+                        {
+                            result = ";\r\n";
+                            _currentPosition += 3;
+                        }
+                        else
+                        {
+                            _currentPosition++;
+                            result = ";";
+                        }
+                        // Remove all EOLS that follow, they are redundant.
+                        RemoveRedundantEOLS();
+                        return MakeTokenAndTryAdvance(TokenType.EOL, 0, result);
                     }
                     return MakeTokenAndTryAdvance(TokenType.EOL, 1, ";");
                 case ',': return MakeTokenAndTryAdvance(TokenType.COMMA, 1);
@@ -116,10 +128,12 @@ namespace Fluence
                     return MakeTokenAndTryAdvance(TokenType.EOL, 1);
                 case '\r':
                     string text;
-                    if (_currentPosition < _sourceLength && PeekNext() == '\n')
+                    if (CanLookAheadStartInclusive(2) && PeekNext() == '\n')
                     {
-                        _currentPosition++;
+                        _currentPosition += 2;
                         text = "\r\n";
+                        // Remove all EOLS that follow, they are redundant.
+                        RemoveRedundantEOLS();
                     }
                     else
                     {
@@ -265,6 +279,18 @@ namespace Fluence
             TokenType type = isFString ? TokenType.F_STRING : TokenType.STRING;
 
             return new Token(type, lexeme, literalValue);
+        }
+
+        private void RemoveRedundantEOLS()
+        {
+            while (!HasReachedEnd)
+            {
+                if (CanLookAheadStartInclusive(2) && PeekString(2) == "\r\n")
+                {
+                    _currentPosition += 2;
+                }
+                else break;
+            }
         }
 
         private Token ScanPipe()

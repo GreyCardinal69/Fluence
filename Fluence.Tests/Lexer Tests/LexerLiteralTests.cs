@@ -5,7 +5,7 @@ namespace Fluence.Tests
     public class LexerLiteralTests(ITestOutputHelper output) : LexerTestBase(output)
     {
         [Fact]
-        public void ScanIdentifier()
+        public void TestIdentifier()
         {
             Token token = LexFirstToken("my_variable");
             Assert.Equal(Token.TokenType.IDENTIFIER, token.Type);
@@ -13,7 +13,7 @@ namespace Fluence.Tests
         }
 
         [Fact]
-        public void ScanIdentifierWithUnderScoreAndNumbers()
+        public void TestIdentifierWithUnderScoreAndNumbers()
         {
             Token token = LexFirstToken("my_variable_123");
             Assert.Equal(Token.TokenType.IDENTIFIER, token.Type);
@@ -21,7 +21,7 @@ namespace Fluence.Tests
         }
 
         [Fact]
-        public void ScanPlaceholderAsSeparateToken()
+        public void TestPlaceholderAsSeparateToken()
         {
             var types = LexAllTypes("x |> _");
             Assert.Equal(Token.TokenType.IDENTIFIER, types[0]);
@@ -32,7 +32,7 @@ namespace Fluence.Tests
         [Theory]
         [InlineData("\"hello world\"", "hello world")]
         [InlineData("\"with \\\"escapes\\\"\"", "with \\\"escapes\\\"")]
-        public void ScanStringLiterals(string source, string expectedValue)
+        public void TestStringLiterals(string source, string expectedValue)
         {
             Token token = LexFirstToken(source);
             Assert.Equal(Token.TokenType.STRING, token.Type);
@@ -40,14 +40,14 @@ namespace Fluence.Tests
         }
 
         [Fact]
-        public void ScanFStringLiteral()
+        public void TestFStringLiteral()
         {
             Token token = LexFirstToken("f\"value is {x}\"");
             Assert.Equal(Token.TokenType.F_STRING, token.Type);
         }
 
         [Fact]
-        public void ScanFloats()
+        public void TestFloats()
         {
             Token token = LexFirstToken("10.5f");
             Assert.Equal(Token.TokenType.NUMBER, token.Type);
@@ -59,7 +59,7 @@ namespace Fluence.Tests
         }
 
         [Fact]
-        public void ScanPartialFraction()
+        public void TestPartialFraction()
         {
             Token token = LexFirstToken(".5");
             Assert.Equal(Token.TokenType.NUMBER, token.Type);
@@ -67,7 +67,7 @@ namespace Fluence.Tests
         }
 
         [Fact]
-        public void ScanNumberLiterals()
+        public void TestNumberLiterals()
         {
             FluenceLexer lexer = new FluenceLexer("123 ; 3.14 ; 1.23E2");
 

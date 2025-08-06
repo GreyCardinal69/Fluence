@@ -37,7 +37,7 @@ namespace Fluence.Tests
         [InlineData("is", Token.TokenType.IS)]
         [InlineData("not", Token.TokenType.NOT)]
         [InlineData("struct", Token.TokenType.STRUCT)]
-        internal void ScanSingleTokens(string source, Token.TokenType expectedType)
+        internal void TestSingleTokens(string source, Token.TokenType expectedType)
         {
             var types = LexAllTypes(source);
             Assert.Equal(expectedType, types[0]);
@@ -45,14 +45,14 @@ namespace Fluence.Tests
         }
 
         [Fact]
-        public void ScanSemicolonEOL()
+        public void TestSemicolonEOL()
         {
             var lexer = new FluenceLexer(";");
             Assert.Equal(Token.TokenType.EOL, lexer.GetNextToken().Type);
         }
 
         [Fact]
-        public void ScanSequenceOfSymbolsAnd_Keywords()
+        public void TestSequenceOfSymbolsAndKeywords()
         {
             string source = "func main() => { return nil; }";
             var expected = new List<Token.TokenType> {

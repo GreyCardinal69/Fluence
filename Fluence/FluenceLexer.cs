@@ -100,7 +100,14 @@ namespace Fluence
                 case '}': return MakeTokenAndTryAdvance(TokenType.R_BRACE, 1);
                 case '(': return MakeTokenAndTryAdvance(TokenType.L_PAREN, 1);
                 case ')': return MakeTokenAndTryAdvance(TokenType.R_PAREN, 1);
-                case ';': return MakeTokenAndTryAdvance(TokenType.EOL, 1, ";");
+                case ';':
+                    // Check for cases like ;\r\n
+                    if (CanLookAheadStartInclusive(3))
+                    {
+                        if (PeekString(3) == ";\r\n") ;
+                        return MakeTokenAndTryAdvance(TokenType.EOL, 3, ";\r\n");
+                    }
+                    return MakeTokenAndTryAdvance(TokenType.EOL, 1, ";");
                 case ',': return MakeTokenAndTryAdvance(TokenType.COMMA, 1);
                 case '?': return MakeTokenAndTryAdvance(TokenType.QUESTION, 1);
                 case ':': return MakeTokenAndTryAdvance(TokenType.COLON, 1);

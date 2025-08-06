@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Testing_Chamber.Minis;
+﻿using Testing_Chamber.Minis;
 using static Fluence.Token;
-using static Testing_Chamber.Minis.Intrinsic;
 
 namespace Fluence
 {
@@ -41,6 +34,7 @@ namespace Fluence
             if (HasReachedEnd) return Token.EOL;
 
             char currChar = _sourceCode[_currentPosition];
+            int startPos = _currentPosition;
 
             Token newToken = new Token();
             newToken.Type = TokenType.UNKNOWN;
@@ -175,7 +169,6 @@ namespace Fluence
 
             // Used for peeking ahead, size unknown so universal.
             string peek;
-            int startPos = 0;
 
             if (currChar == '.')
             {
@@ -202,7 +195,7 @@ namespace Fluence
                             char lastc = currChar;
                             currChar = _sourceCode[_currentPosition];
                             if (IsNumeric(currChar) || currChar == '.' || currChar == 'E' || currChar == 'e' ||
-                                (currChar == '-' || currChar == '+') && (lastc == 'E' || lastc == 'e') )
+                                ((currChar == '-' || currChar == '+') && (lastc == 'E' || lastc == 'e')))
                             {
                                 _currentPosition++;
                             }
@@ -214,7 +207,7 @@ namespace Fluence
                             char previousChar = _sourceCode[_currentPosition - 1];
                             if (char.IsDigit(previousChar))
                             {
-                                Advance();
+                                _ = Advance();
                             }
                         }
 
@@ -231,7 +224,88 @@ namespace Fluence
                 return newToken;
             }
 
+            // _ is used for pipes, next char must not be an identifier if it is for a pipe.
+            if (currChar == '_' && !IsIdentifier(Peek()))
+            {
+                newToken.Type = ReturnTokenTypeAndAdvance(TokenType.UNDERSCORE, 1);
+                return newToken;
+            }
+
+            // Lex an identifier, unless an F string.
+            if (IsIdentifier(currChar) && !(currChar == 'f' && Peek() == '"'))
+            {
+                startPos = _currentPosition;
+                while (_currentPosition < _sourceCode.Length)
+                {
+                    if (IsIdentifier(Peek())) _currentPosition++;
+                    else break;
+                }
+
+                string text = _sourceCode.Substring(startPos, _currentPosition - startPos);
+                if (FluenceKeywords.IsAKeyword(text))
+                {
+                    newToken.Type = FluenceKeywords.GetTokenTypeFromKeyword(text);
+                }
+                else
+                {
+                    newToken.Text = text;
+                    newToken.Type = TokenType.IDENTIFIER;
+                }
+
+                newToken.Literal = text;
+
+                return newToken;
+            }
+
+            // Unless it is something alien, this should be the last match, otherwise 
+            // TokenType.Unknown will be thrown.
+            if (currChar == 'f' && Peek() == '"')
+            {
+                Advance(); // consume 'f'
+                Advance(); // consume '"'
+                return ScanString(startPos, true);
+            }
+            else if (currChar == '"')
+            {
+                Advance(); // consume '"'
+                return ScanString(startPos, false);
+            }
+
+            newToken.Type = TokenType.UNKNOWN;
+            newToken.Text = _sourceCode.Substring(startPos, _currentPosition - startPos);
             return newToken;
+        }
+
+        private Token ScanString(int startPos, bool isFString = false)
+        {
+            while (Peek() != '"' && !HasReachedEnd)
+            {
+                if (Peek() == '\n') _currentLine++;
+
+                if (Peek() == '\\')
+                {
+                    Advance(); // Consume the '\'
+                               // Consume the character being escaped (e.g., the '"' in '\"')
+                }
+                Advance();
+            }
+
+            if (HasReachedEnd)
+            {
+                // We ran out of code before finding the closing quote.
+                // Error here.
+            }
+
+            Advance(); // Consume the closing quote "
+
+            // Extract the full text (including quotes) and the inner value.
+            string lexeme = _sourceCode.Substring(startPos, _currentPosition - startPos);
+
+            string literalValue = _sourceCode.Substring(startPos + 1, _currentPosition - startPos - 2);
+
+            TokenType type = isFString ? TokenType.F_STRING : TokenType.STRING;
+
+            return new Token(type, lexeme, literalValue);
         }
 
         private TokenType ScanPipe()
@@ -317,7 +391,7 @@ namespace Fluence
             // <n?| and <n|
             if (CanLookAheadStartInclusive(2) && char.IsDigit(_sourceCode[_currentPosition + 1]))
             {
-                Advance();
+                _ = Advance();
                 // Store the number for the Token in GetNextToken().
                 _chainAssignNumber = Convert.ToInt32(ReadNumber());
 
@@ -374,12 +448,20 @@ namespace Fluence
             return true;
         }
 
+        public static bool IsIdentifier(char c)
+        {
+            return c == '\u009F'
+                || (c >= 'a' && c <= 'z')
+                || (c >= 'A' && c <= 'Z')
+                || (c >= '0' && c <= '9');
+        }
+
         private char Peek() => _currentPosition >= _sourceLength ? '\0' : _sourceCode[_currentPosition];
 
         private string ReadNumber()
         {
             int start = _currentPosition;
-            while (char.IsDigit(Peek())) Advance();
+            while (char.IsDigit(Peek())) _ = Advance();
             return _sourceCode.Substring(start, _currentPosition - start);
         }
 

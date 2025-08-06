@@ -5,7 +5,7 @@ namespace Fluence.Tests
     public class LexerLiteralTests(ITestOutputHelper output) : LexerTestBase(output)
     {
         [Fact]
-        public void Scans_Identifier()
+        public void ScanIdentifier()
         {
             Token token = LexFirstToken("my_variable");
             Assert.Equal(Token.TokenType.IDENTIFIER, token.Type);
@@ -13,7 +13,7 @@ namespace Fluence.Tests
         }
 
         [Fact]
-        public void Scans_IdentifierWithUnderScoreAndNumbers()
+        public void ScanIdentifierWithUnderScoreAndNumbers()
         {
             Token token = LexFirstToken("my_variable_123");
             Assert.Equal(Token.TokenType.IDENTIFIER, token.Type);
@@ -21,7 +21,7 @@ namespace Fluence.Tests
         }
 
         [Fact]
-        public void Scans_Placeholder_As_Separate_Token()
+        public void ScanPlaceholderAsSeparateToken()
         {
             var types = LexAllTypes("x |> _");
             Assert.Equal(Token.TokenType.IDENTIFIER, types[0]);
@@ -32,7 +32,7 @@ namespace Fluence.Tests
         [Theory]
         [InlineData("\"hello world\"", "hello world")]
         [InlineData("\"with \\\"escapes\\\"\"", "with \\\"escapes\\\"")]
-        public void Scans_String_Literals(string source, string expectedValue)
+        public void ScanStringLiterals(string source, string expectedValue)
         {
             Token token = LexFirstToken(source);
             Assert.Equal(Token.TokenType.STRING, token.Type);
@@ -40,14 +40,14 @@ namespace Fluence.Tests
         }
 
         [Fact]
-        public void Scans_FString_Literal()
+        public void ScanFStringLiteral()
         {
             Token token = LexFirstToken("f\"value is {x}\"");
             Assert.Equal(Token.TokenType.F_STRING, token.Type);
         }
 
         [Fact]
-        public void Scans_Floats()
+        public void ScanFloats()
         {
             Token token = LexFirstToken("10.5f");
             Assert.Equal(Token.TokenType.NUMBER, token.Type);
@@ -67,7 +67,7 @@ namespace Fluence.Tests
         }
 
         [Fact]
-        public void Scans_Number_Literals()
+        public void ScanNumberLiterals()
         {
             FluenceLexer lexer = new FluenceLexer("123 ; 3.14 ; 1.23E2");
 

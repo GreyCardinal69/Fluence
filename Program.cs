@@ -4,56 +4,45 @@
     {
         public static void Main(string[] args)
         {
-            _ = File.ReadAllText($@"{Directory.GetCurrentDirectory()}\Full Lexer Test.fl");
+            var source = File.ReadAllText($@"{Directory.GetCurrentDirectory()}\Full Lexer Test.fl");
 
-            Console.WriteLine(CanLookAhead(7));
+            FluenceLexer l = new(source);
 
-            return;
-            string testSourceCode;
-            Console.WriteLine(testSourceCode);
+            Console.WriteLine("--- Lexer Token Stream ---");
+            Console.WriteLine();
 
-            FluenceLexer lexer = new FluenceLexer(testSourceCode);
+            string header = string.Format("{0,-25} {1,-30} {2,-30}", "TYPE", "TEXT", "LITERAL");
+            Console.WriteLine(header);
+            Console.WriteLine(new string('-', header.Length));
 
-            while (!lexer.HasReachedEnd)
+            while (!l.HasReachedEnd)
             {
-                _ = lexer.GetNextToken();
+                var token = l.GetNextToken();
+
+                if (token.Type == Token.TokenType.EOL && l.HasReachedEnd && string.IsNullOrWhiteSpace(token.Text))
+                {
+                    break;
+                }
+
+                var textToDisplay = (token.Text ?? "")
+                    .Replace("\r", "\\r")
+                    .Replace("\n", "\\n");
+
+                var literalToDisplay = token.Literal?.ToString() ?? "";
+
+                Console.WriteLine("{0,-25} {1,-30} {2,-30}",
+                    token.Type,
+                    textToDisplay,
+                    literalToDisplay);
             }
+
+            Console.WriteLine();
+            Console.WriteLine("--- End of Stream ---");
+
+            FluenceLexer lexer = new(source);
+            FluenceParser parser = new FluenceParser(lexer);
+
+            parser.Parse();
         }
-
-        private static int _currentPosition = 0;
-
-        private static bool CanLookAhead(int numberOfChars = 1)
-        {
-            if (_currentPosition + numberOfChars > "<=====".Length)
-            {
-                return false;
-            }
-            return true;
-        }
-
-        private static bool StringHasOnlyOperatorChars(int to)
-        {
-            for (int i = _currentPosition; i < _currentPosition + to; i++)
-            {
-                if (!IsOperatorChar("<||!=|"[i])) return false;
-            }
-            return true;
-        }
-
-        private static bool IsOperatorChar(char c) =>
-    c == '!' ||
-    c == '%' ||
-    c == '^' ||
-    c == '&' ||
-    c == '*' ||
-    c == '-' ||
-    c == '+' ||
-    c == '=' ||
-    c == '|' ||
-    c == '\\' ||
-    c == '<' ||
-    c == '>' ||
-    c == '~' ||
-    c == '?';
     }
 }

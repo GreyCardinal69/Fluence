@@ -2,12 +2,14 @@
 
 namespace Fluence
 {
+    // Needs error handling.
     internal class FluenceLexer
     {
         private readonly string _sourceCode;
         private readonly int _sourceLength;
         private int _currentPosition;
         private int _currentLine;
+        private TokenBuffer _tokenBuffer;
 
         internal int CurrentLine => _currentLine;
         internal bool HasReachedEnd => _currentPosition >= _sourceLength;
@@ -16,10 +18,71 @@ namespace Fluence
 
         internal FluenceLexer(string source)
         {
+            _tokenBuffer = new TokenBuffer(4, this);
             _sourceCode = source;
             _sourceLength = source.Length;
             _currentPosition = 0;
             _currentLine = 0;
+        }
+
+        private class TokenBuffer
+        {
+            private readonly Token[] _buffer;
+            private readonly int _size;
+            private readonly FluenceLexer _lexer;
+
+            private int _head = 0;
+            private int _tail = 0;
+            private int _count = 0;
+
+            internal TokenBuffer(int size, FluenceLexer lexer)
+            {
+                _size = size;
+                _buffer = new Token[size];
+                _lexer = lexer;
+            }
+            
+            internal Token Consume()
+            {
+                EnsureFilled(1);
+
+                Token token = _buffer[_head];
+                _head = (_head + 1) % _size;
+                _count--;
+
+                return token;
+            }
+
+            internal Token Peek(int lookahead = 1)
+            {
+                EnsureFilled(lookahead);
+
+                int index = (_head + lookahead - 1) % _size;
+                return _buffer[index];
+            }
+
+            private void EnsureFilled(int requiredCount)
+            {
+                ArgumentOutOfRangeException.ThrowIfGreaterThan(requiredCount, _size);
+                
+                while (_count < requiredCount)
+                {
+                    Token nextToken = _lexer.GetNextToken();
+
+                    _buffer[_tail] = nextToken;
+                    _tail = (_tail + 1) % _size;
+                    _count++;
+                }
+            }
+        }
+
+        internal Token PeekNextToken() => _tokenBuffer.Peek();
+        internal Token PeekNextTokens(int n) => _tokenBuffer.Peek(n);
+        internal Token ConsumeToken() => _tokenBuffer.Consume();
+
+        internal void TrySkipEOLToken()
+        {
+            if (_tokenBuffer.Peek().Type == TokenType.EOL) _tokenBuffer.Consume();
         }
 
         internal Token GetNextToken()
@@ -91,7 +154,6 @@ namespace Fluence
                 case '=':
                     if (CanLookAheadStartInclusive(2) && PeekString(2) == "==") return MakeTokenAndTryAdvance(TokenType.EQUAL_EQUAL, 2);
                     if (CanLookAheadStartInclusive(2) && PeekString(2) == ">=") return MakeTokenAndTryAdvance(TokenType.GREATER_EQUAL, 2);
-                    // => is either for function declaration or greater equal, parser will have to find out.
                     else if (CanLookAheadStartInclusive(2) && PeekString(2) == "=>") return MakeTokenAndTryAdvance(TokenType.ARROW, 2);
                     else return MakeTokenAndTryAdvance(TokenType.EQUAL, 1);
                 case '[': return MakeTokenAndTryAdvance(TokenType.L_BRACKET, 1);

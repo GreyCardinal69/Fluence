@@ -91,7 +91,7 @@ namespace Fluence.Tests
         private static Token LexFirstToken(string source)
         {
             var lexer = new FluenceLexer(source);
-            return lexer.GetNextToken();
+            return lexer.ConsumeToken();
         }
 
         // --- 6-Character Operator Tests ---
@@ -194,7 +194,7 @@ namespace Fluence.Tests
             Assert.Equal(Token.TokenType.COLLECTIVE_OR_NOT_EQUAL, token.Type);
 
             var lexer = new FluenceLexer(source);
-            _ = lexer.GetNextToken();
+            _ = lexer.ConsumeToken();
             Assert.True(lexer.HasReachedEnd);
         }
 
@@ -214,7 +214,7 @@ namespace Fluence.Tests
         private static Token LexFirstToken(string source)
         {
             var lexer = new FluenceLexer(source);
-            return lexer.GetNextToken();
+            return lexer.ConsumeToken();
         }
 
         [Fact]
@@ -292,7 +292,7 @@ namespace Fluence.Tests
             Assert.Equal(Token.TokenType.REDUCER_PIPE, token.Type);
 
             var lexer = new FluenceLexer(source);
-            _ = lexer.GetNextToken();
+            _ = lexer.ConsumeToken();
             Assert.True(lexer.HasReachedEnd);
         }
 
@@ -308,7 +308,7 @@ namespace Fluence.Tests
         public void DistinguishesFromNonOperatorCharacters()
         {
             var lexer = new FluenceLexer("|a");
-            var token1 = lexer.GetNextToken();
+            var token1 = lexer.ConsumeToken();
 
             Assert.Equal(Token.TokenType.PIPE_CHAR, token1.Type);
         }

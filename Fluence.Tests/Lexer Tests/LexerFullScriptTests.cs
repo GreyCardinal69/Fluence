@@ -14,7 +14,7 @@ namespace Fluence.Tests
             Token token;
             do
             {
-                token = lexer.GetNextToken();
+                token = lexer.ConsumeToken();
                 tokens.Add(token);
             } while (!lexer.HasReachedEnd);
             return tokens;

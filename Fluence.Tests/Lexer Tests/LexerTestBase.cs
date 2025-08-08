@@ -13,7 +13,7 @@ namespace Fluence.Tests
             Token token;
             do
             {
-                token = lexer.GetNextToken();
+                token = lexer.ConsumeToken();
                 types.Add(token.Type);
             } while (token.Type != Token.TokenType.EOL);
             return types;
@@ -22,7 +22,7 @@ namespace Fluence.Tests
         internal static Token LexFirstToken(string source)
         {
             var lexer = new FluenceLexer(source);
-            return lexer.GetNextToken();
+            return lexer.ConsumeToken();
         }
     }
 }

@@ -48,7 +48,7 @@ namespace Fluence.Tests
         public void TestSemicolonEOL()
         {
             var lexer = new FluenceLexer(";");
-            Assert.Equal(Token.TokenType.EOL, lexer.GetNextToken().Type);
+            Assert.Equal(Token.TokenType.EOL, lexer.ConsumeToken().Type);
         }
 
         [Fact]

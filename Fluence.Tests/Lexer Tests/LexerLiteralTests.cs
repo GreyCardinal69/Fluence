@@ -71,23 +71,23 @@ namespace Fluence.Tests
         {
             FluenceLexer lexer = new FluenceLexer("123 ; 3.14 ; 1.23E2");
 
-            Token nextToken = lexer.GetNextToken();
+            Token nextToken = lexer.ConsumeToken();
             Assert.Equal("123", nextToken.Text);
             Assert.Equal(Token.TokenType.NUMBER, nextToken.Type);
 
-            nextToken = lexer.GetNextToken();
+            nextToken = lexer.ConsumeToken();
             Assert.Equal(";", nextToken.Text);
             Assert.Equal(Token.TokenType.EOL, nextToken.Type);
 
-            nextToken = lexer.GetNextToken();
+            nextToken = lexer.ConsumeToken();
             Assert.Equal("3.14", nextToken.Text);
             Assert.Equal(Token.TokenType.NUMBER, nextToken.Type);
 
-            nextToken = lexer.GetNextToken();
+            nextToken = lexer.ConsumeToken();
             Assert.Equal(";", nextToken.Text);
             Assert.Equal(Token.TokenType.EOL, nextToken.Type);
 
-            nextToken = lexer.GetNextToken();
+            nextToken = lexer.ConsumeToken();
             Assert.Equal("1.23E2", nextToken.Text);
             Assert.Equal(Token.TokenType.NUMBER, nextToken.Type);
         }

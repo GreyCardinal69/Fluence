@@ -8,13 +8,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Fluence.Benchmarks\**" />
     <Compile Remove="Fluence.Tests\**" />
+    <EmbeddedResource Remove="Fluence.Benchmarks\**" />
     <EmbeddedResource Remove="Fluence.Tests\**" />
+    <None Remove="Fluence.Benchmarks\**" />
     <None Remove="Fluence.Tests\**" />
   </ItemGroup>
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="Fluence.Tests" />
+		<InternalsVisibleTo Include="Fluence.Benchmarks" />
 	</ItemGroup>
 
 </Project>

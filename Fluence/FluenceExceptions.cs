@@ -5,7 +5,7 @@ namespace Fluence
     internal record FluenceExceptionContext
     {
         internal int LineNum { get; init; }
-        internal int Column {  get; init; }
+        internal int Column { get; init; }
         internal Token Token { get; init; }
         // Line number where error occured and the string of that line is better than just 
         // the number.
@@ -44,7 +44,7 @@ namespace Fluence
 
                 if (_context.Token != null)
                 {
-                    string tokenText = ( _context.Token.Text == "\r" ||  _context.Token.Text == "\n" || _context.Token.Text == "\r\n" )
+                    string tokenText = (_context.Token.Text == "\r" || _context.Token.Text == "\n" || _context.Token.Text == "\r\n")
                         ? "NewLine" : _context.Token.Text;
                     string tokenLiteral = (string)((_context.Token.Literal == "\r" || _context.Token.Literal == "\n" || _context.Token.Literal == "\r\n")
                         ? "NewLine" : _context.Token.Literal);

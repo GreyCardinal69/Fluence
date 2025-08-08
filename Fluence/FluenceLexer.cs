@@ -9,9 +9,11 @@ namespace Fluence
         private readonly int _sourceLength;
         private int _currentPosition;
         private int _currentLine;
+        private int _currentColumn;
         private readonly TokenBuffer _tokenBuffer;
 
         internal int CurrentLine => _currentLine;
+        internal int CurrentColumn => _currentColumn;
         internal bool HasReachedEnd => _currentPosition >= _sourceLength;
         internal int CurrentPosition => _currentPosition;
         internal char CharAtCurrentPosition => _sourceCode[_currentPosition];
@@ -23,6 +25,7 @@ namespace Fluence
             _sourceLength = source.Length;
             _currentPosition = 0;
             _currentLine = 0;
+            _currentColumn = 0;
         }
 
         private class TokenBuffer
@@ -41,7 +44,7 @@ namespace Fluence
                 _buffer = new Token[size];
                 _lexer = lexer;
             }
-            
+
             internal Token Consume()
             {
                 EnsureFilled(1);
@@ -64,7 +67,7 @@ namespace Fluence
             private void EnsureFilled(int requiredCount)
             {
                 ArgumentOutOfRangeException.ThrowIfGreaterThan(requiredCount, _size);
-                
+
                 while (_count < requiredCount)
                 {
                     Token nextToken = _lexer.GetNextToken();
@@ -82,10 +85,10 @@ namespace Fluence
 
         internal void TrySkipEOLToken()
         {
-            if (_tokenBuffer.Peek().Type == TokenType.EOL) _tokenBuffer.Consume();
+            if (_tokenBuffer.Peek().Type == TokenType.EOL) _ = _tokenBuffer.Consume();
         }
 
-        internal Token GetNextToken()
+        private Token GetNextToken()
         {
             SkipWhiteSpaceAndComments();
 
@@ -170,11 +173,18 @@ namespace Fluence
                         if (PeekString(3) == ";\r\n")
                         {
                             result = ";\r\n";
-                            _currentPosition += 3;
+                            AdvancePosition(3);
+                            AdvanceCurrentLine();
+                        }
+                        else if (PeekString(2) == ";\n")
+                        {
+                            result = ";\n";
+                            AdvancePosition(2);
+                            AdvanceCurrentLine();
                         }
                         else
                         {
-                            _currentPosition++;
+                            AdvancePosition();
                             result = ";";
                         }
                         // Remove all EOLS that follow, they are redundant.
@@ -186,13 +196,13 @@ namespace Fluence
                 case '?': return MakeTokenAndTryAdvance(TokenType.QUESTION, 1);
                 case ':': return MakeTokenAndTryAdvance(TokenType.COLON, 1);
                 case '\n':
-                    _currentLine++;
+                    AdvanceCurrentLine();
                     return MakeTokenAndTryAdvance(TokenType.EOL, 1);
                 case '\r':
                     string text;
                     if (CanLookAheadStartInclusive(2) && PeekNext() == '\n')
                     {
-                        _currentPosition += 2;
+                        AdvancePosition(2);
                         text = "\r\n";
                         // Remove all EOLS that follow, they are redundant.
                         RemoveRedundantEOLS();
@@ -201,7 +211,7 @@ namespace Fluence
                     {
                         text = "\r";
                     }
-                    _currentLine++;
+                    AdvanceCurrentLine();
                     return MakeTokenAndTryAdvance(TokenType.EOL, 1, text, text);
             }
 
@@ -245,7 +255,7 @@ namespace Fluence
                             currChar == 'e' ||
                             ((currChar == '-' || currChar == '+') && (lastc == 'E' || lastc == 'e')))
                         {
-                            _currentPosition++;
+                            AdvancePosition();
                         }
                         else break;
                     }
@@ -256,7 +266,7 @@ namespace Fluence
                         char previousChar = _sourceCode[_currentPosition - 1];
                         if (char.IsDigit(previousChar))
                         {
-                            _ = Advance();
+                            AdvancePosition();
                         }
                     }
 
@@ -283,7 +293,7 @@ namespace Fluence
                 startPos = _currentPosition;
                 while (!HasReachedEnd)
                 {
-                    if (IsIdentifier(Peek())) _currentPosition++;
+                    if (IsIdentifier(Peek())) AdvancePosition();
                     else break;
                 }
 
@@ -297,12 +307,12 @@ namespace Fluence
             // TokenType.Unknown will be thrown.
             if (CanLookAheadStartInclusive(2) && isFString)
             {
-                _ = Advance(2); // consume 'f' and '"'.
+                AdvancePosition(2); // consume 'f' and '"'.
                 return ScanString(startPos, true);
             }
             else if (currChar == '"')
             {
-                _ = Advance(); // consume '"'.
+                AdvancePosition(); // consume '"'.
                 return ScanString(startPos, false);
             }
 
@@ -313,25 +323,38 @@ namespace Fluence
 
         private Token ScanString(int startPos, bool isFString = false)
         {
+            int stringOpenColumn = _currentColumn - 1;
             while (Peek() != '"' && !HasReachedEnd)
             {
                 char peek = Peek();
-                if (peek == '\n') _currentLine++;
+                if (peek == '\n') AdvanceCurrentLine();
 
                 if (peek == '\\')
                 {
-                    _ = Advance(); // Consume the '\'.
+                    AdvancePosition(); // Consume the '\'.
                 }
-                _ = Advance();
+                AdvancePosition();
             }
 
             if (HasReachedEnd)
             {
                 // We ran out of code before finding the closing quote.
                 // Error here.
+                FluenceExceptionContext context = new FluenceExceptionContext()
+                {
+                    Column = stringOpenColumn,
+                    FaultyLine = GetCodeLineFromSource(_sourceCode, _currentLine).TrimStart(),
+                    LineNum = _currentLine,
+                    Token = _tokenBuffer.Peek(),
+                };
+
+                // Interpreter will handle this more properly, as of now this is just a test.
+                var exception = new FluenceLexerException("\nMissing closing string quote (\").", context);
+                Console.WriteLine(exception);
+                //throw exception;
             }
 
-            _ = Advance(); // Consume the closing quote "
+            AdvancePosition(); // Consume the closing quote "
 
             // Extract the full text (including quotes) and the inner value.
             string lexeme = _sourceCode[startPos.._currentPosition];
@@ -343,13 +366,45 @@ namespace Fluence
             return new Token(type, lexeme, literalValue);
         }
 
+        internal static string GetCodeLineFromSource(string source, int lineNumber)
+        {
+            if (lineNumber <= 0)
+                return string.Empty;
+
+            ReadOnlySpan<char> span = source.AsSpan();
+            int currentLine = 1;
+            int lineStart = 0;
+
+            for (int i = 0; i < span.Length; i++)
+            {
+                if (span[i] == '\r' || span[i] == '\n')
+                {
+                    if (currentLine == lineNumber)
+                        return span[lineStart..i].ToString();
+
+                    // Handle \r\n as a single newline
+                    if (span[i] == '\r' && i + 1 < span.Length && span[i + 1] == '\n')
+                        i++;
+
+                    currentLine++;
+                    lineStart = i + 1;
+                }
+            }
+
+            if (currentLine == lineNumber && lineStart < span.Length)
+                return span[lineStart..].ToString();
+
+            return string.Empty;
+        }
+
         private void RemoveRedundantEOLS()
         {
             while (!HasReachedEnd)
             {
                 if (CanLookAheadStartInclusive(2) && PeekString(2) == "\r\n")
                 {
-                    _currentPosition += 2;
+                    AdvanceCurrentLine();
+                    AdvancePosition(2);
                 }
                 else break;
             }
@@ -438,7 +493,7 @@ namespace Fluence
             // <n?| and <n|
             if (CanLookAheadStartInclusive(2) && char.IsDigit(_sourceCode[_currentPosition + 1]))
             {
-                _ = Advance();
+                AdvancePosition();
                 // Store the number for the Token in GetNextToken().
                 string n = ReadNumber();
 
@@ -486,18 +541,23 @@ namespace Fluence
             return MakeTokenAndTryAdvance(TokenType.LESS, 1);
         }
 
-        private char Advance(int n = 1)
+        private void AdvanceCurrentLine()
         {
-            var result = _sourceCode[_currentPosition];
+            _currentLine++;
+            _currentColumn = 1;
+        }
+
+        private void AdvancePosition(int n = 1)
+        {
+            _currentColumn += n;
             _currentPosition += n;
-            return result;
         }
 
         private bool Match(string expected)
         {
             if (!CanLookAheadStartInclusive(expected.Length)) return false;
             if (_sourceCode.Substring(_currentPosition, expected.Length) != expected) return false;
-            _currentPosition += expected.Length;
+            AdvancePosition(expected.Length);
             return true;
         }
 
@@ -516,8 +576,8 @@ namespace Fluence
         private string ReadNumber()
         {
             int start = _currentPosition;
-            while (char.IsDigit(Peek())) _ = Advance();
-            return _sourceCode.Substring(start, _currentPosition - start);
+            while (char.IsDigit(Peek())) AdvancePosition();
+            return _sourceCode[start.._currentPosition];
         }
 
         private static bool IsNumeric(char c)
@@ -539,14 +599,14 @@ namespace Fluence
                 {
                     while (!HasReachedEnd && IsWhiteSpace(_sourceCode[_currentPosition]))
                     {
-                        _currentPosition++;
+                        AdvancePosition();
                     }
                     continue;
                 }
 
                 if (IsMultiLineComment())
                 {
-                    _currentPosition += 2;
+                    AdvancePosition(2);
                     while (!HasReachedEnd)
                     {
                         if (!CanLookAheadStartInclusive(2))
@@ -556,7 +616,7 @@ namespace Fluence
                         if (_sourceCode[_currentPosition] != '*' && _sourceCode[_currentPosition + 1] != '#') _currentPosition++;
                         else
                         {
-                            _currentPosition += 2;
+                            AdvancePosition(2);
                             break;
                         }
                     }
@@ -565,7 +625,7 @@ namespace Fluence
 
                 if (currentChar == '#')
                 {
-                    while (_sourceCode[_currentPosition] != '\n') _currentPosition++;
+                    while (_sourceCode[_currentPosition] != '\n') AdvancePosition();
                     continue;
                 }
 
@@ -575,7 +635,7 @@ namespace Fluence
 
         private Token MakeTokenAndTryAdvance(TokenType type, int len = 0, string text = null, object lieteral = null)
         {
-            _currentPosition += len;
+            AdvancePosition(len);
             return new Token(type, text, lieteral);
         }
 

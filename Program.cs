@@ -17,7 +17,7 @@
 
             while (!l.HasReachedEnd)
             {
-                var token = l.GetNextToken();
+                var token = l.ConsumeToken();
 
                 if (token.Type == Token.TokenType.EOL && l.HasReachedEnd && string.IsNullOrWhiteSpace(token.Text))
                 {

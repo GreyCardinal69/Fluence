@@ -80,7 +80,7 @@ namespace Fluence
         }
 
         internal Token PeekNextToken() => _tokenBuffer.Peek();
-        internal Token PeekNextTokens(int n) => _tokenBuffer.Peek(n);
+        internal Token PeekAheadByN(int n) => _tokenBuffer.Peek(n);
         internal Token ConsumeToken() => _tokenBuffer.Consume();
 
         internal void TrySkipEOLToken()
@@ -130,34 +130,34 @@ namespace Fluence
                 case '<': return ScanLessThanOperator();
                 case '|': return ScanPipe();
                 case '+':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "++") return MakeTokenAndTryAdvance(TokenType.INCREMENT, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("++")) return MakeTokenAndTryAdvance(TokenType.INCREMENT, 2);
                     else return MakeTokenAndTryAdvance(TokenType.PLUS, 1);
                 case '-':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "--") return MakeTokenAndTryAdvance(TokenType.DECREMENT, 2);
-                    else if (CanLookAheadStartInclusive(2) && PeekString(2) == "->") return MakeTokenAndTryAdvance(TokenType.THIN_ARROW, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("--")) return MakeTokenAndTryAdvance(TokenType.DECREMENT, 2);
+                    else if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("->")) return MakeTokenAndTryAdvance(TokenType.THIN_ARROW, 2);
                     else return MakeTokenAndTryAdvance(TokenType.MINUS, 1);
                 case '/': return MakeTokenAndTryAdvance(TokenType.SLASH, 1); ;
                 case '%': return MakeTokenAndTryAdvance(TokenType.PERCENT, 1);
                 case '^': return MakeTokenAndTryAdvance(TokenType.CARET, 1);
                 case '*':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "**") return MakeTokenAndTryAdvance(TokenType.EXPONENT, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("**")) return MakeTokenAndTryAdvance(TokenType.EXPONENT, 2);
                     else return MakeTokenAndTryAdvance(TokenType.STAR, 1);
                 case '&':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "&&") return MakeTokenAndTryAdvance(TokenType.AND, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("&&")) return MakeTokenAndTryAdvance(TokenType.AND, 2);
                     else return MakeTokenAndTryAdvance(TokenType.AMPERSAND, 1);
                 case '>':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == ">>") return MakeTokenAndTryAdvance(TokenType.BITWISE_RIGHT_SHIFT, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual(">>")) return MakeTokenAndTryAdvance(TokenType.BITWISE_RIGHT_SHIFT, 2);
                     else return MakeTokenAndTryAdvance(TokenType.GREATER, 1);
                 case '~':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "~>") return MakeTokenAndTryAdvance(TokenType.COMPOSITION_PIPE, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("~>")) return MakeTokenAndTryAdvance(TokenType.COMPOSITION_PIPE, 2);
                     else return MakeTokenAndTryAdvance(TokenType.TILDE, 1);
                 case '!':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "!=") return MakeTokenAndTryAdvance(TokenType.BANG_EQUAL, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("!=")) return MakeTokenAndTryAdvance(TokenType.BANG_EQUAL, 2);
                     else return MakeTokenAndTryAdvance(TokenType.BANG, 1);
                 case '=':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == "==") return MakeTokenAndTryAdvance(TokenType.EQUAL_EQUAL, 2);
-                    if (CanLookAheadStartInclusive(2) && PeekString(2) == ">=") return MakeTokenAndTryAdvance(TokenType.GREATER_EQUAL, 2);
-                    else if (CanLookAheadStartInclusive(2) && PeekString(2) == "=>") return MakeTokenAndTryAdvance(TokenType.ARROW, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("==")) return MakeTokenAndTryAdvance(TokenType.EQUAL_EQUAL, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual(">=")) return MakeTokenAndTryAdvance(TokenType.GREATER_EQUAL, 2);
+                    else if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("=>")) return MakeTokenAndTryAdvance(TokenType.ARROW, 2);
                     else return MakeTokenAndTryAdvance(TokenType.EQUAL, 1);
                 case '[': return MakeTokenAndTryAdvance(TokenType.L_BRACKET, 1);
                 case ']': return MakeTokenAndTryAdvance(TokenType.R_BRACKET, 1);
@@ -170,13 +170,13 @@ namespace Fluence
                     // Check for cases like ;\r\n
                     if (CanLookAheadStartInclusive(3))
                     {
-                        if (PeekString(3) == ";\r\n")
+                        if (PeekString(3).SequenceEqual(";\r\n"))
                         {
                             result = ";\r\n";
                             AdvancePosition(3);
                             AdvanceCurrentLine();
                         }
-                        else if (PeekString(2) == ";\n")
+                        else if (PeekString(2).SequenceEqual(";\n"))
                         {
                             result = ";\n";
                             AdvancePosition(2);
@@ -224,8 +224,7 @@ namespace Fluence
                 // Check for a range first, then a number.
                 if (CanLookAheadStartInclusive(2))
                 {
-                    string peek = PeekString(2);
-                    if (peek == "..")
+                    if (PeekString(2).SequenceEqual(".."))
                     {
                         // A range.
                         // Advance by 2 since "..".
@@ -349,7 +348,7 @@ namespace Fluence
                 };
 
                 // Interpreter will handle this more properly, as of now this is just a test.
-                var exception = new FluenceLexerException("\nMissing closing string quote (\").", context);
+                FluenceLexerException exception = new FluenceLexerException("\nMissing closing string quote (\").", context);
                 Console.WriteLine(exception);
                 //throw exception;
             }
@@ -377,7 +376,7 @@ namespace Fluence
 
             for (int i = 0; i < span.Length; i++)
             {
-                if (span[i] == '\r' || span[i] == '\n')
+                if (span[i] is '\r' or '\n')
                 {
                     if (currentLine == lineNumber)
                         return span[lineStart..i].ToString();
@@ -401,7 +400,7 @@ namespace Fluence
         {
             while (!HasReachedEnd)
             {
-                if (CanLookAheadStartInclusive(2) && PeekString(2) == "\r\n")
+                if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("\r\n"))
                 {
                     AdvanceCurrentLine();
                     AdvancePosition(2);
@@ -418,13 +417,11 @@ namespace Fluence
             // |
 
             if (CanLookAheadStartInclusive(4))
-                if (PeekString(4) == "|>>=") return MakeTokenAndTryAdvance(TokenType.REDUCER_PIPE, 4);
+                if (PeekString(4).SequenceEqual("|>>=")) return MakeTokenAndTryAdvance(TokenType.REDUCER_PIPE, 4);
 
             if (CanLookAheadStartInclusive(3))
             {
-                string threeChar = PeekString(3);
-
-                switch (threeChar)
+                switch (PeekString(3))
                 {
                     case "|??": return MakeTokenAndTryAdvance(TokenType.GUARD_PIPE, 3);
                     case "|>>": return MakeTokenAndTryAdvance(TokenType.MAP_PIPE, 3);
@@ -434,9 +431,7 @@ namespace Fluence
 
             if (CanLookAheadStartInclusive(2))
             {
-                string twoChar = PeekString(2);
-
-                switch (twoChar)
+                switch (PeekString(2))
                 {
                     case "||": return MakeTokenAndTryAdvance(TokenType.OR, 2);
                     case "|>": return MakeTokenAndTryAdvance(TokenType.PIPE, 2);
@@ -457,9 +452,7 @@ namespace Fluence
             // First we check 6 Char operators.
             if (CanLookAheadStartInclusive(6))
             {
-                string sixChar = PeekString(6);
-
-                switch (sixChar)
+                switch (PeekString(6))
                 {
                     case "<||!=|":
                         return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_OR_NOT_EQUAL, 6);
@@ -473,9 +466,7 @@ namespace Fluence
             // Now we check 4 Char operators.
             if (CanLookAheadStartInclusive(4))
             {
-                string fourChar = PeekString(4);
-
-                switch (fourChar)
+                switch (PeekString(4))
                 {
                     case "<==|":
                         return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_EQUAL, 4);
@@ -514,9 +505,7 @@ namespace Fluence
             // Now we check 3 Char operators.
             if (CanLookAheadStartInclusive(3))
             {
-                string threeChar = PeekString(3);
-
-                switch (threeChar)
+                switch (PeekString(3))
                 {
                     case "<<|": return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_LESS, 3);
                     case "<>|": return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_GREATER, 3);
@@ -527,9 +516,7 @@ namespace Fluence
             // Two Char operators.
             if (CanLookAheadStartInclusive(2))
             {
-                string twoChar = PeekString(2);
-
-                switch (twoChar)
+                switch (PeekString(2))
                 {
                     case "<=": return MakeTokenAndTryAdvance(TokenType.LESS_EQUAL, 2);
                     case "<<": return MakeTokenAndTryAdvance(TokenType.BITWISE_LEFT_SHIFT, 2);
@@ -563,11 +550,8 @@ namespace Fluence
 
         public static bool IsIdentifier(char c)
         {
-            return c == '\u009F'
-                || (c >= 'a' && c <= 'z')
-                || (c >= 'A' && c <= 'Z')
-                || (c == '_') // Unless by itself, should be an identifier.
-                || (c >= '0' && c <= '9');
+            return c is '\u009F'
+                or (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or '_' or (>= '0' and <= '9');
         }
 
         private char Peek() => _currentPosition >= _sourceLength ? '\0' : _sourceCode[_currentPosition];
@@ -580,12 +564,9 @@ namespace Fluence
             return _sourceCode[start.._currentPosition];
         }
 
-        private static bool IsNumeric(char c)
-        {
-            return c >= '0' && c <= '9';
-        }
+        private static bool IsNumeric(char c) => c is >= '0' and <= '9';
 
-        private string PeekString(int length) => _sourceCode.Substring(_currentPosition, length);
+        private ReadOnlySpan<char> PeekString(int length) => _sourceCode.AsSpan(_currentPosition, length);
 
         private bool CanLookAheadStartInclusive(int numberOfChars = 1) => _currentPosition + numberOfChars <= _sourceLength;
 
@@ -646,6 +627,6 @@ namespace Fluence
             return _sourceCode[_currentPosition] == '#' && _sourceCode[_currentPosition + 1] == '*';
         }
 
-        private static bool IsWhiteSpace(char c) => c == ' ' || c == '\t';
+        private static bool IsWhiteSpace(char c) => c is ' ' or '\t';
     }
 }

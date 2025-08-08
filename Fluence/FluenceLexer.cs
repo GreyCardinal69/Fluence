@@ -3,7 +3,7 @@
 namespace Fluence
 {
     // Needs error handling.
-    internal class FluenceLexer
+    internal sealed class FluenceLexer
     {
         private readonly string _sourceCode;
         private readonly int _sourceLength;
@@ -28,7 +28,7 @@ namespace Fluence
             _currentColumn = 0;
         }
 
-        private class TokenBuffer
+        private sealed class TokenBuffer
         {
             private readonly Token[] _buffer;
             private readonly int _size;
@@ -548,7 +548,7 @@ namespace Fluence
             return true;
         }
 
-        public static bool IsIdentifier(char c)
+        private static bool IsIdentifier(char c)
         {
             return c is '\u009F'
                 or (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or '_' or (>= '0' and <= '9');
@@ -576,7 +576,7 @@ namespace Fluence
             {
                 bool skippedSomethingThisPass = false;
 
-                while (!HasReachedEnd && IsWhiteSpace(_sourceCode[_currentPosition]) )
+                while (!HasReachedEnd && IsWhiteSpace(_sourceCode[_currentPosition]))
                 {
                     AdvancePosition();
                     skippedSomethingThisPass = true;

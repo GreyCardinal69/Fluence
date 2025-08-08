@@ -52,9 +52,9 @@ namespace Fluence
         }
     }
 
-    public class LexerException : FluenceException
+    public class FluenceLexerException : FluenceException
     {
-        internal LexerException(string message, FluenceExceptionContext context)
+        internal FluenceLexerException(string message, FluenceExceptionContext context)
             : base(message, context) { }
     }
 }

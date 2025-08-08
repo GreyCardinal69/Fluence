@@ -9,7 +9,7 @@ namespace Fluence
         private readonly int _sourceLength;
         private int _currentPosition;
         private int _currentLine;
-        private TokenBuffer _tokenBuffer;
+        private readonly TokenBuffer _tokenBuffer;
 
         internal int CurrentLine => _currentLine;
         internal bool HasReachedEnd => _currentPosition >= _sourceLength;
@@ -297,13 +297,12 @@ namespace Fluence
             // TokenType.Unknown will be thrown.
             if (CanLookAheadStartInclusive(2) && isFString)
             {
-                _ = Advance(); // consume 'f'
-                _ = Advance(); // consume '"'
+                _ = Advance(2); // consume 'f' and '"'.
                 return ScanString(startPos, true);
             }
             else if (currChar == '"')
             {
-                _ = Advance(); // consume '"'
+                _ = Advance(); // consume '"'.
                 return ScanString(startPos, false);
             }
 
@@ -316,11 +315,12 @@ namespace Fluence
         {
             while (Peek() != '"' && !HasReachedEnd)
             {
-                if (Peek() == '\n') _currentLine++;
+                char peek = Peek();
+                if (peek == '\n') _currentLine++;
 
-                if (Peek() == '\\')
+                if (peek == '\\')
                 {
-                    _ = Advance(); // Consume the '\'
+                    _ = Advance(); // Consume the '\'.
                 }
                 _ = Advance();
             }
@@ -486,7 +486,12 @@ namespace Fluence
             return MakeTokenAndTryAdvance(TokenType.LESS, 1);
         }
 
-        private char Advance() => _sourceCode[_currentPosition++];
+        private char Advance(int n = 1)
+        {
+            var result = _sourceCode[_currentPosition];
+            _currentPosition += n;
+            return result;
+        }
 
         private bool Match(string expected)
         {

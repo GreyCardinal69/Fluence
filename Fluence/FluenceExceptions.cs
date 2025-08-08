@@ -44,7 +44,14 @@ namespace Fluence
 
                 if (_context.Token != null)
                 {
-                    stringBuilder.AppendLine($"Faulty Token <Type, Text, Literal>: <{_context.Token.Type} , {_context.Token.Text}, {_context.Token.Literal}>");
+                    string tokenText = ( _context.Token.Text == "\r" ||  _context.Token.Text == "\n" || _context.Token.Text == "\r\n" )
+                        ? "NewLine" : _context.Token.Text;
+                    string tokenLiteral = (string)((_context.Token.Literal == "\r" || _context.Token.Literal == "\n" || _context.Token.Literal == "\r\n")
+                        ? "NewLine" : _context.Token.Literal);
+
+                    tokenLiteral ??= "Null";
+
+                    stringBuilder.AppendLine($"Last Token scanned <Type, Text, Literal>: <{_context.Token.Type.ToString()}, {tokenText}, {tokenLiteral}>");
                 }
 
                 return stringBuilder.ToString();

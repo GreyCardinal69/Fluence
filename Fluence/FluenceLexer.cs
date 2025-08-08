@@ -574,43 +574,46 @@ namespace Fluence
         {
             while (!HasReachedEnd)
             {
-                char currentChar = _sourceCode[_currentPosition];
+                bool skippedSomethingThisPass = false;
 
-                if (IsWhiteSpace(currentChar))
+                while (!HasReachedEnd && IsWhiteSpace(_sourceCode[_currentPosition]) )
                 {
-                    while (!HasReachedEnd && IsWhiteSpace(_sourceCode[_currentPosition]))
+                    AdvancePosition();
+                    skippedSomethingThisPass = true;
+                }
+
+                if (!HasReachedEnd && _sourceCode[_currentPosition] == '#')
+                {
+                    // Check for multi-line comment: '#*'
+                    if (CanLookAheadStartInclusive(2) && _sourceCode[_currentPosition + 1] == '*')
                     {
-                        AdvancePosition();
+                        skippedSomethingThisPass = true;
+                        AdvancePosition(2); // Consume '#*'
+                        while (!HasReachedEnd)
+                        {
+                            if (CanLookAheadStartInclusive(2) && _sourceCode[_currentPosition] == '*' && _sourceCode[_currentPosition + 1] == '#')
+                            {
+                                AdvancePosition(2); // Consume '*#'
+                                break;
+                            }
+                            if (Peek() == '\n') AdvanceCurrentLine();
+                            AdvancePosition();
+                        }
                     }
-                    continue;
-                }
-
-                if (IsMultiLineComment())
-                {
-                    AdvancePosition(2);
-                    while (!HasReachedEnd)
+                    else // It's a single-line comment
                     {
-                        if (!CanLookAheadStartInclusive(2))
+                        skippedSomethingThisPass = true;
+                        while (!HasReachedEnd && _sourceCode[_currentPosition] != '\n')
                         {
-                            // error here, we are in multiline comment, yet can't look ahead two chars, so it ends as "#* .... *".
-                        }
-                        if (_sourceCode[_currentPosition] != '*' && _sourceCode[_currentPosition + 1] != '#') _currentPosition++;
-                        else
-                        {
-                            AdvancePosition(2);
-                            break;
+                            AdvancePosition();
                         }
                     }
-                    continue;
                 }
 
-                if (currentChar == '#')
+                if (!skippedSomethingThisPass)
                 {
-                    while (_sourceCode[_currentPosition] != '\n') AdvancePosition();
-                    continue;
+                    break;
                 }
-
-                break;
             }
         }
 
@@ -620,13 +623,6 @@ namespace Fluence
             return new Token(type, text, lieteral);
         }
 
-        private bool IsMultiLineComment()
-        {
-            if (_currentPosition > _sourceLength - 1) return false;
-
-            return _sourceCode[_currentPosition] == '#' && _sourceCode[_currentPosition + 1] == '*';
-        }
-
-        private static bool IsWhiteSpace(char c) => c is ' ' or '\t';
+        private static bool IsWhiteSpace(char c) => c is ' ' or '\t' || c is '\r';
     }
 }

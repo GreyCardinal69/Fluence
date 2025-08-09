@@ -39,6 +39,12 @@
             DECREMENT,              // --
             EXPONENT,               // **
 
+            EQUAl_PLUS,             // +=
+            EQUAL_MINUS,            // -=
+            EQUAL_MUL,              // *=
+            EQUAL_DIV,              // /=
+            EQUAL_PERCENT,          // %=
+
             // Function and labdas.
             ARROW,      // =>
             THIN_ARROW, // ->

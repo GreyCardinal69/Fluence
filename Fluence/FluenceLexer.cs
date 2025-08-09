@@ -103,6 +103,7 @@ namespace Fluence
             /* The operator suite is quite large.
              * 1 Char: + - * / % < > = ! ^ ~ | &
              * 2 Char: == != <= => || && ** is >> << |> |? <| ~> .. ++ --
+             * +=. -=. *=, /=
              * 3 Char: |?? |>> |~> <<| <>| <n| <?| not
              * 4 Char: |>>= <==| <!=| <<=| <>=| <??| <n|?
              * 5 Char: Surprisingly none yet.
@@ -131,16 +132,23 @@ namespace Fluence
                 case '|': return ScanPipe();
                 case '+':
                     if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("++")) return MakeTokenAndTryAdvance(TokenType.INCREMENT, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("+=")) return MakeTokenAndTryAdvance(TokenType.EQUAl_PLUS, 2);
                     else return MakeTokenAndTryAdvance(TokenType.PLUS, 1);
                 case '-':
                     if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("--")) return MakeTokenAndTryAdvance(TokenType.DECREMENT, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("-=")) return MakeTokenAndTryAdvance(TokenType.EQUAL_MINUS, 2);
                     else if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("->")) return MakeTokenAndTryAdvance(TokenType.THIN_ARROW, 2);
                     else return MakeTokenAndTryAdvance(TokenType.MINUS, 1);
-                case '/': return MakeTokenAndTryAdvance(TokenType.SLASH, 1); ;
-                case '%': return MakeTokenAndTryAdvance(TokenType.PERCENT, 1);
+                case '/':
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("/=")) return MakeTokenAndTryAdvance(TokenType.EQUAL_DIV, 2);
+                    else return MakeTokenAndTryAdvance(TokenType.SLASH, 1);
+                case '%':
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("%=")) return MakeTokenAndTryAdvance(TokenType.EQUAL_PERCENT, 2);
+                    else return MakeTokenAndTryAdvance(TokenType.PERCENT, 1);
                 case '^': return MakeTokenAndTryAdvance(TokenType.CARET, 1);
                 case '*':
                     if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("**")) return MakeTokenAndTryAdvance(TokenType.EXPONENT, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("*=")) return MakeTokenAndTryAdvance(TokenType.EQUAL_MUL, 2);
                     else return MakeTokenAndTryAdvance(TokenType.STAR, 1);
                 case '&':
                     if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("&&")) return MakeTokenAndTryAdvance(TokenType.AND, 2);

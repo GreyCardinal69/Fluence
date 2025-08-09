@@ -38,6 +38,7 @@ namespace Fluence
                 Divide,
                 Modulo,
                 Power,
+                Assign,
 
                 Negate,      // Unary -(x)
                 Not,         // !

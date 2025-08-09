@@ -44,6 +44,7 @@
             EQUAL_MUL,              // *=
             EQUAL_DIV,              // /=
             EQUAL_PERCENT,          // %=
+            EQUAL_AMPERSAND,        // &=
 
             // Function and labdas.
             ARROW,      // =>

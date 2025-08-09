@@ -108,6 +108,7 @@ namespace Fluence
             TokenType.EQUAL_MINUS or
             TokenType.EQUAL_PLUS or
             TokenType.EQUAL_MUL or
+            TokenType.EQUAL_AMPERSAND or
             TokenType.EQUAL_PERCENT => true,
             _ => false,
         };
@@ -164,6 +165,7 @@ namespace Fluence
             TokenType.EQUAL_MUL => InstructionCode.Multiply,
             TokenType.EQUAL_DIV => InstructionCode.Divide,
             TokenType.EQUAL_PERCENT => InstructionCode.Modulo,
+            TokenType.EQUAL_AMPERSAND => InstructionCode.BitwiseAnd,
 
             //  LEVEL 2: ADDITION AND SUBTRACTION (+, -)
             TokenType.PLUS => InstructionCode.Add,
@@ -191,6 +193,13 @@ namespace Fluence
             TokenType.LESS => InstructionCode.LessThan,
             TokenType.GREATER_EQUAL => InstructionCode.GreaterEqual,
             TokenType.LESS_EQUAL => InstructionCode.LessEqual,
+
+            TokenType.BITWISE_LEFT_SHIFT => InstructionCode.BitwiseLShift,
+            TokenType.BITWISE_RIGHT_SHIFT => InstructionCode.BitwiseRShift,
+            TokenType.TILDE => InstructionCode.BitwiseNot,
+            TokenType.CARET => InstructionCode.BitwiseXor,
+            TokenType.PIPE_CHAR => InstructionCode.BitwiseOr,
+            TokenType.AMPERSAND => InstructionCode.BitwiseAnd,
 
             _ => InstructionCode.Skip
         };
@@ -224,12 +233,12 @@ namespace Fluence
         private Value ParseLogicalAnd()
         {
             // This calls the next higher precedence level.
-            Value left = ParseEquality();
+            Value left = ParseBitwiseOr();
 
             while (_lexer.PeekNextToken().Type == TokenType.AND)
             {
                 Token op = _lexer.ConsumeToken();
-                Value right = ParseEquality();
+                Value right = ParseBitwiseOr();
 
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
 
@@ -241,20 +250,106 @@ namespace Fluence
             return left;
         }
 
+        private Value ParseBitwiseOr()
+        {
+            // This calls the next higher precedence level.
+            Value left = ParseBitwiseXor();
+
+            // | is called PIPE_CHAR.
+            while (_lexer.PeekNextToken().Type == TokenType.PIPE_CHAR)
+            {
+                Token op = _lexer.ConsumeToken();
+                Value right = ParseBitwiseXor();
+
+                Value temp = new TempValue(_currentParseState.NextTempNumber++);
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseOr, temp, left, right));
+
+                left = temp; // The result becomes the new left-hand side for the next loop.
+            }
+
+            return left;
+        }
+
+        private Value ParseBitwiseXor()
+        {
+            // This calls the next higher precedence level.
+            Value left = ParseBitwiseAnd();
+
+            // ^
+            while (_lexer.PeekNextToken().Type == TokenType.CARET)
+            {
+                Token op = _lexer.ConsumeToken();
+                Value right = ParseBitwiseAnd();
+
+                Value temp = new TempValue(_currentParseState.NextTempNumber++);
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseXor, temp, left, right));
+
+                left = temp; // The result becomes the new left-hand side for the next loop.
+            }
+
+            return left;
+        }
+
+        private Value ParseBitwiseAnd()
+        {
+            // This calls the next higher precedence level.
+            Value left = ParseEquality();
+
+            // &
+            while (_lexer.PeekNextToken().Type == TokenType.AMPERSAND)
+            {
+                Token op = _lexer.ConsumeToken();
+                Value right = ParseEquality();
+
+                Value temp = new TempValue(_currentParseState.NextTempNumber++);
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseAnd, temp, left, right));
+
+                left = temp; // The result becomes the new left-hand side for the next loop.
+            }
+
+            return left;
+        }
+
         private Value ParseEquality()
         {
             // This calls the next higher precedence level.
-            Value left = ParseComparison();
+            Value left = ParseBitwiseShift();
 
             while (_lexer.PeekNextToken().Type == TokenType.EQUAL_EQUAL || _lexer.PeekNextToken().Type == TokenType.BANG_EQUAL)
             {
                 Token op = _lexer.ConsumeToken();
-                Value right = ParseComparison();
+                Value right = ParseBitwiseShift();
 
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
                 var opcode = (op.Type == TokenType.EQUAL_EQUAL)
                     ? InstructionCode.Equal
                     : InstructionCode.NotEqual;
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, temp, left, right));
+
+                left = temp; // The result becomes the new left-hand side for the next loop.
+            }
+
+            return left;
+        }
+
+        private Value ParseBitwiseShift()
+        {
+            // This calls the next higher precedence level.
+            Value left = ParseComparison();
+
+            while (_lexer.PeekNextToken().Type == TokenType.BITWISE_LEFT_SHIFT || _lexer.PeekNextToken().Type == TokenType.BITWISE_RIGHT_SHIFT)
+            {
+                Token op = _lexer.ConsumeToken();
+                Value right = ParseComparison();
+
+                Value temp = new TempValue(_currentParseState.NextTempNumber++);
+                var opcode = (op.Type == TokenType.BITWISE_LEFT_SHIFT)
+                    ? InstructionCode.BitwiseLShift
+                    : InstructionCode.BitwiseRShift;
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(opcode, temp, left, right));
 
@@ -380,7 +475,7 @@ namespace Fluence
         {
             Token token = _lexer.ConsumeToken();
 
-            if (token.Type == TokenType.MINUS || token.Type == Token.TokenType.BANG)
+            if (token.Type == TokenType.MINUS || token.Type == Token.TokenType.BANG || token.Type == TokenType.TILDE)
             {
                 Value operand = ParsePrimary();
 
@@ -397,9 +492,7 @@ namespace Fluence
                 }
 
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
-                InstructionCode opcode = (token.Type == TokenType.MINUS)
-                    ? InstructionCode.Negate
-                    : InstructionCode.Not;
+                InstructionCode opcode = GetInstructionCode(token.Type);
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(opcode, temp, operand));
                 return temp;

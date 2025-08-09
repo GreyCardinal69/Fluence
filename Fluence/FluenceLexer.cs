@@ -152,6 +152,7 @@ namespace Fluence
                     else return MakeTokenAndTryAdvance(TokenType.STAR, 1);
                 case '&':
                     if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("&&")) return MakeTokenAndTryAdvance(TokenType.AND, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("&=")) return MakeTokenAndTryAdvance(TokenType.EQUAL_AMPERSAND, 2);
                     else return MakeTokenAndTryAdvance(TokenType.AMPERSAND, 1);
                 case '>':
                     if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual(">>")) return MakeTokenAndTryAdvance(TokenType.BITWISE_RIGHT_SHIFT, 2);

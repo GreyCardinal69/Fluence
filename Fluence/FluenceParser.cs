@@ -1,7 +1,6 @@
 ﻿using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.Token;
-using static Testing_Chamber.Minis.TAC.Line;
 
 namespace Fluence
 {
@@ -222,7 +221,7 @@ namespace Fluence
 
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Or, temp, left, right));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Or, temp, left, right, op));
 
                 left = temp; // The result becomes the new left-hand side for the next loop.
             }
@@ -242,7 +241,7 @@ namespace Fluence
 
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.And, temp, left, right));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.And, temp, left, right, op));
 
                 left = temp; // The result becomes the new left-hand side for the next loop.
             }
@@ -263,7 +262,7 @@ namespace Fluence
 
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseOr, temp, left, right));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseOr, temp, left, right, op));
 
                 left = temp; // The result becomes the new left-hand side for the next loop.
             }
@@ -284,7 +283,7 @@ namespace Fluence
 
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseXor, temp, left, right));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseXor, temp, left, right, op));
 
                 left = temp; // The result becomes the new left-hand side for the next loop.
             }
@@ -305,7 +304,7 @@ namespace Fluence
 
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseAnd, temp, left, right));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseAnd, temp, left, right, op));
 
                 left = temp; // The result becomes the new left-hand side for the next loop.
             }
@@ -328,7 +327,7 @@ namespace Fluence
                     ? InstructionCode.Equal
                     : InstructionCode.NotEqual;
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, temp, left, right));
+                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, temp, left, right, op));
 
                 left = temp; // The result becomes the new left-hand side for the next loop.
             }
@@ -351,7 +350,7 @@ namespace Fluence
                     ? InstructionCode.BitwiseLShift
                     : InstructionCode.BitwiseRShift;
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, temp, left, right));
+                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, temp, left, right, op));
 
                 left = temp; // The result becomes the new left-hand side for the next loop.
             }
@@ -377,7 +376,7 @@ namespace Fluence
 
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCode(op.Type), temp, left, right));
+                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCode(op.Type), temp, left, right, op));
 
                 left = temp; // The result becomes the new left-hand side for the next loop.
             }
@@ -400,7 +399,7 @@ namespace Fluence
                     ? InstructionCode.Add
                     : InstructionCode.Subtract;
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, temp, left, right));
+                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, temp, left, right, op));
 
                 left = temp; // The result becomes the new left-hand side for the next loop.
             }
@@ -454,16 +453,42 @@ namespace Fluence
 
         private Value ParseUnary()
         {
-            Value left = ParsePrimary();
+            Value left = ParsePostFix();
 
             while (IsUnaryOperator(_lexer.PeekNextToken().Type))
             {
                 Token op = _lexer.ConsumeToken();
-                Value right = ParsePrimary();
+                Value right = ParsePostFix();
 
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCode(op.Type), temp, left, right, op));
+
+                left = temp;
+            }
+
+            return left;
+        }
+
+        private static bool IsPostFixToken(TokenType type) =>
+            type == TokenType.INCREMENT || type == TokenType.DECREMENT;
+
+        private Value ParsePostFix()
+        {
+            // ++ and --
+            Value left = ParsePrimary();
+
+            while (IsPostFixToken(_lexer.PeekNextToken().Type))
+            {
+                Token op = _lexer.ConsumeToken();
+
+                Value one = new NumberValue(1);
+                Value temp = new TempValue(_currentParseState.NextTempNumber++);
+
+                InstructionCode instrCode = (op.Type == TokenType.INCREMENT) ? InstructionCode.Add : InstructionCode.Subtract;
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(instrCode, temp, left, one, op));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, left, temp, null, op));
 
                 left = temp;
             }
@@ -494,7 +519,7 @@ namespace Fluence
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
                 InstructionCode opcode = GetInstructionCode(token.Type);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, temp, operand));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Negate, temp, operand));
                 return temp;
             }
 
@@ -510,20 +535,24 @@ namespace Fluence
             if (token.Type == TokenType.L_PAREN)
             {
                 Value expr = ParseExpression();
-                Consume(TokenType.R_PAREN, "");
+                // Unclosed parentheses.
+                ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, ")");
                 return expr;
             }
+
+            // Log the token type for now, for debugging.
             Console.WriteLine(token);
             throw new Exception();
         }
 
-        private Token Consume(Token.TokenType expectedType, string errorMessage)
+        private Token ConsumeAndTryThrowIfUnequal(TokenType expectedType, string errorMessage)
         {
             Token token = _lexer.ConsumeToken();
             if (token.Type != expectedType)
             {
-                Console.WriteLine("error");
-                //throw new ParserException(errorMessage, token);
+                // for now just log.
+                Console.WriteLine("Error");
+                // throw
             }
             return token;
         }

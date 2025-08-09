@@ -39,7 +39,7 @@
             DECREMENT,              // --
             EXPONENT,               // **
 
-            EQUAl_PLUS,             // +=
+            EQUAL_PLUS,             // +=
             EQUAL_MINUS,            // -=
             EQUAL_MUL,              // *=
             EQUAL_DIV,              // /=

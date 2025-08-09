@@ -132,7 +132,7 @@ namespace Fluence
                 case '|': return ScanPipe();
                 case '+':
                     if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("++")) return MakeTokenAndTryAdvance(TokenType.INCREMENT, 2);
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("+=")) return MakeTokenAndTryAdvance(TokenType.EQUAl_PLUS, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("+=")) return MakeTokenAndTryAdvance(TokenType.EQUAL_PLUS, 2);
                     else return MakeTokenAndTryAdvance(TokenType.PLUS, 1);
                 case '-':
                     if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("--")) return MakeTokenAndTryAdvance(TokenType.DECREMENT, 2);

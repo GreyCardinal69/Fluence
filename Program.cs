@@ -4,7 +4,7 @@
     {
         public static void Main(string[] args)
         {
-            var source = File.ReadAllText($@"{Directory.GetCurrentDirectory()}\Full Lexer Test.fl");
+            string source = File.ReadAllText($@"{Directory.GetCurrentDirectory()}\Full Lexer Test.fl");
 
             FluenceLexer l = new(source);
 
@@ -17,18 +17,18 @@
 
             while (!l.HasReachedEnd)
             {
-                var token = l.ConsumeToken();
+                Token token = l.ConsumeToken();
 
                 if (token.Type == Token.TokenType.EOL && l.HasReachedEnd && string.IsNullOrWhiteSpace(token.Text))
                 {
                     break;
                 }
 
-                var textToDisplay = (token.Text ?? "")
+                string textToDisplay = (token.Text ?? "")
                     .Replace("\r", "\\r")
                     .Replace("\n", "\\n");
 
-                var literalToDisplay = token.Literal?.ToString() ?? "";
+                string literalToDisplay = token.Literal?.ToString() ?? "";
 
                 Console.WriteLine("{0,-25} {1,-30} {2,-30}",
                     token.Type,
@@ -42,7 +42,20 @@
             FluenceLexer lexer = new(source);
             FluenceParser parser = new FluenceParser(lexer);
 
-            parser.Parse();
+            try
+            {
+                parser.Parse();
+                Console.WriteLine("Parsing completed successfully.");
+
+                FluenceByteCode.DumpByteCodeInstructions(parser.CompiledCode);
+            }
+            catch (FluenceException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("A parsing error occurred:");
+                Console.WriteLine(ex.Message);
+                Console.ResetColor();
+            }
         }
     }
 }

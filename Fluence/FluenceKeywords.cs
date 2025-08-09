@@ -58,6 +58,35 @@ namespace Fluence
             { "rest", TokenType.REST },
         };
 
+        internal static bool TokenTypeIsAKeywordType(TokenType type) =>
+            type switch
+            {
+                TokenType.BREAK     or
+                TokenType.CONTINUE  or
+                TokenType.IF        or
+                TokenType.ELSE      or
+                TokenType.WHILE     or
+                TokenType.LOOP      or
+                TokenType.FOR       or
+                TokenType.IN        or
+                TokenType.FUNC      or
+                TokenType.NIL       or
+                TokenType.RETURN    or
+                TokenType.TRUE      or
+                TokenType.FALSE     or
+                TokenType.IS        or
+                TokenType.NOT       or
+                TokenType.SPACE     or
+                TokenType.USE       or
+                TokenType.TYPE      or
+                TokenType.STRUCT    or
+                TokenType.ENUM      or
+                TokenType.MATCH     or
+                TokenType.SELF      or
+                TokenType.REST => true,
+                _ => false,
+            };
+
         internal static bool IsAKeyword(string key) => _keywords.Contains(key);
 
         internal static TokenType GetTokenTypeFromKeyword(string key) =>

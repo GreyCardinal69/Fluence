@@ -259,11 +259,19 @@ namespace Fluence
                 if (IsNumeric(Peek()) || dotOnlyFraction)
                 {
                     newToken.Type = TokenType.NUMBER;
+
                     bool decimalPointAlreadyDefined = false;
                     while (_currentPosition < _sourceLength)
                     {
                         char lastc = currChar;
                         currChar = _sourceCode[_currentPosition];
+
+                        if (currChar == '.' && _sourceCode[_currentPosition + 1] == '.')
+                        {
+                            string str = _sourceCode[startPos.._currentPosition];
+                            if (dotOnlyFraction) str = str.Insert(0, "0");
+                            return MakeTokenAndTryAdvance(TokenType.NUMBER, 0, str, str);
+                        }
 
                         if (currChar == '.')
                         {

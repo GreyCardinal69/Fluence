@@ -58,7 +58,20 @@ namespace Fluence.Tests
             var expected = new List<Token.TokenType> {
             Token.TokenType.FUNC, Token.TokenType.IDENTIFIER, Token.TokenType.L_PAREN, Token.TokenType.R_PAREN,
             Token.TokenType.ARROW, Token.TokenType.L_BRACE, Token.TokenType.RETURN, Token.TokenType.NIL,
-            Token.TokenType.EOL
+            Token.TokenType.EOL,
+        };
+            var actual = LexAllTypes(source);
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void TestSequenceOfRange()
+        {
+            string source = "func main() => { x = 5..10; }";
+            var expected = new List<Token.TokenType> {
+            Token.TokenType.FUNC, Token.TokenType.IDENTIFIER, Token.TokenType.L_PAREN, Token.TokenType.R_PAREN,
+            Token.TokenType.ARROW, Token.TokenType.L_BRACE, Token.TokenType.IDENTIFIER, Token.TokenType.EQUAL,
+            Token.TokenType.NUMBER, Token.TokenType.DOT_DOT, Token.TokenType.NUMBER, Token.TokenType.EOL
         };
             var actual = LexAllTypes(source);
             Assert.Equal(expected, actual);

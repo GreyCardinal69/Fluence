@@ -28,17 +28,13 @@ namespace Fluence
                     .AppendLine($"{new string(' ', Column + 1)}^");
             }
 
-            if (Token != null)
-            {
-                string tokenText = (Token.Text == "\r" || Token.Text == "\n" || Token.Text == "\r\n")
-                    ? "NewLine" : Token.Text;
-                string tokenLiteral = (string)((Token.Literal == "\r" || Token.Literal == "\n" || Token.Literal == "\r\n")
-                    ? "NewLine" : Token.Literal);
+            string tokenText = (Token.Text == "\r" || Token.Text == "\n" || Token.Text == "\r\n" || Token.Text == ";\r\n") ? "NewLine" : Token.Text;
+            string tokenLiteral = (string)((Token.Literal == "\r" || Token.Literal == "\n" || Token.Literal == "\r\n") ? "NewLine" : Token.Literal);
 
-                tokenLiteral ??= "Null";
+            tokenText ??= "Null";
+            tokenLiteral ??= "Null";
 
-                stringBuilder.AppendLine($"Last Token scanned <Type, Text, Literal>: <{Token.Type.ToString()}, {tokenText}, {tokenLiteral}>");
-            }
+            stringBuilder.AppendLine($"Last Token scanned <Type, Text, Literal>: <{Token.Type.ToString()}, {tokenText}, {tokenLiteral}>");
 
             return stringBuilder.ToString();
         }
@@ -70,14 +66,11 @@ namespace Fluence
                 stringBuilder.AppendLine(new string(' ', linePrefix.Length + Column - 1) + "^");
             }
 
-            if (UnexpectedToken != null)
-            {
-                string tokenText = (UnexpectedToken.Text == "\r" || UnexpectedToken.Text == "\n")
-                    ? "NewLine"
-                    : UnexpectedToken.Text;
+            string tokenText = (UnexpectedToken.Text == "\r" || UnexpectedToken.Text == "\n")
+                ? "NewLine"
+                : UnexpectedToken.Text;
 
-                stringBuilder.AppendLine($"Error: Unexpected token '{tokenText}' (Type: {UnexpectedToken.Type}).");
-            }
+            stringBuilder.AppendLine($"Error: Unexpected token '{tokenText}' (Type: {UnexpectedToken.Type}).");
 
             if (!string.IsNullOrEmpty(ExpectedDescription))
             {

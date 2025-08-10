@@ -86,7 +86,15 @@
 
             internal readonly Token Token;
 
-            internal InstructionLine(InstructionCode instruction, Value lhs, Value rhs = null, Value rhs2 = null, Token token = null)
+            internal InstructionLine(InstructionCode instruction, Value lhs, Value rhs = null, Value rhs2 = null)
+            {
+                Instruction = instruction;
+                Lhs = lhs;
+                Rhs = rhs;
+                Rhs2 = rhs2;
+            }
+
+            internal InstructionLine(InstructionCode instruction, Value lhs, Value rhs, Value rhs2, Token token )
             {
                 Instruction = instruction;
                 Lhs = lhs;

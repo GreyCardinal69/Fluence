@@ -84,7 +84,7 @@ namespace Fluence
         internal Token ConsumeToken() => _tokenBuffer.Consume();
         internal void ConsumeTokens(int n = 1)
         {
-            for ( int i = 0; i < n; i++ ) _tokenBuffer.Consume();
+            for (int i = 0; i < n; i++) _tokenBuffer.Consume();
         }
 
         internal void TrySkipEOLToken()
@@ -103,6 +103,10 @@ namespace Fluence
 
             Token newToken = new Token();
             newToken.Type = TokenType.UNKNOWN;
+
+            LexerExceptionContext context;
+            // Line of code where an error has been detected.
+            string faultyCodeLine;
 
             /* The operator suite is quite large.
              * 1 Char: + - * / % < > = ! ^ ~ | &
@@ -257,10 +261,22 @@ namespace Fluence
                 if (IsNumeric(Peek()) || dotOnlyFraction)
                 {
                     newToken.Type = TokenType.NUMBER;
+                    bool decimalPointAlreadyDefined = false;
                     while (_currentPosition < _sourceLength)
                     {
                         char lastc = currChar;
                         currChar = _sourceCode[_currentPosition];
+
+                        if (currChar == '.')
+                        {
+                            if (decimalPointAlreadyDefined)
+                            {
+                                faultyCodeLine = GetCodeLineFromSource(_sourceCode, _currentLine + 1).TrimStart();
+                                ConstructAndThrowLexerException(_currentLine + 1, _currentColumn, "Invalid number format: multiple decimal points found.", faultyCodeLine);
+                            }
+                            decimalPointAlreadyDefined = true;
+                        }
+
                         if (IsNumeric(currChar) ||
                             currChar == '.' ||
                             currChar == 'E' ||
@@ -270,6 +286,13 @@ namespace Fluence
                             AdvancePosition();
                         }
                         else break;
+                    }
+
+                    // Check if the number ends with a dot
+                    if (_sourceCode[_currentPosition - 1] == '.')
+                    {
+                        faultyCodeLine = GetCodeLineFromSource(_sourceCode, _currentLine + 1).TrimStart();
+                        ConstructAndThrowLexerException(_currentLine + 1, _currentColumn, "Number literal cannot end with a decimal point.", faultyCodeLine);
                     }
 
                     // Float here.
@@ -328,9 +351,24 @@ namespace Fluence
                 return ScanString(startPos, false);
             }
 
-            newToken.Type = TokenType.UNKNOWN;
-            newToken.Text = _sourceCode[startPos.._currentPosition];
-            return newToken;
+            int errorColumn = _currentColumn == 0 ? 2 : _currentColumn;
+            faultyCodeLine = GetCodeLineFromSource(_sourceCode, _currentLine + 1).TrimStart();
+            char invalidChar = _sourceCode[startPos];
+
+            ConstructAndThrowLexerException(_currentLine + 1, errorColumn, $"Invalid character '{invalidChar}' found in source. Could not generate appropriate Token.", faultyCodeLine);
+            return null;
+        }
+
+        private static void ConstructAndThrowLexerException(int lineNum, int column, string errorText, string faultyLine, Token token = null)
+        {
+            LexerExceptionContext context = new LexerExceptionContext()
+            {
+                LineNum = lineNum,
+                Column = column,
+                FaultyLine = faultyLine,
+                Token = token
+            };
+            throw new FluenceLexerException(errorText, context);
         }
 
         private Token ScanString(int startPos, bool isFString = false)
@@ -355,19 +393,7 @@ namespace Fluence
                 string initialLineContent = GetCodeLineFromSource(_sourceCode, stringInitialLine).TrimStart();
                 string truncatedLine = TruncateLine(initialLineContent);
 
-                var context = new LexerExceptionContext()
-                {
-                    LineNum = stringInitialLine,
-                    Column = stringOpenColumn,
-                    FaultyLine = truncatedLine,
-                    Token = null // This exceptions happens when we reach end of file, EOL token is not of use.
-                };
-
-                var errorMessage = new StringBuilder();
-                errorMessage.AppendLine("Unclosed string literal.");
-                errorMessage.AppendLine("The file ended before a closing '\"' was found.");
-
-                throw new FluenceLexerException(errorMessage.ToString(), context);
+                ConstructAndThrowLexerException(stringInitialLine, stringOpenColumn, "Unclosed string literal. The file ended before a closing '\"' was found.", truncatedLine);
             }
 
             AdvancePosition(); // Consume the closing quote "
@@ -531,18 +557,7 @@ namespace Fluence
                 string initialLineContent = GetCodeLineFromSource(_sourceCode, _currentLine + 1).TrimStart();
                 string truncatedLine = TruncateLine(initialLineContent);
 
-                LexerExceptionContext context = new LexerExceptionContext()
-                {
-                    LineNum = _currentLine + 1,
-                    Column = _currentColumn - 2,
-                    FaultyLine = truncatedLine,
-                    Token = _tokenBuffer.Peek()
-                };
-
-                var errorMessage = new StringBuilder();
-                errorMessage.AppendLine("Faulty chain assignment pipe operator detected, expected '<n|' or '<n?|' or '<|' format.");
-
-                throw new FluenceLexerException(errorMessage.ToString(), context);
+                ConstructAndThrowLexerException(_currentLine + 1, _currentColumn - 2, "Faulty chain assignment pipe operator detected, expected '<n|' or '<n?|' or '<|' format.", truncatedLine);
             }
 
             // Now we check 3 Char operators.
@@ -649,24 +664,13 @@ namespace Fluence
                             if (Peek() == '\n') AdvanceCurrentLine();
                             AdvancePosition();
                         }
+
                         if (didntEndMultiLineComment)
                         {
                             string initialLineContent = GetCodeLineFromSource(_sourceCode, commentStartLine).TrimStart();
                             string truncatedLine = TruncateLine(initialLineContent);
 
-                            var context = new LexerExceptionContext
-                            {
-                                LineNum = commentStartLine,
-                                Column = commentStartCol,
-                                FaultyLine = truncatedLine,
-                                Token = null
-                            };
-
-                            var errorMessage = new StringBuilder();
-                            errorMessage.AppendLine("Unterminated multi-line comment.");
-                            errorMessage.AppendLine("The file ended before a closing '*#' was found.");
-
-                            throw new FluenceLexerException(errorMessage.ToString(), context);
+                            ConstructAndThrowLexerException(commentStartLine, commentStartCol, "Unterminated multi-line comment. The file ended before a closing '*#' was found.", truncatedLine);
                         }
                     }
                     else // It's a single-line comment

@@ -45,7 +45,7 @@
             try
             {
                 parser.Parse();
-                Console.WriteLine("Parsing completed successfully.");
+                Console.WriteLine("\nParsing completed successfully.");
 
                 FluenceByteCode.DumpByteCodeInstructions(parser.CompiledCode);
             }

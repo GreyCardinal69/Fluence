@@ -1,16 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Fluence
+﻿namespace Fluence
 {
     internal static class FluenceByteCode
     {
         internal static void DumpByteCodeInstructions(List<InstructionLine> instructions)
         {
-            Console.WriteLine("--- Compiled Bytecode ---");
+            Console.WriteLine("--- Compiled Bytecode ---\n");
+            Console.WriteLine(string.Format("{0,-5} {1,-25} {2,-30} {3,-30} {4,-30}", "", "TYPE", "LHS", "RHS", "RHS2"));
+
             if (instructions == null || instructions.Count == 0)
             {
                 Console.WriteLine("(No instructions generated)");
@@ -21,9 +17,8 @@ namespace Fluence
             {
                 Console.WriteLine($"{i:D4}: {instructions[i]}");
             }
-            Console.WriteLine("--- End of Bytecode ---");
+            Console.WriteLine("\n--- End of Bytecode ---");
         }
-
 
         internal class InstructionLine
         {
@@ -80,7 +75,8 @@ namespace Fluence
                 GetElement,      // Lhs = RhsA[RhsB] (e.g., my_list[i])
                 SetElement,      // Lhs[RhsA] = RhsB (e.g., my_list[i] = val)
 
-                CallIntrinsic
+                CallIntrinsic,
+                Terminate,       // Ends program.
             }
 
             internal InstructionCode Instruction;
@@ -101,7 +97,11 @@ namespace Fluence
 
             public override string ToString()
             {
-                return $"Type: {Instruction}, Lhs: {Lhs}, Rhs: {Rhs}, Rhs2: {(Rhs2 == null ? "Null" : Rhs2)}";
+                string instruction = Instruction.ToString();
+                string lhs = Lhs != null ? Lhs.ToString() : "Null";
+                string rhs = Rhs != null ? Rhs.ToString() : "Null";
+                string rhs2 = Rhs2 != null ? Rhs2.ToString() : "Null";
+                return string.Format("{0,-25} {1,-30} {2,-30} {3,-20}", instruction, lhs, rhs, rhs2);
             }
         }
     }

@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Fluence
+﻿namespace Fluence
 {
     internal abstract class Value
     {
@@ -51,9 +45,9 @@ namespace Fluence
         }
     }
 
-    internal class NilValue : Value 
+    internal class NilValue : Value
     {
-        
+
     }
 
     internal class BooleanValue : Value

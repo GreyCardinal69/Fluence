@@ -615,6 +615,19 @@ namespace Fluence
             throw new Exception();
         }
 
+        private void ConstructAndThrowParserException(int lineNum, int column, string errorMessage, string faultyLine, string expected, Token token = null)
+        {
+            ParserExceptionContext context = new ParserExceptionContext()
+            {
+                Column = column,
+                FaultyLine = faultyLine,
+                LineNum = lineNum,
+                UnexpectedToken = token,
+                ExpectedDescription = expected
+            };
+            throw new FluenceParserException(errorMessage, context);
+        }
+
         private Token ConsumeAndTryThrowIfUnequal(TokenType expectedType, string errorMessage)
         {
             Token token = _lexer.ConsumeToken();

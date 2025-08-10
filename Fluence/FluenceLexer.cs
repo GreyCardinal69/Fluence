@@ -1,5 +1,4 @@
-﻿using System.Text;
-using static Fluence.Token;
+﻿using static Fluence.Token;
 
 namespace Fluence
 {
@@ -104,7 +103,6 @@ namespace Fluence
             Token newToken = new Token();
             newToken.Type = TokenType.UNKNOWN;
 
-            LexerExceptionContext context;
             // Line of code where an error has been detected.
             string faultyCodeLine;
 
@@ -277,10 +275,22 @@ namespace Fluence
                             decimalPointAlreadyDefined = true;
                         }
 
-                        if (IsNumeric(currChar) ||
+                        if (currChar == 'E' || currChar == 'e')
+                        {
+                            // After seeing an 'E', the very next character MUST be a digit or a sign.
+                            char next = PeekNext();
+                            if (!IsNumeric(next) && next != '+' && next != '-')
+                            {
+                                string faultyLine = GetCodeLineFromSource(_sourceCode, _currentLine + 1);
+                                ConstructAndThrowLexerException(_currentLine + 1, _currentColumn + 1, "Scientific notation 'E' must be followed by digits.", faultyLine);
+                            }
+                            else
+                            {
+                                AdvancePosition();
+                            }
+                        }
+                        else if (IsNumeric(currChar) ||
                             currChar == '.' ||
-                            currChar == 'E' ||
-                            currChar == 'e' ||
                             ((currChar == '-' || currChar == '+') && (lastc == 'E' || lastc == 'e')))
                         {
                             AdvancePosition();

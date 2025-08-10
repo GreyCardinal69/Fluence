@@ -2,26 +2,102 @@
 
 namespace Fluence
 {
-    internal record FluenceExceptionContext
+    internal abstract record ExceptionContext
+    {
+        internal abstract string Format();
+    }
+
+    internal record LexerExceptionContext : ExceptionContext
     {
         internal int LineNum { get; init; }
         internal int Column { get; init; }
         internal Token Token { get; init; }
         // Line number where error occured and the string of that line is better than just 
         // the number.
+        internal required string FaultyLine { get; init; }
+
+        internal override string Format()
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+
+            if (LineNum > 0 && FaultyLine != null && Column > 0)
+            {
+                stringBuilder
+                    .AppendLine($"Exception at line {LineNum}, Column {Column}")
+                    .AppendLine($"{LineNum}. {FaultyLine}")
+                    .AppendLine($"{new string(' ', Column + 1)}^");
+            }
+
+            if (Token != null)
+            {
+                string tokenText = (Token.Text == "\r" || Token.Text == "\n" || Token.Text == "\r\n")
+                    ? "NewLine" : Token.Text;
+                string tokenLiteral = (string)((Token.Literal == "\r" || Token.Literal == "\n" || Token.Literal == "\r\n")
+                    ? "NewLine" : Token.Literal);
+
+                tokenLiteral ??= "Null";
+
+                stringBuilder.AppendLine($"Last Token scanned <Type, Text, Literal>: <{Token.Type.ToString()}, {tokenText}, {tokenLiteral}>");
+            }
+
+            return stringBuilder.ToString();
+        }
+    }
+
+    internal record ParserExceptionContext : ExceptionContext
+    {
+        // Parser and Lexer sort of work at the same time, so these values can be obtained from lexer,
+        // With some degree of accuracy.
+        internal int LineNum { get; init; }
+        internal int Column { get; init; }
         internal string FaultyLine { get; init; }
+
+        // Parser-specific details
+        internal required Token UnexpectedToken { get; init; }
+        internal required string ExpectedDescription { get; init; }
+
+        internal override string Format()
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+
+            if (LineNum > 0 && FaultyLine != null && Column > 0)
+            {
+                string linePrefix = $"{LineNum}. \t";
+                stringBuilder
+                    .AppendLine($"Parser Error at line {LineNum}, Column {Column}")
+                    .AppendLine(linePrefix + FaultyLine);
+
+                stringBuilder.AppendLine(new string(' ', linePrefix.Length + Column - 1) + "^");
+            }
+
+            if (UnexpectedToken != null)
+            {
+                string tokenText = (UnexpectedToken.Text == "\r" || UnexpectedToken.Text == "\n")
+                    ? "NewLine"
+                    : UnexpectedToken.Text;
+
+                stringBuilder.AppendLine($"Error: Unexpected token '{tokenText}' (Type: {UnexpectedToken.Type}).");
+            }
+
+            if (!string.IsNullOrEmpty(ExpectedDescription))
+            {
+                stringBuilder.AppendLine($"Expected: {ExpectedDescription}");
+            }
+
+            return stringBuilder.ToString();
+        }
     }
 
     public class FluenceException : Exception
     {
-        internal readonly FluenceExceptionContext _context;
+        internal readonly ExceptionContext? _context;
 
         public FluenceException(string message) : base(message)
         {
-            _context = new FluenceExceptionContext();
+            _context = null;
         }
 
-        internal FluenceException(string message, FluenceExceptionContext context) : base(message)
+        internal FluenceException(string message, ExceptionContext context) : base(message)
         {
             _context = context;
         }
@@ -31,29 +107,8 @@ namespace Fluence
             get
             {
                 StringBuilder stringBuilder = new StringBuilder();
-
-                if (_context.LineNum > 0 && _context.FaultyLine != null && _context.Column > 0)
-                {
-                    stringBuilder
-                        .AppendLine($"Exception at line {_context.LineNum}, Column {_context.Column}")
-                        .AppendLine($"{_context.LineNum}. \t{_context.FaultyLine}")
-                        .AppendLine($"{new string(' ', _context.Column - 1)}^");
-                }
-
+                stringBuilder.Append(_context?.Format());
                 stringBuilder.AppendLine($"Exception: {base.Message}");
-
-                if (_context.Token != null)
-                {
-                    string tokenText = (_context.Token.Text == "\r" || _context.Token.Text == "\n" || _context.Token.Text == "\r\n")
-                        ? "NewLine" : _context.Token.Text;
-                    string tokenLiteral = (string)((_context.Token.Literal == "\r" || _context.Token.Literal == "\n" || _context.Token.Literal == "\r\n")
-                        ? "NewLine" : _context.Token.Literal);
-
-                    tokenLiteral ??= "Null";
-
-                    stringBuilder.AppendLine($"Last Token scanned <Type, Text, Literal>: <{_context.Token.Type.ToString()}, {tokenText}, {tokenLiteral}>");
-                }
-
                 return stringBuilder.ToString();
             }
         }
@@ -61,7 +116,13 @@ namespace Fluence
 
     public class FluenceLexerException : FluenceException
     {
-        internal FluenceLexerException(string message, FluenceExceptionContext context)
+        internal FluenceLexerException(string message, LexerExceptionContext context)
+            : base(message, context) { }
+    }
+
+    public class FluenceParserException : FluenceException
+    {
+        internal FluenceParserException(string message, ParserExceptionContext context)
             : base(message, context) { }
     }
 }

@@ -20,7 +20,7 @@
             SLASH,        // /
             PERCENT,      // %
             AMPERSAND,    // &
-            PIPE_CHAR,    // |  (Note: separate from the full |> operator)
+            PIPE_CHAR,    // |  (Note: separate from the full |> operator), bitwise or.
             CARET,        // ^
             TILDE,        // ~
             QUESTION,     // ?

@@ -1,9 +1,11 @@
 ﻿namespace Fluence
 {
-    internal record Token
+    internal readonly record struct Token
     {
         internal enum TokenType
         {
+            UNKNOWN = 0,
+
             // Single characters.
             L_PAREN,      // (
             R_PAREN,      // )
@@ -111,14 +113,12 @@
             COLLECTIVE_OR_NOT_EQUAL,    // <||!=|
 
             UNDERSCORE,
-
-            UNKNOWN,
             EOL
         }
 
-        internal TokenType Type;
-        internal string Text;
-        internal object Literal;
+        internal readonly TokenType Type;
+        internal readonly string Text;
+        internal readonly object Literal;
 
         internal static Token EOL => new Token(TokenType.EOL, "\n");
 

@@ -131,50 +131,74 @@ namespace Fluence
              * _ for pipes
              * EOL
              */
+            char nextChar;
 
             switch (currChar)
             {
                 case '<': return ScanLessThanOperator();
                 case '|': return ScanPipe();
                 case '+':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("++")) return MakeTokenAndTryAdvance(TokenType.INCREMENT, 2);
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("+=")) return MakeTokenAndTryAdvance(TokenType.EQUAL_PLUS, 2);
-                    else return MakeTokenAndTryAdvance(TokenType.PLUS, 1);
+                    if (CanLookAheadStartInclusive(2))
+                    {
+                        nextChar = PeekNext();
+                        if (nextChar == '+') return MakeTokenAndTryAdvance(TokenType.INCREMENT, 2);
+                        if (nextChar == '=') return MakeTokenAndTryAdvance(TokenType.EQUAL_PLUS, 2);
+                    }
+                    return MakeTokenAndTryAdvance(TokenType.PLUS, 1);
                 case '-':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("--")) return MakeTokenAndTryAdvance(TokenType.DECREMENT, 2);
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("-=")) return MakeTokenAndTryAdvance(TokenType.EQUAL_MINUS, 2);
-                    else if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("->")) return MakeTokenAndTryAdvance(TokenType.THIN_ARROW, 2);
-                    else return MakeTokenAndTryAdvance(TokenType.MINUS, 1);
+                    if (CanLookAheadStartInclusive(2))
+                    {
+                        nextChar = PeekNext();
+                        if (nextChar == '-') return MakeTokenAndTryAdvance(TokenType.DECREMENT, 2);
+                        if (nextChar == '=') return MakeTokenAndTryAdvance(TokenType.EQUAL_MINUS, 2);
+                        if (nextChar == '>') return MakeTokenAndTryAdvance(TokenType.THIN_ARROW, 2);
+                    }
+                    return MakeTokenAndTryAdvance(TokenType.MINUS, 1);
                 case '/':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("/=")) return MakeTokenAndTryAdvance(TokenType.EQUAL_DIV, 2);
-                    else return MakeTokenAndTryAdvance(TokenType.SLASH, 1);
+                    if (CanLookAheadStartInclusive(2) && PeekNext() == '=') return MakeTokenAndTryAdvance(TokenType.EQUAL_DIV, 2);
+                    return MakeTokenAndTryAdvance(TokenType.SLASH, 1);
                 case '%':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("%=")) return MakeTokenAndTryAdvance(TokenType.EQUAL_PERCENT, 2);
-                    else return MakeTokenAndTryAdvance(TokenType.PERCENT, 1);
+                    if (CanLookAheadStartInclusive(2) && PeekNext() == '=') return MakeTokenAndTryAdvance(TokenType.EQUAL_PERCENT, 2);
+                    return MakeTokenAndTryAdvance(TokenType.PERCENT, 1);
                 case '^': return MakeTokenAndTryAdvance(TokenType.CARET, 1);
                 case '*':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("**")) return MakeTokenAndTryAdvance(TokenType.EXPONENT, 2);
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("*=")) return MakeTokenAndTryAdvance(TokenType.EQUAL_MUL, 2);
-                    else return MakeTokenAndTryAdvance(TokenType.STAR, 1);
+                    if (CanLookAheadStartInclusive(2))
+                    {
+                        nextChar = PeekNext();
+                        if (nextChar == '*') return MakeTokenAndTryAdvance(TokenType.EXPONENT, 2);
+                        if (nextChar == '=') return MakeTokenAndTryAdvance(TokenType.EQUAL_MUL, 2);
+                    }
+                    return MakeTokenAndTryAdvance(TokenType.STAR, 1);
                 case '&':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("&&")) return MakeTokenAndTryAdvance(TokenType.AND, 2);
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("&=")) return MakeTokenAndTryAdvance(TokenType.EQUAL_AMPERSAND, 2);
-                    else return MakeTokenAndTryAdvance(TokenType.AMPERSAND, 1);
+                    if (CanLookAheadStartInclusive(2))
+                    {
+                        nextChar = PeekNext();
+                        if (nextChar == '&') return MakeTokenAndTryAdvance(TokenType.AND, 2);
+                        if (nextChar == '=') return MakeTokenAndTryAdvance(TokenType.EQUAL_AMPERSAND, 2);
+                    }
+                    return MakeTokenAndTryAdvance(TokenType.AMPERSAND, 1);
                 case '>':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual(">>")) return MakeTokenAndTryAdvance(TokenType.BITWISE_RIGHT_SHIFT, 2);
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual(">=")) return MakeTokenAndTryAdvance(TokenType.GREATER_EQUAL, 2);
-                    else return MakeTokenAndTryAdvance(TokenType.GREATER, 1);
+                    if (CanLookAheadStartInclusive(2))
+                    {
+                        nextChar = PeekNext();
+                        if (nextChar == '>') return MakeTokenAndTryAdvance(TokenType.BITWISE_RIGHT_SHIFT, 2);
+                        if (nextChar == '=') return MakeTokenAndTryAdvance(TokenType.GREATER_EQUAL, 2);
+                    }
+                    return MakeTokenAndTryAdvance(TokenType.GREATER, 1);
                 case '~':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("~>")) return MakeTokenAndTryAdvance(TokenType.COMPOSITION_PIPE, 2);
-                    else return MakeTokenAndTryAdvance(TokenType.TILDE, 1);
+                    if (CanLookAheadStartInclusive(2) && PeekNext() == '>') return MakeTokenAndTryAdvance(TokenType.COMPOSITION_PIPE, 2);
+                    return MakeTokenAndTryAdvance(TokenType.TILDE, 1);
                 case '!':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("!=")) return MakeTokenAndTryAdvance(TokenType.BANG_EQUAL, 2);
-                    else return MakeTokenAndTryAdvance(TokenType.BANG, 1);
+                    if (CanLookAheadStartInclusive(2) && PeekNext() == '=') return MakeTokenAndTryAdvance(TokenType.BANG_EQUAL, 2);
+                    return MakeTokenAndTryAdvance(TokenType.BANG, 1);
                 case '=':
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("==")) return MakeTokenAndTryAdvance(TokenType.EQUAL_EQUAL, 2);
-                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual(">=")) return MakeTokenAndTryAdvance(TokenType.GREATER_EQUAL, 2);
-                    else if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("=>")) return MakeTokenAndTryAdvance(TokenType.ARROW, 2);
-                    else return MakeTokenAndTryAdvance(TokenType.EQUAL, 1);
+                    if (CanLookAheadStartInclusive(2))
+                    {
+                        nextChar = PeekNext();
+                        if (nextChar == '=') return MakeTokenAndTryAdvance(TokenType.EQUAL_EQUAL, 2);
+                        if (nextChar == '>') return MakeTokenAndTryAdvance(TokenType.ARROW, 2);
+                    }
+                    return MakeTokenAndTryAdvance(TokenType.EQUAL, 1);
                 case '[': return MakeTokenAndTryAdvance(TokenType.L_BRACKET, 1);
                 case ']': return MakeTokenAndTryAdvance(TokenType.R_BRACKET, 1);
                 case '{': return MakeTokenAndTryAdvance(TokenType.L_BRACE, 1);
@@ -610,7 +634,7 @@ namespace Fluence
             }
 
             // Two Char operators.
-            if (peek.Length >= 2 && (peek[1] == '|' || peek[1] == '<' || peek[1] == '=' ) )
+            if (peek.Length >= 2 && (peek[1] == '|' || peek[1] == '<' || peek[1] == '='))
             {
                 switch (peek[..2])
                 {

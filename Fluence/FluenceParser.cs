@@ -56,6 +56,7 @@ namespace Fluence
         internal void Parse()
         {
             ParseTokens();
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Terminate, null));
         }
 
         private void ParseTokens()
@@ -70,7 +71,7 @@ namespace Fluence
 
         private void ParseStatement()
         {
-            if (_lexer.PeekNextToken().Type == Token.TokenType.EOL)
+            if (_lexer.PeekNextToken().Type == TokenType.EOL)
             {
                 // It's a blank line. This is a valid, empty statement.
                 // Consume the EOL token and simply return. We are done with this statement.
@@ -91,6 +92,9 @@ namespace Fluence
             {
                 switch (token.Type)
                 {
+                    case TokenType.IF:
+                        ParseIfStatement();
+                        break;
                 }
             }
             // Most likely an expression
@@ -98,6 +102,76 @@ namespace Fluence
             {
                 ParseAssignment();
             }
+        }
+
+        private void ParseIfStatement()
+        {
+            _lexer.ConsumeToken(); // Consume the if.
+            var condition = ParseExpression();
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, condition));
+
+            int elsePatchIndex = _currentParseState.CodeInstructions.Count - 1;
+
+            // ifs come into ways, a block body if ... { ... }
+            // or one line expressions, if ... -> .... ;
+            if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
+            {
+                ParseBlockStatement();
+            }
+            else  // Single line if, expects ; instead.
+            {
+                ConsumeAndTryThrowIfUnequal(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
+                ParseStatement();
+            }
+
+            // Skips EOLS in between.
+            while (_lexer.PeekNextToken().Type == TokenType.EOL && !_lexer.HasReachedEnd) _lexer.ConsumeToken();
+
+            // else, also handles else if, we just consume the else part, call parse with the rest.
+            if (_lexer.PeekNextToken().Type == TokenType.ELSE)
+            {
+                int elseIfJumpOverIndex = _currentParseState.CodeInstructions.Count;
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+
+                _lexer.ConsumeToken();
+
+                int elseAddress = _currentParseState.CodeInstructions.Count;
+                _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(elseAddress);
+
+                // This is an else-if, we just call ParseIf again.
+                if (_lexer.PeekNextToken().Type == TokenType.IF)
+                {
+                    ParseStatement();
+                }
+                else if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
+                {
+                    ParseBlockStatement();
+                }
+                else // single line else.
+                {
+                    ConsumeAndTryThrowIfUnequal(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
+                    ParseStatement();
+                }
+
+                _currentParseState.CodeInstructions[elseIfJumpOverIndex].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+            }
+            else
+            {
+                // No other else/else-ifs.
+                int endAddress = _currentParseState.CodeInstructions.Count;
+                _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(endAddress);
+            }
+        }
+
+        private void ParseBlockStatement()
+        {
+            ConsumeAndTryThrowIfUnequal(TokenType.L_BRACE, "Expected '{' to start a block.");
+            while (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
+            {
+                ParseStatement();
+            }
+            ConsumeAndTryThrowIfUnequal(TokenType.R_BRACE, "Expected '}' to end a block.");
         }
 
         private static bool IsAssignmentOperator(TokenType type) => type switch
@@ -150,9 +224,6 @@ namespace Fluence
                     // var = temp.
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, temp));
                 }
-            }
-            else
-            {
             }
         }
 
@@ -358,7 +429,7 @@ namespace Fluence
             return left;
         }
 
-        private bool IsComparisonTokenType(TokenType type) =>
+        private static bool IsComparisonTokenType(TokenType type) =>
             type == TokenType.GREATER ||
             type == TokenType.LESS ||
             type == TokenType.GREATER_EQUAL ||
@@ -517,7 +588,6 @@ namespace Fluence
                 }
 
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
-                InstructionCode opcode = GetInstructionCode(token.Type);
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Negate, temp, operand));
                 return temp;

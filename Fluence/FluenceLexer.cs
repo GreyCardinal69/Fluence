@@ -20,7 +20,7 @@ namespace Fluence
 
         internal FluenceLexer(string source)
         {
-            _tokenBuffer = new TokenBuffer(4, this);
+            _tokenBuffer = new TokenBuffer(5, this);
             _sourceCode = source;
             _sourceLength = source.Length;
             _currentPosition = 0;
@@ -82,6 +82,10 @@ namespace Fluence
         internal Token PeekNextToken() => _tokenBuffer.Peek();
         internal Token PeekAheadByN(int n) => _tokenBuffer.Peek(n);
         internal Token ConsumeToken() => _tokenBuffer.Consume();
+        internal void ConsumeTokens(int n = 1)
+        {
+            for ( int i = 0; i < n; i++ ) _tokenBuffer.Consume();
+        }
 
         internal void TrySkipEOLToken()
         {

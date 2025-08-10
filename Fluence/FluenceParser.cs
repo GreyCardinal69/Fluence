@@ -14,35 +14,27 @@ namespace Fluence
 
         public List<InstructionLine> CompiledCode => _currentParseState.CodeInstructions;
 
-        private class JumpPoint
+        private class LoopContext
         {
-        }
-
-        private class BackPatch
-        {
+            internal int ContinueAddress;
+            internal List<int> BreakPatchAddresses { get; } = new List<int>();
+        
+            internal LoopContext(int continueAddress)
+            {
+                ContinueAddress = continueAddress;
+            }
         }
 
         private class ParseState
         {
             internal List<InstructionLine> CodeInstructions = new List<InstructionLine>();
-            internal List<BackPatch> BackPatches = new List<BackPatch>();
-            internal List<JumpPoint> JumpPoints = new List<JumpPoint>();
+            internal Stack<LoopContext> ActiveLoopContexts = new Stack<LoopContext>();
 
             internal int NextTempNumber = 0;
 
             internal void AddCodeInstruction(InstructionLine instructionLine)
             {
                 CodeInstructions.Add(instructionLine);
-            }
-
-            internal void AddBackPatch(BackPatch patch)
-            {
-                BackPatches.Add(patch);
-            }
-
-            internal void AddJumpPoint(JumpPoint point)
-            {
-                JumpPoints.Add(point);
             }
         }
 
@@ -95,12 +87,53 @@ namespace Fluence
                     case TokenType.IF:
                         ParseIfStatement();
                         break;
+                    case TokenType.LOOP:
+                        ParseLoopStatement();
+                        break;
+                    case TokenType.BREAK:
+                        _lexer.ConsumeToken(); // Consume break;
+
+                        if (_currentParseState.ActiveLoopContexts.Count == 0) { /* throw error: 'break' outside loop */ }
+                        LoopContext currentLoop = _currentParseState.ActiveLoopContexts.Peek();
+
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+                        currentLoop.BreakPatchAddresses.Add(_currentParseState.CodeInstructions.Count - 1);
+                        break;
+                    case TokenType.CONTINUE:
+                        _lexer.ConsumeToken();
+
+                        if (_currentParseState.ActiveLoopContexts.Count == 0) { /* throw error: 'continue' outside loop */ }
+                        LoopContext currentLoopContext = _currentParseState.ActiveLoopContexts.Peek();
+
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(currentLoopContext.ContinueAddress, NumberValue.NumberType.Integer)));
+                        break;
                 }
             }
             // Most likely an expression
             else
             {
                 ParseAssignment();
+            }
+        }
+
+        private void ParseLoopStatement()
+        {
+            _lexer.ConsumeToken(); // Consume loop
+
+            int loopStartIndex = _currentParseState.CodeInstructions.Count;
+            LoopContext loopContext = new LoopContext(loopStartIndex);
+            _currentParseState.ActiveLoopContexts.Push(loopContext);
+
+            ParseBlockStatement();
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex, NumberValue.NumberType.Integer)));
+
+            _currentParseState.ActiveLoopContexts.Pop();
+
+            int loopEndIndex = _currentParseState.CodeInstructions.Count;
+            foreach (int breakPatch in loopContext.BreakPatchAddresses)
+            {
+                _currentParseState.CodeInstructions[breakPatch].Lhs = new NumberValue(loopEndIndex, NumberValue.NumberType.Integer);
             }
         }
 

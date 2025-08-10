@@ -137,7 +137,7 @@ namespace Fluence
                 _lexer.ConsumeToken();
 
                 int elseAddress = _currentParseState.CodeInstructions.Count;
-                _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(elseAddress);
+                _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(elseAddress, NumberValue.NumberType.Integer);
 
                 // This is an else-if, we just call ParseIf again.
                 if (_lexer.PeekNextToken().Type == TokenType.IF)
@@ -154,14 +154,52 @@ namespace Fluence
                     ParseStatement();
                 }
 
-                _currentParseState.CodeInstructions[elseIfJumpOverIndex].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+                _currentParseState.CodeInstructions[elseIfJumpOverIndex].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count, NumberValue.NumberType.Integer);
             }
             else
             {
                 // No other else/else-ifs.
                 int endAddress = _currentParseState.CodeInstructions.Count;
-                _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(endAddress);
+                _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(endAddress, NumberValue.NumberType.Integer);
             }
+        }
+
+        private Value ParseList()
+        {
+            // [ is already consumed.
+
+            TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewList, temp));
+
+            // Empty list: [].
+            if (_lexer.PeekNextToken().Type == TokenType.R_BRACKET)
+            {
+                _lexer.ConsumeToken(); // Consume ending bracket ].
+                return temp;
+            }
+
+            // Non empty array, parse and push first element, the while loop will likely encounter a comma,
+            // if not the list has just one element.
+            Value firstElement = ParseExpression();
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushElement, temp, firstElement));
+
+            while (_lexer.PeekNextToken().Type == TokenType.COMMA)
+            {
+                _lexer.ConsumeToken(); // Consume comma.
+
+                if (_lexer.PeekNextToken().Type == TokenType.R_BRACKET) // Trailing comma in list.
+                {
+                    Console.WriteLine("Trailing comma in list");
+                    throw new Exception();
+                }
+
+                Value rhs = ParseExpression();
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushElement, temp, rhs));
+            }
+
+            _lexer.ConsumeToken(); // Consume ].
+
+            return temp;
         }
 
         private void ParseBlockStatement()
@@ -547,13 +585,13 @@ namespace Fluence
         private Value ParsePostFix()
         {
             // ++ and --
-            Value left = ParsePrimary();
+            Value left = ParseAccess();
 
             while (IsPostFixToken(_lexer.PeekNextToken().Type))
             {
                 Token op = _lexer.ConsumeToken();
 
-                Value one = new NumberValue(1);
+                Value one = new NumberValue(1, NumberValue.NumberType.Integer);
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
 
                 InstructionCode instrCode = (op.Type == TokenType.INCREMENT) ? InstructionCode.Add : InstructionCode.Subtract;
@@ -567,11 +605,64 @@ namespace Fluence
             return left;
         }
 
+        private Value ParseAccess()
+        {
+            // Array access [], get and set.
+            Value left = ParsePrimary();
+
+            while (true)
+            {
+                TokenType type = _lexer.PeekNextToken().Type;
+
+                // Access get/set.
+                if (type == TokenType.L_BRACKET)
+                {
+                    _lexer.ConsumeToken(); // Consume [.
+
+                    Value index = ParseExpression();
+
+                    ConsumeAndTryThrowIfUnequal(TokenType.R_BRACKET, "Bad list access, not ending bracket.");
+
+                    // list[...] = ...
+                    if (_lexer.PeekNextToken().Type == TokenType.EQUAL)
+                    {
+                        TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
+                        _lexer.ConsumeToken(); // Consume =.
+
+                        Value valueToSet = ParseExpression();
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, left, index, valueToSet));
+                        return valueToSet;
+                    }
+                    else // x = list[...]
+                    {
+                        TempValue valueToGet = new TempValue(_currentParseState.NextTempNumber++);
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetElement, valueToGet, left, index));
+                        left = valueToGet;
+
+                    }
+                } // Property access.
+                else if (type == TokenType.DOT)
+                {
+
+                } // Function call.
+                else if (type == TokenType.L_PAREN)
+                {
+
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return left;
+        }
+
         private Value ParsePrimary()
         {
             Token token = _lexer.ConsumeToken();
 
-            if (token.Type == TokenType.MINUS || token.Type == Token.TokenType.BANG || token.Type == TokenType.TILDE)
+            if (token.Type == TokenType.MINUS || token.Type == TokenType.BANG || token.Type == TokenType.TILDE)
             {
                 Value operand = ParsePrimary();
 
@@ -579,11 +670,19 @@ namespace Fluence
                 {
                     if (token.Type == TokenType.MINUS)
                     {
-                        return new NumberValue(-numVal.Value);
+                        switch (numVal.Type)
+                        {
+                            case NumberValue.NumberType.Integer:
+                                return new NumberValue(-Convert.ToInt32(numVal.Value), numVal.Type);
+                            case NumberValue.NumberType.Float:
+                                return new NumberValue(-float.Parse(numVal.Value.ToString()), numVal.Type);
+                            case NumberValue.NumberType.Double:
+                                return new NumberValue(-Convert.ToDouble(numVal.Value), numVal.Type);
+                        }
                     }
                     else
                     {
-                        return new BooleanValue(numVal.Value == 0);
+                        return new BooleanValue((int)numVal.Value == 0);
                     }
                 }
 
@@ -596,10 +695,13 @@ namespace Fluence
             switch (token.Type)
             {
                 case TokenType.IDENTIFIER: return new VariableValue(token.Text);
-                case TokenType.NUMBER: return new NumberValue(Convert.ToDouble(token.Literal));
+                case TokenType.NUMBER: return NumberValue.FromToken(token);
                 case TokenType.STRING: return new StringValue(token.Text);
                 case TokenType.TRUE: return new BooleanValue(true);
                 case TokenType.FALSE: return new BooleanValue(false);
+                case TokenType.L_BRACKET:
+                    // We are in list, either initialization, or [i] access.
+                    return ParseList();
             }
 
             if (token.Type == TokenType.L_PAREN)
@@ -615,7 +717,7 @@ namespace Fluence
             throw new Exception();
         }
 
-        private void ConstructAndThrowParserException(int lineNum, int column, string errorMessage, string faultyLine, string expected, Token token = null)
+        private void ConstructAndThrowParserException(int lineNum, int column, string errorMessage, string faultyLine, string expected, Token token)
         {
             ParserExceptionContext context = new ParserExceptionContext()
             {
@@ -634,7 +736,7 @@ namespace Fluence
             if (token.Type != expectedType)
             {
                 // for now just log.
-                Console.WriteLine("Error");
+                Console.WriteLine(errorMessage);
                 // throw
             }
             return token;

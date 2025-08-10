@@ -1,8 +1,8 @@
-﻿using static Fluence.Token;
+﻿using System.Text;
+using static Fluence.Token;
 
 namespace Fluence
 {
-    // Needs error handling.
     internal sealed class FluenceLexer
     {
         private readonly string _sourceCode;
@@ -335,7 +335,9 @@ namespace Fluence
 
         private Token ScanString(int startPos, bool isFString = false)
         {
-            int stringOpenColumn = _currentColumn - 1;
+            int stringOpenColumn = _currentColumn;
+            int stringInitialLine = _currentLine + 1;
+
             while (Peek() != '"' && !HasReachedEnd)
             {
                 char peek = Peek();
@@ -350,20 +352,22 @@ namespace Fluence
 
             if (HasReachedEnd)
             {
-                // We ran out of code before finding the closing quote.
-                // Error here.
-                FluenceExceptionContext context = new FluenceExceptionContext()
+                string initialLineContent = GetCodeLineFromSource(_sourceCode, stringInitialLine).TrimStart();
+                string truncatedLine = TruncateLine(initialLineContent);
+
+                var context = new LexerExceptionContext()
                 {
+                    LineNum = stringInitialLine,
                     Column = stringOpenColumn,
-                    FaultyLine = GetCodeLineFromSource(_sourceCode, _currentLine).TrimStart(),
-                    LineNum = _currentLine,
-                    Token = _tokenBuffer.Peek(),
+                    FaultyLine = truncatedLine,
+                    Token = null // This exceptions happens when we reach end of file, EOL token is not of use.
                 };
 
-                // Interpreter will handle this more properly, as of now this is just a test.
-                FluenceLexerException exception = new FluenceLexerException("\nMissing closing string quote (\").", context);
-                Console.WriteLine(exception);
-                //throw exception;
+                var errorMessage = new StringBuilder();
+                errorMessage.AppendLine("Unclosed string literal.");
+                errorMessage.AppendLine("The file ended before a closing '\"' was found.");
+
+                throw new FluenceLexerException(errorMessage.ToString(), context);
             }
 
             AdvancePosition(); // Consume the closing quote "
@@ -376,6 +380,15 @@ namespace Fluence
             TokenType type = isFString ? TokenType.F_STRING : TokenType.STRING;
 
             return new Token(type, lexeme, literalValue);
+        }
+
+        private static string TruncateLine(string line, int maxLength = 75)
+        {
+            if (string.IsNullOrEmpty(line) || line.Length <= maxLength)
+            {
+                return line;
+            }
+            return string.Concat(line.AsSpan(0, maxLength - 3), "...");
         }
 
         internal static string GetCodeLineFromSource(string source, int lineNumber)
@@ -511,8 +524,25 @@ namespace Fluence
                 {
                     return new Token(TokenType.CHAIN_ASSIGN_N, n, n);
                 }
-                // If we get here then we have an error, backtrack or throw.
+
+                // If we get here then we have an error.
                 // incomplete chain assignment.
+
+                string initialLineContent = GetCodeLineFromSource(_sourceCode, _currentLine + 1).TrimStart();
+                string truncatedLine = TruncateLine(initialLineContent);
+
+                LexerExceptionContext context = new LexerExceptionContext()
+                {
+                    LineNum = _currentLine + 1,
+                    Column = _currentColumn - 2,
+                    FaultyLine = truncatedLine,
+                    Token = _tokenBuffer.Peek()
+                };
+
+                var errorMessage = new StringBuilder();
+                errorMessage.AppendLine("Faulty chain assignment pipe operator detected, expected '<n|' or '<n?|' or '<|' format.");
+
+                throw new FluenceLexerException(errorMessage.ToString(), context);
             }
 
             // Now we check 3 Char operators.
@@ -561,11 +591,12 @@ namespace Fluence
             return true;
         }
 
-        private static bool IsIdentifier(char c)
-        {
-            return c is '\u009F'
-                or (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or '_' or (>= '0' and <= '9');
-        }
+        private static bool IsIdentifier(char c) =>
+            c is '\u009F'
+              or (>= 'a' and <= 'z')
+              or (>= 'A' and <= 'Z')
+              or '_'
+              or (>= '0' and <= '9');
 
         private char Peek() => _currentPosition >= _sourceLength ? '\0' : _sourceCode[_currentPosition];
         private char PeekNext() => _currentPosition + 1 >= _sourceLength ? '\0' : _sourceCode[_currentPosition + 1];
@@ -585,6 +616,9 @@ namespace Fluence
 
         internal void SkipWhiteSpaceAndComments()
         {
+            int commentStartLine = _currentLine + 1;
+            int commentStartCol = _currentColumn + 1;
+
             while (!HasReachedEnd)
             {
                 bool skippedSomethingThisPass = false;
@@ -600,17 +634,39 @@ namespace Fluence
                     // Check for multi-line comment: '#*'
                     if (CanLookAheadStartInclusive(2) && _sourceCode[_currentPosition + 1] == '*')
                     {
+                        commentStartCol += 2;
                         skippedSomethingThisPass = true;
                         AdvancePosition(2); // Consume '#*'
+                        bool didntEndMultiLineComment = true;
                         while (!HasReachedEnd)
                         {
                             if (CanLookAheadStartInclusive(2) && _sourceCode[_currentPosition] == '*' && _sourceCode[_currentPosition + 1] == '#')
                             {
+                                didntEndMultiLineComment = false;
                                 AdvancePosition(2); // Consume '*#'
                                 break;
                             }
                             if (Peek() == '\n') AdvanceCurrentLine();
                             AdvancePosition();
+                        }
+                        if (didntEndMultiLineComment)
+                        {
+                            string initialLineContent = GetCodeLineFromSource(_sourceCode, commentStartLine).TrimStart();
+                            string truncatedLine = TruncateLine(initialLineContent);
+
+                            var context = new LexerExceptionContext
+                            {
+                                LineNum = commentStartLine,
+                                Column = commentStartCol,
+                                FaultyLine = truncatedLine,
+                                Token = null
+                            };
+
+                            var errorMessage = new StringBuilder();
+                            errorMessage.AppendLine("Unterminated multi-line comment.");
+                            errorMessage.AppendLine("The file ended before a closing '*#' was found.");
+
+                            throw new FluenceLexerException(errorMessage.ToString(), context);
                         }
                     }
                     else // It's a single-line comment

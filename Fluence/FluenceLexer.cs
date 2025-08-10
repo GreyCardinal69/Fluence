@@ -162,6 +162,7 @@ namespace Fluence
                     else return MakeTokenAndTryAdvance(TokenType.AMPERSAND, 1);
                 case '>':
                     if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual(">>")) return MakeTokenAndTryAdvance(TokenType.BITWISE_RIGHT_SHIFT, 2);
+                    if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual(">=")) return MakeTokenAndTryAdvance(TokenType.GREATER_EQUAL, 2);
                     else return MakeTokenAndTryAdvance(TokenType.GREATER, 1);
                 case '~':
                     if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("~>")) return MakeTokenAndTryAdvance(TokenType.COMPOSITION_PIPE, 2);
@@ -486,29 +487,44 @@ namespace Fluence
             // ||, |>, |?
             // |
 
-            if (CanLookAheadStartInclusive(4))
-                if (PeekString(4).SequenceEqual("|>>=")) return MakeTokenAndTryAdvance(TokenType.REDUCER_PIPE, 4);
+            int availableLength = _sourceLength - _currentPosition;
+            ReadOnlySpan<char> peek = PeekString(Math.Min(4, availableLength));
 
-            if (CanLookAheadStartInclusive(3))
+            if (peek.Length >= 2)
             {
-                switch (PeekString(3))
+                switch (peek[1])
                 {
-                    case "|??": return MakeTokenAndTryAdvance(TokenType.GUARD_PIPE, 3);
-                    case "|>>": return MakeTokenAndTryAdvance(TokenType.MAP_PIPE, 3);
-                    case "|~>": return MakeTokenAndTryAdvance(TokenType.SCAN_PIPE, 3);
+                    case '>': // Could be |> or |>> or |>>=
+                        if (peek.Length >= 4 && peek[2] == '>' && peek[3] == '=')
+                        {
+                            return MakeTokenAndTryAdvance(TokenType.REDUCER_PIPE, 4);
+                        }
+                        if (peek.Length >= 3 && peek[2] == '>')
+                        {
+                            return MakeTokenAndTryAdvance(TokenType.MAP_PIPE, 3);
+                        }
+                        return MakeTokenAndTryAdvance(TokenType.PIPE, 2);
+
+                    case '?': // Could be |? or |??
+                        if (peek.Length >= 3 && peek[2] == '?')
+                        {
+                            return MakeTokenAndTryAdvance(TokenType.GUARD_PIPE, 3);
+                        }
+                        return MakeTokenAndTryAdvance(TokenType.OPTIONAL_PIPE, 2);
+
+                    case '~': // Could be |~>
+                        if (peek.Length >= 3 && peek[2] == '>')
+                        {
+                            return MakeTokenAndTryAdvance(TokenType.SCAN_PIPE, 3);
+                        }
+                        break;
+
+                    case '|': // Must be ||
+                        return MakeTokenAndTryAdvance(TokenType.OR, 2);
                 }
             }
 
-            if (CanLookAheadStartInclusive(2))
-            {
-                switch (PeekString(2))
-                {
-                    case "||": return MakeTokenAndTryAdvance(TokenType.OR, 2);
-                    case "|>": return MakeTokenAndTryAdvance(TokenType.PIPE, 2);
-                    case "|?": return MakeTokenAndTryAdvance(TokenType.OPTIONAL_PIPE, 2);
-                }
-            }
-
+            // If we fall through all the fast-paths, it must be the single-character operator.
             return MakeTokenAndTryAdvance(TokenType.PIPE_CHAR, 1);
         }
 
@@ -519,10 +535,14 @@ namespace Fluence
             // <<|, <>|, <n|, <?|
             // <=, <<, <|, 
             // <
+
+            int availableLength = _sourceLength - _currentPosition;
+            ReadOnlySpan<char> peek = PeekString(Math.Min(6, availableLength));
+
             // First we check 6 Char operators.
-            if (CanLookAheadStartInclusive(6))
+            if (peek.Length >= 6 && peek[1] == '|' && peek[2] == '|')
             {
-                switch (PeekString(6))
+                switch (peek)
                 {
                     case "<||!=|":
                         return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_OR_NOT_EQUAL, 6);
@@ -534,9 +554,9 @@ namespace Fluence
             }
 
             // Now we check 4 Char operators.
-            if (CanLookAheadStartInclusive(4))
+            if (peek.Length >= 4 && peek[3] == '|')
             {
-                switch (PeekString(4))
+                switch (peek[..4])
                 {
                     case "<==|":
                         return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_EQUAL, 4);
@@ -552,7 +572,7 @@ namespace Fluence
             }
 
             // <n?| and <n|
-            if (CanLookAheadStartInclusive(2) && char.IsDigit(_sourceCode[_currentPosition + 1]))
+            if (peek.Length >= 2 && char.IsDigit(_sourceCode[_currentPosition + 1]))
             {
                 AdvancePosition();
                 // Store the number for the Token in GetNextToken().
@@ -579,9 +599,9 @@ namespace Fluence
             }
 
             // Now we check 3 Char operators.
-            if (CanLookAheadStartInclusive(3))
+            if (peek.Length >= 3 && peek[2] == '|')
             {
-                switch (PeekString(3))
+                switch (peek[..3])
                 {
                     case "<<|": return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_LESS, 3);
                     case "<>|": return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_GREATER, 3);
@@ -590,9 +610,9 @@ namespace Fluence
             }
 
             // Two Char operators.
-            if (CanLookAheadStartInclusive(2))
+            if (peek.Length >= 2 && (peek[1] == '|' || peek[1] == '<' || peek[1] == '=' ) )
             {
-                switch (PeekString(2))
+                switch (peek[..2])
                 {
                     case "<=": return MakeTokenAndTryAdvance(TokenType.LESS_EQUAL, 2);
                     case "<<": return MakeTokenAndTryAdvance(TokenType.BITWISE_LEFT_SHIFT, 2);
@@ -619,17 +639,13 @@ namespace Fluence
         private bool Match(string expected)
         {
             if (!CanLookAheadStartInclusive(expected.Length)) return false;
-            if (_sourceCode.Substring(_currentPosition, expected.Length) != expected) return false;
+            if (!PeekString(expected.Length).SequenceEqual(expected)) return false;
+
             AdvancePosition(expected.Length);
             return true;
         }
 
-        private static bool IsIdentifier(char c) =>
-            c is '\u009F'
-              or (>= 'a' and <= 'z')
-              or (>= 'A' and <= 'Z')
-              or '_'
-              or (>= '0' and <= '9');
+        private static bool IsIdentifier(char c) => char.IsLetterOrDigit(c) || c is '\u009F' || c is '_';
 
         private char Peek() => _currentPosition >= _sourceLength ? '\0' : _sourceCode[_currentPosition];
         private char PeekNext() => _currentPosition + 1 >= _sourceLength ? '\0' : _sourceCode[_currentPosition + 1];
@@ -671,6 +687,7 @@ namespace Fluence
                         skippedSomethingThisPass = true;
                         AdvancePosition(2); // Consume '#*'
                         bool didntEndMultiLineComment = true;
+
                         while (!HasReachedEnd)
                         {
                             if (CanLookAheadStartInclusive(2) && _sourceCode[_currentPosition] == '*' && _sourceCode[_currentPosition + 1] == '#')

@@ -1,4 +1,6 @@
-﻿namespace Fluence
+﻿using System.Text;
+
+namespace Fluence
 {
     internal abstract class Value
     {
@@ -80,9 +82,24 @@
         }
     }
 
-    internal class ListValue : Value
+    internal sealed class ListValue : Value
     {
+        internal readonly List<Value> List = new List<Value>();
 
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            int i = 0;
+            sb.Append($"List Elements:\n");
+            foreach (var val in List)
+            {
+                sb.Append($"{i}.\r{val.ToString()}\n");
+                i++;
+            }
+
+            return sb.ToString();
+        }
     }
 
     internal class FunctionValue : Value

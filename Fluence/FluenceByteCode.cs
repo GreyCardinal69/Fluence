@@ -69,11 +69,13 @@
                 Return,          // Return RhsA from the current function
 
                 NewStruct,       // Lhs = a new struct of type RhsA
-                NewList,         // Lhs = a new, empty list
                 GetProperty,     // Lhs = RhsA.RhsB (e.g., my_obj.prop)
                 SetProperty,     // Lhs.RhsA = RhsB (e.g., my_obj.prop = val)
-                GetElement,      // Lhs = RhsA[RhsB] (e.g., my_list[i])
-                SetElement,      // Lhs[RhsA] = RhsB (e.g., my_list[i] = val)
+
+                NewList,
+                GetElement,
+                SetElement,
+                PushElement,
 
                 CallIntrinsic,
                 Terminate,       // Ends program.

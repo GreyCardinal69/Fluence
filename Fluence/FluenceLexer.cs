@@ -91,7 +91,7 @@ namespace Fluence
         {
             SkipWhiteSpaceAndComments();
 
-            if (HasReachedEnd) return Token.EOL;
+            if (HasReachedEnd) return EOL;
 
             char currChar = _sourceCode[_currentPosition];
             int startPos = _currentPosition;
@@ -449,7 +449,7 @@ namespace Fluence
             return new Token(type, lexeme, literalValue);
         }
 
-        private static string TruncateLine(string line, int maxLength = 75)
+        internal static string TruncateLine(string line, int maxLength = 75)
         {
             if (string.IsNullOrEmpty(line) || line.Length <= maxLength)
             {

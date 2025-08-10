@@ -107,12 +107,57 @@ namespace Fluence
 
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(currentLoopContext.ContinueAddress, NumberValue.NumberType.Integer)));
                         break;
+                    case TokenType.WHILE:
+                        ParseWhileStatement();
+                        break;
                 }
             }
             // Most likely an expression
             else
             {
                 ParseAssignment();
+            }
+        }
+
+        private void ParseWhileStatement()
+        {
+            _lexer.ConsumeToken(); // Consume while.
+
+            Value condition = ParseExpression();
+
+            int loopStartIndex = _currentParseState.CodeInstructions.Count;
+            LoopContext whileContext = new LoopContext(loopStartIndex);
+            _currentParseState.ActiveLoopContexts.Push(whileContext);
+
+            // the condition of the while, we must jump back here if loop reaches end ( not terminated by break ).
+            // We'll patch this later.
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, condition));
+            int loopExitPatch = _currentParseState.CodeInstructions.Count - 1;
+
+            // While has two forms, block {...} or while cond -> ...;
+            if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
+            {
+                ParseBlockStatement();
+            }
+            else
+            {
+                ConsumeAndTryThrowIfUnequal(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
+                ParseStatement();
+            }
+
+            // We jump to the start of the loop, which is the condition check.
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex - 1, NumberValue.NumberType.Integer)));
+            _currentParseState.ActiveLoopContexts.Pop();
+
+            int loopEndIndex = _currentParseState.CodeInstructions.Count;
+
+            // Patch our GoToIfFalse.
+            _currentParseState.CodeInstructions[loopExitPatch].Lhs = new NumberValue(loopEndIndex, NumberValue.NumberType.Integer);
+
+            // Assign breakPatches to the end of the loop, or the instruction after if there is more code.
+            foreach (int breakPatch in whileContext.BreakPatchAddresses)
+            {
+                _currentParseState.CodeInstructions[breakPatch].Lhs = new NumberValue(loopEndIndex, NumberValue.NumberType.Integer);
             }
         }
 
@@ -127,7 +172,6 @@ namespace Fluence
             ParseBlockStatement();
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex, NumberValue.NumberType.Integer)));
-
             _currentParseState.ActiveLoopContexts.Pop();
 
             int loopEndIndex = _currentParseState.CodeInstructions.Count;

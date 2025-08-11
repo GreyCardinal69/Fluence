@@ -50,6 +50,8 @@
                 Is,             // is keyword
                 IsNot,          // is not combo
 
+                GetLength,      // This is basically list.GetLength(), called once in a for in loop.
+
                 And,    // &&
                 Or,     // ||
 

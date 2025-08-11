@@ -91,7 +91,7 @@ namespace Fluence
         {
             SkipWhiteSpaceAndComments();
 
-            if (HasReachedEnd) return EOL;
+            if (HasReachedEnd) return EOF;
 
             char currChar = _sourceCode[_currentPosition];
             int startPos = _currentPosition;
@@ -230,7 +230,7 @@ namespace Fluence
                 case ':': return MakeTokenAndTryAdvance(TokenType.COLON, 1);
                 case '\n':
                     AdvanceCurrentLine();
-                    return MakeTokenAndTryAdvance(TokenType.EOL, 1);
+                    return MakeTokenAndTryAdvance(TokenType.EOL, 1, "\n", "\n");
                 case '\r':
                     string text;
                     if (CanLookAheadStartInclusive(2) && PeekNext() == '\n')

@@ -113,7 +113,8 @@
             COLLECTIVE_OR_NOT_EQUAL,    // <||!=|
 
             UNDERSCORE,
-            EOL
+            EOL,
+            EOF
         }
 
         internal readonly TokenType Type;
@@ -121,6 +122,7 @@
         internal readonly object Literal;
 
         internal static Token EOL => new Token(TokenType.EOL, "\n");
+        internal static Token EOF = new Token(TokenType.EOF);
 
         internal Token(TokenType type = TokenType.UNKNOWN, string text = "", object literal = null)
         {

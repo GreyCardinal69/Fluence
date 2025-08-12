@@ -234,6 +234,9 @@ namespace Fluence
                 case ',': return MakeTokenAndTryAdvance(TokenType.COMMA, 1);
                 case '?': return MakeTokenAndTryAdvance(TokenType.QUESTION, 1);
                 case ':': return MakeTokenAndTryAdvance(TokenType.COLON, 1);
+                case '\'':
+                    _currentPosition++;
+                    return MakeTokenAndTryAdvance(TokenType.CHARACTER, 2, _sourceCode[_currentPosition].ToString(), _sourceCode[_currentPosition]);
                 case '\n':
                     AdvanceCurrentLine();
                     return MakeTokenAndTryAdvance(TokenType.EOL, 1, "\n", "\n");

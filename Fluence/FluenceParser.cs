@@ -79,7 +79,8 @@ namespace Fluence
                 token.Type != TokenType.IS &&
                 token.Type != TokenType.NOT &&
                 token.Type != TokenType.TRUE &&
-                token.Type != TokenType.FALSE;
+                token.Type != TokenType.FALSE &&
+                token.Type != TokenType.NIL;
 
             // Primary keywords like func, if, else, return, loops, and few others.
             if (FluenceKeywords.TokenTypeIsAKeywordType(token.Type) && isNotAPrimaryKeyword)
@@ -796,6 +797,11 @@ namespace Fluence
         private Value ParsePrimary()
         {
             Token token = _lexer.ConsumeToken();
+
+            if (token.Type == TokenType.NIL)
+            {
+                return new NilValue();
+            }
 
             if (token.Type == TokenType.MINUS || token.Type == TokenType.BANG || token.Type == TokenType.TILDE)
             {

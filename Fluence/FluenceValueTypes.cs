@@ -101,7 +101,10 @@ namespace Fluence
 
     internal class NilValue : Value
     {
-
+        public override string ToString()
+        {
+            return $"NilValue: Nil";
+        }
     }
 
     internal class BooleanValue : Value

@@ -59,6 +59,14 @@ namespace Fluence
             {
                 _lexer.TrySkipEOLToken();
                 if (_lexer.HasReachedEnd) break;
+
+                // We reached end of file, so we just quit.
+                if (_lexer.PeekNextToken().Type == TokenType.EOF )
+                {
+                    _lexer.ConsumeToken();
+                    break;
+                }
+
                 ParseStatement();
             }
         }
@@ -126,7 +134,12 @@ namespace Fluence
 
             Token next = _lexer.PeekNextToken();
 
-            if (next.Type == TokenType.R_BRACE)
+            if (next.Type == TokenType.EOL)
+            {
+                if (next.Text != ";" && next.Text != ";\r\n" && next.Text != ";\n") throw new Exception();
+            }
+
+            if (next.Type == TokenType.EOF)
             {
                 return;
             }

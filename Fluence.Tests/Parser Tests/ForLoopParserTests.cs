@@ -100,7 +100,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Equal, new TempValue(3), new VariableValue("a"), new NumberValue(5)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(14), new TempValue(3)),
                 new(InstructionCode.Goto, new NumberValue(35)),
-                new(InstructionCode.Equal, new TempValue(4), new VariableValue("a"), new NumberValue(6)), 
+                new(InstructionCode.Equal, new TempValue(4), new VariableValue("a"), new NumberValue(6)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(17), new TempValue(4)),
                 new(InstructionCode.Goto, new NumberValue(6)),
                 new(InstructionCode.Assign, new VariableValue("j"), new VariableValue("a")),

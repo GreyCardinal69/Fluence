@@ -1,5 +1,5 @@
-﻿using static Fluence.FluenceByteCode;
-using Xunit.Abstractions;
+﻿using Xunit.Abstractions;
+using static Fluence.FluenceByteCode;
 
 namespace Fluence.ParserTests
 {

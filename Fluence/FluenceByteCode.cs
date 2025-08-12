@@ -79,6 +79,8 @@
                 SetElement,
                 PushElement,
 
+                ToString,
+
                 CallIntrinsic,
                 Terminate,       // Ends program.
             }

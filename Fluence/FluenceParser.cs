@@ -1,4 +1,5 @@
-﻿using static Fluence.FluenceByteCode;
+﻿using System.Text;
+using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.Token;
 
@@ -8,7 +9,9 @@ namespace Fluence
     // Needs exception handling.
     internal sealed class FluenceParser
     {
-        private readonly FluenceLexer _lexer;
+        private FluenceLexer _lexer;
+        // Used to lex special, tiny bits of code, like expressions in f-string.
+        private FluenceLexer _auxLexer;
 
         private ParseState _currentParseState;
 
@@ -36,13 +39,17 @@ namespace Fluence
             {
                 CodeInstructions.Add(instructionLine);
             }
+
+            internal void AddInstructions(List<InstructionLine> codes)
+            {
+                CodeInstructions.AddRange(codes);
+            }
         }
 
         internal FluenceParser(FluenceLexer lexer)
         {
             _currentParseState = new();
             _lexer = lexer;
-
         }
 
         internal void Parse()
@@ -135,7 +142,7 @@ namespace Fluence
 
                 if (next.Type == TokenType.EOL)
                 {
-                    if (next.Text != ";" && next.Text != ";\r\n" && next.Text != ";\n") throw new Exception();
+                    if (next.Text != ";" && next.Text != ";\r\n" && next.Text != ";\n") throw new Exception("; mandate");
                 }
 
                 if (next.Type == TokenType.EOF)
@@ -161,6 +168,71 @@ namespace Fluence
             else
             {
                 ParseForCStyleStatement();
+            }
+        }
+
+        private void ParseForCStyleStatement()
+        {
+            // Part 1: Initializer (e.g., "i = 0;")
+            // This runs once before the loop begins.
+            ParseStatement();
+
+            // Part 2: Condition (e.g., "i < 10")
+            Value condition = ParseExpression();
+            int conditionCheckIndex = _currentParseState.CodeInstructions.Count;
+            _lexer.ConsumeToken(); // Consume the ;
+
+            // Add a placeholder jump that will exit the loop if the condition is false.
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, condition));
+            int loopExitPatchIndex = _currentParseState.CodeInstructions.Count - 1;
+
+            // Add a placeholder jump to skip over the incrementer and go directly to the loop body.
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+            int loopBodyJumpPatchIndex = _currentParseState.CodeInstructions.Count - 1;
+
+            // Part 3: Incrementer (e.g., "i += 1")
+            // This is where 'continue' statements will jump to.
+            int incrementerStartIndex = _currentParseState.CodeInstructions.Count;
+            ParseAssignment();
+            _lexer.ConsumeToken(); // Consume the ;
+
+            // After the incrementer runs, add a jump back to the condition check.
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(conditionCheckIndex - 1, NumberValue.NumberType.Integer)));
+
+            var loopContext = new LoopContext(incrementerStartIndex);
+            _currentParseState.ActiveLoopContexts.Push(loopContext);
+
+            int bodyStartIndex = _currentParseState.CodeInstructions.Count;
+            if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
+            {
+                ParseBlockStatement();
+            }
+            else
+            {
+                ConsumeAndTryThrowIfUnequal(TokenType.THIN_ARROW, "Expected '->' token for single line for loop statement");
+                ParseStatement();
+            }
+
+            // At the end of the body, add a jump to the incrementer.
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(incrementerStartIndex, NumberValue.NumberType.Integer)));
+
+            // Back-Patching
+            // Now that the whole loop is parsed, we know all the addresses and can fill in the placeholders.
+            _currentParseState.ActiveLoopContexts.Pop();
+
+            // Patch the jump that skips the incrementer to now point to the body.
+            _currentParseState.CodeInstructions[loopBodyJumpPatchIndex].Lhs = new NumberValue(bodyStartIndex, NumberValue.NumberType.Integer);
+
+            // The loop officially ends at the current instruction count.
+            int loopEndAddress = _currentParseState.CodeInstructions.Count;
+
+            // Patch the main exit jump to point to the instruction after the loop.
+            _currentParseState.CodeInstructions[loopExitPatchIndex].Lhs = new NumberValue(loopEndAddress, NumberValue.NumberType.Integer);
+
+            // Patch all 'break' statements to also jump to the end of the loop.
+            foreach (var patchIndex in loopContext.BreakPatchAddresses)
+            {
+                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(loopEndAddress, NumberValue.NumberType.Integer);
             }
         }
 
@@ -228,11 +300,6 @@ namespace Fluence
             }
 
             _currentParseState.ActiveLoopContexts.Pop();
-        }
-
-        private void ParseForCStyleStatement()
-        {
-
         }
 
         private void ParseWhileStatement()
@@ -355,6 +422,70 @@ namespace Fluence
                 int endAddress = _currentParseState.CodeInstructions.Count;
                 _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(endAddress, NumberValue.NumberType.Integer);
             }
+        }
+
+        private Value ConcatenateStringValues(Value left, Value right)
+        {
+            if (left == null) return right;
+            if (right == null) return left;
+
+            TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Add, temp, left, right));
+            return temp;
+        }
+
+        private Value ParseFString(object literal)
+        {
+            // f".... {var} ....".
+            string str = literal.ToString();
+
+            Value result = null;
+            int lastIndex = 0;
+
+            while (lastIndex < str.Length)
+            {
+                int exprStart = str.IndexOf('{', lastIndex);
+
+                if (exprStart == -1)
+                {
+                    string end = str.Substring(lastIndex);
+                    result = ConcatenateStringValues(result, new StringValue(end));
+                    break;
+                }
+
+                string start = str.Substring(lastIndex, exprStart - lastIndex);
+                if (!string.IsNullOrEmpty(start))
+                {
+                    result = ConcatenateStringValues(result, new StringValue(start));
+                }
+
+                int close = str.IndexOf('}', exprStart);
+
+                // no closing }
+                if (close == -1)
+                {
+                    // error?
+                }
+
+                // skip { at start, } at end.
+                string expr = str.Substring(exprStart + 1, close - exprStart - 1);
+
+                _auxLexer = _lexer;
+                _lexer = new FluenceLexer(expr);
+
+                Value exprInside = ParseExpression();
+
+                _lexer = _auxLexer;
+
+                TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.ToString, temp, exprInside));
+
+                result = ConcatenateStringValues(result, temp);
+
+                lastIndex = close + 1;
+            }
+
+            return result ?? new StringValue("");
         }
 
         private Value ParseList()
@@ -913,6 +1044,7 @@ namespace Fluence
                 case TokenType.STRING: return new StringValue(token.Text);
                 case TokenType.TRUE: return new BooleanValue(true);
                 case TokenType.FALSE: return new BooleanValue(false);
+                case TokenType.F_STRING: return ParseFString(token.Literal);
                 case TokenType.L_BRACKET:
                     // We are in list, either initialization, or [i] access.
                     return ParseList();

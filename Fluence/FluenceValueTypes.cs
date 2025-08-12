@@ -24,7 +24,10 @@ namespace Fluence
 
         public override string ToString()
         {
-            return $"StringValue: {Text}";
+            string str = Text == null ? "__Null" : Text;
+            str = str == "" ? "__EmptyString" : str;
+ 
+            return $"StringValue: \"{str}\"";
         }
     }
 
@@ -131,6 +134,7 @@ namespace Fluence
     internal class TempValue : Value
     {
         internal string TempName;
+        internal object Value;
 
         internal TempValue(int num)
         {

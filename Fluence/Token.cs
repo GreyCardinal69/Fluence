@@ -102,6 +102,7 @@
             OR_GUARD_CHAIN,     // <||??|
 
             SWAP,               // a >< b
+            BOOLEAN_FLIP,       // bool!!, x = !x.
 
             COLLECTIVE_EQUAL,           // <==|
             COLLECTIVE_NOT_EQUAL,       // <!=|

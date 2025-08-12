@@ -132,7 +132,7 @@ namespace Fluence
 
             // If we reach here, then we lack a semicolon, most likely at the end of an expression,
             // not within if/loops/etc. Or we have a bug.
-            ConsumeAndTryThrowIfUnequal(TokenType.EOL, "Syntax Error: Missing newline or ';' to terminate the statement.");
+            ConsumeAndTryThrowIfUnequal(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
         }
 
         private void ParseForStatement()
@@ -707,7 +707,9 @@ namespace Fluence
         }
 
         private static bool IsPostFixToken(TokenType type) =>
-            type == TokenType.INCREMENT || type == TokenType.DECREMENT;
+            type == TokenType.INCREMENT ||
+            type == TokenType.DECREMENT ||
+            type == TokenType.BOOLEAN_FLIP;
 
         private Value ParsePostFix()
         {
@@ -717,6 +719,12 @@ namespace Fluence
             while (IsPostFixToken(_lexer.PeekNextToken().Type))
             {
                 Token op = _lexer.ConsumeToken();
+
+                if (op.Type == TokenType.BOOLEAN_FLIP)
+                {
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Negate, left));
+                    break;
+                }
 
                 Value one = new NumberValue(1, NumberValue.NumberType.Integer);
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);

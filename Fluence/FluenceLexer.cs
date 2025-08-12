@@ -183,7 +183,12 @@ namespace Fluence
                     if (CanLookAheadStartInclusive(2) && PeekNext() == '>') return MakeTokenAndTryAdvance(TokenType.COMPOSITION_PIPE, 2);
                     return MakeTokenAndTryAdvance(TokenType.TILDE, 1);
                 case '!':
-                    if (CanLookAheadStartInclusive(2) && PeekNext() == '=') return MakeTokenAndTryAdvance(TokenType.BANG_EQUAL, 2);
+                    if (CanLookAheadStartInclusive(2))
+                    {
+                        nextChar = PeekNext();
+                        if (nextChar == '!') return MakeTokenAndTryAdvance(TokenType.BOOLEAN_FLIP, 2);
+                        if (nextChar == '=') return MakeTokenAndTryAdvance(TokenType.BANG_EQUAL, 2);
+                    }
                     return MakeTokenAndTryAdvance(TokenType.BANG, 1);
                 case '=':
                     if (CanLookAheadStartInclusive(2))

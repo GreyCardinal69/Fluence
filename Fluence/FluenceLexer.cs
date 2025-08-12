@@ -714,6 +714,7 @@ namespace Fluence
                     // Check for multi-line comment: '#*'
                     if (CanLookAheadStartInclusive(2) && _sourceCode[_currentPosition + 1] == '*')
                     {
+                        int level = 0; // We can have #* inside #*, to not read first *# as end of multiline, we keep track of level.
                         commentStartCol += 2;
                         skippedSomethingThisPass = true;
                         AdvancePosition(2); // Consume '#*'
@@ -721,11 +722,19 @@ namespace Fluence
 
                         while (!HasReachedEnd)
                         {
+                            if (CanLookAheadStartInclusive(2) && _sourceCode[_currentPosition] == '#' && _sourceCode[_currentPosition + 1] == '*')
+                            {
+                                level++;
+                            }
                             if (CanLookAheadStartInclusive(2) && _sourceCode[_currentPosition] == '*' && _sourceCode[_currentPosition + 1] == '#')
                             {
-                                didntEndMultiLineComment = false;
-                                AdvancePosition(2); // Consume '*#'
-                                break;
+                                if (level > 0) level--;
+                                else
+                                {
+                                    didntEndMultiLineComment = false;
+                                    AdvancePosition(2); // Consume '*#'
+                                    break;
+                                }
                             }
                             if (Peek() == '\n') AdvanceCurrentLine();
                             AdvancePosition();

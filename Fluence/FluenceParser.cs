@@ -152,7 +152,8 @@ namespace Fluence
 
         private void ParseForInStatement()
         {
-
+            _lexer.ConsumeToken(); // Consume for.
+             
         }
 
         private void ParseForCStyleStatement()
@@ -357,7 +358,7 @@ namespace Fluence
 
             TokenType type = _lexer.PeekNextToken().Type;
 
-            if (IsAssignmentOperator(type))
+            if (IsAssignmentOperator(type) || type == TokenType.SWAP)
             {
                 _lexer.ConsumeToken(); // Consume the "="
 
@@ -367,6 +368,14 @@ namespace Fluence
                 if (type == TokenType.EQUAL)
                 {
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, rhs));
+                }
+                else if (type == TokenType.SWAP)
+                {
+                    Value temp = new TempValue(_currentParseState.NextTempNumber++);
+
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, temp, lhs));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, rhs));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, rhs, temp));
                 }
                 else  // Compound, -=, +=, etc.
                 {

@@ -174,6 +174,7 @@ namespace Fluence
                     if (CanLookAheadStartInclusive(2))
                     {
                         nextChar = PeekNext();
+                        if (nextChar == '<') return MakeTokenAndTryAdvance(TokenType.SWAP, 2);
                         if (nextChar == '>') return MakeTokenAndTryAdvance(TokenType.BITWISE_RIGHT_SHIFT, 2);
                         if (nextChar == '=') return MakeTokenAndTryAdvance(TokenType.GREATER_EQUAL, 2);
                     }

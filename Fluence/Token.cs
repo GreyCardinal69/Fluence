@@ -101,6 +101,8 @@
             GUARD_CHAIN,        // <??|
             OR_GUARD_CHAIN,     // <||??|
 
+            SWAP,               // a >< b
+
             COLLECTIVE_EQUAL,           // <==|
             COLLECTIVE_NOT_EQUAL,       // <!=|
             COLLECTIVE_LESS,            // <<|

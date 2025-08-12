@@ -47,6 +47,12 @@ namespace Fluence
             Type = type;
         }
 
+        internal NumberValue(object literal)
+        {
+            Value = literal;
+            Type = NumberType.Integer;
+        }
+
         public static NumberValue FromToken(Token token)
         {
             string lexeme = token.Text;
@@ -128,7 +134,12 @@ namespace Fluence
 
         internal TempValue(int num)
         {
-            TempName = $"Temp{num}";
+            TempName = $"__Temp{num}";
+        }
+
+        internal TempValue(int num, string name)
+        {
+            TempName = $"{name}{num}";
         }
 
         public override string ToString()

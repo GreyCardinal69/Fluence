@@ -5,8 +5,8 @@
         internal static void DumpByteCodeInstructions(List<InstructionLine> instructions)
         {
             Console.WriteLine("--- Compiled Bytecode ---\n");
-            Console.WriteLine(string.Format("{0,-5} {1,-25} {2,-30} {3,-30} {4,-30}", "", "TYPE", "LHS", "RHS", "RHS2"));
-
+            Console.WriteLine(string.Format("{0,-5} {1,-15} {2,-35} {3,-35} {4,-40}", "", "TYPE", "LHS", "RHS", "RHS2"));
+            Console.WriteLine();
             if (instructions == null || instructions.Count == 0)
             {
                 Console.WriteLine("(No instructions generated)");
@@ -113,7 +113,7 @@
                 string lhs = Lhs != null ? Lhs.ToString() : "Null";
                 string rhs = Rhs != null ? Rhs.ToString() : "Null";
                 string rhs2 = Rhs2 != null ? Rhs2.ToString() : "Null";
-                return string.Format("{0,-25} {1,-30} {2,-30} {3,-20}", instruction, lhs, rhs, rhs2);
+                return string.Format("{0,-15} {1,-35} {2,-35} {3,-40}", instruction, lhs, rhs, rhs2);
             }
         }
     }

@@ -18,7 +18,7 @@ namespace Fluence
         {
             internal int ContinueAddress;
             internal List<int> BreakPatchAddresses { get; } = new List<int>();
-        
+
             internal LoopContext(int continueAddress)
             {
                 ContinueAddress = continueAddress;
@@ -61,7 +61,7 @@ namespace Fluence
                 if (_lexer.HasReachedEnd) break;
 
                 // We reached end of file, so we just quit.
-                if (_lexer.PeekNextToken().Type == TokenType.EOF )
+                if (_lexer.PeekNextToken().Type == TokenType.EOF)
                 {
                     _lexer.ConsumeToken();
                     break;
@@ -130,23 +130,23 @@ namespace Fluence
             else
             {
                 ParseAssignment();
+
+                Token next = _lexer.PeekNextToken();
+
+                if (next.Type == TokenType.EOL)
+                {
+                    if (next.Text != ";" && next.Text != ";\r\n" && next.Text != ";\n") throw new Exception();
+                }
+
+                if (next.Type == TokenType.EOF)
+                {
+                    return;
+                }
+
+                // If we reach here, then we lack a semicolon, most likely at the end of an expression,
+                // not within if/loops/etc. Or we have a bug.
+                ConsumeAndTryThrowIfUnequal(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
             }
-
-            Token next = _lexer.PeekNextToken();
-
-            if (next.Type == TokenType.EOL)
-            {
-                if (next.Text != ";" && next.Text != ";\r\n" && next.Text != ";\n") throw new Exception();
-            }
-
-            if (next.Type == TokenType.EOF)
-            {
-                return;
-            }
-
-            // If we reach here, then we lack a semicolon, most likely at the end of an expression,
-            // not within if/loops/etc. Or we have a bug.
-            ConsumeAndTryThrowIfUnequal(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
         }
 
         private void ParseForStatement()
@@ -166,8 +166,68 @@ namespace Fluence
 
         private void ParseForInStatement()
         {
-            _lexer.ConsumeToken(); // Consume for.
-             
+            Token itemToken = ConsumeAndTryThrowIfUnequal(TokenType.IDENTIFIER, "Expected loop variable name after 'for'.");
+            VariableValue loopVariable = new VariableValue(itemToken.Text);
+
+            ConsumeAndTryThrowIfUnequal(TokenType.IN, "Expected 'in' keyword in for-loop.");
+
+            Value collectionExpr = ParseExpression();
+
+            // Create hidden variables for the index and the collection copy.
+            TempValue indexVar = new TempValue(_currentParseState.NextTempNumber++, "ForInIndex");
+            TempValue collectionVar = new TempValue(_currentParseState.NextTempNumber++, "ForInCollectionCopy");
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, new NumberValue(0, NumberValue.NumberType.Integer)));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, collectionVar, collectionExpr));
+
+            int loopTopAddress = _currentParseState.CodeInstructions.Count;
+
+            var loopContext = new LoopContext(loopTopAddress);
+            _currentParseState.ActiveLoopContexts.Push(loopContext);
+
+            TempValue lengthVar = new TempValue(_currentParseState.NextTempNumber++, "ForInCollectionLen");
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetLength, lengthVar, collectionVar));
+            TempValue conditionVar = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.LessThan, conditionVar, indexVar, lengthVar));
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, conditionVar));
+            int loopExitPatchIndex = _currentParseState.CodeInstructions.Count - 1;
+
+            // Assign the loop variable: `item = collection[index]`
+            TempValue currentElementVar = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetElement, currentElementVar, collectionVar, indexVar));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, loopVariable, currentElementVar));
+
+            // ForIn has two forms, block {...} or ForIn cond -> ...;
+            if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
+            {
+                ParseBlockStatement();
+            }
+            else
+            {
+                ConsumeAndTryThrowIfUnequal(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
+                ParseStatement();
+            }
+
+            // Increment the index: `index = index + 1`
+            TempValue incrementedIndex = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Add, incrementedIndex, indexVar, new NumberValue(1)));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, incrementedIndex));
+
+            loopContext.ContinueAddress = _currentParseState.CodeInstructions.Count;
+
+            // Unconditional jump back to the top to re-check the condition.
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopTopAddress)));
+
+            int loopEndAddress = _currentParseState.CodeInstructions.Count;
+            _currentParseState.CodeInstructions[loopExitPatchIndex].Lhs = new NumberValue(loopEndAddress);
+
+            foreach (var patchIndex in loopContext.BreakPatchAddresses)
+            {
+                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(loopEndAddress);
+            }
+
+            _currentParseState.ActiveLoopContexts.Pop();
         }
 
         private void ParseForCStyleStatement()

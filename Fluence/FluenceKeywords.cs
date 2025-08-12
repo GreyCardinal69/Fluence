@@ -22,6 +22,7 @@ namespace Fluence
                 "is",
                 "or",
                 "not",
+                "and",
                 "space",
                 "use",
                 "type",
@@ -50,6 +51,7 @@ namespace Fluence
             { "is", TokenType.EQUAL_EQUAL },
             { "not", TokenType.BANG_EQUAL },
             { "or", TokenType.OR },
+            { "and", TokenType.AND },
             { "space", TokenType.SPACE },
             { "use", TokenType.USE },
             { "type", TokenType.TYPE },
@@ -79,6 +81,7 @@ namespace Fluence
                 TokenType.IS        or
                 TokenType.NOT       or
                 TokenType.OR        or
+                TokenType.AND       or
                 TokenType.SPACE     or
                 TokenType.USE       or
                 TokenType.TYPE      or
@@ -104,7 +107,8 @@ namespace Fluence
                     if (text.SequenceEqual("for")) return TokenType.FOR;
                     if (text.SequenceEqual("nil")) return TokenType.NIL;
                     if (text.SequenceEqual("not")) return TokenType.BANG_EQUAL;
-                    if (text.SequenceEqual("use")) return TokenType.USE;
+                    if (text.SequenceEqual("and")) return TokenType.AND;
+                    if (text.SequenceEqual("not")) return TokenType.BANG_EQUAL;
                     break;
                 case 4:
                     if (text.SequenceEqual("else")) return TokenType.ELSE;

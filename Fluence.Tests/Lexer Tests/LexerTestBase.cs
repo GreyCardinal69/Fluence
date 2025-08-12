@@ -1,6 +1,6 @@
 ﻿using Xunit.Abstractions;
 
-namespace Fluence.Tests
+namespace Fluence.LexerTests
 {
     public abstract class LexerTestBase(ITestOutputHelper output)
     {

@@ -1,7 +1,7 @@
 ﻿using Xunit.Abstractions;
 using static Fluence.Token;
 
-namespace Fluence.Tests
+namespace Fluence.LexerTests
 {
     public class BasicLexerTests(ITestOutputHelper output)
     {

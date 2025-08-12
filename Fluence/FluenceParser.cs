@@ -1191,6 +1191,7 @@ namespace Fluence
                 case TokenType.TRUE: return new BooleanValue(true);
                 case TokenType.FALSE: return new BooleanValue(false);
                 case TokenType.F_STRING: return ParseFString(token.Literal);
+                case TokenType.CHARACTER: return new CharValue((char)token.Literal);
                 case TokenType.L_BRACKET:
                     // We are in list, either initialization, or [i] access.
                     return ParseList();

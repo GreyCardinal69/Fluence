@@ -12,6 +12,21 @@ namespace Fluence
         internal virtual object GetValue() { return null; }
     }
 
+    internal class CharValue : Value
+    {
+        internal char Value;
+
+        internal CharValue(char value)
+        {
+            Value = value;
+        }
+
+        public override string ToString()
+        {
+            return $"CharValue: '{Value}'";
+        }
+    }
+
     internal class StringValue : Value
     {
         internal string Text;

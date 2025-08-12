@@ -5,7 +5,7 @@
         internal static void DumpByteCodeInstructions(List<InstructionLine> instructions)
         {
             Console.WriteLine("--- Compiled Bytecode ---\n");
-            Console.WriteLine(string.Format("{0,-5} {1,-15} {2,-35} {3,-35} {4,-40}", "", "TYPE", "LHS", "RHS", "RHS2"));
+            Console.WriteLine(string.Format("{0,-5} {1,-15} {2,-35} {3,-45} {4,-40}", "", "TYPE", "LHS", "RHS", "RHS2"));
             Console.WriteLine();
             if (instructions == null || instructions.Count == 0)
             {
@@ -65,11 +65,6 @@
                 GotoIfTrue,      // Jump to Lhs if RhsA is true
                 GotoIfFalse,     // Jump to Lhs if RhsA is false
 
-                PushParam,       // Pushes RhsA onto the argument stack for a call
-                Call,            // Lhs = Call RhsA (the function) with RhsB (arg count)
-                CreateFunction,  // Lhs = a new function object from a block of code
-                Return,          // Return RhsA from the current function
-
                 NewStruct,       // Lhs = a new struct of type RhsA
                 GetProperty,     // Lhs = RhsA.RhsB (e.g., my_obj.prop)
                 SetProperty,     // Lhs.RhsA = RhsB (e.g., my_obj.prop = val)
@@ -79,6 +74,10 @@
                 SetElement,
                 PushElement,
                 NewRangeList,    // For ranges, aka num1..num2. Better than calling push element bytecode many times.
+
+                Return,
+                PushParam,
+                CallFunction,
 
                 ToString,
 
@@ -90,6 +89,7 @@
             internal Value Lhs;
             internal Value Rhs;
             internal Value Rhs2;
+            internal string CallName;
 
             internal readonly Token Token;
 
@@ -110,13 +110,16 @@
                 Token = token;
             }
 
+            internal void SetCallName(string name) { CallName = name; }
+
             public override string ToString()
             {
                 string instruction = Instruction.ToString();
+                if (CallName != null) instruction += CallName;
                 string lhs = Lhs != null ? Lhs.ToString() : "Null";
                 string rhs = Rhs != null ? Rhs.ToString() : "Null";
                 string rhs2 = Rhs2 != null ? Rhs2.ToString() : "Null";
-                return string.Format("{0,-15} {1,-35} {2,-35} {3,-40}", instruction, lhs, rhs, rhs2);
+                return string.Format("{0,-15} {1,-35} {2,-45} {3,-40}", instruction, lhs, rhs, rhs2);
             }
         }
     }

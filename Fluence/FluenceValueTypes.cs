@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text;
+﻿using System.Text;
 
 namespace Fluence
 {
@@ -26,7 +25,7 @@ namespace Fluence
         {
             string str = Text == null ? "__Null" : Text;
             str = str == "" ? "__EmptyString" : str;
- 
+
             return $"StringValue: \"{str}\"";
         }
     }
@@ -95,7 +94,6 @@ namespace Fluence
             // SHOULD BE A PARSER ERROR, this for now.
             throw new FormatException($"Invalid number format: '{lexeme}'");
         }
-
 
         public override string ToString()
         {
@@ -174,7 +172,27 @@ namespace Fluence
 
     internal class FunctionValue : Value
     {
+        // The name of the function (for debugging/stack traces).
+        internal string Name { get; }
+        // The number of parameters the function expects.
+        internal int Arity { get; }
+        // The address of the first instruction of the function's body in the bytecode.
+        internal int StartAddress { get; }
+        // Debug full address.
+        internal string FullAddress { get; }
 
+        internal FunctionValue(string name, int arity, int startAddress, string fullAddress )
+        {
+            Name = name;
+            Arity = arity;
+            StartAddress = startAddress;
+            FullAddress = fullAddress;
+        }
+
+        public override string ToString()
+        {
+            return $"FunctionValue: {Name} {FullAddress}, {Arity} args.";
+        }
     }
 
     internal class VariableValue : Value

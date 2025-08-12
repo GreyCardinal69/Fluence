@@ -78,6 +78,7 @@
                 GetElement,
                 SetElement,
                 PushElement,
+                NewRangeList,    // For ranges, aka num1..num2. Better than calling push element bytecode many times.
 
                 ToString,
 

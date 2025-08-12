@@ -448,33 +448,34 @@ namespace Fluence
 
                 if (exprStart == -1)
                 {
-                    string end = str.Substring(lastIndex);
+                    string end = str[lastIndex..];
                     result = ConcatenateStringValues(result, new StringValue(end));
                     break;
                 }
 
-                string start = str.Substring(lastIndex, exprStart - lastIndex);
-                if (!string.IsNullOrEmpty(start))
+                string startOfLiteral = str[lastIndex..exprStart];
+                if (!string.IsNullOrEmpty(startOfLiteral))
                 {
-                    result = ConcatenateStringValues(result, new StringValue(start));
+                    result = ConcatenateStringValues(result, new StringValue(startOfLiteral));
                 }
 
-                int close = str.IndexOf('}', exprStart);
+                int exprClose = str.IndexOf('}', exprStart);
 
                 // no closing }
-                if (close == -1)
+                if (exprClose == -1)
                 {
                     // error?
                 }
 
                 // skip { at start, } at end.
-                string expr = str.Substring(exprStart + 1, close - exprStart - 1);
+                string expr = str.Substring(exprStart + 1, exprClose - exprStart - 1);
 
+                // We push our main code's token stream into the aux lexer,
+                // In the current lexer we put the {expr}, parse it, then we switch back.
                 _auxLexer = _lexer;
                 _lexer = new FluenceLexer(expr);
 
                 Value exprInside = ParseExpression();
-
                 _lexer = _auxLexer;
 
                 TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
@@ -482,10 +483,32 @@ namespace Fluence
 
                 result = ConcatenateStringValues(result, temp);
 
-                lastIndex = close + 1;
+                lastIndex = exprClose + 1;
             }
 
             return result ?? new StringValue("");
+        }
+
+        private Value ParseRange(int literal = -1)
+        {
+            int start = literal == -1 ? Convert.ToInt32(_lexer.ConsumeToken().Literal) : literal;
+            TempValue rangeList = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewList, rangeList));
+
+            _lexer.ConsumeToken(); // Consume the ..
+
+            int end = Convert.ToInt32(_lexer.ConsumeToken().Literal); // Store the end of the range.
+            Console.WriteLine(start + ".." + end);
+            for (int i = start; i <= end; i++)
+            {
+                TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, temp, new NumberValue(i)));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushElement, rangeList, temp));
+            }
+
+            _lexer.ConsumeToken(); // Consume ].
+
+            return rangeList;
         }
 
         private Value ParseList()
@@ -808,12 +831,12 @@ namespace Fluence
         private Value ParseComparison()
         {
             // This calls the next higher precedence level.
-            Value left = ParseAdditionSubtraction();
+            Value left = ParseRange();
 
             while (IsComparisonTokenType(_lexer.PeekNextToken().Type))
             {
                 Token op = _lexer.ConsumeToken();
-                Value right = ParseAdditionSubtraction();
+                Value right = ParseRange();
 
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
 
@@ -823,6 +846,24 @@ namespace Fluence
             }
 
             return left;
+        }
+
+        private Value ParseRange()
+        {
+            Value left = ParseAdditionSubtraction(); // Parse the start of the range
+
+            if (_lexer.PeekNextToken().Type == TokenType.DOT_DOT)
+            {
+                _lexer.ConsumeToken(); // Consume '..'
+                Value right = ParseAdditionSubtraction();
+                TempValue resultList = new TempValue(_currentParseState.NextTempNumber++);
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewRangeList, resultList, left, right));
+
+                return resultList;
+            }
+
+            return left; // Not a range, just a regular expression.
         }
 
         private Value ParseAdditionSubtraction()
@@ -1040,7 +1081,8 @@ namespace Fluence
             switch (token.Type)
             {
                 case TokenType.IDENTIFIER: return new VariableValue(token.Text);
-                case TokenType.NUMBER: return NumberValue.FromToken(token);
+                case TokenType.NUMBER:
+                    return NumberValue.FromToken(token);
                 case TokenType.STRING: return new StringValue(token.Text);
                 case TokenType.TRUE: return new BooleanValue(true);
                 case TokenType.FALSE: return new BooleanValue(false);

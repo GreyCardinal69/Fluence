@@ -15,7 +15,7 @@ namespace Fluence.Tests
             {
                 token = lexer.ConsumeToken();
                 types.Add(token.Type);
-            } while (token.Type != Token.TokenType.EOL);
+            } while (!lexer.HasReachedEnd);
             return types;
         }
 

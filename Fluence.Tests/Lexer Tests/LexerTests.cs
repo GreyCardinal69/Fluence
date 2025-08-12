@@ -1,4 +1,5 @@
 ﻿using Xunit.Abstractions;
+using static Fluence.Token;
 
 namespace Fluence.Tests
 {
@@ -100,7 +101,7 @@ namespace Fluence.Tests
         {
             string source = "<||==|";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.COLLECTIVE_OR_EQUAL, token.Type);
+            Assert.Equal(TokenType.COLLECTIVE_OR_EQUAL, token.Type);
         }
 
         [Fact]
@@ -108,7 +109,7 @@ namespace Fluence.Tests
         {
             string source = "<||!=|";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.COLLECTIVE_OR_NOT_EQUAL, token.Type);
+            Assert.Equal(TokenType.COLLECTIVE_OR_NOT_EQUAL, token.Type);
         }
 
         [Fact]
@@ -116,7 +117,7 @@ namespace Fluence.Tests
         {
             string source = "<||??|";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.OR_GUARD_CHAIN, token.Type);
+            Assert.Equal(TokenType.OR_GUARD_CHAIN, token.Type);
         }
 
         // --- 4-Character Operator Tests ---
@@ -125,7 +126,7 @@ namespace Fluence.Tests
         {
             string source = "<==|";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.COLLECTIVE_EQUAL, token.Type);
+            Assert.Equal(TokenType.COLLECTIVE_EQUAL, token.Type);
         }
 
         [Fact]
@@ -133,7 +134,7 @@ namespace Fluence.Tests
         {
             string source = "<??|";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.GUARD_CHAIN, token.Type);
+            Assert.Equal(TokenType.GUARD_CHAIN, token.Type);
         }
 
         // --- <n| and <n|? Family Tests ---
@@ -142,7 +143,7 @@ namespace Fluence.Tests
         {
             string source = "<1|";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.CHAIN_ASSIGN_N, token.Type);
+            Assert.Equal(TokenType.CHAIN_ASSIGN_N, token.Type);
         }
 
         [Fact]
@@ -150,7 +151,7 @@ namespace Fluence.Tests
         {
             string source = "<123| remaining code";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.CHAIN_ASSIGN_N, token.Type);
+            Assert.Equal(TokenType.CHAIN_ASSIGN_N, token.Type);
         }
 
         [Fact]
@@ -158,7 +159,7 @@ namespace Fluence.Tests
         {
             string source = "<5|? code after";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.OPTIONAL_ASSIGN_N, token.Type);
+            Assert.Equal(TokenType.OPTIONAL_ASSIGN_N, token.Type);
             Assert.Equal("5", token.Text);
         }
 
@@ -167,7 +168,7 @@ namespace Fluence.Tests
         {
             string source = "<=";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.LESS_EQUAL, token.Type);
+            Assert.Equal(TokenType.LESS_EQUAL, token.Type);
         }
 
         [Fact]
@@ -175,7 +176,7 @@ namespace Fluence.Tests
         {
             string source = "<|";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.REST_ASSIGN, token.Type);
+            Assert.Equal(TokenType.REST_ASSIGN, token.Type);
         }
 
         [Fact]
@@ -183,7 +184,7 @@ namespace Fluence.Tests
         {
             string source = "< variable";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.LESS, token.Type);
+            Assert.Equal(TokenType.LESS, token.Type);
         }
 
         [Fact]
@@ -191,7 +192,7 @@ namespace Fluence.Tests
         {
             string source = "  <||!=|";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.COLLECTIVE_OR_NOT_EQUAL, token.Type);
+            Assert.Equal(TokenType.COLLECTIVE_OR_NOT_EQUAL, token.Type);
 
             var lexer = new FluenceLexer(source);
             _ = lexer.ConsumeToken();
@@ -203,7 +204,7 @@ namespace Fluence.Tests
         {
             string source = "<";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.LESS, token.Type);
+            Assert.Equal(TokenType.LESS, token.Type);
         }
     }
 
@@ -222,7 +223,7 @@ namespace Fluence.Tests
         {
             string source = "|>>=";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.REDUCER_PIPE, token.Type);
+            Assert.Equal(TokenType.REDUCER_PIPE, token.Type);
         }
 
         [Fact]
@@ -230,7 +231,7 @@ namespace Fluence.Tests
         {
             string source = "|>>";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.MAP_PIPE, token.Type);
+            Assert.Equal(TokenType.MAP_PIPE, token.Type);
         }
 
         // --- 2-Character Operator Tests ---
@@ -239,7 +240,7 @@ namespace Fluence.Tests
         {
             string source = "|??";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.GUARD_PIPE, token.Type);
+            Assert.Equal(TokenType.GUARD_PIPE, token.Type);
         }
 
         [Fact]
@@ -247,7 +248,7 @@ namespace Fluence.Tests
         {
             string source = "|~>";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.SCAN_PIPE, token.Type);
+            Assert.Equal(TokenType.SCAN_PIPE, token.Type);
         }
 
         [Fact]
@@ -255,7 +256,7 @@ namespace Fluence.Tests
         {
             string source = "||";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.OR, token.Type);
+            Assert.Equal(TokenType.OR, token.Type);
         }
 
         [Fact]
@@ -263,7 +264,7 @@ namespace Fluence.Tests
         {
             string source = "|>";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.PIPE, token.Type);
+            Assert.Equal(TokenType.PIPE, token.Type);
         }
 
         [Fact]
@@ -271,7 +272,7 @@ namespace Fluence.Tests
         {
             string source = "|?";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.OPTIONAL_PIPE, token.Type);
+            Assert.Equal(TokenType.OPTIONAL_PIPE, token.Type);
         }
 
         // --- Fallback and Edge Case Tests ---
@@ -281,7 +282,7 @@ namespace Fluence.Tests
         {
             string source = "| variable";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.PIPE_CHAR, token.Type);
+            Assert.Equal(TokenType.PIPE_CHAR, token.Type);
         }
 
         [Fact]
@@ -289,7 +290,7 @@ namespace Fluence.Tests
         {
             string source = "|>>=";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.REDUCER_PIPE, token.Type);
+            Assert.Equal(TokenType.REDUCER_PIPE, token.Type);
 
             var lexer = new FluenceLexer(source);
             _ = lexer.ConsumeToken();
@@ -301,7 +302,7 @@ namespace Fluence.Tests
         {
             string source = "|";
             var token = LexFirstToken(source);
-            Assert.Equal(Token.TokenType.PIPE_CHAR, token.Type);
+            Assert.Equal(TokenType.PIPE_CHAR, token.Type);
         }
 
         [Fact]
@@ -310,7 +311,7 @@ namespace Fluence.Tests
             var lexer = new FluenceLexer("|a");
             var token1 = lexer.ConsumeToken();
 
-            Assert.Equal(Token.TokenType.PIPE_CHAR, token1.Type);
+            Assert.Equal(TokenType.PIPE_CHAR, token1.Type);
         }
     }
 }

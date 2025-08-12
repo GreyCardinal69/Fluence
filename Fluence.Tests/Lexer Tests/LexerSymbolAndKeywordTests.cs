@@ -1,64 +1,64 @@
 ﻿using Xunit.Abstractions;
+using static Fluence.Token;
 
 namespace Fluence.Tests
 {
     public class LexerSymbolAndKeywordTests(ITestOutputHelper output) : LexerTestBase(output)
     {
         [Theory]
-        [InlineData("(", Token.TokenType.L_PAREN)]
-        [InlineData(")", Token.TokenType.R_PAREN)]
-        [InlineData("{", Token.TokenType.L_BRACE)]
-        [InlineData("}", Token.TokenType.R_BRACE)]
-        [InlineData("[", Token.TokenType.L_BRACKET)]
-        [InlineData("]", Token.TokenType.R_BRACKET)]
-        [InlineData(",", Token.TokenType.COMMA)]
-        [InlineData("+", Token.TokenType.PLUS)]
-        [InlineData("-", Token.TokenType.MINUS)]
-        [InlineData("*", Token.TokenType.STAR)]
-        [InlineData("/", Token.TokenType.SLASH)]
-        [InlineData("%", Token.TokenType.PERCENT)]
-        [InlineData("=", Token.TokenType.EQUAL)]
-        [InlineData("~>", Token.TokenType.COMPOSITION_PIPE)]
-        [InlineData("->", Token.TokenType.THIN_ARROW)]
-        [InlineData("=>", Token.TokenType.ARROW)]
-        [InlineData("==", Token.TokenType.EQUAL_EQUAL)]
-        [InlineData("!=", Token.TokenType.BANG_EQUAL)]
-        [InlineData("**", Token.TokenType.EXPONENT)]
-        [InlineData("++", Token.TokenType.INCREMENT)]
-        [InlineData("--", Token.TokenType.DECREMENT)]
-        [InlineData("..", Token.TokenType.DOT_DOT)]
-        [InlineData("func", Token.TokenType.FUNC)]
-        [InlineData("if", Token.TokenType.IF)]
-        [InlineData("else", Token.TokenType.ELSE)]
-        [InlineData("return", Token.TokenType.RETURN)]
-        [InlineData("true", Token.TokenType.TRUE)]
-        [InlineData("false", Token.TokenType.FALSE)]
-        [InlineData("nil", Token.TokenType.NIL)]
-        [InlineData("is", Token.TokenType.IS)]
-        [InlineData("not", Token.TokenType.NOT)]
-        [InlineData("struct", Token.TokenType.STRUCT)]
-        internal void TestSingleTokens(string source, Token.TokenType expectedType)
+        [InlineData("(", TokenType.L_PAREN)]
+        [InlineData(")", TokenType.R_PAREN)]
+        [InlineData("{", TokenType.L_BRACE)]
+        [InlineData("}", TokenType.R_BRACE)]
+        [InlineData("[", TokenType.L_BRACKET)]
+        [InlineData("]", TokenType.R_BRACKET)]
+        [InlineData(",", TokenType.COMMA)]
+        [InlineData("+", TokenType.PLUS)]
+        [InlineData("-", TokenType.MINUS)]
+        [InlineData("*", TokenType.STAR)]
+        [InlineData("/", TokenType.SLASH)]
+        [InlineData("%", TokenType.PERCENT)]
+        [InlineData("=", TokenType.EQUAL)]
+        [InlineData("~>", TokenType.COMPOSITION_PIPE)]
+        [InlineData("->", TokenType.THIN_ARROW)]
+        [InlineData("=>", TokenType.ARROW)]
+        [InlineData("==", TokenType.EQUAL_EQUAL)]
+        [InlineData("!=", TokenType.BANG_EQUAL)]
+        [InlineData("**", TokenType.EXPONENT)]
+        [InlineData("++", TokenType.INCREMENT)]
+        [InlineData("--", TokenType.DECREMENT)]
+        [InlineData("..", TokenType.DOT_DOT)]
+        [InlineData("func", TokenType.FUNC)]
+        [InlineData("if", TokenType.IF)]
+        [InlineData("else", TokenType.ELSE)]
+        [InlineData("return", TokenType.RETURN)]
+        [InlineData("true", TokenType.TRUE)]
+        [InlineData("false", TokenType.FALSE)]
+        [InlineData("nil", TokenType.NIL)]
+        [InlineData("is", TokenType.IS)]
+        [InlineData("not", TokenType.NOT)]
+        [InlineData("struct", TokenType.STRUCT)]
+        internal void TestSingleTokens(string source, TokenType expectedType)
         {
-            var types = LexAllTypes(source);
-            Assert.Equal(expectedType, types[0]);
-            Assert.Equal(Token.TokenType.EOL, types[1]);
+            var types = LexFirstToken(source);
+            Assert.Equal(expectedType, types.Type);
         }
 
         [Fact]
         public void TestSemicolonEOL()
         {
             var lexer = new FluenceLexer(";");
-            Assert.Equal(Token.TokenType.EOL, lexer.ConsumeToken().Type);
+            Assert.Equal(TokenType.EOL, lexer.ConsumeToken().Type);
         }
 
         [Fact]
         public void TestSequenceOfSymbolsAndKeywords()
         {
             string source = "func main() => { return nil; }";
-            var expected = new List<Token.TokenType> {
-            Token.TokenType.FUNC, Token.TokenType.IDENTIFIER, Token.TokenType.L_PAREN, Token.TokenType.R_PAREN,
-            Token.TokenType.ARROW, Token.TokenType.L_BRACE, Token.TokenType.RETURN, Token.TokenType.NIL,
-            Token.TokenType.EOL,
+            var expected = new List<TokenType> {
+            TokenType.FUNC, TokenType.IDENTIFIER, TokenType.L_PAREN, TokenType.R_PAREN,
+            TokenType.ARROW, TokenType.L_BRACE, TokenType.RETURN, TokenType.NIL,
+            TokenType.EOL, TokenType.R_BRACE
         };
             var actual = LexAllTypes(source);
             Assert.Equal(expected, actual);
@@ -68,10 +68,10 @@ namespace Fluence.Tests
         public void TestSequenceOfRange()
         {
             string source = "func main() => { x = 5..10; }";
-            var expected = new List<Token.TokenType> {
-            Token.TokenType.FUNC, Token.TokenType.IDENTIFIER, Token.TokenType.L_PAREN, Token.TokenType.R_PAREN,
-            Token.TokenType.ARROW, Token.TokenType.L_BRACE, Token.TokenType.IDENTIFIER, Token.TokenType.EQUAL,
-            Token.TokenType.NUMBER, Token.TokenType.DOT_DOT, Token.TokenType.NUMBER, Token.TokenType.EOL
+            var expected = new List<TokenType> {
+            TokenType.FUNC, TokenType.IDENTIFIER, TokenType.L_PAREN, TokenType.R_PAREN,
+            TokenType.ARROW, TokenType.L_BRACE, TokenType.IDENTIFIER, TokenType.EQUAL,
+            TokenType.NUMBER, TokenType.DOT_DOT, TokenType.NUMBER, TokenType.EOL, TokenType.R_BRACE
         };
             var actual = LexAllTypes(source);
             Assert.Equal(expected, actual);

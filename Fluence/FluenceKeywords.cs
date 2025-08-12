@@ -20,6 +20,7 @@ namespace Fluence
                 "true",
                 "false",
                 "is",
+                "or",
                 "not",
                 "space",
                 "use",
@@ -46,8 +47,9 @@ namespace Fluence
             { "return", TokenType.RETURN },
             { "true", TokenType.TRUE },
             { "false", TokenType.FALSE },
-            { "is", TokenType.IS },
-            { "not", TokenType.NOT },
+            { "is", TokenType.EQUAL_EQUAL },
+            { "not", TokenType.BANG_EQUAL },
+            { "or", TokenType.OR },
             { "space", TokenType.SPACE },
             { "use", TokenType.USE },
             { "type", TokenType.TYPE },
@@ -76,6 +78,7 @@ namespace Fluence
                 TokenType.FALSE     or
                 TokenType.IS        or
                 TokenType.NOT       or
+                TokenType.OR        or
                 TokenType.SPACE     or
                 TokenType.USE       or
                 TokenType.TYPE      or
@@ -94,12 +97,13 @@ namespace Fluence
                 case 2:
                     if (text.SequenceEqual("if")) return TokenType.IF;
                     if (text.SequenceEqual("in")) return TokenType.IN;
-                    if (text.SequenceEqual("is")) return TokenType.IS;
+                    if (text.SequenceEqual("is")) return TokenType.EQUAL_EQUAL;
+                    if (text.SequenceEqual("or")) return TokenType.OR;
                     break;
                 case 3:
                     if (text.SequenceEqual("for")) return TokenType.FOR;
                     if (text.SequenceEqual("nil")) return TokenType.NIL;
-                    if (text.SequenceEqual("not")) return TokenType.NOT;
+                    if (text.SequenceEqual("not")) return TokenType.BANG_EQUAL;
                     if (text.SequenceEqual("use")) return TokenType.USE;
                     break;
                 case 4:

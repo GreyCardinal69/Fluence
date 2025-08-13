@@ -27,6 +27,13 @@ namespace Fluence
         }
     }
 
+    internal sealed class StatementCompleteValue : Value
+    {
+        // It has no data. Its existence is its meaning.
+        public override string ToString() => "StatementComplete";
+        internal override object GetValue() => null;
+    }
+
     internal class StringValue : Value
     {
         internal string Text;

@@ -16,6 +16,7 @@ namespace Fluence.ParserTests
 
             var expectedCode = new List<InstructionLine>
             {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Assign, new VariableValue("a"), new StringValue("hello world")),
                 new(InstructionCode.Terminate, null)
             };
@@ -31,6 +32,7 @@ namespace Fluence.ParserTests
 
             var expectedCode = new List<InstructionLine>
             {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Assign, new VariableValue("d"), new StringValue("")),
                 new(InstructionCode.Terminate, null)
             };
@@ -46,6 +48,7 @@ namespace Fluence.ParserTests
 
             var expectedCode = new List<InstructionLine>
             {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Assign, new VariableValue("d"), new StringValue("")),
                 new(InstructionCode.Terminate, null)
             };
@@ -65,6 +68,7 @@ namespace Fluence.ParserTests
 
             var expectedCode = new List<InstructionLine>
             {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(5, NumberValue.NumberType.Integer)),
                 new(InstructionCode.ToString, new TempValue(0), new VariableValue("b")),
                 new(InstructionCode.Add, new TempValue(1), new StringValue("hello "), new TempValue(0)),
@@ -87,14 +91,15 @@ namespace Fluence.ParserTests
 
             var expectedCode = new List<InstructionLine>
             {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Assign, new VariableValue("a"), new StringValue("end")),
-                new(InstructionCode.Add, new TempValue(0), new NumberValue(10, NumberValue.NumberType.Integer), new NumberValue(20, NumberValue.NumberType.Integer)),
-                new(InstructionCode.ToString, new TempValue(1), new TempValue(0)),
-                new(InstructionCode.Add, new TempValue(2), new StringValue("start "), new TempValue(1)),
-                new(InstructionCode.Add, new TempValue(3), new TempValue(2), new StringValue(" middle ")),
-                new(InstructionCode.ToString, new TempValue(4), new VariableValue("a")),
-                new(InstructionCode.Add, new TempValue(5), new TempValue(3), new TempValue(4)),
-                new(InstructionCode.Assign, new VariableValue("c"), new TempValue(5)),
+                new(InstructionCode.Add, new TempValue(1), new NumberValue(10, NumberValue.NumberType.Integer), new NumberValue(20, NumberValue.NumberType.Integer)),
+                new(InstructionCode.ToString, new TempValue(2), new TempValue(1)),
+                new(InstructionCode.Add, new TempValue(3), new StringValue("start "), new TempValue(2)),
+                new(InstructionCode.Add, new TempValue(4), new TempValue(3), new StringValue(" middle ")),
+                new(InstructionCode.ToString, new TempValue(5), new VariableValue("a")),
+                new(InstructionCode.Add, new TempValue(6), new TempValue(4), new TempValue(5)),
+                new(InstructionCode.Assign, new VariableValue("c"), new TempValue(6)),
                 new(InstructionCode.Terminate, null)
             };
 

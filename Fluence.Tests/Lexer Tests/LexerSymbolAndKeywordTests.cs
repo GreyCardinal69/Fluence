@@ -35,8 +35,8 @@ namespace Fluence.LexerTests
         [InlineData("true", TokenType.TRUE)]
         [InlineData("false", TokenType.FALSE)]
         [InlineData("nil", TokenType.NIL)]
-        [InlineData("is", TokenType.IS)]
-        [InlineData("not", TokenType.NOT)]
+        [InlineData("is", TokenType.EQUAL_EQUAL)]
+        [InlineData("not", TokenType.BANG_EQUAL)]
         [InlineData("struct", TokenType.STRUCT)]
         internal void TestSingleTokens(string source, TokenType expectedType)
         {

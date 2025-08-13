@@ -13,7 +13,8 @@ namespace Fluence
 
         internal int CurrentLine => _currentLine;
         internal int CurrentColumn => _currentColumn;
-        internal bool HasReachedEnd => _currentPosition >= _sourceLength;
+        internal bool HasReachedEnd => _currentPosition >= _sourceLength & _tokenBuffer.HasReachedEnd;
+        private bool _hasReachedEndInternal => _currentPosition >= _sourceLength;
         internal int CurrentPosition => _currentPosition;
         internal int SourceLength => _sourceLength;
         internal char CharAtCurrentPosition => _sourceCode[_currentPosition];
@@ -37,6 +38,25 @@ namespace Fluence
 
             // A reasonable threshold for trimming the buffer.
             private const int TrimThreshold = 256;
+
+            public bool HasReachedEnd
+            {
+                get
+                {
+                    if (!_lexerFinished)
+                    {
+                        EnsureFilled(1);
+                    }
+
+                    if (_head >= _buffer.Count)
+                    {
+                        return _lexerFinished;
+                    }
+
+                    return _buffer[_head].Type == TokenType.EOF;
+                }
+            }
+
 
             internal TokenBuffer(FluenceLexer lexer)
             {
@@ -133,7 +153,7 @@ namespace Fluence
         {
             SkipWhiteSpaceAndComments();
 
-            if (HasReachedEnd) return EOF;
+            if (_hasReachedEndInternal) return EOF;
 
             char currChar = _sourceCode[_currentPosition];
             int startPos = _currentPosition;
@@ -409,7 +429,7 @@ namespace Fluence
             if (IsIdentifier(currChar) && !isFString)
             {
                 startPos = _currentPosition;
-                while (!HasReachedEnd)
+                while (!_hasReachedEndInternal)
                 {
                     if (IsIdentifier(Peek())) AdvancePosition();
                     else break;
@@ -468,7 +488,7 @@ namespace Fluence
             int stringOpenColumn = _currentColumn;
             int stringInitialLine = _currentLine + 1;
 
-            while (Peek() != '"' && !HasReachedEnd)
+            while (Peek() != '"' && !_hasReachedEndInternal)
             {
                 char peek = Peek();
                 if (peek == '\n') AdvanceCurrentLine();
@@ -480,7 +500,7 @@ namespace Fluence
                 AdvancePosition();
             }
 
-            if (HasReachedEnd)
+            if (_hasReachedEndInternal)
             {
                 string initialLineContent = GetCodeLineFromSource(_sourceCode, stringInitialLine).TrimStart();
                 string truncatedLine = TruncateLine(initialLineContent);
@@ -542,7 +562,7 @@ namespace Fluence
 
         private void RemoveRedundantEOLS()
         {
-            while (!HasReachedEnd)
+            while (!_hasReachedEndInternal)
             {
                 if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("\r\n"))
                 {
@@ -757,17 +777,17 @@ namespace Fluence
             int commentStartLine = _currentLine + 1;
             int commentStartCol = _currentColumn + 1;
 
-            while (!HasReachedEnd)
+            while (!_hasReachedEndInternal)
             {
                 bool skippedSomethingThisPass = false;
 
-                while (!HasReachedEnd && IsWhiteSpace(_sourceCode[_currentPosition]))
+                while (!_hasReachedEndInternal && IsWhiteSpace(_sourceCode[_currentPosition]))
                 {
                     AdvancePosition();
                     skippedSomethingThisPass = true;
                 }
 
-                if (!HasReachedEnd && _sourceCode[_currentPosition] == '#')
+                if (!_hasReachedEndInternal && _sourceCode[_currentPosition] == '#')
                 {
                     // Check for multi-line comment: '#*'
                     if (CanLookAheadStartInclusive(2) && _sourceCode[_currentPosition + 1] == '*')
@@ -778,7 +798,7 @@ namespace Fluence
                         AdvancePosition(2); // Consume '#*'
                         bool didntEndMultiLineComment = true;
 
-                        while (!HasReachedEnd)
+                        while (!_hasReachedEndInternal)
                         {
                             if (CanLookAheadStartInclusive(2) && _sourceCode[_currentPosition] == '#' && _sourceCode[_currentPosition + 1] == '*')
                             {
@@ -809,7 +829,7 @@ namespace Fluence
                     else // It's a single-line comment
                     {
                         skippedSomethingThisPass = true;
-                        while (!HasReachedEnd && _sourceCode[_currentPosition] != '\n')
+                        while (!_hasReachedEndInternal && _sourceCode[_currentPosition] != '\n')
                         {
                             AdvancePosition();
                         }

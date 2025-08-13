@@ -20,13 +20,10 @@ namespace Fluence
 
         private class LoopContext
         {
-            internal int ContinueAddress;
+            internal List<int> ContinuePatchAddresses { get; } = new List<int>();
             internal List<int> BreakPatchAddresses { get; } = new List<int>();
 
-            internal LoopContext(int continueAddress)
-            {
-                ContinueAddress = continueAddress;
-            }
+            internal LoopContext() { }
         }
 
         private class ParseState
@@ -128,12 +125,14 @@ namespace Fluence
                         currentLoop.BreakPatchAddresses.Add(_currentParseState.CodeInstructions.Count - 1);
                         break;
                     case TokenType.CONTINUE:
-                        _lexer.ConsumeToken();
+                        _lexer.ConsumeToken(); // Consume 'continue'
+                        if (_currentParseState.ActiveLoopContexts.Count == 0) { /* throw error */ }
 
-                        if (_currentParseState.ActiveLoopContexts.Count == 0) { /* throw error: 'continue' outside loop */ }
-                        LoopContext currentLoopContext = _currentParseState.ActiveLoopContexts.Peek();
+                        LoopContext currentLoop2 = _currentParseState.ActiveLoopContexts.Peek();
 
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(currentLoopContext.ContinueAddress, NumberValue.NumberType.Integer)));
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+
+                        currentLoop2.ContinuePatchAddresses.Add(_currentParseState.CodeInstructions.Count - 1);
                         break;
                     case TokenType.WHILE:
                         ParseWhileStatement();
@@ -186,6 +185,7 @@ namespace Fluence
                 ParseForCStyleStatement();
             }
         }
+
         private void ParseForCStyleStatement()
         {
             // Part 1: Initializer (e.g., "i = 0;")
@@ -214,7 +214,7 @@ namespace Fluence
             // After the incrementer runs, add a jump back to the condition check.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(conditionCheckIndex - 1, NumberValue.NumberType.Integer)));
 
-            var loopContext = new LoopContext(incrementerStartIndex);
+            var loopContext = new LoopContext();
             _currentParseState.ActiveLoopContexts.Push(loopContext);
 
             int bodyStartIndex = _currentParseState.CodeInstructions.Count;
@@ -231,10 +231,6 @@ namespace Fluence
             // At the end of the body, add a jump to the incrementer.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(incrementerStartIndex, NumberValue.NumberType.Integer)));
 
-            // Back-Patching
-            // Now that the whole loop is parsed, we know all the addresses and can fill in the placeholders.
-            _currentParseState.ActiveLoopContexts.Pop();
-
             // Patch the jump that skips the incrementer to now point to the body.
             _currentParseState.CodeInstructions[loopBodyJumpPatchIndex].Lhs = new NumberValue(bodyStartIndex, NumberValue.NumberType.Integer);
 
@@ -249,6 +245,13 @@ namespace Fluence
             {
                 _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(loopEndAddress, NumberValue.NumberType.Integer);
             }
+
+            foreach (var patchIndex in loopContext.ContinuePatchAddresses)
+            {
+                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(incrementerStartIndex, NumberValue.NumberType.Integer);
+            }
+
+            _currentParseState.ActiveLoopContexts.Pop();
         }
 
         private void ParseForInStatement()
@@ -269,7 +272,7 @@ namespace Fluence
 
             int loopTopAddress = _currentParseState.CodeInstructions.Count;
 
-            var loopContext = new LoopContext(loopTopAddress);
+            var loopContext = new LoopContext();
             _currentParseState.ActiveLoopContexts.Push(loopContext);
 
             TempValue lengthVar = new TempValue(_currentParseState.NextTempNumber++, "ForInCollectionLen");
@@ -301,8 +304,6 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Add, incrementedIndex, indexVar, new NumberValue(1)));
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, incrementedIndex));
 
-            loopContext.ContinueAddress = _currentParseState.CodeInstructions.Count;
-
             // Unconditional jump back to the top to re-check the condition.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopTopAddress)));
 
@@ -312,6 +313,12 @@ namespace Fluence
             foreach (var patchIndex in loopContext.BreakPatchAddresses)
             {
                 _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(loopEndAddress);
+            }
+
+            int continueAddress = loopEndAddress - 3;
+            foreach (var patchIndex in loopContext.ContinuePatchAddresses)
+            {
+                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(continueAddress);
             }
 
             _currentParseState.ActiveLoopContexts.Pop();
@@ -324,7 +331,7 @@ namespace Fluence
             Value condition = ParseExpression();
 
             int loopStartIndex = _currentParseState.CodeInstructions.Count;
-            LoopContext whileContext = new LoopContext(loopStartIndex);
+            LoopContext whileContext = new LoopContext();
             _currentParseState.ActiveLoopContexts.Push(whileContext);
 
             // the condition of the while, we must jump back here if loop reaches end ( not terminated by break ).
@@ -345,7 +352,6 @@ namespace Fluence
 
             // We jump to the start of the loop, which is the condition check.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex - 1, NumberValue.NumberType.Integer)));
-            _currentParseState.ActiveLoopContexts.Pop();
 
             int loopEndIndex = _currentParseState.CodeInstructions.Count;
 
@@ -357,6 +363,14 @@ namespace Fluence
             {
                 _currentParseState.CodeInstructions[breakPatch].Lhs = new NumberValue(loopEndIndex, NumberValue.NumberType.Integer);
             }
+
+            int continueAddress = loopStartIndex;
+            // Patch all 'continue' statements to jump to the top.
+            foreach (var patchIndex in whileContext.ContinuePatchAddresses)
+            {
+                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(continueAddress);
+            }
+            _currentParseState.ActiveLoopContexts.Pop();
         }
 
         private void ParseLoopStatement()
@@ -364,19 +378,24 @@ namespace Fluence
             _lexer.ConsumeToken(); // Consume loop
 
             int loopStartIndex = _currentParseState.CodeInstructions.Count;
-            LoopContext loopContext = new LoopContext(loopStartIndex);
+            LoopContext loopContext = new LoopContext();
             _currentParseState.ActiveLoopContexts.Push(loopContext);
 
             ParseBlockStatement();
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex, NumberValue.NumberType.Integer)));
-            _currentParseState.ActiveLoopContexts.Pop();
 
             int loopEndIndex = _currentParseState.CodeInstructions.Count;
             foreach (int breakPatch in loopContext.BreakPatchAddresses)
             {
                 _currentParseState.CodeInstructions[breakPatch].Lhs = new NumberValue(loopEndIndex, NumberValue.NumberType.Integer);
             }
+
+            foreach (var patchIndex in loopContext.ContinuePatchAddresses)
+            {
+                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(loopStartIndex, NumberValue.NumberType.Integer);
+            }
+            _currentParseState.ActiveLoopContexts.Pop();
         }
 
         private void ParseIfStatement()

@@ -1206,9 +1206,9 @@ namespace Fluence
                         TempValue valueToGet = new TempValue(_currentParseState.NextTempNumber++);
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetElement, valueToGet, left, index));
                         left = valueToGet;
-
                     }
-                } // Property access.
+                }
+                // Property access.
                 else if (type == TokenType.DOT)
                 {
 
@@ -1238,7 +1238,6 @@ namespace Fluence
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, result, left, new NumberValue(arguments.Count)));
 
                     left = result;
-                    return left;
                 }
                 else
                 {

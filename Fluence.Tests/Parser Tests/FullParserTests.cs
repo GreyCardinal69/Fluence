@@ -86,6 +86,96 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
+        public void ParsesStandaloneVariableAsLoadExpression()
+        {
+            string source = "exitCode;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new TempValue(1), new VariableValue("exitCode")),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesChainedPostfixBooleanFlipCorrectly()
+        {
+            string source = "flag = true; flag!!!!;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("flag"), new BooleanValue(true)),
+                new(InstructionCode.Negate, new VariableValue("flag")),
+                new(InstructionCode.Negate, new VariableValue("flag")),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesChainedFunctionCallAndIndexerCorrectly()
+        {
+            string source = "x = MyFunc()[230];";
+            var compiledCode = Compile(source);
+                var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("MyFunc"), new NumberValue(0)),
+                new(InstructionCode.GetElement, new TempValue(2), new TempValue(1), new NumberValue(230)),
+                new(InstructionCode.Assign, new VariableValue("x"), new TempValue(2)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesListElementAssignmentCorrectly()
+        {
+            string source = "list = [1]; list[0] = 5;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.NewList, new TempValue(1)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
+                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(0), new NumberValue(5)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void CorrectlyParsesMixedExpressionStatements()
+        {
+            string source = @"
+                a = [1,2];
+                Main(a,b);
+                exitCode;
+                exitCode = 1;
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.NewList, new TempValue(1)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(1)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(2)),
+                new(InstructionCode.Assign, new VariableValue("a"), new TempValue(1)),
+                new(InstructionCode.PushParam, new VariableValue("a")),
+                new(InstructionCode.PushParam, new VariableValue("b")),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(2)),
+                new(InstructionCode.Assign, new TempValue(3), new VariableValue("exitCode")),
+                new(InstructionCode.Assign, new VariableValue("exitCode"), new NumberValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
         public void ParsesBooleanFlipOperatorCorrectly()
         {
             string source = "flag = true; flag!!;";

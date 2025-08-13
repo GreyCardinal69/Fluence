@@ -302,7 +302,12 @@ namespace Fluence
                     }
                     return MakeTokenAndTryAdvance(TokenType.EOL, 1, ";");
                 case ',': return MakeTokenAndTryAdvance(TokenType.COMMA, 1);
-                case '?': return MakeTokenAndTryAdvance(TokenType.QUESTION, 1);
+                case '?':
+                    if (CanLookAheadStartInclusive(2))
+                    {
+                        if (PeekString(2).SequenceEqual("?:")) return MakeTokenAndTryAdvance(TokenType.TERNARY_JOINT, 2);
+                    }
+                    return MakeTokenAndTryAdvance(TokenType.QUESTION, 1);
                 case ':': return MakeTokenAndTryAdvance(TokenType.COLON, 1);
                 case '\'':
                     _currentPosition++;

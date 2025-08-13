@@ -186,7 +186,6 @@ namespace Fluence
                 ParseForCStyleStatement();
             }
         }
-
         private void ParseForCStyleStatement()
         {
             // Part 1: Initializer (e.g., "i = 0;")
@@ -617,6 +616,7 @@ namespace Fluence
 
             while (_lexer.PeekNextToken().Type == TokenType.COMMA)
             {
+
                 _lexer.ConsumeToken(); // Consume comma.
 
                 if (_lexer.PeekNextToken().Type == TokenType.R_BRACKET) // Trailing comma in list.
@@ -626,6 +626,7 @@ namespace Fluence
                 }
 
                 Value rhs = ParseExpression();
+                Console.WriteLine(rhs);
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushElement, temp, rhs));
             }
 
@@ -680,16 +681,7 @@ namespace Fluence
 
                 if (type == TokenType.EQUAL)
                 {
-                    // x = func().
-                    // Function call instruction is generated first.
-                    if (_currentParseState.CodeInstructions[^1].Instruction == InstructionCode.CallFunction)
-                    {
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, new TempValue(_currentParseState.CurrentTempNumber)));
-                    }
-                    else
-                    {
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, rhs));
-                    }
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, rhs));
                 }
                 else if (type == TokenType.SWAP)
                 {
@@ -924,9 +916,7 @@ namespace Fluence
 
         private Value ParseComparison()
         {
-            // This calls the next higher precedence level.
-            Value left = ParseRange();
-
+            var left = ParseRange();
             while (IsComparisonTokenType(_lexer.PeekNextToken().Type))
             {
                 Token op = _lexer.ConsumeToken();
@@ -938,9 +928,76 @@ namespace Fluence
 
                 left = temp; // The result becomes the new left-hand side for the next loop.
             }
-
             return left;
         }
+
+        private Value GenerateCollectiveComparisonByteCode(List<Value> lhsExprs, Token op, Value rhs)
+        {
+            Value result = null;
+
+            InstructionCode comparisonType = GetComparisonInstructionCodeFromCollectiveOp(op.Type);
+            InstructionCode logicalOp = IsOrCollectiveOperator(op.Type) ? InstructionCode.Or : InstructionCode.And;
+
+            foreach (Value lhs in lhsExprs)
+            {
+                TempValue currentResult = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(comparisonType, currentResult, lhs, rhs));
+
+                if (result == null)
+                {
+                    result = currentResult;
+                }
+                else
+                {
+                    TempValue combinedResult = new TempValue(_currentParseState.NextTempNumber++);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(logicalOp, combinedResult, result, currentResult));
+                    result = combinedResult;
+                }
+            }
+
+            return result;
+        }
+
+        private static bool IsOrCollectiveOperator(TokenType type) => type switch
+        {
+            TokenType.COLLECTIVE_OR_EQUAL => true,
+            TokenType.COLLECTIVE_OR_NOT_EQUAL => true,
+            TokenType.COLLECTIVE_OR_LESS => true,
+            TokenType.COLLECTIVE_OR_LESS_EQUAL => true,
+            TokenType.COLLECTIVE_OR_GREATER => true,
+            TokenType.COLLECTIVE_OR_GREATER_EQUAL => true,
+            _ => false
+        };
+
+        private static InstructionCode GetComparisonInstructionCodeFromCollectiveOp(TokenType type) => type switch
+        {
+            TokenType.COLLECTIVE_EQUAL => InstructionCode.Equal,
+            TokenType.COLLECTIVE_NOT_EQUAL => InstructionCode.NotEqual,
+            TokenType.COLLECTIVE_GREATER => InstructionCode.GreaterThan,
+            TokenType.COLLECTIVE_GREATER_EQUAL => InstructionCode.GreaterEqual,
+            TokenType.COLLECTIVE_LESS => InstructionCode.LessThan,
+            TokenType.COLLECTIVE_LESS_EQUAL => InstructionCode.LessEqual,
+            TokenType.COLLECTIVE_OR_EQUAL => InstructionCode.Equal,
+            TokenType.COLLECTIVE_OR_NOT_EQUAL => InstructionCode.NotEqual,
+            TokenType.COLLECTIVE_OR_LESS => InstructionCode.LessEqual,
+            TokenType.COLLECTIVE_OR_LESS_EQUAL => InstructionCode.LessEqual,
+            TokenType.COLLECTIVE_OR_GREATER => InstructionCode.GreaterThan,
+            TokenType.COLLECTIVE_OR_GREATER_EQUAL => InstructionCode.GreaterEqual,
+        };
+
+        private static bool IsCollectiveOperator(TokenType type) =>
+            type == TokenType.COLLECTIVE_EQUAL ||
+            type == TokenType.COLLECTIVE_GREATER ||
+            type == TokenType.COLLECTIVE_GREATER_EQUAL ||
+            type == TokenType.COLLECTIVE_LESS ||
+            type == TokenType.COLLECTIVE_LESS_EQUAL ||
+            type == TokenType.COLLECTIVE_NOT_EQUAL ||
+            type == TokenType.COLLECTIVE_OR_EQUAL ||
+            type == TokenType.COLLECTIVE_OR_GREATER ||
+            type == TokenType.COLLECTIVE_OR_GREATER_EQUAL ||
+            type == TokenType.COLLECTIVE_OR_LESS ||
+            type == TokenType.COLLECTIVE_OR_LESS_EQUAL ||
+            type == TokenType.COLLECTIVE_OR_NOT_EQUAL;
 
         private Value ParseRange()
         {
@@ -1139,7 +1196,6 @@ namespace Fluence
 
                     foreach (var arg in arguments)
                     {
-                        Console.WriteLine(arg);
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, arg));
                     }
 
@@ -1147,6 +1203,7 @@ namespace Fluence
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, result, left, new NumberValue(arguments.Count)));
 
                     left = result;
+                    return left;
                 }
                 else
                 {

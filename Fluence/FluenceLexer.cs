@@ -561,7 +561,8 @@ namespace Fluence
 
         private Token ScanLessThanOperator()
         {
-            // <||!=| <||==| <||??|
+            // <||!=| <||==| <||??| <||<=| <||>=|
+            // <||<|   <||>| 
             // <==|, <!=|, <<=|, <>=|, <??|, <n?| 
             // <<|, <>|, <n|, <?|
             // <=, <<, <|, 
@@ -581,6 +582,21 @@ namespace Fluence
                         return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_OR_EQUAL, 6);
                     case "<||??|":
                         return MakeTokenAndTryAdvance(TokenType.OR_GUARD_CHAIN, 6);
+                    case "<||<=|":
+                        return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_OR_LESS_EQUAL, 6);
+                    case "<||>=|":
+                        return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_OR_GREATER_EQUAL, 6);
+                }
+            }
+
+            if (peek.Length >= 5 && peek[1] == '|' && peek[2] == '|')
+            {
+                switch (peek[..5])
+                {
+                    case "<||<|":
+                        return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_OR_LESS, 5);
+                    case "<||>|":
+                        return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_OR_GREATER, 5);
                 }
             }
 

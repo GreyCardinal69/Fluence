@@ -112,8 +112,12 @@
             COLLECTIVE_GREATER_EQUAL,   // <>=|
 
             // The OR variants.
-            COLLECTIVE_OR_EQUAL,        // <||==|
-            COLLECTIVE_OR_NOT_EQUAL,    // <||!=|
+            COLLECTIVE_OR_EQUAL,            // <||==|
+            COLLECTIVE_OR_NOT_EQUAL,        // <||!=|
+            COLLECTIVE_OR_LESS,             // <||<|
+            COLLECTIVE_OR_LESS_EQUAL,       // <||<=|
+            COLLECTIVE_OR_GREATER,          // <||>|
+            COLLECTIVE_OR_GREATER_EQUAL,    // <||>=|
 
             UNDERSCORE,
             EOL,

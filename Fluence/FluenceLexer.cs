@@ -15,6 +15,7 @@ namespace Fluence
         internal int CurrentColumn => _currentColumn;
         internal bool HasReachedEnd => _currentPosition >= _sourceLength;
         internal int CurrentPosition => _currentPosition;
+        internal int SourceLength => _sourceLength;
         internal char CharAtCurrentPosition => _sourceCode[_currentPosition];
 
         internal FluenceLexer(string source)
@@ -32,6 +33,10 @@ namespace Fluence
             private readonly List<Token> _buffer = new List<Token>();
             private readonly FluenceLexer _lexer;
             private int _head = 0;
+            private bool _lexerFinished = false;
+
+            // A reasonable threshold for trimming the buffer.
+            private const int TrimThreshold = 256;
 
             internal TokenBuffer(FluenceLexer lexer)
             {
@@ -39,16 +44,38 @@ namespace Fluence
             }
 
             /// <summary>
-            /// Consumes the next token from the buffer.
+            /// Consumes the next token from the buffer and advances the head.
             /// </summary>
             internal Token Consume()
             {
                 EnsureFilled(1);
 
                 Token token = _buffer[_head];
-                _head++;
+
+                if (token.Type != TokenType.EOF)
+                {
+                    _head++;
+                }
+
+                // Periodically trim the buffer to conserve memory.
+                if (_head >= TrimThreshold)
+                {
+                    Compact();
+                }
 
                 return token;
+            }
+
+            /// <summary>
+            /// Removes consumed tokens from the beginning of the list to save memory.
+            /// </summary>
+            private void Compact()
+            {
+                if (_head > 0)
+                {
+                    _buffer.RemoveRange(0, _head);
+                    _head = 0;
+                }
             }
 
             /// <summary>
@@ -62,30 +89,32 @@ namespace Fluence
                 EnsureFilled(lookahead);
 
                 int index = _head + lookahead - 1;
+
+                if (index >= _buffer.Count)
+                {
+                    return _buffer[^1];
+                }
+
                 return _buffer[index];
             }
 
-            /// <summary>
-            /// Ensures that there are at least 'requiredCount' tokens available
-            /// in the buffer *from the current head position*.
-            /// </summary>
             private void EnsureFilled(int requiredCount)
             {
-                int availableCount = _buffer.Count - _head;
-
-                int needed = requiredCount - availableCount;
-
-                if (needed > 0)
+                // If the lexer is already known to be finished, we cannot generate more tokens.
+                if (_lexerFinished)
                 {
-                    for (int i = 0; i < needed; i++)
-                    {
-                        if (_buffer.Count > 0 && _buffer[^1].Type == TokenType.EOF)
-                        {
-                            // We've already tokenized the EOF. We can't generate more.
-                            break;
-                        }
+                    return;
+                }
 
-                        _buffer.Add(_lexer.GetNextToken());
+                while ((_buffer.Count - _head) < requiredCount)
+                {
+                    Token nextToken = _lexer.GetNextToken();
+                    _buffer.Add(nextToken);
+
+                    if (nextToken.Type == TokenType.EOF)
+                    {
+                        _lexerFinished = true;
+                        break;
                     }
                 }
             }

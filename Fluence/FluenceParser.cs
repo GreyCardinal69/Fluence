@@ -948,8 +948,26 @@ namespace Fluence
 
         private Value ParseComparison()
         {
-            //Console.WriteLine(IsCollectiveComparisonAhead());
-            var left = ParseRange();
+            Value left = ParseRange();
+
+            // Potential collective comparison
+            if (_lexer.PeekNextToken().Type == TokenType.COMMA)
+            {
+                // indeed so.
+                if (IsCollectiveComparisonAhead())
+                {
+                    List<Value> args = new List<Value>() { left };
+                    _lexer.ConsumeToken();
+
+                    do
+                    {
+                        args.Add(ParseRange());
+                    } while (ConsumeTokenIfMatch(TokenType.COMMA) && IsNotAStandardComparison(_lexer.PeekNextToken().Type));
+
+                    return GenerateCollectiveComparisonByteCode(args, _lexer.ConsumeToken(), ParseRange());
+                }
+            }
+
             while (IsComparisonTokenType(_lexer.PeekNextToken().Type))
             {
                 Token op = _lexer.ConsumeToken();
@@ -961,9 +979,41 @@ namespace Fluence
 
                 left = temp; // The result becomes the new left-hand side for the next loop.
             }
+            
             return left;
         }
-         
+
+        private static bool IsNotAStandardComparison(TokenType type)
+        {
+            return !IsComparisonTokenType(type) && type != TokenType.EQUAL_EQUAL && type != TokenType.BANG_EQUAL;
+        }
+
+        private bool IsCollectiveComparisonAhead()
+        {
+            int lookahead = 1;
+            bool hasComma = false;
+
+            while (true)
+            {
+                TokenType type = _lexer.PeekAheadByN(lookahead).Type;
+
+                if (type == TokenType.COMMA) hasComma = true;
+
+                if (IsCollectiveOperator(type) && hasComma)
+                {
+                    return true; // Found the pattern.
+                }
+
+                // Stop conditions
+                if (type == TokenType.L_BRACE || type == TokenType.THIN_ARROW || type == TokenType.EOF)
+                {
+                    return false; // Reached the end of the potential condition.
+                }
+
+                lookahead++;
+            }
+        }
+
         private Value GenerateCollectiveComparisonByteCode(List<Value> lhsExprs, Token op, Value rhs)
         {
             Value result = null;

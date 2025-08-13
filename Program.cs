@@ -29,6 +29,7 @@
                     .Replace("\n", "\\n");
 
                 string literalToDisplay = token.Literal?.ToString() ?? "";
+                literalToDisplay = (literalToDisplay == "\r\n" || literalToDisplay == "\n") ? "NewLine" : literalToDisplay;
 
                 Console.WriteLine("{0,-25} {1,-30} {2,-30}",
                     token.Type,

@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Linq.Expressions;
+using System.Text;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.Token;
@@ -477,7 +478,7 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, result));
         }
 
-        private string FormatByteCodeAddress(int startAddress)
+        private static string FormatByteCodeAddress(int startAddress)
         {
             if (startAddress < 10) return $"000{startAddress}";
             if (startAddress < 100) return $"00{startAddress}";
@@ -645,7 +646,6 @@ namespace Fluence
                 }
 
                 Value rhs = ParseExpression();
-                Console.WriteLine(rhs);
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushElement, temp, rhs));
             }
 
@@ -721,6 +721,19 @@ namespace Fluence
 
                     // var = temp.
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, temp));
+                }
+            }
+            else
+            {
+                if (lhs is StatementCompleteValue)
+                {
+                    // do nothing
+                }
+                else if (lhs is VariableValue variable)
+                {
+                    // The expression was just a variable. Force a read.
+                    var temp = new TempValue(_currentParseState.NextTempNumber++);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, temp, variable));
                 }
             }
         }
@@ -935,6 +948,7 @@ namespace Fluence
 
         private Value ParseComparison()
         {
+            //Console.WriteLine(IsCollectiveComparisonAhead());
             var left = ParseRange();
             while (IsComparisonTokenType(_lexer.PeekNextToken().Type))
             {
@@ -949,7 +963,7 @@ namespace Fluence
             }
             return left;
         }
-
+         
         private Value GenerateCollectiveComparisonByteCode(List<Value> lhsExprs, Token op, Value rhs)
         {
             Value result = null;
@@ -1132,15 +1146,17 @@ namespace Fluence
         {
             // ++ and --
             Value left = ParseAccess();
+            bool operationPerformed = false;
 
             while (IsPostFixToken(_lexer.PeekNextToken().Type))
             {
+                operationPerformed = true;
                 Token op = _lexer.ConsumeToken();
 
                 if (op.Type == TokenType.BOOLEAN_FLIP)
                 {
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Negate, left));
-                    break;
+                    continue;
                 }
 
                 Value one = new NumberValue(1, NumberValue.NumberType.Integer);
@@ -1154,7 +1170,7 @@ namespace Fluence
                 left = temp;
             }
 
-            return left;
+            return operationPerformed ? new StatementCompleteValue() : left;
         }
 
         private Value ParseAccess()
@@ -1252,7 +1268,6 @@ namespace Fluence
         private Value ParsePrimary()
         {
             Token token = _lexer.ConsumeToken();
-
             if (token.Type == TokenType.NIL)
             {
                 return new NilValue();
@@ -1290,14 +1305,20 @@ namespace Fluence
 
             switch (token.Type)
             {
-                case TokenType.IDENTIFIER: return new VariableValue(token.Text);
+                case TokenType.IDENTIFIER:
+                    return new VariableValue(token.Text);
                 case TokenType.NUMBER:
                     return NumberValue.FromToken(token);
-                case TokenType.STRING: return new StringValue(token.Text);
-                case TokenType.TRUE: return new BooleanValue(true);
-                case TokenType.FALSE: return new BooleanValue(false);
-                case TokenType.F_STRING: return ParseFString(token.Literal);
-                case TokenType.CHARACTER: return new CharValue((char)token.Literal);
+                case TokenType.STRING: 
+                    return new StringValue(token.Text);
+                case TokenType.TRUE:
+                    return new BooleanValue(true);
+                case TokenType.FALSE:
+                    return new BooleanValue(false);
+                case TokenType.F_STRING: 
+                    return ParseFString(token.Literal);
+                case TokenType.CHARACTER:
+                    return new CharValue((char)token.Literal);
                 case TokenType.L_BRACKET:
                     // We are in list, either initialization, or [i] access.
                     return ParseList();

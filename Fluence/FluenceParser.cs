@@ -520,6 +520,17 @@ namespace Fluence
             _currentParseState.CodeInstructions[jumpOverBodyGoTo].Lhs = new NumberValue(afterBodyAddress);
         }
 
+        private Value ParseMatch()
+        {
+            // Match is already consumed.
+
+            Value matchOn = ParseExpression();
+
+            Console.WriteLine(matchOn);
+
+            return null;
+        }
+
         private Value ConcatenateStringValues(Value left, Value right)
         {
             if (left == null) return right;
@@ -1117,22 +1128,25 @@ namespace Fluence
 
                     if (_lexer.PeekNextToken().Type != TokenType.R_PAREN)
                     {
-                        while (_lexer.PeekNextToken().Type != TokenType.R_PAREN)
+                        do
                         {
                             arguments.Add(ParseExpression());
-                            if (_lexer.PeekNextToken().Type == TokenType.COMMA) _lexer.ConsumeToken();
                         }
+                        while (ConsumeTokenIfMatch(TokenType.COMMA));
                     }
 
                     ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Missing closing ) after function call.");
 
                     foreach (var arg in arguments)
                     {
+                        Console.WriteLine(arg);
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, arg));
                     }
 
                     TempValue result = new TempValue(_currentParseState.NextTempNumber++);
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, result, left, new NumberValue(arguments.Count)));
+
+                    left = result;
                 }
                 else
                 {
@@ -1141,6 +1155,22 @@ namespace Fluence
             }
 
             return left;
+        }
+
+        /// <summary>
+        /// Checks if the next token's type matches the expected type.
+        /// If it matches, the token is consumed and the method returns true.
+        /// If it does not match, the token is NOT consumed and the method returns false.
+        /// </summary>
+        private bool ConsumeTokenIfMatch(TokenType expectedType)
+        {
+            if (_lexer.PeekNextToken().Type == expectedType)
+            {
+                _lexer.ConsumeToken(); // It's a match, so we consume it.
+                return true;
+            }
+
+            return false; // Not a match, do nothing.
         }
 
         private Value ParsePrimary()
@@ -1195,6 +1225,8 @@ namespace Fluence
                 case TokenType.L_BRACKET:
                     // We are in list, either initialization, or [i] access.
                     return ParseList();
+                case TokenType.MATCH:
+                    return ParseMatch();
             }
 
             if (token.Type == TokenType.L_PAREN)

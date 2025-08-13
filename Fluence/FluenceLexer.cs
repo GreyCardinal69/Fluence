@@ -19,7 +19,7 @@ namespace Fluence
 
         internal FluenceLexer(string source)
         {
-            _tokenBuffer = new TokenBuffer(5, this);
+            _tokenBuffer = new TokenBuffer(this);
             _sourceCode = source;
             _sourceLength = source.Length;
             _currentPosition = 0;
@@ -29,51 +29,64 @@ namespace Fluence
 
         private sealed class TokenBuffer
         {
-            private readonly Token[] _buffer;
-            private readonly int _size;
+            private readonly List<Token> _buffer = new List<Token>();
             private readonly FluenceLexer _lexer;
-
             private int _head = 0;
-            private int _tail = 0;
-            private int _count = 0;
 
-            internal TokenBuffer(int size, FluenceLexer lexer)
+            internal TokenBuffer(FluenceLexer lexer)
             {
-                _size = size;
-                _buffer = new Token[size];
                 _lexer = lexer;
             }
 
+            /// <summary>
+            /// Consumes the next token from the buffer.
+            /// </summary>
             internal Token Consume()
             {
                 EnsureFilled(1);
 
                 Token token = _buffer[_head];
-                _head = (_head + 1) % _size;
-                _count--;
+                _head++;
 
                 return token;
             }
 
+            /// <summary>
+            /// Peeks ahead a given number of tokens from the current position.
+            /// lookahead=1 is the very next token.
+            /// </summary>
             internal Token Peek(int lookahead = 1)
             {
+                ArgumentOutOfRangeException.ThrowIfNegativeOrZero(lookahead);
+
                 EnsureFilled(lookahead);
 
-                int index = (_head + lookahead - 1) % _size;
+                int index = _head + lookahead - 1;
                 return _buffer[index];
             }
 
+            /// <summary>
+            /// Ensures that there are at least 'requiredCount' tokens available
+            /// in the buffer *from the current head position*.
+            /// </summary>
             private void EnsureFilled(int requiredCount)
             {
-                ArgumentOutOfRangeException.ThrowIfGreaterThan(requiredCount, _size);
+                int availableCount = _buffer.Count - _head;
 
-                while (_count < requiredCount)
+                int needed = requiredCount - availableCount;
+
+                if (needed > 0)
                 {
-                    Token nextToken = _lexer.GetNextToken();
+                    for (int i = 0; i < needed; i++)
+                    {
+                        if (_buffer.Count > 0 && _buffer[^1].Type == TokenType.EOF)
+                        {
+                            // We've already tokenized the EOF. We can't generate more.
+                            break;
+                        }
 
-                    _buffer[_tail] = nextToken;
-                    _tail = (_tail + 1) % _size;
-                    _count++;
+                        _buffer.Add(_lexer.GetNextToken());
+                    }
                 }
             }
         }

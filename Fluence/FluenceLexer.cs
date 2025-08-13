@@ -14,7 +14,15 @@ namespace Fluence
         internal int CurrentLine => _currentLine;
         internal int CurrentColumn => _currentColumn;
         internal bool HasReachedEnd => _currentPosition >= _sourceLength & _tokenBuffer.HasReachedEnd;
-        private bool _hasReachedEndInternal => _currentPosition >= _sourceLength;
+
+        private bool _hasReachedEndInternal
+        {
+            get
+            {
+                return _currentPosition >= _sourceLength;
+            }
+        }
+
         internal int CurrentPosition => _currentPosition;
         internal int SourceLength => _sourceLength;
         internal char CharAtCurrentPosition => _sourceCode[_currentPosition];
@@ -37,7 +45,7 @@ namespace Fluence
             private bool _lexerFinished = false;
 
             // A reasonable threshold for trimming the buffer.
-            private const int TrimThreshold = 256;
+            private const int _trimThreshold = 256;
 
             public bool HasReachedEnd
             {
@@ -78,7 +86,7 @@ namespace Fluence
                 }
 
                 // Periodically trim the buffer to conserve memory.
-                if (_head >= TrimThreshold)
+                if (_head >= _trimThreshold)
                 {
                     Compact();
                 }

@@ -1,9 +1,6 @@
-﻿using System.Linq.Expressions;
-using System.Text;
-using static Fluence.FluenceByteCode;
+﻿using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.Token;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Fluence
 {
@@ -979,7 +976,7 @@ namespace Fluence
 
                 left = temp; // The result becomes the new left-hand side for the next loop.
             }
-            
+
             return left;
         }
 
@@ -1358,13 +1355,13 @@ namespace Fluence
                     return new VariableValue(token.Text);
                 case TokenType.NUMBER:
                     return NumberValue.FromToken(token);
-                case TokenType.STRING: 
+                case TokenType.STRING:
                     return new StringValue(token.Text);
                 case TokenType.TRUE:
                     return new BooleanValue(true);
                 case TokenType.FALSE:
                     return new BooleanValue(false);
-                case TokenType.F_STRING: 
+                case TokenType.F_STRING:
                     return ParseFString(token.Literal);
                 case TokenType.CHARACTER:
                     return new CharValue((char)token.Literal);

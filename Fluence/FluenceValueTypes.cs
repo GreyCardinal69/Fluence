@@ -203,7 +203,7 @@ namespace Fluence
         // Debug full address.
         internal string FullAddress { get; }
 
-        internal FunctionValue(string name, int arity, int startAddress, string fullAddress )
+        internal FunctionValue(string name, int arity, int startAddress, string fullAddress)
         {
             Name = name;
             Arity = arity;

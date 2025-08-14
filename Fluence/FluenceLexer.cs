@@ -700,9 +700,9 @@ namespace Fluence
                 // Store the number for the Token in GetNextToken().
                 string n = ReadNumber();
 
-                if (Match("|?"))
+                if (Match("?|"))
                 {
-                    // We matched <n|?
+                    // We matched <n?|
                     // Only assign the number as text/literal, the rest of the operator is in the TokenType.
                     return new Token(TokenType.OPTIONAL_ASSIGN_N, n, n);
                 }

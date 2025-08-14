@@ -57,6 +57,23 @@ namespace Fluence
         }
     }
 
+    internal sealed class BroadcastCallTemplate : Value
+    {
+        // The function to be called (e.g., VariableValue("print"))
+        internal Value Callable { get; }
+        // The list of arguments, with one being a special placeholder.
+        internal List<Value> Arguments { get; }
+        // The index of the placeholder in the argument list.
+        internal int PlaceholderIndex { get; }
+
+        public BroadcastCallTemplate(Value callable, List<Value> args, int placeholderIndex)
+        {
+            Callable = callable;
+            Arguments = args;
+            PlaceholderIndex = placeholderIndex;
+        }
+    }
+
     internal class StringValue : Value
     {
         internal string Text;

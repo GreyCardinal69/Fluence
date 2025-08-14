@@ -727,7 +727,7 @@ namespace Fluence
                 {
                     case "<<|": return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_LESS, 3);
                     case "<>|": return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_GREATER, 3);
-                    case "<?|": return MakeTokenAndTryAdvance(TokenType.OPTIONAL_ASSIGN, 3);
+                    case "<?|": return MakeTokenAndTryAdvance(TokenType.OPTIONAL_REST_ASSIGN, 3);
                 }
             }
 

@@ -1,4 +1,5 @@
-﻿using static Fluence.FluenceByteCode;
+﻿using System;
+using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.Token;
 
@@ -709,7 +710,7 @@ namespace Fluence
         private static bool IsChainAssignmentOperator(TokenType type) => type switch
         {
             TokenType.CHAIN_ASSIGN_N or
-            TokenType.OPTIONAL_ASSIGN or
+            TokenType.OPTIONAL_REST_ASSIGN or
             TokenType.OPTIONAL_ASSIGN_N or
             TokenType.REST_ASSIGN => true,
             _ => false
@@ -725,21 +726,19 @@ namespace Fluence
 
         private void ParseAssignment()
         {
-            List<Value> lhs = new List<Value>();
-
-            do
-            {
-                lhs.Add(ParseTernary());
-            } while (ConsumeTokenIfMatch(TokenType.COMMA));
+            List<Value> lhs = ParseChainAssignmentLhs();
 
             TokenType type = _lexer.PeekNextToken().Type;
-            Value left = lhs[0];
 
             if (IsChainAssignmentOperator(type))
             {
                 ParseChainAssignment(lhs);
+                return;
             }
-            else if (IsSimpleAssignmentOperator(type) || type == TokenType.SWAP)
+
+            Value left = lhs[0];
+
+            if (IsSimpleAssignmentOperator(type) || type == TokenType.SWAP)
             {
                 _lexer.ConsumeToken(); // Consume the "="
 
@@ -801,56 +800,164 @@ namespace Fluence
             }
         }
 
+        private bool IsBroadCastPipeFunctionCall()
+        {
+            return _lexer.PeekNextToken().Type == TokenType.IDENTIFIER &&
+                    _lexer.PeekAheadByN(2).Type == TokenType.L_PAREN &&
+                    _lexer.PeekAheadByN(3).Type == TokenType.UNDERSCORE &&
+                    _lexer.PeekAheadByN(4).Type == TokenType.R_PAREN;
+        }
+
+        private List<Value> ParseChainAssignmentLhs()
+        {
+            List<Value> lhs = new List<Value>();
+
+            if (IsBroadCastPipeFunctionCall())
+            {
+                Value functionToCall = ParsePrimary();
+                _lexer.ConsumeToken(); // Consume ).
+
+                List<Value> args = new List<Value>();
+                int underscoreIndex = -1;
+                int currentIndex = 0;
+
+                do
+                {
+                    if (_lexer.PeekNextToken().Type == TokenType.UNDERSCORE)
+                    {
+                        _lexer.ConsumeToken();
+                        if (underscoreIndex != -1) ; // error here.
+                        underscoreIndex = currentIndex;
+                        args.Add(new NilValue());
+                    }
+                    else
+                    {
+                        args.Add(ParseTernary());
+                    }
+                    currentIndex++;
+                } while (ConsumeTokenIfMatch(TokenType.COMMA));
+
+                ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Expecting closing ) in function call.");
+
+                if (underscoreIndex != -1) ; // error here.
+                lhs.Add(new BroadcastCallTemplate(functionToCall, args, underscoreIndex));
+                return lhs;
+            }
+
+            do
+            {
+                lhs.Add(ParseTernary());
+            } while (ConsumeTokenIfMatch(TokenType.COMMA));
+
+            return lhs;
+        }
+
         private void ParseChainAssignment(List<Value> lhs)
         {
             int lhsIndex = 0;
+            Value firstLhs = lhs[0];
 
-            while (IsChainAssignmentOperator(_lexer.PeekNextToken().Type))
+            if (firstLhs is BroadcastCallTemplate broadcastCall)
             {
-                Token op = _lexer.ConsumeToken();
-
-                bool isOptional = op.Type == TokenType.OPTIONAL_ASSIGN || op.Type == TokenType.OPTIONAL_ASSIGN_N;
-
-                Value rhs = ParseTernary();
-        
-                TempValue valueToAssign = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, valueToAssign, rhs));
-
-                int skipOptionalAssign = -1;
-                if (isOptional)
+                // Although weird, there are cases when you could pipe multiple broadcast calls.
+                // For example when you want to print some values, but print only those that are not nil.
+                while (IsChainAssignmentOperator(_lexer.PeekNextToken().Type))
                 {
-                    TempValue isNil = new TempValue(_currentParseState.NextTempNumber++);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, valueToAssign, new NilValue()));
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null, isNil));
-                    skipOptionalAssign = _currentParseState.CodeInstructions.Count - 1;
+
+                    if (lhs.Count > 1)
+                    {
+                        // error, many functions.
+                    }
+
+                    Token op = _lexer.ConsumeToken(); // Consume <| or <?|.
+
+                    if (op.Type != TokenType.REST_ASSIGN || op.Type != TokenType.OPTIONAL_REST_ASSIGN)
+                    {
+                        // Error, wrong operand.
+                    }
+
+                    bool isOptional = op.Type == TokenType.OPTIONAL_REST_ASSIGN;
+
+                    List<Value> rhs = new List<Value>();
+
+                    do
+                    {
+                        rhs.Add(ParseTernary());
+                    } while (ConsumeTokenIfMatch(TokenType.COMMA));
+
+                    if (rhs.Count == 0)
+                    {
+                        // error here. Nothing to broadcast.
+                    }
+
+                    foreach (var arg in rhs)
+                    {
+                        int skipOptionalAssign = -1;
+                        if (isOptional)
+                        {
+                            TempValue isNil = new TempValue(_currentParseState.NextTempNumber++);
+                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, arg, new NilValue()));
+                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null, isNil));
+                            skipOptionalAssign = _currentParseState.CodeInstructions.Count - 1;
+                        }
+
+                        broadcastCall.Arguments[broadcastCall.PlaceholderIndex] = arg;
+
+                        foreach (var item in broadcastCall.Arguments)
+                        {
+                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, item));
+                        }
+
+                        TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, temp, broadcastCall.Callable, new NumberValue(broadcastCall.Arguments.Count)));
+
+                        if (skipOptionalAssign != -1)
+                        {
+                            _currentParseState.CodeInstructions[skipOptionalAssign].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+                        }
+                    }
                 }
-            
-                if (op.Type == TokenType.CHAIN_ASSIGN_N || op.Type == TokenType.OPTIONAL_ASSIGN_N)
-                {
-                    int count = Convert.ToInt32(op.Literal);
-                    for (int i = 0; i < count; i++)
-                    {
-                        if (lhs[lhsIndex] is ElementAccessValue val)
-                        {
-                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, val.Target, val.Index, valueToAssign));
-                        }
-                        else
-                        {
-                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs[lhsIndex], valueToAssign));
-                        }
-                        lhsIndex++;
-                    }
-                }else
-                {
-                    // <| and <?|
-                    // Rest assign pipes are context dependant, they apply:
-                    // Variables, functions, structs.
-                    // For functions
-                    if (lhs.Count == 1 && IsFunctionBroadcastCall(lhs[0]))
-                    {
+            }
+            else
+            {
 
+                while (IsChainAssignmentOperator(_lexer.PeekNextToken().Type))
+                {
+                    Token op = _lexer.ConsumeToken();
+
+                    bool isOptional = op.Type == TokenType.OPTIONAL_REST_ASSIGN || op.Type == TokenType.OPTIONAL_ASSIGN_N;
+
+                    Value rhs = ParseTernary();
+
+                    TempValue valueToAssign = new TempValue(_currentParseState.NextTempNumber++);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, valueToAssign, rhs));
+
+                    int skipOptionalAssign = -1;
+                    if (isOptional)
+                    {
+                        TempValue isNil = new TempValue(_currentParseState.NextTempNumber++);
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, valueToAssign, new NilValue()));
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null, isNil));
+                        skipOptionalAssign = _currentParseState.CodeInstructions.Count - 1;
                     }
-                    else // For variables.
+
+                    if (op.Type == TokenType.CHAIN_ASSIGN_N || op.Type == TokenType.OPTIONAL_ASSIGN_N)
+                    {
+                        int count = Convert.ToInt32(op.Literal);
+                        for (int i = 0; i < count; i++)
+                        {
+                            if (lhs[lhsIndex] is ElementAccessValue val)
+                            {
+                                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, val.Target, val.Index, valueToAssign));
+                            }
+                            else
+                            {
+                                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs[lhsIndex], valueToAssign));
+                            }
+                            lhsIndex++;
+                        }
+                    }
+                    else
                     {
                         while (lhsIndex < lhs.Count)
                         {
@@ -865,11 +972,11 @@ namespace Fluence
                             lhsIndex++;
                         }
                     }
-                }
 
-                if (skipOptionalAssign != -1)
-                {
-                    _currentParseState.CodeInstructions[skipOptionalAssign].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+                    if (skipOptionalAssign != -1)
+                    {
+                        _currentParseState.CodeInstructions[skipOptionalAssign].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+                    }
                 }
             }
         }
@@ -954,7 +1061,7 @@ namespace Fluence
 
             List<Value> args = new List<Value>();
 
-            while (ConsumeTokenIfMatch(TokenType.COMMA) || _lexer.PeekNextToken().Type != TokenType.R_PAREN) 
+            while (ConsumeTokenIfMatch(TokenType.COMMA) || _lexer.PeekNextToken().Type != TokenType.R_PAREN)
             {
                 if (_lexer.PeekNextToken().Type == TokenType.UNDERSCORE)
                 {

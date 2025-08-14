@@ -97,7 +97,7 @@
             CHAIN_ASSIGN_N,     // <n|
             REST_ASSIGN,        // <|
             OPTIONAL_ASSIGN_N,  // <n?|
-            OPTIONAL_ASSIGN,    // <?|
+            OPTIONAL_REST_ASSIGN,    // <?|
             GUARD_CHAIN,        // <??|
             OR_GUARD_CHAIN,     // <||??|
 

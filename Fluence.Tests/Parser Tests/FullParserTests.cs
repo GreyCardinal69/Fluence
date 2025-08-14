@@ -132,6 +132,128 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
+        public void ParsesSimpleElementGetCorrectly()
+        {
+            string source = "y = list[2];";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.GetElement, new TempValue(1), new VariableValue("list"), new NumberValue(2)),
+                new(InstructionCode.Assign, new VariableValue("y"), new TempValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesSimpleElementSetCorrectly()
+        {
+            string source = "list[2] = 5;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(2), new NumberValue(5)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesChainedGetFromFunctionCallCorrectly()
+        {
+            string source = "x = MyFunc()[230];";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("MyFunc"), new NumberValue(0)),
+                new(InstructionCode.GetElement, new TempValue(2), new TempValue(1), new NumberValue(230)),
+                new(InstructionCode.Assign, new VariableValue("x"), new TempValue(2)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesRangeInsideListLiteralCorrectly()
+        {
+            string source = "list = [1..2];";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.NewList, new TempValue(1)),
+                new(InstructionCode.NewRangeList, new TempValue(2), new NumberValue(1), new NumberValue(2)),
+                new(InstructionCode.PushElement, new TempValue(1), new TempValue(2)),
+                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesBrutalChainAssignmentWithMixedLValuesCorrectly()
+        {
+            string source = "a,b,c, list[0] <2?| input() <| input_int();";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("input"), new NumberValue(0)),
+                new(InstructionCode.Assign, new TempValue(2), new TempValue(1)),
+                new(InstructionCode.Equal, new TempValue(3), new TempValue(2), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(7), new TempValue(3)),
+                new(InstructionCode.Assign, new VariableValue("a"), new TempValue(2)),
+                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("input_int"), new NumberValue(0)),
+                new(InstructionCode.Assign, new TempValue(5), new TempValue(4)),
+                new(InstructionCode.Assign, new VariableValue("c"), new TempValue(5)),
+                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(0), new TempValue(5)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesFullTestSuiteCorrectly()
+        {
+            string source = @"
+                x = MyFunc()[230];
+                list = [1..2];
+                y = list[2];
+                a,b,c, list[0] <2?| input() <| input_int();
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("MyFunc"), new NumberValue(0)),
+                new(InstructionCode.GetElement, new TempValue(2), new TempValue(1), new NumberValue(230)),
+                new(InstructionCode.Assign, new VariableValue("x"), new TempValue(2)),
+                new(InstructionCode.NewList, new TempValue(3)),
+                new(InstructionCode.NewRangeList, new TempValue(4), new NumberValue(1), new NumberValue(2)),
+                new(InstructionCode.PushElement, new TempValue(3), new TempValue(4)),
+                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(3)),
+                new(InstructionCode.GetElement, new TempValue(5), new VariableValue("list"), new NumberValue(2)),
+                new(InstructionCode.Assign, new VariableValue("y"), new TempValue(5)),
+                new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("input"), new NumberValue(0)),
+                new(InstructionCode.Assign, new TempValue(7), new TempValue(6)),
+                new(InstructionCode.Equal, new TempValue(8), new TempValue(7), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(16), new TempValue(8)),
+                new(InstructionCode.Assign, new VariableValue("a"), new TempValue(7)),
+                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(7)),
+                new(InstructionCode.CallFunction, new TempValue(9), new VariableValue("input_int"), new NumberValue(0)),
+                new(InstructionCode.Assign, new TempValue(10), new TempValue(9)),
+                new(InstructionCode.Assign, new VariableValue("c"), new TempValue(10)),
+                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(0), new TempValue(10)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
         public void ParsesListElementAssignmentCorrectly()
         {
             string source = "list = [1]; list[0] = 5;";

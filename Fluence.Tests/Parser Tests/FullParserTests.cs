@@ -314,12 +314,12 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("c"), new NumberValue(10)),
                 new(InstructionCode.Assign, new VariableValue("d"), new NumberValue(10)),
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("c"), new NumberValue(10)),
-                new(InstructionCode.Equal, new TempValue(2), new VariableValue("d"), new NumberValue(10)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(8), new TempValue(2)),
-                new(InstructionCode.Assign, new TempValue(3), new NumberValue(100)),
-                new(InstructionCode.Goto, new NumberValue(9)),
-                new(InstructionCode.Assign, new TempValue(3), new NumberValue(-100)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(12), new TempValue(1)),
+                new(InstructionCode.Equal, new TempValue(2), new VariableValue("d"), new NumberValue(10)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(9), new TempValue(2)),
+                new(InstructionCode.Assign, new TempValue(3), new NumberValue(100)),
+                new(InstructionCode.Goto, new NumberValue(10)),
+                new(InstructionCode.Assign, new TempValue(3), new NumberValue(-100)),
                 new(InstructionCode.Assign, new TempValue(4), new TempValue(3)),
                 new(InstructionCode.Goto, new NumberValue(13)),
                 new(InstructionCode.Assign, new TempValue(4), new NumberValue(-10)),
@@ -332,7 +332,7 @@ namespace Fluence.ParserTests
         [Fact]
         public void ParsesNestedFluidStyleTernaryCorrectly()
         {
-            string source = "a=1; b=1; c = a == 1 ?: b == 1 ?: 100, -100, -10;";
+            string source = "a=1; b=1; c = a == 1 ?: (b == 1 ?: 100, -100), -10;";
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
@@ -340,12 +340,12 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("a"), new NumberValue(1)),
-                new(InstructionCode.Equal, new TempValue(2), new VariableValue("b"), new NumberValue(1)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(8), new TempValue(2)),
-                new(InstructionCode.Assign, new TempValue(3), new NumberValue(100)),
-                new(InstructionCode.Goto, new NumberValue(9)),
-                new(InstructionCode.Assign, new TempValue(3), new NumberValue(-100)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(12), new TempValue(1)),
+                new(InstructionCode.Equal, new TempValue(2), new VariableValue("b"), new NumberValue(1)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(9), new TempValue(2)),
+                new(InstructionCode.Assign, new TempValue(3), new NumberValue(100)),
+                new(InstructionCode.Goto, new NumberValue(10)),
+                new(InstructionCode.Assign, new TempValue(3), new NumberValue(-100)),
                 new(InstructionCode.Assign, new TempValue(4), new TempValue(3)),
                 new(InstructionCode.Goto, new NumberValue(13)),
                 new(InstructionCode.Assign, new TempValue(4), new NumberValue(-10)),
@@ -372,6 +372,123 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(2)),
                 new(InstructionCode.Terminate, null)
             };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesParenthesizedArithmeticWithCorrectPrecedence()
+        {
+            string source = "x = (5 + 5) * 2;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+        {
+            new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+            new(InstructionCode.Add, new TempValue(1), new NumberValue(5), new NumberValue(5)),
+            new(InstructionCode.Multiply, new TempValue(2), new TempValue(1), new NumberValue(2)),
+            new(InstructionCode.Assign, new VariableValue("x"), new TempValue(2)),
+            new(InstructionCode.Terminate, null)
+        };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesParenthesizedFunctionCall()
+        {
+            string source = "x = (MyFunc());";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+        {
+            new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+            new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("MyFunc"), new NumberValue(0)),
+            new(InstructionCode.Assign, new VariableValue("x"), new TempValue(1)),
+            new(InstructionCode.Terminate, null)
+        };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesParenthesizedListAccess()
+        {
+            string source = "x = ([1,2,3])[1];";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+        {
+            new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+            new(InstructionCode.NewList, new TempValue(1)),
+            new(InstructionCode.PushElement, new TempValue(1), new NumberValue(1)),
+            new(InstructionCode.PushElement, new TempValue(1), new NumberValue(2)),
+            new(InstructionCode.PushElement, new TempValue(1), new NumberValue(3)),
+            new(InstructionCode.GetElement, new TempValue(2), new TempValue(1), new NumberValue(1)),
+            new(InstructionCode.Assign, new VariableValue("x"), new TempValue(2)),
+            new(InstructionCode.Terminate, null)
+        };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesParenthesizedForInLoopCollection()
+        {
+            string source = "for i in (1..3) {}";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+        {
+            new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+            new(InstructionCode.NewRangeList, new TempValue(1), new NumberValue(1), new NumberValue(3)),
+            new(InstructionCode.Assign, new TempValue(2), new NumberValue(0)),
+            new(InstructionCode.Assign, new TempValue(3), new TempValue(1)),
+            new(InstructionCode.GetLength, new TempValue(4), new TempValue(3)),
+            new(InstructionCode.LessThan, new TempValue(5), new TempValue(2), new TempValue(4)),
+            new(InstructionCode.GotoIfFalse, new NumberValue(12), new TempValue(5)),
+            new(InstructionCode.GetElement, new TempValue(6), new TempValue(3), new TempValue(2)),
+            new(InstructionCode.Assign, new VariableValue("i"), new TempValue(6)),
+            new(InstructionCode.Add, new TempValue(7), new TempValue(2), new NumberValue(1)),
+            new(InstructionCode.Assign, new TempValue(2), new TempValue(7)),
+            new(InstructionCode.Goto, new NumberValue(4)),
+            new(InstructionCode.Terminate, null)
+        };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesParenthesizedCollectiveComparison()
+        {
+            string source = "if (a, b <==| 0) -> x=1;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+        {
+            new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+            new(InstructionCode.Equal, new TempValue(1), new VariableValue("a"), new NumberValue(0)),
+            new(InstructionCode.Equal, new TempValue(2), new VariableValue("b"), new NumberValue(0)),
+            new(InstructionCode.And, new TempValue(3), new TempValue(1), new TempValue(2)),
+            new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(3)),
+            new(InstructionCode.Assign, new VariableValue("x"), new NumberValue(1)),
+            new(InstructionCode.Terminate, null)
+        };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesBrutalNestedTernaryWithParenthesis()
+        {
+            // This is the definitive test that your fix worked.
+            string source = "v = c == 10 ? (d == 10 ? 100 : -100) : -10;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+        {
+            new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+            new(InstructionCode.Equal, new TempValue(1), new VariableValue("c"), new NumberValue(10)),
+            new(InstructionCode.GotoIfFalse, new NumberValue(8), new TempValue(1)),
+            new(InstructionCode.Equal, new TempValue(2), new VariableValue("d"), new NumberValue(10)),
+            new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(2)),
+            new(InstructionCode.Assign, new TempValue(3), new NumberValue(100)),
+            new(InstructionCode.Goto, new NumberValue(7)),
+            new(InstructionCode.Assign, new TempValue(3), new NumberValue(-100)),
+            new(InstructionCode.Assign, new TempValue(4), new TempValue(3)),
+            new(InstructionCode.Goto, new NumberValue(9)),
+            new(InstructionCode.Assign, new TempValue(4), new NumberValue(-10)),
+            new(InstructionCode.Assign, new VariableValue("v"), new TempValue(4)),
+            new(InstructionCode.Terminate, null)
+        };
             AssertBytecodeEqual(expectedCode, compiledCode);
         }
 

@@ -1,4 +1,5 @@
-﻿using static Fluence.FluenceByteCode;
+﻿using Microsoft.VisualBasic;
+using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.Token;
 
@@ -684,7 +685,7 @@ namespace Fluence
         private void ParseAssignment()
         {
             // (=, +=, -=, *=, /=) - LOWEST PRECEDENCE
-            Value lhs = ParseExpression();
+            Value lhs = ParseTernary();
 
             TokenType type = _lexer.PeekNextToken().Type;
 
@@ -693,7 +694,7 @@ namespace Fluence
                 _lexer.ConsumeToken(); // Consume the "="
 
                 // Parse the right-hand side expression.
-                Value rhs = ParseExpression();
+                Value rhs = ParseTernary();
 
                 if (type == TokenType.EQUAL)
                 {
@@ -733,6 +734,59 @@ namespace Fluence
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, temp, variable));
                 }
             }
+        }
+
+        private Value ParseTernary()
+        {
+            // If Ternary, this becomes the condition.
+            Value left = ParseExpression();
+
+            TokenType type = _lexer.PeekNextToken().Type;
+
+            // Two formats, normal: cond ? a : b
+            // Joint: cond ?: a, b
+            if (type == TokenType.TERNARY_JOINT || type == TokenType.QUESTION)
+            {
+                _lexer.ConsumeToken(); // Consume '?' or '?:'
+
+                // Immediately generate the conditional jump. We will back-patch its target.
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, left));
+                int falseJumpPatch = _currentParseState.CodeInstructions.Count - 1;
+
+                Value trueExpr = ParseTernary();
+
+                TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, result, trueExpr));
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+                int endJumpPatch = _currentParseState.CodeInstructions.Count - 1;
+
+                int falsePathAddress = _currentParseState.CodeInstructions.Count;
+                _currentParseState.CodeInstructions[falseJumpPatch].Lhs = new NumberValue(falsePathAddress);
+
+                // 7. Consume the ':' or ',' delimiter.
+                if (type == TokenType.QUESTION)
+                {
+                    ConsumeAndTryThrowIfUnequal(TokenType.COLON, "Expected ':' in standard ternary.");
+                }
+                else
+                {
+                    ConsumeAndTryThrowIfUnequal(TokenType.COMMA, "Expected ',' in Fluid-style ternary.");
+                }
+
+                // Recursively parse the "false" path expression.
+                Value falseExpr = ParseTernary();
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, result, falseExpr));
+
+                int endAddress = _currentParseState.CodeInstructions.Count;
+                _currentParseState.CodeInstructions[endJumpPatch].Lhs = new NumberValue(endAddress);
+
+                // The "value" of this entire ternary expression for the rest of the parser
+                // is the temporary variable that holds the chosen result.
+                return result;
+            }
+
+            return left;
         }
 
         private static InstructionCode GetInstructionCode(TokenType type) => type switch
@@ -1374,9 +1428,9 @@ namespace Fluence
 
             if (token.Type == TokenType.L_PAREN)
             {
-                Value expr = ParseExpression();
+                Value expr = ParseTernary();
                 // Unclosed parentheses.
-                ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, ")");
+                _lexer.ConsumeToken();
                 return expr;
             }
 

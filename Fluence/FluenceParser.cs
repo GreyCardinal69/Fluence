@@ -771,7 +771,7 @@ namespace Fluence
         private Value ParseTernary()
         {
             // If Ternary, this becomes the condition.
-            Value left = ParseExpression();
+            Value left = ParsePipe();
 
             TokenType type = _lexer.PeekNextToken().Type;
 
@@ -819,6 +819,54 @@ namespace Fluence
             }
 
             return left;
+        }
+
+        private Value ParsePipe()
+        {
+            Value left = ParseExpression();
+
+            // While we see a pipe, parse it and try again.
+            while (_lexer.PeekNextToken().Type == TokenType.PIPE)
+            {
+                _lexer.ConsumeToken(); // Consume the pipe.
+
+                left = ParsePipedFunctionCall(left);
+            }
+
+            return left;
+        }
+
+        private Value ParsePipedFunctionCall(Value leftSidePipedValue)
+        {
+            Value targetFunction = ParsePrimary();
+            ConsumeAndTryThrowIfUnequal(TokenType.L_PAREN, "Expected a function opening ( for call.");
+
+            List<Value> args = new List<Value>();
+
+            while (ConsumeTokenIfMatch(TokenType.COMMA) || _lexer.PeekNextToken().Type != TokenType.R_PAREN) 
+            {
+                if (_lexer.PeekNextToken().Type == TokenType.UNDERSCORE)
+                {
+                    _lexer.ConsumeToken();
+                    args.Add(leftSidePipedValue);
+                }
+                else
+                {
+                    args.Add(ParsePipe());
+                }
+            }
+            Console.WriteLine(_lexer.PeekNextToken());
+            ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Expected closing ) for function call/pipe.");
+
+            foreach (var arg in args)
+            {
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, arg));
+            }
+
+            TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, result, targetFunction, new NumberValue(args.Count)));
+
+            return result;
         }
 
         private static InstructionCode GetInstructionCode(TokenType type) => type switch

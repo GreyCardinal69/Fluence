@@ -645,6 +645,124 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
+        public void ParsesSimplePipeWithPlaceholder()
+        {
+            string source = "result = 5 |> add(_);";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.PushParam, new NumberValue(5)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("add"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("result"), new TempValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesPipeWithPlaceholderInSecondPosition()
+        {
+            string source = "result = 10 |> add(5, _);";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.PushParam, new NumberValue(5)),
+                new(InstructionCode.PushParam, new NumberValue(10)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("add"), new NumberValue(2)),
+                new(InstructionCode.Assign, new VariableValue("result"), new TempValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesPipeWithoutPlaceholderAsSequencer()
+        {
+            string source = "print(1) |> print(2);";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.PushParam, new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesMixedSequencingAndDataflowPipe()
+        {
+            string source = "result = print(x) |> getFive() |> print(_);";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.PushParam, new VariableValue("x")),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("getFive"), new NumberValue(0)),
+                new(InstructionCode.PushParam, new TempValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("result"), new TempValue(3)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesBrutalChainedPipeCorrectly()
+        {
+            string source = "result = add(x) |> add(_) |> mul(5, _) |> mul(_, 5) |> add(3) |> add2(3,_);";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.PushParam, new VariableValue("x")),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("add"), new NumberValue(1)),
+                new(InstructionCode.PushParam, new TempValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("add"), new NumberValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(5)),
+                new(InstructionCode.PushParam, new TempValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("mul"), new NumberValue(2)),
+                new(InstructionCode.PushParam, new TempValue(3)),
+                new(InstructionCode.PushParam, new NumberValue(5)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("mul"), new NumberValue(2)),
+                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("add"), new NumberValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.PushParam, new TempValue(5)),
+                new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("add2"), new NumberValue(2)),
+                new(InstructionCode.Assign, new VariableValue("result"), new TempValue(6)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesBrutalNestedPipeInArgumentCorrectly()
+        {
+            string source = "result = add(x) |> add(x |> add(_));";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.PushParam, new VariableValue("x")),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("add"), new NumberValue(1)),
+                new(InstructionCode.PushParam, new VariableValue("x")),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("add"), new NumberValue(1)),
+                new(InstructionCode.PushParam, new TempValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("add"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("result"), new TempValue(3)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
         public void ParsesInsaneCollectiveComparisonWithPrecedenceAndFunctionCalls()
         {
             string source = @"

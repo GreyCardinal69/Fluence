@@ -1,9 +1,12 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 
 namespace Fluence
 {
     internal abstract class Value
     {
+        internal string Name = "";
+
         public override string ToString()
         {
             return "";
@@ -32,6 +35,26 @@ namespace Fluence
         // It has no data. Its existence is its meaning.
         public override string ToString() => "StatementComplete";
         internal override object GetValue() => null;
+    }
+
+    internal sealed class ElementAccessValue : Value
+    {
+        internal Value Target { get; }
+        internal Value Index { get; }
+        internal string TempName;
+        internal object Value;
+
+        internal ElementAccessValue(Value target, Value index, int num, string name)
+        {
+            TempName = $"{name}{num}";
+            Target = target;
+            Index = index;
+        }
+
+        public override string ToString()
+        {
+            return $"ElementAccessValue: {TempName}";
+        }
     }
 
     internal class StringValue : Value

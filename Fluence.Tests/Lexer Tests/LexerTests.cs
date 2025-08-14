@@ -157,7 +157,7 @@ namespace Fluence.LexerTests
         [Fact]
         public void TestOptionalAssignN()
         {
-            string source = "<5|? code after";
+            string source = "<5?| code after";
             var token = LexFirstToken(source);
             Assert.Equal(TokenType.OPTIONAL_ASSIGN_N, token.Type);
             Assert.Equal("5", token.Text);

@@ -694,7 +694,7 @@ namespace Fluence
             ConsumeAndTryThrowIfUnequal(TokenType.R_BRACE, "Expected '}' to end a block.");
         }
 
-        private static bool IsAssignmentOperator(TokenType type) => type switch
+        private static bool IsSimpleAssignmentOperator(TokenType type) => type switch
         {
             TokenType.EQUAL or
             TokenType.EQUAL_DIV or
@@ -704,6 +704,15 @@ namespace Fluence
             TokenType.EQUAL_AMPERSAND or
             TokenType.EQUAL_PERCENT => true,
             _ => false,
+        };
+
+        private static bool IsChainAssignmentOperator(TokenType type) => type switch
+        {
+            TokenType.CHAIN_ASSIGN_N or
+            TokenType.OPTIONAL_ASSIGN or
+            TokenType.OPTIONAL_ASSIGN_N or
+            TokenType.REST_ASSIGN => true,
+            _ => false
         };
 
         private static bool IsUnaryOperator(TokenType type) => type switch
@@ -716,28 +725,45 @@ namespace Fluence
 
         private void ParseAssignment()
         {
-            // (=, +=, -=, *=, /=) - LOWEST PRECEDENCE
-            Value lhs = ParseTernary();
+            List<Value> lhs = new List<Value>();
+
+            do
+            {
+                lhs.Add(ParseTernary());
+            } while (ConsumeTokenIfMatch(TokenType.COMMA));
 
             TokenType type = _lexer.PeekNextToken().Type;
+            Value left = lhs[0];
 
-            if (IsAssignmentOperator(type) || type == TokenType.SWAP)
+            if (IsChainAssignmentOperator(type))
+            {
+                ParseChainAssignment(lhs);
+            }
+            else if (IsSimpleAssignmentOperator(type) || type == TokenType.SWAP)
             {
                 _lexer.ConsumeToken(); // Consume the "="
 
                 // Parse the right-hand side expression.
-                Value rhs = ParseTernary();
+                Value rhs = ResolveValue(ParseTernary());
 
                 if (type == TokenType.EQUAL)
                 {
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, rhs));
+                    if (left is VariableValue)
+                    {
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, left, rhs));
+                    }
+                    else if (left is ElementAccessValue access)
+                    {
+                        // This is a "write" operation. Generate SetElement.
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, access.Target, access.Index, rhs));
+                    }
                 }
                 else if (type == TokenType.SWAP)
                 {
                     Value temp = new TempValue(_currentParseState.NextTempNumber++);
 
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, temp, lhs));
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, rhs));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, temp, left));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, left, rhs));
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, rhs, temp));
                 }
                 else  // Compound, -=, +=, etc.
@@ -747,25 +773,110 @@ namespace Fluence
                     TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
 
                     // temp = var - value.
-                    _currentParseState.AddCodeInstruction(new InstructionLine(instrType, temp, lhs, rhs));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(instrType, temp, left, rhs));
 
                     // var = temp.
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, temp));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, left, temp));
                 }
             }
             else
             {
-                if (lhs is StatementCompleteValue)
+                // In Fluence the statement variable; is valid, but it would be ignored.
+                // We should generate bytecode regardless. That would return StatementCompleteValue.
+                // It represents nothing so we just skip here.
+                if (left is StatementCompleteValue)
                 {
                     // do nothing
                 }
-                else if (lhs is VariableValue variable)
+                else if (left is ElementAccessValue val)
+                {
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, val.Target, val.Index, new NilValue()));
+                }
+                else if (left is VariableValue variable)
                 {
                     // The expression was just a variable. Force a read.
                     var temp = new TempValue(_currentParseState.NextTempNumber++);
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, temp, variable));
                 }
             }
+        }
+
+        private void ParseChainAssignment(List<Value> lhs)
+        {
+            int lhsIndex = 0;
+
+            while (IsChainAssignmentOperator(_lexer.PeekNextToken().Type))
+            {
+                Token op = _lexer.ConsumeToken();
+
+                bool isOptional = op.Type == TokenType.OPTIONAL_ASSIGN || op.Type == TokenType.OPTIONAL_ASSIGN_N;
+
+                Value rhs = ParseTernary();
+        
+                TempValue valueToAssign = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, valueToAssign, rhs));
+
+                int skipOptionalAssign = -1;
+                if (isOptional)
+                {
+                    TempValue isNil = new TempValue(_currentParseState.NextTempNumber++);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, valueToAssign, new NilValue()));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null, isNil));
+                    skipOptionalAssign = _currentParseState.CodeInstructions.Count - 1;
+                }
+            
+                if (op.Type == TokenType.CHAIN_ASSIGN_N || op.Type == TokenType.OPTIONAL_ASSIGN_N)
+                {
+                    int count = Convert.ToInt32(op.Literal);
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (lhs[lhsIndex] is ElementAccessValue val)
+                        {
+                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, val.Target, val.Index, valueToAssign));
+                        }
+                        else
+                        {
+                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs[lhsIndex], valueToAssign));
+                        }
+                        lhsIndex++;
+                    }
+                }else
+                {
+                    // <| and <?|
+                    // Rest assign pipes are context dependant, they apply:
+                    // Variables, functions, structs.
+                    // For functions
+                    if (lhs.Count == 1 && IsFunctionBroadcastCall(lhs[0]))
+                    {
+
+                    }
+                    else // For variables.
+                    {
+                        while (lhsIndex < lhs.Count)
+                        {
+                            if (lhs[lhsIndex] is ElementAccessValue val)
+                            {
+                                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, val.Target, val.Index, valueToAssign));
+                            }
+                            else
+                            {
+                                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs[lhsIndex], valueToAssign));
+                            }
+                            lhsIndex++;
+                        }
+                    }
+                }
+
+                if (skipOptionalAssign != -1)
+                {
+                    _currentParseState.CodeInstructions[skipOptionalAssign].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+                }
+            }
+        }
+
+        private static bool IsFunctionBroadcastCall(Value left)
+        {
+            return false;
         }
 
         private Value ParseTernary()
@@ -855,7 +966,7 @@ namespace Fluence
                     args.Add(ParsePipe());
                 }
             }
-            Console.WriteLine(_lexer.PeekNextToken());
+
             ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Expected closing ) for function call/pipe.");
 
             foreach (var arg in args)
@@ -1354,6 +1465,21 @@ namespace Fluence
             return operationPerformed ? new StatementCompleteValue() : left;
         }
 
+        private Value ResolveValue(Value val)
+        {
+            if (val is ElementAccessValue access)
+            {
+                // It's a descriptor. Generate the GetElement instruction.
+                TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetElement, result, access.Target, access.Index));
+                // Return the temporary that will hold the result.
+                return result;
+            }
+
+            // If it's not a descriptor, just return it as is.
+            return val;
+        }
+
         private Value ParseAccess()
         {
             // Array access [], get and set.
@@ -1373,21 +1499,7 @@ namespace Fluence
                     ConsumeAndTryThrowIfUnequal(TokenType.R_BRACKET, "Bad list access, not ending bracket.");
 
                     // list[...] = ...
-                    if (_lexer.PeekNextToken().Type == TokenType.EQUAL)
-                    {
-                        TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
-                        _lexer.ConsumeToken(); // Consume =.
-
-                        Value valueToSet = ParseExpression();
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, left, index, valueToSet));
-                        return valueToSet;
-                    }
-                    else // x = list[...]
-                    {
-                        TempValue valueToGet = new TempValue(_currentParseState.NextTempNumber++);
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetElement, valueToGet, left, index));
-                        left = valueToGet;
-                    }
+                    left = new ElementAccessValue(left, index, _currentParseState.NextTempNumber++, "Access");
                 }
                 // Property access.
                 else if (type == TokenType.DOT)

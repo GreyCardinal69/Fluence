@@ -802,10 +802,33 @@ namespace Fluence
 
         private bool IsBroadCastPipeFunctionCall()
         {
-            return _lexer.PeekNextToken().Type == TokenType.IDENTIFIER &&
-                    _lexer.PeekAheadByN(2).Type == TokenType.L_PAREN &&
-                    _lexer.PeekAheadByN(3).Type == TokenType.UNDERSCORE &&
-                    _lexer.PeekAheadByN(4).Type == TokenType.R_PAREN;
+            if (_lexer.PeekNextToken().Type != TokenType.IDENTIFIER && _lexer.PeekAheadByN(2).Type != TokenType.L_PAREN)
+            {
+                return false;
+            }
+
+            int lookahead = 3;
+            bool hasUnderscore = false;
+
+            while (true)
+            {
+                TokenType type = _lexer.PeekAheadByN(lookahead).Type;
+
+                if (type == TokenType.R_PAREN) break; // End of argument list
+                if (type == TokenType.EOF) return false; // End of file, not a valid call
+
+                if (type == TokenType.UNDERSCORE) hasUnderscore = true;
+
+                // Skip the argument and a potential comma
+                lookahead++;
+                if (_lexer.PeekAheadByN(lookahead).Type == TokenType.COMMA)
+                {
+                    lookahead++;
+                }
+            }
+
+            // After the ')' at `lookahead`, the next token must be a chain operator.
+            return hasUnderscore && IsChainAssignmentOperator(_lexer.PeekAheadByN(lookahead + 1).Type);
         }
 
         private List<Value> ParseChainAssignmentLhs()

@@ -102,6 +102,8 @@ namespace Fluence
                 token.Type != TokenType.FALSE &&
                 token.Type != TokenType.NIL;
 
+            Token next;
+
             // Primary keywords like func, if, else, return, loops, and few others.
             if (FluenceKeywords.TokenTypeIsAKeywordType(token.Type) && isNotAPrimaryKeyword)
             {
@@ -121,6 +123,22 @@ namespace Fluence
 
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
                         currentLoop.BreakPatchAddresses.Add(_currentParseState.CodeInstructions.Count - 1);
+
+                        next = _lexer.PeekNextToken();
+
+                        if (next.Type == TokenType.EOL)
+                        {
+                            if (next.Text != ";" && next.Text != ";\r\n" && next.Text != ";\n") throw new Exception("; mandate");
+                        }
+
+                        if (next.Type == TokenType.EOF)
+                        {
+                            return;
+                        }
+
+                        // If we reach here, then we lack a semicolon, most likely at the end of an expression,
+                        // not within if/loops/etc. Or we have a bug.
+                        ConsumeAndTryThrowIfUnequal(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
                         break;
                     case TokenType.CONTINUE:
                         _lexer.ConsumeToken(); // Consume 'continue'
@@ -131,6 +149,22 @@ namespace Fluence
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
 
                         currentLoop2.ContinuePatchAddresses.Add(_currentParseState.CodeInstructions.Count - 1);
+
+                        next = _lexer.PeekNextToken();
+
+                        if (next.Type == TokenType.EOL)
+                        {
+                            if (next.Text != ";" && next.Text != ";\r\n" && next.Text != ";\n") throw new Exception("; mandate");
+                        }
+
+                        if (next.Type == TokenType.EOF)
+                        {
+                            return;
+                        }
+
+                        // If we reach here, then we lack a semicolon, most likely at the end of an expression,
+                        // not within if/loops/etc. Or we have a bug.
+                        ConsumeAndTryThrowIfUnequal(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
                         break;
                     case TokenType.WHILE:
                         ParseWhileStatement();
@@ -144,6 +178,9 @@ namespace Fluence
                     case TokenType.RETURN:
                         ParseReturnStatement();
                         break;
+                    case TokenType.MATCH:
+                        ParseMatchStatement();
+                        break;
                 }
             }
             // Most likely an expression
@@ -151,7 +188,7 @@ namespace Fluence
             {
                 ParseAssignment();
 
-                Token next = _lexer.PeekNextToken();
+                next = _lexer.PeekNextToken();
 
                 if (next.Type == TokenType.EOL)
                 {
@@ -522,8 +559,10 @@ namespace Fluence
             if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
             {
                 ParseBlockStatement();
-                if (_currentParseState.CodeInstructions[^1].Instruction != InstructionCode.Return) ;
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, new NilValue()));
+                if (_currentParseState.CodeInstructions[^1].Instruction != InstructionCode.Return)
+                {
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, new NilValue()));
+                }
             }
             else
             {
@@ -536,14 +575,8 @@ namespace Fluence
             _currentParseState.CodeInstructions[jumpOverBodyGoTo].Lhs = new NumberValue(afterBodyAddress);
         }
 
-        private Value ParseMatch()
+        private Value ParseMatchStatement()
         {
-            // Match is already consumed.
-
-            Value matchOn = ParseExpression();
-
-            Console.WriteLine(matchOn);
-
             return null;
         }
 
@@ -1322,7 +1355,7 @@ namespace Fluence
                     {
                         do
                         {
-                            arguments.Add(ParseExpression());
+                            arguments.Add(ParseTernary());
                         }
                         while (ConsumeTokenIfMatch(TokenType.COMMA));
                     }
@@ -1421,15 +1454,13 @@ namespace Fluence
                 case TokenType.L_BRACKET:
                     // We are in list, either initialization, or [i] access.
                     return ParseList();
-                case TokenType.MATCH:
-                    return ParseMatch();
             }
 
             if (token.Type == TokenType.L_PAREN)
             {
                 Value expr = ParseTernary();
                 // Unclosed parentheses.
-                _lexer.ConsumeToken();
+                ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Expected ')' to close parenthesized expression.");
                 return expr;
             }
 

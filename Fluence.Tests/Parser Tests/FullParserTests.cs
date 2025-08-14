@@ -544,6 +544,107 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
+        public void ParsesTernaryAsFunctionArgument()
+        {
+            string source = "result=5; print(result is nil ?: 1, 0);";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("result"), new NumberValue(5)),
+                new(InstructionCode.Equal, new TempValue(1), new VariableValue("result"), new NilValue()),
+                new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(1)),
+                new(InstructionCode.Assign, new TempValue(2), new NumberValue(1)),
+                new(InstructionCode.Goto, new NumberValue(7)),
+                new(InstructionCode.Assign, new TempValue(2), new NumberValue(0)),
+                new(InstructionCode.PushParam, new TempValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesArithmeticAsFunctionArgument()
+        {
+            string source = "x = 10; print(x * 2 + 5);";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("x"), new NumberValue(10)),
+                new(InstructionCode.Multiply, new TempValue(1), new VariableValue("x"), new NumberValue(2)),
+                new(InstructionCode.Add, new TempValue(2), new TempValue(1), new NumberValue(5)),
+                new(InstructionCode.PushParam, new TempValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesRangeAsFunctionArgument()
+        {
+            string source = "print(1..3);";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.NewRangeList, new TempValue(1), new NumberValue(1), new NumberValue(3)),
+                new(InstructionCode.PushParam, new TempValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesTernaryAsPartOfLargerArgumentList()
+        {
+            string source = "result=5; print(result is nil ?: 1, 0, 99);";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("result"), new NumberValue(5)),
+                new(InstructionCode.Equal, new TempValue(1), new VariableValue("result"), new NilValue()),
+                new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(1)),
+                new(InstructionCode.Assign, new TempValue(2), new NumberValue(1)),
+                new(InstructionCode.Goto, new NumberValue(7)),
+                new(InstructionCode.Assign, new TempValue(2), new NumberValue(0)),
+                new(InstructionCode.PushParam, new TempValue(2)),
+                new(InstructionCode.PushParam, new NumberValue(99)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print"), new NumberValue(2)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesTernaryAsIfCondition()
+        {
+            string source = "a=1; b=2; if (a > b ? a : b) == 2 -> print(1);";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(2)),
+                new(InstructionCode.GreaterThan, new TempValue(1), new VariableValue("a"), new VariableValue("b")),
+                new(InstructionCode.GotoIfFalse, new NumberValue(7), new TempValue(1)),
+                new(InstructionCode.Assign, new TempValue(2), new VariableValue("a")),
+                new(InstructionCode.Goto, new NumberValue(8)),
+                new(InstructionCode.Assign, new TempValue(2), new VariableValue("b")),
+                new(InstructionCode.Equal, new TempValue(3), new TempValue(2), new NumberValue(2)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(12), new TempValue(3)),
+                new(InstructionCode.PushParam, new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
         public void ParsesInsaneCollectiveComparisonWithPrecedenceAndFunctionCalls()
         {
             string source = @"

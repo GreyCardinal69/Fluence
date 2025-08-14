@@ -120,7 +120,7 @@ namespace Fluence.ParserTests
         {
             string source = "x = MyFunc()[230];";
             var compiledCode = Compile(source);
-                var expectedCode = new List<InstructionLine>
+            var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("MyFunc"), new NumberValue(0)),
@@ -258,6 +258,98 @@ namespace Fluence.ParserTests
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.NewRangeList, new TempValue(1), new NumberValue(0), new NumberValue(3)),
                 new(InstructionCode.Assign, new VariableValue("my_list"), new TempValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesSimpleStandardTernaryCorrectly()
+        {
+            string source = "a=1; c = a < 2 ? 10 : -10;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
+                new(InstructionCode.LessThan, new TempValue(1), new VariableValue("a"), new NumberValue(2)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(1)),
+                new(InstructionCode.Assign, new TempValue(2), new NumberValue(10)),
+                new(InstructionCode.Goto, new NumberValue(7)),
+                new(InstructionCode.Assign, new TempValue(2), new NumberValue(-10)),
+                new(InstructionCode.Assign, new VariableValue("c"), new TempValue(2)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesSimpleFluidStyleTernaryCorrectly()
+        {
+            string source = "a=1; d = a < 2 ?: 10, -10;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
+                new(InstructionCode.LessThan, new TempValue(1), new VariableValue("a"), new NumberValue(2)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(1)),
+                new(InstructionCode.Assign, new TempValue(2), new NumberValue(10)),
+                new(InstructionCode.Goto, new NumberValue(7)),
+                new(InstructionCode.Assign, new TempValue(2), new NumberValue(-10)),
+                new(InstructionCode.Assign, new VariableValue("d"), new TempValue(2)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesNestedStandardTernaryCorrectly()
+        {
+            string source = "c=10; d=10; v = c == 10 ? d == 10 ? 100 : -100 : -10;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("c"), new NumberValue(10)),
+                new(InstructionCode.Assign, new VariableValue("d"), new NumberValue(10)),
+                new(InstructionCode.Equal, new TempValue(1), new VariableValue("c"), new NumberValue(10)),
+                new(InstructionCode.Equal, new TempValue(2), new VariableValue("d"), new NumberValue(10)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(8), new TempValue(2)),
+                new(InstructionCode.Assign, new TempValue(3), new NumberValue(100)),
+                new(InstructionCode.Goto, new NumberValue(9)),
+                new(InstructionCode.Assign, new TempValue(3), new NumberValue(-100)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(12), new TempValue(1)),
+                new(InstructionCode.Assign, new TempValue(4), new TempValue(3)),
+                new(InstructionCode.Goto, new NumberValue(13)),
+                new(InstructionCode.Assign, new TempValue(4), new NumberValue(-10)),
+                new(InstructionCode.Assign, new VariableValue("v"), new TempValue(4)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesNestedFluidStyleTernaryCorrectly()
+        {
+            string source = "a=1; b=1; c = a == 1 ?: b == 1 ?: 100, -100, -10;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(1)),
+                new(InstructionCode.Equal, new TempValue(1), new VariableValue("a"), new NumberValue(1)),
+                new(InstructionCode.Equal, new TempValue(2), new VariableValue("b"), new NumberValue(1)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(8), new TempValue(2)),
+                new(InstructionCode.Assign, new TempValue(3), new NumberValue(100)),
+                new(InstructionCode.Goto, new NumberValue(9)),
+                new(InstructionCode.Assign, new TempValue(3), new NumberValue(-100)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(12), new TempValue(1)),
+                new(InstructionCode.Assign, new TempValue(4), new TempValue(3)),
+                new(InstructionCode.Goto, new NumberValue(13)),
+                new(InstructionCode.Assign, new TempValue(4), new NumberValue(-10)),
+                new(InstructionCode.Assign, new VariableValue("c"), new TempValue(4)),
                 new(InstructionCode.Terminate, null)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);

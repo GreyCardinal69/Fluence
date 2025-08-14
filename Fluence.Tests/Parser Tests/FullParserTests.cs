@@ -217,6 +217,98 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
+        public void ParsesSimpleBroadcastCall()
+        {
+            string source = "print(_) <| 1, 2, 3;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.PushParam, new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesSimpleOptionalBroadcastCall()
+        {
+            string source = "print(_) <?| 1, nil, 3;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Equal, new TempValue(1), new NumberValue(1), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(5), new TempValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Equal, new TempValue(3), new NilValue(), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(9), new TempValue(3)),
+                new(InstructionCode.PushParam, new NilValue()),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Equal, new TempValue(5), new NumberValue(3), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(13), new TempValue(5)),
+                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesComplexBroadcastWithPlaceholderInSecondPosition()
+        {
+            string source = "add(5, _) <| 10, 20;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.PushParam, new NumberValue(5)),
+                new(InstructionCode.PushParam, new NumberValue(10)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("add"), new NumberValue(2)),
+                new(InstructionCode.PushParam, new NumberValue(5)),
+                new(InstructionCode.PushParam, new NumberValue(20)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("add"), new NumberValue(2)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesBrutalChainedMixedBroadcastCall()
+        {
+            string source = "print(_) <| 1, 2 <?| 3, nil, 4;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.PushParam, new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Equal, new TempValue(3), new NumberValue(3), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(9), new TempValue(3)),
+                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Equal, new TempValue(5), new NilValue(), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(13), new TempValue(5)),
+                new(InstructionCode.PushParam, new NilValue()),
+                new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Equal, new TempValue(7), new NumberValue(4), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(17), new TempValue(7)),
+                new(InstructionCode.PushParam, new NumberValue(4)),
+                new(InstructionCode.CallFunction, new TempValue(8), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
         public void ParsesFullTestSuiteCorrectly()
         {
             string source = @"

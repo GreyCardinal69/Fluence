@@ -590,6 +590,127 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
+        public void MultiAssignVectorCombined()
+        {
+            string source = @"
+                list = [1,2];
+                a,b,c,booly <~| 10, -10, ""Hello world!"", true;
+                x,y,z, list[1] <~?| 10, -10, 0, 999;
+            ";
+
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.NewList, new TempValue(1)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(1)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(2)),
+                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
+                new(InstructionCode.Assign, new TempValue(2), new NumberValue(10)),
+                new(InstructionCode.Assign, new VariableValue("a"), new TempValue(2)),
+                new(InstructionCode.Assign, new TempValue(3), new NumberValue(-10)),
+                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(3)),
+                new(InstructionCode.Assign, new TempValue(4), new StringValue("Hello world!")),
+                new(InstructionCode.Assign, new VariableValue("c"), new TempValue(4)),
+                new(InstructionCode.Assign, new TempValue(5), new BooleanValue(true)),
+                new(InstructionCode.Assign, new VariableValue("booly"), new TempValue(5)),
+                new(InstructionCode.Assign, new TempValue(7), new NumberValue(10)),
+                new(InstructionCode.Equal, new TempValue(8), new TempValue(7), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(17), new TempValue(8)),
+                new(InstructionCode.Assign, new VariableValue("x"), new TempValue(7)),
+                new(InstructionCode.Assign, new TempValue(9), new NumberValue(-10)),
+                new(InstructionCode.Equal, new TempValue(10), new TempValue(9), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(21), new TempValue(10)),
+                new(InstructionCode.Assign, new VariableValue("y"), new TempValue(9)),
+                new(InstructionCode.Assign, new TempValue(11), new NumberValue(0)),
+                new(InstructionCode.Equal, new TempValue(12), new TempValue(11), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(25), new TempValue(12)),
+                new(InstructionCode.Assign, new VariableValue("z"), new TempValue(11)),
+                new(InstructionCode.Assign, new TempValue(13), new NumberValue(999)),
+                new(InstructionCode.Equal, new TempValue(14), new TempValue(13), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(29), new TempValue(14)),
+                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(1), new TempValue(13)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void MultiAssignVectorNilSafe()
+        {
+            string source = @"
+                list = [1,2];
+                x,y,z, list[1] <~?| 10, -10, 0, 999;
+            ";
+
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+
+                new(InstructionCode.NewList, new TempValue(1)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(1)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(2)),
+                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
+
+                new(InstructionCode.Assign, new TempValue(3), new NumberValue(10)),
+                new(InstructionCode.Equal, new TempValue(4), new TempValue(3), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(9), new TempValue(4)),
+                new(InstructionCode.Assign, new VariableValue("x"), new TempValue(3)),
+
+                new(InstructionCode.Assign, new TempValue(5), new NumberValue(-10)),
+                new(InstructionCode.Equal, new TempValue(6), new TempValue(5), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(13), new TempValue(6)),
+                new(InstructionCode.Assign, new VariableValue("y"), new TempValue(5)),
+
+                new(InstructionCode.Assign, new TempValue(7), new NumberValue(0)),
+                new(InstructionCode.Equal, new TempValue(8), new TempValue(7), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(17), new TempValue(8)),
+                new(InstructionCode.Assign, new VariableValue("z"), new TempValue(7)),
+
+                new(InstructionCode.Assign, new TempValue(9), new NumberValue(999)),
+                new(InstructionCode.Equal, new TempValue(10), new TempValue(9), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(21), new TempValue(10)),
+                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(1), new TempValue(9)),
+
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void MultiAssignVector()
+        {
+            string source = @"
+        a,b,c,booly <~| 10, -10, ""Hello world!"", true;
+    ";
+
+            var compiledCode = Compile(source);
+
+            var expectedCode = new List<InstructionLine>
+    {
+        new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+
+        new(InstructionCode.Assign, new TempValue(2), new NumberValue(10)),
+        new(InstructionCode.Assign, new VariableValue("a"), new TempValue(2)),
+
+        new(InstructionCode.Assign, new TempValue(3), new NumberValue(-10)),
+        new(InstructionCode.Assign, new VariableValue("b"), new TempValue(3)),
+
+        new(InstructionCode.Assign, new TempValue(4), new StringValue("Hello world!")),
+        new(InstructionCode.Assign, new VariableValue("c"), new TempValue(4)),
+
+        new(InstructionCode.Assign, new TempValue(5), new BooleanValue(true)),
+        new(InstructionCode.Assign, new VariableValue("booly"), new TempValue(5)),
+
+        new(InstructionCode.Terminate, null)
+    };
+
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+
+        [Fact]
         public void CompilesMultiIncrementAndDecrement()
         {
             string source = @"
@@ -768,7 +889,7 @@ namespace Fluence.ParserTests
         {
             string source = "x = ([1,2,3])[1];";
             var compiledCode = Compile(source);
-                var expectedCode = new List<InstructionLine>
+            var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.NewList, new TempValue(1)),
@@ -1067,7 +1188,7 @@ namespace Fluence.ParserTests
             {
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Add, new TempValue(1), new NumberValue(5), new NumberValue(5)),
-                new(InstructionCode.PushParam, new TempValue(1)), 
+                new(InstructionCode.PushParam, new TempValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(10)),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("add"), new NumberValue(2)),
                 new(InstructionCode.PushParam, new TempValue(1)),

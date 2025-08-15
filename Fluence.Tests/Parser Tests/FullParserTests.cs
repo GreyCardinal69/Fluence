@@ -1428,6 +1428,94 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
+        public void ParsesFullCalculatorProgramCorrectly()
+        {
+            string source = @"
+                func input_int() => to_int(input());
+                func Main() => {
+                    num1, num2, op <2| input_int() <1| input();
+                    result = num1, num2, op <!=| nil ?: match op {
+                            ""+"" -> num1 + num2;
+                            ""-"" -> num1 - num2;
+                            ""*"" -> num1 * num2;
+                            ""/"" -> num2 == 0 ? nil : num1 / num2;
+                            rest-> nil;
+                        }, nil;
+                    print(result is nil ?: ""Error"", f""Result: {result}"");
+                }
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Goto, new NumberValue(7)),
+                new(InstructionCode.Assign, new VariableValue("input_int"), new FunctionValue("input_int", 0, 3, "0003")),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("input"), new NumberValue(0)),
+                new(InstructionCode.PushParam, new TempValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("to_int"), new NumberValue(1)),
+                new(InstructionCode.Return, new TempValue(2)),
+                new(InstructionCode.Goto, new NumberValue(63)),
+                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 9, "0009")),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("input_int"), new NumberValue(0)),
+                new(InstructionCode.Assign, new TempValue(4), new TempValue(3)),
+                new(InstructionCode.Assign, new VariableValue("num1"), new TempValue(4)),
+                new(InstructionCode.Assign, new VariableValue("num2"), new TempValue(4)),
+                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("input"), new NumberValue(0)),
+                new(InstructionCode.Assign, new TempValue(6), new TempValue(5)),
+                new(InstructionCode.Assign, new VariableValue("op"), new TempValue(6)),
+                new(InstructionCode.NotEqual, new TempValue(7), new VariableValue("num1"), new NilValue()),
+                new(InstructionCode.NotEqual, new TempValue(8), new VariableValue("num2"), new NilValue()),
+                new(InstructionCode.And, new TempValue(9), new TempValue(7), new TempValue(8)),
+                new(InstructionCode.NotEqual, new TempValue(10), new VariableValue("op"), new NilValue()),
+                new(InstructionCode.And, new TempValue(11), new TempValue(9), new TempValue(10)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(51), new TempValue(11)),
+                new(InstructionCode.Equal, new TempValue(13), new VariableValue("op"), new StringValue("+")),
+                new(InstructionCode.GotoIfFalse, new NumberValue(27), new TempValue(13)),
+                new(InstructionCode.Add, new TempValue(14), new VariableValue("num1"), new VariableValue("num2")),
+                new(InstructionCode.Assign, new TempValue(12), new TempValue(14)),
+                new(InstructionCode.Goto, new NumberValue(49)),
+                new(InstructionCode.Equal, new TempValue(15), new VariableValue("op"), new StringValue("-")),
+                new(InstructionCode.GotoIfFalse, new NumberValue(32), new TempValue(15)),
+                new(InstructionCode.Subtract, new TempValue(16), new VariableValue("num1"), new VariableValue("num2")),
+                new(InstructionCode.Assign, new TempValue(12), new TempValue(16)),
+                new(InstructionCode.Goto, new NumberValue(49)),
+                new(InstructionCode.Equal, new TempValue(17), new VariableValue("op"), new StringValue("*")),
+                new(InstructionCode.GotoIfFalse, new NumberValue(37), new TempValue(17)),
+                new(InstructionCode.Multiply, new TempValue(18), new VariableValue("num1"), new VariableValue("num2")),
+                new(InstructionCode.Assign, new TempValue(12), new TempValue(18)),
+                new(InstructionCode.Goto, new NumberValue(49)),
+                new(InstructionCode.Equal, new TempValue(19), new VariableValue("op"), new StringValue("/")),
+                new(InstructionCode.GotoIfFalse, new NumberValue(47), new TempValue(19)),
+                new(InstructionCode.Equal, new TempValue(20), new VariableValue("num2"), new NumberValue(0)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(43), new TempValue(20)),
+                new(InstructionCode.Assign, new TempValue(21), new NilValue()),
+                new(InstructionCode.Goto, new NumberValue(45)),
+                new(InstructionCode.Divide, new TempValue(22), new VariableValue("num1"), new VariableValue("num2")),
+                new(InstructionCode.Assign, new TempValue(21), new TempValue(22)),
+                new(InstructionCode.Assign, new TempValue(12), new TempValue(21)),
+                new(InstructionCode.Goto, new NumberValue(49)),
+                new(InstructionCode.Assign, new TempValue(12), new NilValue()),
+                new(InstructionCode.Goto, new NumberValue(49)),
+                new(InstructionCode.Assign, new TempValue(23), new TempValue(12)),
+                new(InstructionCode.Goto, new NumberValue(52)),
+                new(InstructionCode.Assign, new TempValue(23), new NilValue()),
+                new(InstructionCode.Assign, new VariableValue("result"), new TempValue(23)),
+                new(InstructionCode.Equal, new TempValue(24), new VariableValue("result"), new NilValue()),
+                new(InstructionCode.GotoIfFalse, new NumberValue(57), new TempValue(24)),
+                new(InstructionCode.Assign, new TempValue(25), new StringValue("Error: Invalid operation or division by zero.")),
+                new(InstructionCode.Goto, new NumberValue(60)),
+                new(InstructionCode.ToString, new TempValue(26), new VariableValue("result")),
+                new(InstructionCode.Add, new TempValue(27), new StringValue("Result: "), new TempValue(26)),
+                new(InstructionCode.Assign, new TempValue(25), new TempValue(27)),
+                new(InstructionCode.PushParam, new TempValue(25)),
+                new(InstructionCode.CallFunction, new TempValue(28), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
         public void ParsesInsaneCollectiveComparisonWithPrecedenceAndFunctionCalls()
         {
             string source = @"

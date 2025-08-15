@@ -444,7 +444,7 @@ namespace Fluence
         {
             _lexer.ConsumeToken(); // Consume the if.
             var condition = ParseExpression();
-        
+
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, condition));
 
             int elsePatchIndex = _currentParseState.CodeInstructions.Count - 1;
@@ -694,7 +694,7 @@ namespace Fluence
                         fallThrough = true;
                         break;
                     }
-                        ParseStatement();
+                    ParseStatement();
                 }
 
                 nextCasePatches.Add(_currentParseState.CodeInstructions.Count - 1);
@@ -723,7 +723,7 @@ namespace Fluence
 
             List<int> endJumpPatches = new List<int>();
             bool hasRestCase = false;
-          
+
             while (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
             {
                 if (_lexer.PeekNextToken().Type == TokenType.EOL)
@@ -765,7 +765,7 @@ namespace Fluence
                 if (_lexer.PeekNextToken().Type == TokenType.THIN_ARROW)
                 {
                     ConsumeAndTryThrowIfUnequal(TokenType.THIN_ARROW, "Missing thin arrow in match case.");
- 
+
                     caseResult = ParseExpression();
                 }
                 else
@@ -808,7 +808,8 @@ namespace Fluence
 
             ConsumeAndTryThrowIfUnequal(TokenType.R_BRACE, "Expecting closing } after match.");
 
-            if (!hasRestCase){
+            if (!hasRestCase)
+            {
                 // error, rest is a must.
             }
 
@@ -953,6 +954,8 @@ namespace Fluence
             TokenType.CHAIN_ASSIGN_N or
             TokenType.OPTIONAL_REST_ASSIGN or
             TokenType.OPTIONAL_ASSIGN_N or
+            TokenType.SEQUENTIAL_REST_ASSIGN or
+            TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN or
             TokenType.REST_ASSIGN => true,
             _ => false
         };
@@ -973,6 +976,12 @@ namespace Fluence
 
             if (IsChainAssignmentOperator(type))
             {
+                if (type == TokenType.SEQUENTIAL_REST_ASSIGN || type == TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN)
+                {
+                    ParseSequentialRestAssign(lhs);
+                    return;
+                }
+
                 ParseChainAssignment(lhs);
                 return;
             }
@@ -1114,6 +1123,53 @@ namespace Fluence
             } while (ConsumeTokenIfMatch(TokenType.COMMA));
 
             return lhs;
+        }
+
+        private void ParseSequentialRestAssign(List<Value> lhs)
+        {
+            int lhsIndex = 0;
+            Value firstLhs = lhs[0];
+            Token op = _lexer.ConsumeToken();
+
+            bool isOptional = op.Type == TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN;
+            Console.WriteLine(isOptional);
+            // Sequential assign operators do not expect any other pipes.
+            do
+            {
+                Value rhs = ParseTernary();
+
+                TempValue valueToAssign = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, valueToAssign, rhs));
+
+                int skipOptionalAssign = -1;
+                if (isOptional)
+                {
+                    TempValue isNil = new TempValue(_currentParseState.NextTempNumber++);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, valueToAssign, new NilValue()));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null, isNil));
+                    skipOptionalAssign = _currentParseState.CodeInstructions.Count - 1;
+                }
+
+                if (lhsIndex < lhs.Count)
+                {
+                    if (lhs[lhsIndex] is ElementAccessValue val)
+                    {
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, val.Target, val.Index, valueToAssign));
+                    }
+                    else
+                    {
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs[lhsIndex], valueToAssign));
+                    }
+                    lhsIndex++;
+                }
+
+
+                if (skipOptionalAssign != -1)
+                {
+                    _currentParseState.CodeInstructions[skipOptionalAssign].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+                }
+            }
+            while (ConsumeTokenIfMatch(TokenType.COMMA));
         }
 
         private void ParseChainAssignment(List<Value> lhs)
@@ -1557,7 +1613,7 @@ namespace Fluence
         private Value ParseComparison()
         {
             TokenType type = _lexer.PeekNextToken().Type;
-             
+
             if (type == TokenType.DOT_AND_CHECK || type == TokenType.DOT_OR_CHECK)
             {
                 return ParseDotAndOrOperators();

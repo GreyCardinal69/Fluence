@@ -1,4 +1,5 @@
-﻿using static Fluence.Token;
+﻿using System.Data.Common;
+using static Fluence.Token;
 
 namespace Fluence
 {
@@ -507,8 +508,14 @@ namespace Fluence
             faultyCodeLine = GetCodeLineFromSource(_sourceCode, _currentLine + 1).TrimStart();
             char invalidChar = _sourceCode[startPos];
 
-            ConstructAndThrowLexerException(_currentLine + 1, errorColumn, $"Invalid character '{invalidChar}' found in source. Could not generate appropriate Token.", faultyCodeLine, PeekNextToken());
-            return new();
+            LexerExceptionContext context = new LexerExceptionContext()
+            {
+                LineNum = _currentLine + 1,
+                Column = errorColumn + 2,
+                FaultyLine = faultyCodeLine,
+                Token = new Token(TokenType.UNKNOWN, _sourceCode[_currentPosition].ToString())
+            };
+            throw new FluenceLexerException($"Invalid character '{invalidChar}' found in source. Could not generate appropriate Token.", context);
         }
 
         private static void ConstructAndThrowLexerException(int lineNum, int column, string errorText, string faultyLine, Token token)

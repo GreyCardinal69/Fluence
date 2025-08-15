@@ -779,6 +779,26 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
+        public void ParsesBroadcastWithComplexArgumentExpression()
+        {
+            string source = "add(5 + 5, _) <| 10, 20;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Add, new TempValue(1), new NumberValue(5), new NumberValue(5)),
+                new(InstructionCode.PushParam, new TempValue(1)), 
+                new(InstructionCode.PushParam, new NumberValue(10)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("add"), new NumberValue(2)),
+                new(InstructionCode.PushParam, new TempValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(20)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("add"), new NumberValue(2)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
         public void ParsesArithmeticAsFunctionArgument()
         {
             string source = "x = 10; print(x * 2 + 5);";

@@ -25,6 +25,11 @@ namespace Fluence
             internal LoopContext() { }
         }
 
+        private class MatchContext
+        {
+            internal List<int> BreakPatches { get; } = new List<int>();
+        }
+
         private class ParseState
         {
             internal List<InstructionLine> CodeInstructions = new List<InstructionLine>();
@@ -578,7 +583,155 @@ namespace Fluence
 
         private Value ParseMatchStatement()
         {
-            return null;
+            if (_lexer.PeekNextToken().Type == TokenType.MATCH)
+            {
+                // If we have lhs = match x
+                // Then match falls to ParsePrimary(), which consumes it.
+                // If it is just match x {...}, match token remains, so we consume it.
+                _lexer.ConsumeToken();
+            }
+
+            Value matchOn = ParseTernary();
+
+            ConsumeAndTryThrowIfUnequal(TokenType.L_BRACE, "Missing opening [ on match.");
+
+            if (IsSwitchStyleMatch())
+            {
+                ParseMatchSwitchStyle();
+                return new NilValue();
+            }
+            // Check for match x { } empty match.
+            else if (_lexer.PeekAheadByN(2).Type == TokenType.R_BRACE)
+            {
+                return new NilValue();
+            }
+            else
+            {
+                return ParseMatchExpressionStyle(matchOn);
+            }
+        }
+
+        private bool IsSwitchStyleMatch()
+        {
+            int lookAhead = 1;
+            while (true)
+            {
+                TokenType type = _lexer.PeekAheadByN(lookAhead).Type;
+                if (type == TokenType.THIN_ARROW || type == TokenType.ARROW) return false;
+                if (type == TokenType.COLON) return true;
+                if (type == TokenType.R_BRACE) return false; // Empty match.
+                lookAhead++;
+            }
+        }
+
+        private void ParseMatchSwitchStyle()
+        {
+
+        }
+
+        private Value ParseMatchExpressionStyle(Value matchOn)
+        {
+            TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+
+            List<int> endJumpPatches = new List<int>();
+            bool hasRestCase = false;
+          
+            while (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
+            {
+                if (_lexer.PeekNextToken().Type == TokenType.EOL)
+                {
+                    // in an indented match there will be eols between cases, skip them.
+                    _lexer.ConsumeToken();
+                    continue;
+                }
+
+                if (hasRestCase)
+                {
+                    // error, can't define after rest.
+                }
+
+                int nextCasePatch = -1;
+
+                if (_lexer.PeekNextToken().Type == TokenType.REST)
+                {
+                    hasRestCase = true;
+                    _lexer.ConsumeToken(); // Consume the rest.
+                    // Nothing else, final else, no comparison.
+                }
+                else
+                {
+                    Value pattern = ParseTernary();
+
+                    TempValue condition = new TempValue(_currentParseState.NextTempNumber++);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, condition, matchOn, pattern));
+
+                    // We'll patch later
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, condition));
+                    nextCasePatch = _currentParseState.CodeInstructions.Count - 1;
+                }
+
+                Value caseResult = null;
+
+                bool generatedAssign = false;
+
+                if (_lexer.PeekNextToken().Type == TokenType.THIN_ARROW)
+                {
+                    ConsumeAndTryThrowIfUnequal(TokenType.THIN_ARROW, "Missing thin arrow in match case.");
+ 
+                    caseResult = ParseExpression();
+                }
+                else
+                {
+                    ConsumeAndTryThrowIfUnequal(TokenType.ARROW, "Missing arrow in match case.");
+                    int instructionCountBeforeBlock = _currentParseState.CodeInstructions.Count;
+                    ParseBlockStatement();
+
+                    // Validation: The block MUST have generated at least one instruction, and it MUST be a Return.
+                    if (_currentParseState.CodeInstructions.Count == instructionCountBeforeBlock ||
+                        _currentParseState.CodeInstructions[^1].Instruction != InstructionCode.Return)
+                    {
+                        throw new Exception("Syntax Error: A block body '=> { ... }' in a match expression must end with a 'return' statement.");
+                    }
+
+                    Value returnedValue = _currentParseState.CodeInstructions[^1].Lhs;
+                    generatedAssign = true;
+
+                    // Parseblock ends with a return statement, but we don't want to exit function, just the block,
+                    // so we replace it with an assign instruction instead.
+                    _currentParseState.CodeInstructions[^1] = new InstructionLine(InstructionCode.Assign, result, returnedValue);
+                }
+
+                if (!generatedAssign)
+                {
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, result, caseResult));
+                }
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+                endJumpPatches.Add(_currentParseState.CodeInstructions.Count - 1);
+
+                if (nextCasePatch != -1)
+                {
+                    int nextCaseAddress = _currentParseState.CodeInstructions.Count;
+                    _currentParseState.CodeInstructions[nextCasePatch].Lhs = new NumberValue(nextCaseAddress);
+                }
+
+                ConsumeAndTryThrowIfUnequal(TokenType.EOL, "Expecting ; after expression or block body in match cases.");
+            }
+
+            ConsumeAndTryThrowIfUnequal(TokenType.R_BRACE, "Expecting closing } after match.");
+
+            if (!hasRestCase){
+                // error, rest is a must.
+            }
+
+            int matchEndAddress = _currentParseState.CodeInstructions.Count;
+
+            foreach (var endJump in endJumpPatches)
+            {
+                _currentParseState.CodeInstructions[endJump].Lhs = new NumberValue(matchEndAddress);
+            }
+
+            return result;
         }
 
         private Value ConcatenateStringValues(Value left, Value right)
@@ -1002,11 +1155,6 @@ namespace Fluence
                     }
                 }
             }
-        }
-
-        private static bool IsFunctionBroadcastCall(Value left)
-        {
-            return false;
         }
 
         private Value ParseTernary()
@@ -1744,6 +1892,10 @@ namespace Fluence
                 case TokenType.L_BRACKET:
                     // We are in list, either initialization, or [i] access.
                     return ParseList();
+                case TokenType.MATCH:
+                    // This is when we call lhs = match x.
+                    // Returning an actual value, an expression based match.
+                    return ParseMatchStatement();
             }
 
             if (token.Type == TokenType.L_PAREN)

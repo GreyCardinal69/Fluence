@@ -46,7 +46,9 @@
             try
             {
                 parser.Parse();
-                Console.WriteLine("\nParsing completed successfully.");
+                Console.WriteLine("\nParsing completed successfully.\n");
+
+                parser.DumpSymbolTables();
 
                 FluenceByteCode.DumpByteCodeInstructions(parser.CompiledCode);
             }

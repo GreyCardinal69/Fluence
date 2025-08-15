@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.Token;
@@ -50,6 +51,27 @@ namespace Fluence
         {
             _currentParseState = new();
             _lexer = lexer;
+        }
+
+        internal void DumpSymbolTables()
+        {
+            StringBuilder sb = new StringBuilder("Generated Symbol Table:\n");
+
+            foreach (var item in _currentParseState.SymbolTable)
+            {
+                switch (item.Value)
+                {
+                    case EnumSymbol enumSymbol:
+                        sb.Append($"\nSymbol: {item.Key}, type Enum. Members:\n");
+                        foreach (var member in enumSymbol.Members)
+                        {
+                            sb.AppendLine($"{member.Value.MemberName}, {member.Value.Value}");
+                        }
+                        break;
+                }
+            }
+
+            Console.WriteLine(sb.ToString());
         }
 
         internal void Parse()
@@ -214,7 +236,44 @@ namespace Fluence
 
         private void ParseEnumStatement()
         {
+            _lexer.ConsumeToken();
 
+            Token token = _lexer.ConsumeToken(); // The name of the enum.
+            string enumName = token.Text;
+
+            EnumSymbol enumSymbol = new EnumSymbol(enumName);
+
+            ConsumeAndTryThrowIfUnequal(TokenType.L_BRACE, "Expected opening { in enum definition.");
+            int currentValue = 0;
+
+            _lexer.TrySkipEOLToken();
+
+            if (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
+            {
+                do
+                {
+                    _lexer.TrySkipEOLToken();
+
+                    Token member = _lexer.ConsumeToken();
+                    string memberName = member.Text;
+
+                    if (enumSymbol.Members.ContainsKey(memberName))
+                    {
+                        // Error here, duplicate member.
+                    }
+
+                    EnumValue enumValue = new EnumValue(enumName, memberName, currentValue);
+                    enumSymbol.Members.Add(memberName, enumValue);
+                    currentValue++;
+                }
+                while (ConsumeTokenIfMatch(TokenType.COMMA));
+            }
+
+            _lexer.TrySkipEOLToken();
+
+            ConsumeAndTryThrowIfUnequal(TokenType.R_BRACE, "Expected closing } in enum definition.");
+        
+            _currentParseState.SymbolTable.Add(enumName, enumSymbol);
         }
 
         private void ParseForStatement()

@@ -336,6 +336,19 @@ namespace Fluence
 
             if (currChar == '.' || IsNumeric(currChar))
             {
+                if (CanLookAheadStartInclusive(4))
+                {
+                    var peek = PeekString(4);
+                    if (peek[..3].SequenceEqual(".or"))
+                    {
+                        return MakeTokenAndTryAdvance(TokenType.DOT_OR_CHECK, 3);
+                    }
+                    else if (peek.SequenceEqual(".and"))
+                    {
+                        return MakeTokenAndTryAdvance(TokenType.DOT_AND_CHECK, 4);
+                    }
+                }
+
                 // Check for a range first, then a number.
                 if (CanLookAheadStartInclusive(2))
                 {

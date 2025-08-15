@@ -101,6 +101,9 @@
             GUARD_CHAIN,        // <??|
             OR_GUARD_CHAIN,     // <||??|
 
+            DOT_AND_CHECK,      // .or(...)
+            DOT_OR_CHECK,       // .and(....)
+
             SWAP,               // a >< b
 
             TERNARY_JOINT,      // ?: same as ? ... : ... but instead ?: ... , ...

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text;
+﻿using System.Text;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.Token;
@@ -126,7 +125,6 @@ namespace Fluence
             int currentIndex = 0;
             while (true)
             {
-                // Add 1 to convert 0-based index to 1-based lookahead.
                 Token token = _lexer.PeekAheadByN(currentIndex + 1);
                 if (token.Type == TokenType.EOF) break;
 
@@ -137,10 +135,8 @@ namespace Fluence
 
                     ParseEnumDeclaration(declarationStartIndex, declarationEndIndex);
 
-                    // `count` calculation is correct.
                     int count = declarationEndIndex - declarationStartIndex + 1;
 
-                    // `RemoveTokens` should expect a 0-based index.
                     _lexer.RemoveTokens(declarationStartIndex, count);
 
                     continue;
@@ -152,17 +148,13 @@ namespace Fluence
 
         private int FindEnumDeclarationEnd(int startIndex)
         {
-            // Start scanning from the token *after* the `enum` keyword.
             int currentIndex = startIndex + 1;
             while (true)
             {
-                // --- THE FIX ---
-                // Always add 1 to the 0-based currentIndex for the 1-based peek.
                 Token token = _lexer.PeekAheadByN(currentIndex + 1);
 
                 if (token.Type == TokenType.R_BRACE)
                 {
-                    // Found the end. Return the 0-based index.
                     return currentIndex;
                 }
 
@@ -177,8 +169,7 @@ namespace Fluence
 
         private void ParseEnumDeclaration(int startTokenIndex, int endTokenIndex)
         {
-            // The name is at the index after the 'enum' keyword.
-            Token nameToken = _lexer.PeekAheadByN(startTokenIndex + 1 + 1); // +1 for index, +1 for peek
+            Token nameToken = _lexer.PeekAheadByN(startTokenIndex + 1 + 1);
             string enumName = nameToken.Text;
             var enumSymbol = new EnumSymbol(enumName);
 
@@ -189,8 +180,6 @@ namespace Fluence
 
             while (currentIndex < endTokenIndex)
             {
-                // --- THE FIX ---
-                // Always add 1 to the 0-based currentIndex.
                 Token currentToken = _lexer.PeekAheadByN(currentIndex + 1);
 
                 if (currentToken.Type == TokenType.IDENTIFIER)
@@ -1115,7 +1104,7 @@ namespace Fluence
             }
 
             TokenType type = _lexer.PeekNextToken().Type;
- 
+
             if (IsChainAssignmentOperator(type))
             {
                 if (type == TokenType.SEQUENTIAL_REST_ASSIGN || type == TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN)
@@ -1205,7 +1194,7 @@ namespace Fluence
             Token opToken = _lexer.ConsumeToken();
 
             InstructionCode operation = GetMultiCompountInstructionCode(opToken.Type);
- 
+
             var rhsList = new List<Value>();
             do
             {
@@ -1216,7 +1205,7 @@ namespace Fluence
             {
                 throw new Exception("Syntax Error: Mismatched number of targets and values in multi-compound assignment.");
             }
-     
+
             for (int i = 0; i < leftSides.Count; i++)
             {
                 Value lhs = leftSides[i];
@@ -1436,7 +1425,7 @@ namespace Fluence
                     Token op = _lexer.ConsumeToken();
 
                     bool isOptional = op.Type == TokenType.OPTIONAL_REST_ASSIGN || op.Type == TokenType.OPTIONAL_ASSIGN_N;
-                 
+
                     Value rhs = ParseTernary();
 
                     TempValue valueToAssign = new TempValue(_currentParseState.NextTempNumber++);
@@ -1904,7 +1893,7 @@ namespace Fluence
                 }
 
                 // Stop conditions
-                if (type == TokenType.L_BRACE || type == TokenType.THIN_ARROW || type == TokenType.EOF || type ==  TokenType.EOL)
+                if (type == TokenType.L_BRACE || type == TokenType.THIN_ARROW || type == TokenType.EOF || type == TokenType.EOL)
                 {
                     return false; // Reached the end of the potential condition.
                 }
@@ -2221,7 +2210,7 @@ namespace Fluence
 
                     // TODO
                     // struct access.
-                } 
+                }
                 // Function call.
                 else if (type == TokenType.L_PAREN)
                 {
@@ -2344,7 +2333,7 @@ namespace Fluence
                 ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Expected ')' to close parenthesized expression.");
                 return expr;
             }
-             
+
             // Log the token type for now, for debugging.
             Console.WriteLine(token + $"  _  Line: {_lexer.CurrentLine} Column: {_lexer.CurrentColumn}.");
             throw new Exception();

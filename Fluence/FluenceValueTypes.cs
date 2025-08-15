@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text;
+﻿using System.Text;
 
 namespace Fluence
 {
@@ -296,7 +295,7 @@ namespace Fluence
     {
         internal string Name { get; }
         internal Dictionary<string, EnumValue> Members { get; } = new();
-    
+
         internal EnumSymbol(string name)
         {
             Name = name;

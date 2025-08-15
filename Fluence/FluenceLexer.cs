@@ -1,5 +1,4 @@
-﻿using System.Data.Common;
-using static Fluence.Token;
+﻿using static Fluence.Token;
 
 namespace Fluence
 {

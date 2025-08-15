@@ -89,7 +89,6 @@
             internal Value Lhs;
             internal Value Rhs;
             internal Value Rhs2;
-            internal string CallName;
 
             internal readonly Token Token;
 
@@ -110,12 +109,9 @@
                 Token = token;
             }
 
-            internal void SetCallName(string name) { CallName = name; }
-
             public override string ToString()
             {
                 string instruction = Instruction.ToString();
-                if (CallName != null) instruction += CallName;
                 string lhs = Lhs != null ? Lhs.ToString() : "Null";
                 string rhs = Rhs != null ? Rhs.ToString() : "Null";
                 string rhs2 = Rhs2 != null ? Rhs2.ToString() : "Null";

@@ -105,16 +105,10 @@ namespace Fluence
         internal NumberType Type { get; }
 
 
-        internal NumberValue(object literal, NumberType type)
+        internal NumberValue(object literal, NumberType type = NumberType.Integer)
         {
             Value = literal;
             Type = type;
-        }
-
-        internal NumberValue(object literal)
-        {
-            Value = literal;
-            Type = NumberType.Integer;
         }
 
         public static NumberValue FromToken(Token token)
@@ -168,7 +162,7 @@ namespace Fluence
         }
     }
 
-    internal class NilValue : Value
+    internal sealed class NilValue : Value
     {
         public override string ToString()
         {
@@ -269,6 +263,43 @@ namespace Fluence
         public override string ToString()
         {
             return $"VariableValue: {IdentifierValue}";
+        }
+    }
+
+    internal sealed class EnumValue : Value
+    {
+        internal string EnumTypeName { get; }
+        internal string MemberName;
+        internal int Value;
+
+        internal EnumValue(string enumTypeName, string memberName, int value)
+        {
+            EnumTypeName = enumTypeName;
+            MemberName = memberName;
+            Value = value;
+        }
+
+        public override string ToString()
+        {
+            return $"EnumValue: {EnumTypeName}.{MemberName}";
+        }
+
+        internal override object GetValue()
+        {
+            return Value;
+        }
+    }
+
+    internal abstract class Symbol { }
+
+    internal sealed class EnumSymbol : Symbol
+    {
+        internal string Name { get; }
+        internal Dictionary<string, EnumValue> Members { get; } = new();
+    
+        internal EnumSymbol(string name)
+        {
+            Name = name;
         }
     }
 }

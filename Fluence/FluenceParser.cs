@@ -35,6 +35,7 @@ namespace Fluence
             internal List<InstructionLine> CodeInstructions = new List<InstructionLine>();
             internal Stack<LoopContext> ActiveLoopContexts = new Stack<LoopContext>();
             internal Stack<MatchContext> ActiveMatchContexts = new Stack<MatchContext>();
+            internal Dictionary<string, Symbol> SymbolTable = new Dictionary<string, Symbol>();
 
             internal int NextTempNumber = 0;
             internal int CurrentTempNumber => NextTempNumber - 1;
@@ -42,11 +43,6 @@ namespace Fluence
             internal void AddCodeInstruction(InstructionLine instructionLine)
             {
                 CodeInstructions.Add(instructionLine);
-            }
-
-            internal void AddInstructions(List<InstructionLine> codes)
-            {
-                CodeInstructions.AddRange(codes);
             }
         }
 
@@ -188,6 +184,9 @@ namespace Fluence
                     case TokenType.MATCH:
                         ParseMatchStatement();
                         break;
+                    case TokenType.ENUM:
+                        ParseEnumStatement();
+                        break;
                 }
             }
             // Most likely an expression
@@ -211,6 +210,11 @@ namespace Fluence
                 // not within if/loops/etc. Or we have a bug.
                 ConsumeAndTryThrowIfUnequal(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
             }
+        }
+
+        private void ParseEnumStatement()
+        {
+
         }
 
         private void ParseForStatement()

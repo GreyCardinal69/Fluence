@@ -779,6 +779,143 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
+        public void CompilesSimpleMatchCorrectly()
+        {
+            string source = @"
+                match x {
+                    1:
+                        print(1);
+                    2: 
+                        print(2);
+                        break;
+                    rest: 
+                        print(3);
+                        break;
+                };
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Equal, new TempValue(1), new VariableValue("x"), new NumberValue(1)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Goto, new NumberValue(8)),
+                new(InstructionCode.Equal, new TempValue(3), new VariableValue("x"), new NumberValue(2)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(11), new TempValue(3)),
+                new(InstructionCode.PushParam, new NumberValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Goto, new NumberValue(14)),
+                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Goto, new NumberValue(14)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesMatchStatementWithBreaksCorrectly()
+        {
+            string source = @"
+                match x {
+                    1: print(1); break;
+                    2: print(2); break;
+                    rest: print(3); break;
+                };
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Equal, new TempValue(1), new VariableValue("x"), new NumberValue(1)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Goto, new NumberValue(14)),
+                new(InstructionCode.Equal, new TempValue(3), new VariableValue("x"), new NumberValue(2)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(11), new TempValue(3)),
+                new(InstructionCode.PushParam, new NumberValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Goto, new NumberValue(14)),
+                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Goto, new NumberValue(14)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesMatchExpressionAsFunctionReturnValue()
+        {
+            string source = @"
+                func GetYFromX(a) => match x {
+                    1 -> 1;
+                    2 -> 2;
+                    rest -> 5;
+                };
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Goto, new NumberValue(14)),
+                new(InstructionCode.Assign, new VariableValue("GetYFromX"), new FunctionValue("GetYFromX", 1, 3, "0003")),
+                new(InstructionCode.Equal, new TempValue(2), new VariableValue("x"), new NumberValue(1)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(7), new TempValue(2)),
+                new(InstructionCode.Assign, new TempValue(1), new NumberValue(1)),
+                new(InstructionCode.Goto, new NumberValue(13)),
+                new(InstructionCode.Equal, new TempValue(3), new VariableValue("x"), new NumberValue(2)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(11), new TempValue(3)),
+                new(InstructionCode.Assign, new TempValue(1), new NumberValue(2)),
+                new(InstructionCode.Goto, new NumberValue(13)),
+                new(InstructionCode.Assign, new TempValue(1), new NumberValue(5)),
+                new(InstructionCode.Goto, new NumberValue(13)),
+                new(InstructionCode.Return, new TempValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void CompilesMatchWithBlockCorrectly()
+        {
+            string source = @"
+                result = match x { 
+                    1 -> 1;
+                    3 => {
+                        print(x);
+                        return 3;
+                    };
+                    rest -> -1;
+                };
+            ";
+
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Equal, new TempValue(2), new VariableValue("x"), new NumberValue(1)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(2)),
+                new(InstructionCode.Assign, new TempValue(1), new NumberValue(1)),
+                new(InstructionCode.Goto, new NumberValue(13)),
+                new(InstructionCode.Equal, new TempValue(3), new VariableValue("x"), new NumberValue(3)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(11), new TempValue(3)),
+                new(InstructionCode.PushParam, new VariableValue("x")),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Assign, new TempValue(1), new NumberValue(3)),
+                new(InstructionCode.Goto, new NumberValue(13)),
+                new(InstructionCode.Assign, new TempValue(1), new NumberValue(-1)),
+                new(InstructionCode.Goto, new NumberValue(13)),
+                new(InstructionCode.Assign, new VariableValue("result"), new TempValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
         public void ParsesBroadcastWithComplexArgumentExpression()
         {
             string source = "add(5 + 5, _) <| 10, 20;";

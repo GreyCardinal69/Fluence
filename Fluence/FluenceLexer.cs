@@ -96,6 +96,30 @@ namespace Fluence
             }
 
             /// <summary>
+            /// Surgically removes a range of tokens from the buffer.
+            /// This is an advanced operation used by a multi-pass parser to
+            /// remove declarative code after it has been processed in a first pass.
+            /// </summary>
+            /// <param name="startIndex">The absolute index in the buffer to start removing from.</param>
+            /// <param name="count">The number of tokens to remove.</param>
+            internal void RemoveRange(int startIndex, int count)
+            {
+                if (startIndex < 0 || count <= 0 || (startIndex + count) > _buffer.Count)
+                {
+                    return;
+                }
+
+                _buffer.RemoveRange(startIndex, count);
+
+                if (_head > startIndex)
+                {
+                    // If the head was at index 50 and we removed 20 tokens from the start,
+                    // the new head must be at index 30.
+                    _head -= Math.Min(count, _head - startIndex);
+                }
+            }
+
+            /// <summary>
             /// Removes consumed tokens from the beginning of the list to save memory.
             /// </summary>
             private void Compact()
@@ -153,9 +177,69 @@ namespace Fluence
         internal Token PeekAheadByN(int n) => _tokenBuffer.Peek(n);
         internal Token ConsumeToken() => _tokenBuffer.Consume();
 
+        internal void RemoveTokens(int startIndex, int count)
+        {
+            _tokenBuffer.RemoveRange(startIndex, count);
+        }
+
+        internal void DumpTokenStream(string title)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"--- {title} ---");
+            Console.WriteLine();
+
+            string header = string.Format("{0,-35} {1,-40} {2,-30}", "TYPE", "TEXT", "LITERAL");
+            Console.WriteLine(header);
+            Console.WriteLine(new string('-', header.Length));
+
+            // To inspect the stream without consuming it, we use a lookahead loop.
+            int lookahead = 1;
+            while (true)
+            {
+                // Peek at the next token in the buffer.
+                Token token = PeekAheadByN(lookahead);
+
+                // Stop when we hit the end of the file.
+                if (token.Type == TokenType.EOF)
+                {
+                    // Also print the EOF token for completeness.
+                    Console.WriteLine("{0,-35} {1,-40} {2,-30}", token.Type, "EOF", "EOF");
+                    break;
+                }
+
+                string textToDisplay = (token.Text ?? "null")
+                    .Replace("\r", "\\r")
+                    .Replace("\n", "\\n");
+
+                string literalToDisplay = token.Literal?.ToString() ?? "null";
+                literalToDisplay = (literalToDisplay == "\r\n" || literalToDisplay == "\n") ? "NewLine" : literalToDisplay;
+
+                Console.WriteLine("{0,-35} {1,-40} {2,-30}",
+                    token.Type,
+                    textToDisplay,
+                    literalToDisplay);
+
+                lookahead++;
+            }
+
+            Console.WriteLine();
+            Console.WriteLine($"--- End of {title} ---");
+            Console.WriteLine();
+        }
+
         internal void TrySkipEOLToken()
         {
             if (_tokenBuffer.Peek().Type == TokenType.EOL) _ = _tokenBuffer.Consume();
+        }
+
+        internal void LexFullSource()
+        {
+            int lookAhead = 1;
+            while (!_hasReachedEndInternal)
+            {
+                _tokenBuffer.Peek(lookAhead);
+                lookAhead++;
+            }
         }
 
         private Token GetNextToken()

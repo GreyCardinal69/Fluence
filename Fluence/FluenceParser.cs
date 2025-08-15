@@ -443,7 +443,7 @@ namespace Fluence
         private void ParseIfStatement()
         {
             _lexer.ConsumeToken(); // Consume the if.
-            var condition = ParseExpression();
+            var condition = ParseTernary();
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, condition));
 
@@ -766,7 +766,7 @@ namespace Fluence
                 {
                     ConsumeAndTryThrowIfUnequal(TokenType.THIN_ARROW, "Missing thin arrow in match case.");
 
-                    caseResult = ParseExpression();
+                    caseResult = ParseTernary();
                 }
                 else
                 {
@@ -874,7 +874,7 @@ namespace Fluence
                 _auxLexer = _lexer;
                 _lexer = new FluenceLexer(expr);
 
-                Value exprInside = ParseExpression();
+                Value exprInside = ParseTernary();
                 _lexer = _auxLexer;
 
                 TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
@@ -1310,7 +1310,7 @@ namespace Fluence
                     Token op = _lexer.ConsumeToken();
 
                     bool isOptional = op.Type == TokenType.OPTIONAL_REST_ASSIGN || op.Type == TokenType.OPTIONAL_ASSIGN_N;
-
+                 
                     Value rhs = ParseTernary();
 
                     TempValue valueToAssign = new TempValue(_currentParseState.NextTempNumber++);
@@ -1382,6 +1382,8 @@ namespace Fluence
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, left));
                 int falseJumpPatch = _currentParseState.CodeInstructions.Count - 1;
 
+                _lexer.TrySkipEOLToken(); // Parser can be sensitive. Will throw error.
+
                 Value trueExpr = ParseTernary();
 
                 TempValue result = new TempValue(_currentParseState.NextTempNumber++);
@@ -1404,6 +1406,9 @@ namespace Fluence
                 }
 
                 // Recursively parse the "false" path expression.
+
+                _lexer.TrySkipEOLToken();
+
                 Value falseExpr = ParseTernary();
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, result, falseExpr));
 
@@ -1691,6 +1696,7 @@ namespace Fluence
                 // indeed so.
                 if (IsCollectiveComparisonAhead())
                 {
+
                     List<Value> args = new List<Value>() { left };
                     _lexer.ConsumeToken();
 
@@ -1772,7 +1778,7 @@ namespace Fluence
                 }
 
                 // Stop conditions
-                if (type == TokenType.L_BRACE || type == TokenType.THIN_ARROW || type == TokenType.EOF)
+                if (type == TokenType.L_BRACE || type == TokenType.THIN_ARROW || type == TokenType.EOF || type ==  TokenType.EOL)
                 {
                     return false; // Reached the end of the potential condition.
                 }
@@ -1839,9 +1845,9 @@ namespace Fluence
             type == TokenType.COLLECTIVE_EQUAL ||
             type == TokenType.COLLECTIVE_GREATER ||
             type == TokenType.COLLECTIVE_GREATER_EQUAL ||
+            type == TokenType.COLLECTIVE_NOT_EQUAL ||
             type == TokenType.COLLECTIVE_LESS ||
             type == TokenType.COLLECTIVE_LESS_EQUAL ||
-            type == TokenType.COLLECTIVE_NOT_EQUAL ||
             type == TokenType.COLLECTIVE_OR_EQUAL ||
             type == TokenType.COLLECTIVE_OR_GREATER ||
             type == TokenType.COLLECTIVE_OR_GREATER_EQUAL ||
@@ -2189,9 +2195,9 @@ namespace Fluence
                 ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Expected ')' to close parenthesized expression.");
                 return expr;
             }
-
+             
             // Log the token type for now, for debugging.
-            Console.WriteLine(token);
+            Console.WriteLine(token + $"  _  Line: {_lexer.CurrentLine} Column: {_lexer.CurrentColumn}.");
             throw new Exception();
         }
 

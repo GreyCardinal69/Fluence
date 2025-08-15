@@ -444,7 +444,7 @@ namespace Fluence
         {
             _lexer.ConsumeToken(); // Consume the if.
             var condition = ParseExpression();
-
+        
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, condition));
 
             int elsePatchIndex = _currentParseState.CodeInstructions.Count - 1;
@@ -643,8 +643,6 @@ namespace Fluence
                     continue;
                 }
 
-                int nextCasePatch = -1;
-
                 int nextCaseAddress = _currentParseState.CodeInstructions.Count;
                 // Patch all fall-throughs from the previous case to jump here.
                 foreach (var patch in nextCasePatches)
@@ -653,10 +651,8 @@ namespace Fluence
                 }
                 nextCasePatches.Clear();
 
-                bool isRestCase = false;
                 if (_lexer.PeekNextToken().Type == TokenType.REST)
                 {
-                    isRestCase = true;
                     _lexer.ConsumeToken();
                 }
                 else
@@ -1560,6 +1556,13 @@ namespace Fluence
 
         private Value ParseComparison()
         {
+            TokenType type = _lexer.PeekNextToken().Type;
+             
+            if (type == TokenType.DOT_AND_CHECK || type == TokenType.DOT_OR_CHECK)
+            {
+                return ParseDotAndOrOperators();
+            }
+
             Value left = ParseRange();
 
             // Potential collective comparison
@@ -1593,6 +1596,38 @@ namespace Fluence
             }
 
             return left;
+        }
+
+        private Value ParseDotAndOrOperators()
+        {
+            Token token = _lexer.ConsumeToken(); // Consume .and or .or
+
+            ConsumeAndTryThrowIfUnequal(TokenType.L_PAREN, "Expecting opening ( after .and/.or");
+
+            InstructionCode logicalOp = token.Type == TokenType.DOT_AND_CHECK ? InstructionCode.And : InstructionCode.Or;
+
+            Value result = null;
+
+            do
+            {
+                Value condition = ParseExpression();
+
+                if (result == null)
+                {
+                    result = condition;
+                }
+                else
+                {
+                    TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(logicalOp, temp, condition, result));
+                    result = temp;
+                }
+            }
+            while (ConsumeTokenIfMatch(TokenType.COMMA));
+
+            ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Expecting closing ) after .and/.or");
+
+            return result ?? new BooleanValue(logicalOp == InstructionCode.And);
         }
 
         private static bool IsNotAStandardComparison(TokenType type)

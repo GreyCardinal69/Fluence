@@ -101,8 +101,11 @@
             GUARD_CHAIN,        // <??|
             OR_GUARD_CHAIN,     // <||??|
 
+            // Dot family
             DOT_AND_CHECK,      // .or(...)
             DOT_OR_CHECK,       // .and(....)
+            DOT_INCREMENT,      // .++(...)
+            DOT_DECREMENT,      // .--(...)
 
             SWAP,               // a >< b
 

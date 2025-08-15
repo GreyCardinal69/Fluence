@@ -338,12 +338,22 @@ namespace Fluence
             {
                 if (CanLookAheadStartInclusive(4))
                 {
-                    var peek = PeekString(4);
-                    if (peek[..3].SequenceEqual(".or"))
+                    // .++ and .-- also fit here.
+                    // Since they require parentheses.
+                    // So we have .++() or .--();
+
+                    ReadOnlySpan<char> peek = PeekString(4);
+
+                    ReadOnlySpan<char> peek3 = peek[..3];
+
+                    switch (peek3)
                     {
-                        return MakeTokenAndTryAdvance(TokenType.DOT_OR_CHECK, 3);
+                        case ".or": return MakeTokenAndTryAdvance(TokenType.DOT_OR_CHECK, 3);
+                        case ".++": return MakeTokenAndTryAdvance(TokenType.DOT_INCREMENT, 3);
+                        case ".--": return MakeTokenAndTryAdvance(TokenType.DOT_DECREMENT, 3);
                     }
-                    else if (peek.SequenceEqual(".and"))
+
+                    if (peek.SequenceEqual(".and"))
                     {
                         return MakeTokenAndTryAdvance(TokenType.DOT_AND_CHECK, 4);
                     }

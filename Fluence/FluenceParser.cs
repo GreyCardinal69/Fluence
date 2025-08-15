@@ -1842,6 +1842,12 @@ namespace Fluence
         private Value ParsePostFix()
         {
             // ++ and --
+            if (_lexer.PeekNextToken().Type == TokenType.DOT_DECREMENT || _lexer.PeekNextToken().Type == TokenType.DOT_INCREMENT)
+            {
+                ParseMultiIncrementDecrementOperators();
+                return new StatementCompleteValue();
+            }
+
             Value left = ParseAccess();
             bool operationPerformed = false;
 
@@ -1868,6 +1874,37 @@ namespace Fluence
             }
 
             return operationPerformed ? new StatementCompleteValue() : left;
+        }
+
+        private void ParseMultiIncrementDecrementOperators()
+        {
+            Token token = _lexer.ConsumeToken(); // Consume .++ or .--
+
+            ConsumeAndTryThrowIfUnequal(TokenType.L_PAREN, "Expected opening ( after .++ or .-- operator");
+
+            InstructionCode code = token.Type == TokenType.DOT_DECREMENT ? InstructionCode.Decrement : InstructionCode.Increment;
+
+            do
+            {
+                Value original = ParseExpression();
+                Value parsable = ResolveValue(original);
+                Value one = new NumberValue(1, NumberValue.NumberType.Integer);
+
+                TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(code, temp, parsable, one, token));
+
+                if (original is ElementAccessValue accessValue)
+                {
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, accessValue.Target, accessValue.Index, temp));
+                }
+                else
+                {
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, parsable, temp));
+                }
+            } while (ConsumeTokenIfMatch(TokenType.COMMA));
+
+
+            ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Expected closing ) after .++ or .-- operator");
         }
 
         private Value ResolveValue(Value val)

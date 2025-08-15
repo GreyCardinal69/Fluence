@@ -590,6 +590,55 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
+        public void CompilesMultiIncrementAndDecrement()
+        {
+            string source = @"
+                a = 0;
+                b = 0;
+                list = [1..20];
+                list[1] = 5;
+                .++(a,b, list[0]);
+                .--(a,b);
+
+                c = true;
+                if c -> .++(a,b);
+            ";
+
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(0)),
+                new(InstructionCode.NewList, new TempValue(1)),
+                new(InstructionCode.NewRangeList, new TempValue(2), new NumberValue(1), new NumberValue(20)),
+                new(InstructionCode.PushElement, new TempValue(1), new TempValue(2)),
+                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
+                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(1), new NumberValue(5)),
+                new(InstructionCode.Increment, new TempValue(4), new VariableValue("a"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("a"), new TempValue(4)),
+                new(InstructionCode.Increment, new TempValue(5), new VariableValue("b"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(5)),
+                new(InstructionCode.GetElement, new TempValue(7), new VariableValue("list"), new NumberValue(0)),
+                new(InstructionCode.Increment, new TempValue(8), new TempValue(7), new NumberValue(1)),
+                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(0), new TempValue(8)),
+                new(InstructionCode.Decrement, new TempValue(9), new VariableValue("a"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("a"), new TempValue(9)),
+                new(InstructionCode.Decrement, new TempValue(10), new VariableValue("b"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(10)),
+                new(InstructionCode.Assign, new VariableValue("c"), new BooleanValue(true)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(25), new VariableValue("c")),
+                new(InstructionCode.Increment, new TempValue(11), new VariableValue("a"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("a"), new TempValue(11)),
+                new(InstructionCode.Increment, new TempValue(12), new VariableValue("b"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(12)),
+
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
         public void ParsesSimpleAndPredicate()
         {
             string source = "if .and(a == 1, b == 2) -> print(1);";

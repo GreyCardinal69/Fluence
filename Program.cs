@@ -11,7 +11,7 @@
             Console.WriteLine("--- Lexer Token Stream ---");
             Console.WriteLine();
 
-            string header = string.Format("{0,-25} {1,-30} {2,-30}", "TYPE", "TEXT", "LITERAL");
+            string header = string.Format("{0,-35} {1,-40} {2,-30}", "TYPE", "TEXT", "LITERAL");
             Console.WriteLine(header);
             Console.WriteLine(new string('-', header.Length));
 
@@ -31,7 +31,7 @@
                 string literalToDisplay = token.Literal?.ToString() ?? "";
                 literalToDisplay = (literalToDisplay == "\r\n" || literalToDisplay == "\n") ? "NewLine" : literalToDisplay;
 
-                Console.WriteLine("{0,-25} {1,-30} {2,-30}",
+                Console.WriteLine("{0,-35} {1,-40} {2,-30}",
                     token.Type,
                     textToDisplay,
                     literalToDisplay);

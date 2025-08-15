@@ -661,9 +661,9 @@ namespace Fluence
         {
             // <||!=| <||==| <||??| <||<=| <||>=|
             // <||<|   <||>| 
-            // <==|, <!=|, <<=|, <>=|, <??|, <n?| 
+            // <==|, <!=|, <<=|, <>=|, <??|, <n?| <~?|
             // <<|, <>|, <n|, <?|
-            // <=, <<, <|, 
+            // <=, <<, <|, <~|
             // <
 
             int availableLength = _sourceLength - _currentPosition;
@@ -713,6 +713,8 @@ namespace Fluence
                         return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_GREATER_EQUAL, 4);
                     case "<??|":
                         return MakeTokenAndTryAdvance(TokenType.GUARD_CHAIN, 4);
+                    case "<~?|":
+                        return MakeTokenAndTryAdvance(TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN, 4);
                 }
             }
 
@@ -751,6 +753,7 @@ namespace Fluence
                     case "<<|": return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_LESS, 3);
                     case "<>|": return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_GREATER, 3);
                     case "<?|": return MakeTokenAndTryAdvance(TokenType.OPTIONAL_REST_ASSIGN, 3);
+                    case "<~|": return MakeTokenAndTryAdvance(TokenType.SEQUENTIAL_REST_ASSIGN, 3);
                 }
             }
 

@@ -94,10 +94,13 @@
             COMPOSITION_PIPE,   // ~>
 
             // Distributive Family Pipe operators.
-            CHAIN_ASSIGN_N,     // <n|
-            REST_ASSIGN,        // <|
-            OPTIONAL_ASSIGN_N,  // <n?|
-            OPTIONAL_REST_ASSIGN,    // <?|
+            CHAIN_ASSIGN_N,                      // <n|
+            REST_ASSIGN,                         // <|
+            OPTIONAL_ASSIGN_N,                   // <n?|
+            OPTIONAL_REST_ASSIGN,                // <?|
+            SEQUENTIAL_REST_ASSIGN,              // <~|
+            OPTIONAL_SEQUENTIAL_REST_ASSIGN,     // <~?|
+            
             GUARD_CHAIN,        // <??|
             OR_GUARD_CHAIN,     // <||??|
 

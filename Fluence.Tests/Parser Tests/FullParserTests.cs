@@ -590,6 +590,100 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
+        public void ParsesSimpleAndPredicate()
+        {
+            string source = "if .and(a == 1, b == 2) -> print(1);";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Equal, new TempValue(1), new VariableValue("a"), new NumberValue(1)),
+                new(InstructionCode.Equal, new TempValue(2), new VariableValue("b"), new NumberValue(2)),
+                new(InstructionCode.And, new TempValue(3), new TempValue(1), new TempValue(2)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(7), new TempValue(3)),
+                new(InstructionCode.PushParam, new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesSimpleOrPredicate()
+        {
+            string source = "if .or(a == 1, b == 2) -> print(1);";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Equal, new TempValue(1), new VariableValue("a"), new NumberValue(1)),
+                new(InstructionCode.Equal, new TempValue(2), new VariableValue("b"), new NumberValue(2)),
+                new(InstructionCode.Or, new TempValue(3), new TempValue(1), new TempValue(2)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(7), new TempValue(3)),
+                new(InstructionCode.PushParam, new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesCombinedAndAndOrPredicatesWithInfixOperator()
+        {
+            string source = "if .and(a, b) or .or(c, d) -> print(1);";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.And, new TempValue(1), new VariableValue("b"), new VariableValue("a")),
+                new(InstructionCode.Or, new TempValue(2), new VariableValue("d"), new VariableValue("c")),
+                new(InstructionCode.Or, new TempValue(3), new TempValue(1), new TempValue(2)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(7), new TempValue(3)),
+                new(InstructionCode.PushParam, new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesCollectiveComparisonAndDotComparisons()
+        {
+            string source = @"
+                x = 10; y = 10; booly = true;
+                if x,y <==| 10 and .and(x == 10, y == -10, !booly) && .or(x > 0, y > 0) {
+                    print(""here"");
+                }
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("x"), new NumberValue(10)),
+                new(InstructionCode.Assign, new VariableValue("y"), new NumberValue(10)),
+                new(InstructionCode.Assign, new VariableValue("booly"), new BooleanValue(true)),
+                new(InstructionCode.Equal, new TempValue(1), new VariableValue("x"), new NumberValue(10)),
+                new(InstructionCode.Equal, new TempValue(2), new VariableValue("y"), new NumberValue(10)),
+                new(InstructionCode.And, new TempValue(3), new TempValue(1), new TempValue(2)),
+                new(InstructionCode.Equal, new TempValue(4), new VariableValue("x"), new NumberValue(10)),
+                new(InstructionCode.Equal, new TempValue(5), new VariableValue("y"), new NumberValue(-10)),
+                new(InstructionCode.And, new TempValue(6), new TempValue(4), new TempValue(5)),
+                new(InstructionCode.Negate, new TempValue(7), new VariableValue("booly")),
+                new(InstructionCode.And, new TempValue(8), new TempValue(6), new TempValue(7)),
+                new(InstructionCode.And, new TempValue(9), new TempValue(3), new TempValue(8)),
+                new(InstructionCode.GreaterThan, new TempValue(10), new VariableValue("x"), new NumberValue(0)),
+                new(InstructionCode.GreaterThan, new TempValue(11), new VariableValue("y"), new NumberValue(0)),
+                new(InstructionCode.Or, new TempValue(12), new TempValue(10), new TempValue(11)),
+                new(InstructionCode.And, new TempValue(13), new TempValue(9), new TempValue(12)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(20), new TempValue(13)),
+                new(InstructionCode.PushParam, new StringValue("here")),
+                new(InstructionCode.CallFunction, new TempValue(14), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
         public void ParsesParenthesizedArithmeticWithCorrectPrecedence()
         {
             string source = "x = (5 + 5) * 2;";

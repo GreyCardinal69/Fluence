@@ -34,6 +34,7 @@ namespace Fluence
         {
             internal List<InstructionLine> CodeInstructions = new List<InstructionLine>();
             internal Stack<LoopContext> ActiveLoopContexts = new Stack<LoopContext>();
+            internal Stack<MatchContext> ActiveMatchContexts = new Stack<MatchContext>();
 
             internal int NextTempNumber = 0;
             internal int CurrentTempNumber => NextTempNumber - 1;
@@ -597,7 +598,7 @@ namespace Fluence
 
             if (IsSwitchStyleMatch())
             {
-                ParseMatchSwitchStyle();
+                ParseMatchSwitchStyle(matchOn);
                 return new NilValue();
             }
             // Check for match x { } empty match.
@@ -624,9 +625,100 @@ namespace Fluence
             }
         }
 
-        private void ParseMatchSwitchStyle()
+        private void ParseMatchSwitchStyle(Value matchOn)
         {
+            MatchContext context = new MatchContext();
+            _currentParseState.ActiveMatchContexts.Push(context);
 
+            List<int> nextCasePatches = new List<int>();
+            bool fallThrough = false;
+            int fallThroughSkipIndex = -1;
+
+            while (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
+            {
+                if (_lexer.PeekNextToken().Type == TokenType.EOL)
+                {
+                    // in an indented match there will be eols between cases, skip them.
+                    _lexer.ConsumeToken();
+                    continue;
+                }
+
+                int nextCasePatch = -1;
+
+                int nextCaseAddress = _currentParseState.CodeInstructions.Count;
+                // Patch all fall-throughs from the previous case to jump here.
+                foreach (var patch in nextCasePatches)
+                {
+                    _currentParseState.CodeInstructions[patch].Lhs = new NumberValue(nextCaseAddress);
+                }
+                nextCasePatches.Clear();
+
+                bool isRestCase = false;
+                if (_lexer.PeekNextToken().Type == TokenType.REST)
+                {
+                    isRestCase = true;
+                    _lexer.ConsumeToken();
+                }
+                else
+                {
+                    Value pattern = ParseExpression();
+
+                    TempValue condition = new TempValue(_currentParseState.NextTempNumber++);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, condition, matchOn, pattern));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, condition));
+
+                    if (fallThrough)
+                    {
+                        _currentParseState.CodeInstructions[fallThroughSkipIndex].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+                        fallThrough = false;
+                        fallThroughSkipIndex = 0;
+                    }
+
+                    nextCasePatches.Add(_currentParseState.CodeInstructions.Count - 1);
+                }
+
+                ConsumeAndTryThrowIfUnequal(TokenType.COLON, "Expected ':' after match case pattern.");
+
+                // Parse the body after the colon
+                while (_lexer.PeekNextToken().Type != TokenType.R_BRACE && _lexer.PeekNextToken().Type != TokenType.REST)
+                {
+                    if (_lexer.PeekNextToken().Type == TokenType.BREAK)
+                    {
+                        _lexer.ConsumeToken();
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+                        context.BreakPatches.Add(_currentParseState.CodeInstructions.Count - 1);
+                        break;
+                    }
+                    else if (_lexer.PeekAheadByN(2).Type == TokenType.COLON)
+                    {
+                        // We have fallthrough cases here, we make this goto, but fill it in the next iteration.
+                        // This skips the next cases equal and gotoIfFalse instructions.
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+                        fallThroughSkipIndex = _currentParseState.CodeInstructions.Count - 1;
+                        fallThrough = true;
+                        break;
+                    }
+                        ParseStatement();
+                }
+
+                nextCasePatches.Add(_currentParseState.CodeInstructions.Count - 1);
+            }
+
+            ConsumeAndTryThrowIfUnequal(TokenType.R_BRACE, "Expecting closing } after match");
+
+            _currentParseState.ActiveMatchContexts.Pop();
+
+            int matchEndAddress = _currentParseState.CodeInstructions.Count;
+
+            foreach (var patch in nextCasePatches)
+            {
+                _currentParseState.CodeInstructions[patch].Lhs = new NumberValue(matchEndAddress);
+            }
+
+            foreach (var patch in context.BreakPatches)
+            {
+                _currentParseState.CodeInstructions[patch].Lhs = new NumberValue(matchEndAddress);
+            }
         }
 
         private Value ParseMatchExpressionStyle(Value matchOn)

@@ -351,6 +351,10 @@ namespace Fluence
                         case ".or": return MakeTokenAndTryAdvance(TokenType.DOT_OR_CHECK, 3);
                         case ".++": return MakeTokenAndTryAdvance(TokenType.DOT_INCREMENT, 3);
                         case ".--": return MakeTokenAndTryAdvance(TokenType.DOT_DECREMENT, 3);
+                        case ".-=": return MakeTokenAndTryAdvance(TokenType.DOT_MINUS_EQUAL, 3);
+                        case ".+=": return MakeTokenAndTryAdvance(TokenType.DOT_PLUS_EQUAL, 3);
+                        case "./=": return MakeTokenAndTryAdvance(TokenType.DOT_SLASH_EQUAL, 3);
+                        case ".*=": return MakeTokenAndTryAdvance(TokenType.DOT_STAR_EQUAL, 3);
                     }
 
                     if (peek.SequenceEqual(".and"))

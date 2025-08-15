@@ -968,12 +968,28 @@ namespace Fluence
             _ => false,
         };
 
+        private static bool IsMultiCompoundAssignmentOperator(TokenType type) => type switch
+        {
+            TokenType.DOT_PLUS_EQUAL or
+            TokenType.DOT_MINUS_EQUAL or
+            TokenType.DOT_STAR_EQUAL or
+            TokenType.DOT_SLASH_EQUAL => true,
+            _ => false,
+        };
+
         private void ParseAssignment()
         {
             List<Value> lhs = ParseChainAssignmentLhs();
 
-            TokenType type = _lexer.PeekNextToken().Type;
+            // Multi-Assign operators like .+=, .-= and so on.
+            if (IsMultiCompoundAssignmentOperator(_lexer.PeekNextToken().Type))
+            {
+                ParseMultiCompoundAssignment(lhs);
+                return;
+            }
 
+            TokenType type = _lexer.PeekNextToken().Type;
+ 
             if (IsChainAssignmentOperator(type))
             {
                 if (type == TokenType.SEQUENTIAL_REST_ASSIGN || type == TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN)
@@ -1046,6 +1062,54 @@ namespace Fluence
                     // The expression was just a variable. Force a read.
                     var temp = new TempValue(_currentParseState.NextTempNumber++);
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, temp, variable));
+                }
+            }
+        }
+
+        private static InstructionCode GetMultiCompountInstructionCode(TokenType type) => type switch
+        {
+            TokenType.DOT_STAR_EQUAL => InstructionCode.Multiply,
+            TokenType.DOT_SLASH_EQUAL => InstructionCode.Divide,
+            TokenType.DOT_PLUS_EQUAL => InstructionCode.Add,
+            TokenType.DOT_MINUS_EQUAL => InstructionCode.Subtract,
+        };
+
+        private void ParseMultiCompoundAssignment(List<Value> leftSides)
+        {
+            Token opToken = _lexer.ConsumeToken();
+
+            InstructionCode operation = GetMultiCompountInstructionCode(opToken.Type);
+ 
+            var rhsList = new List<Value>();
+            do
+            {
+                rhsList.Add(ParseExpression());
+            } while (ConsumeTokenIfMatch(TokenType.COMMA));
+
+            if (leftSides.Count != rhsList.Count)
+            {
+                throw new Exception("Syntax Error: Mismatched number of targets and values in multi-compound assignment.");
+            }
+     
+            for (int i = 0; i < leftSides.Count; i++)
+            {
+                Value lhs = leftSides[i];
+                Value rhs = rhsList[i];
+
+                Value resolvedRhs = ResolveValue(rhs);
+                Value resolvedLhs = ResolveValue(lhs);
+
+                TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(operation, temp, resolvedLhs, resolvedRhs));
+
+                if (lhs is ElementAccessValue val)
+                {
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, val.Target, val.Index, temp));
+                }
+                else if (resolvedLhs is VariableValue variable)
+                {
+                    TempValue newTemp = new TempValue(_currentParseState.NextTempNumber++);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, temp));
                 }
             }
         }

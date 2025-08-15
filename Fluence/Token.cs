@@ -109,6 +109,10 @@
             DOT_OR_CHECK,       // .and(....)
             DOT_INCREMENT,      // .++(...)
             DOT_DECREMENT,      // .--(...)
+            DOT_PLUS_EQUAL,     // .+=
+            DOT_MINUS_EQUAL,    // .-=
+            DOT_STAR_EQUAL,     // .*=
+            DOT_SLASH_EQUAL,    // ./=
 
             SWAP,               // a >< b
 

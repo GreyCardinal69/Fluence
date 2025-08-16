@@ -1,6 +1,7 @@
 ﻿using Xunit.Abstractions;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Fluence.ParserTests
 {
@@ -568,6 +569,121 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("input_int"), new FunctionValue("input_int", 0, 2, "0002")),
                 new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 7, "0007")),
                 new(InstructionCode.CallFunction, new TempValue(28), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesComplexSourceFileWithMixedDeclarations()
+        {
+            string source = @"
+                enum Result {
+                    Ok,
+                    Err,
+                }
+
+                enum NumberType {
+                    Int,
+                    Double,
+                    Float,
+                }
+
+                struct Vector3 {
+                    
+                }
+
+                enum retw {
+                    
+                }
+
+                struct Vector2 {
+                    x = 0;
+                    y = 0;
+                    NumType = NumberType.Int;
+
+                    func Length() => ( self.x**2 + self.y**2 ) ** 0.5;
+
+                    func init(x, y, numType) => {
+                        self.x, self.y, self.NumType <~| x,y,numType;
+                    }
+
+                    func ToString() => f""Vector2| x: {self.x}, y: {self.y}"";
+                }
+
+                func Main() => {
+                    Test();
+                    position = Vector2( 1,4, NumberType.Float);
+                    print(position.Length());
+                    print(""Hello World!"");
+                }
+
+                func Test() => {
+                    a = 214;
+                    a++;
+                }
+
+                struct Vectoasfr3 {
+                    
+                }
+
+                enum ret353w {
+                    
+                }
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.Goto, new NumberValue(8)),
+                new(InstructionCode.GetField, new TempValue(1), new VariableValue("self"), new StringValue("x")),
+                new(InstructionCode.Power, new TempValue(0), new TempValue(1), new NumberValue(2)),
+                new(InstructionCode.GetField, new TempValue(3), new VariableValue("self"), new StringValue("y")),
+                new(InstructionCode.Power, new TempValue(2), new TempValue(3), new NumberValue(2)),
+                new(InstructionCode.Add, new TempValue(4), new TempValue(0), new TempValue(2)),
+                new(InstructionCode.Power, new TempValue(5), new TempValue(4), new NumberValue(0.5, NumberValue.NumberType.Double)),
+                new(InstructionCode.Return, new TempValue(5)),
+                new(InstructionCode.Goto, new NumberValue(16)),
+                new(InstructionCode.Assign, new TempValue(6), new VariableValue("x")),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("x"), new TempValue(6)),
+                new(InstructionCode.Assign, new TempValue(7), new VariableValue("y")),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("y"), new TempValue(7)),
+                new(InstructionCode.Assign, new TempValue(8), new VariableValue("numType")),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("NumType"), new TempValue(8)),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Goto, new NumberValue(25)),
+                new(InstructionCode.GetField, new TempValue(9), new VariableValue("self"), new StringValue("x")),
+                new(InstructionCode.ToString, new TempValue(10), new TempValue(9)),
+                new(InstructionCode.Add, new TempValue(11), new StringValue("Vector2| x: "), new TempValue(10)),
+                new(InstructionCode.Add, new TempValue(12), new TempValue(11), new StringValue(", y: ")),
+                new(InstructionCode.GetField, new TempValue(13), new VariableValue("self"), new StringValue("y")),
+                new(InstructionCode.ToString, new TempValue(14), new TempValue(13)),
+                new(InstructionCode.Add, new TempValue(15), new TempValue(12), new TempValue(14)),
+                new(InstructionCode.Return, new TempValue(15)),
+                new(InstructionCode.Goto, new NumberValue(39)),
+                new(InstructionCode.CallFunction, new TempValue(16), new VariableValue("Test"), new NumberValue(0)),
+                new(InstructionCode.NewInstance, new TempValue(17), new StructSymbol("Vector2")),
+                new(InstructionCode.PushParam, new NumberValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(4)),
+                new(InstructionCode.PushParam, new EnumValue("NumberType", "Float", 2)),
+                new(InstructionCode.CallMethod, new TempValue(18), new TempValue(17), new StringValue("init")),
+                new(InstructionCode.Assign, new VariableValue("position"), new TempValue(17)),
+                new(InstructionCode.CallMethod, new TempValue(19), new VariableValue("position"), new StringValue("Length")),
+                new(InstructionCode.PushParam, new TempValue(19)),
+                new(InstructionCode.CallFunction, new TempValue(20), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.PushParam, new StringValue("Hello World!")),
+                new(InstructionCode.CallFunction, new TempValue(21), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Goto, new NumberValue(44)),
+                new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(214)),
+                new(InstructionCode.Add, new TempValue(22), new VariableValue("a"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("a"), new TempValue(22)),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Assign, new VariableValue("Vector2.Length"), new FunctionValue("Length", 0, 1)),
+                new(InstructionCode.Assign, new VariableValue("Vector2.init"), new FunctionValue("init", 3, 9)),
+                new(InstructionCode.Assign, new VariableValue("Vector2.ToString"), new FunctionValue("ToString", 0, 17)),
+                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 27)),
+                new(InstructionCode.Assign, new VariableValue("Test"), new FunctionValue("Test", 0, 41)),
+                new(InstructionCode.CallFunction, new TempValue(23), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);

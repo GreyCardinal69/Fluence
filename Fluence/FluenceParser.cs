@@ -981,7 +981,7 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, result));
         }
 
-        private static string FormatByteCodeAddress(int startAddress)
+        internal static string FormatByteCodeAddress(int startAddress)
         {
             if (startAddress < 10) return $"000{startAddress}";
             if (startAddress < 100) return $"00{startAddress}";

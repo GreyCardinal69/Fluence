@@ -236,6 +236,13 @@ namespace Fluence
         internal int StartAddress { get; private set;  }
         // Debug full address.
         internal string FullAddress { get; private set; }
+        internal FunctionValue(string name, int arity, int startAddress)
+        {
+            Name = name;
+            Arity = arity;
+            StartAddress = startAddress;
+            FullAddress = FluenceParser.FormatByteCodeAddress(startAddress);
+        }
 
         internal FunctionValue(string name, int arity, int startAddress, string fullAddress)
         {

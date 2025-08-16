@@ -68,6 +68,11 @@ namespace Fluence
                         }
                         sb.AppendLine();
                         break;
+                    case FunctionSymbol functionSymbol:
+                        sb.Append($"\nSymbol: {item.Key}, type Function Header. Arity {functionSymbol.Arity}. ");
+                        sb.Append($"StartAddress: {FormatByteCodeAddress(functionSymbol.StartAddress)}\n");
+                        sb.AppendLine();
+                        break;
                 }
             }
 
@@ -141,6 +146,39 @@ namespace Fluence
 
                     continue;
                 }
+                else if (token.Type == TokenType.FUNC)
+                {
+                    int declarationStartIndex = currentIndex;
+                    int declarationEndIndex = FindFunctionHeaderDeclarationEnd(declarationStartIndex);
+
+                    ParseFunctionHeaderDeclaration(declarationStartIndex, declarationEndIndex);
+
+                    int functionEndIndex = FindFunctionBodyEnd(declarationEndIndex);
+                    currentIndex = functionEndIndex + 1;
+                    continue;
+                }
+
+                currentIndex++;
+            }
+        }
+
+
+        private int FindFunctionHeaderDeclarationEnd(int startIndex)
+        {
+            int currentIndex = startIndex + 1;
+            while (true)
+            {
+                Token token = _lexer.PeekAheadByN(currentIndex + 1);
+
+                if (token.Type == TokenType.ARROW)
+                {
+                    return currentIndex;
+                }
+
+                if (token.Type == TokenType.EOF)
+                {
+                    throw new Exception("Syntax Error: Unclosed enum or function declaration.");
+                }
 
                 currentIndex++;
             }
@@ -160,11 +198,114 @@ namespace Fluence
 
                 if (token.Type == TokenType.EOF)
                 {
-                    throw new Exception("Syntax Error: Unclosed enum declaration.");
+                    throw new Exception("Syntax Error: Unclosed enum or function declaration.");
                 }
 
                 currentIndex++;
             }
+        }
+
+        private int FindFunctionBodyEnd(int startIndex)
+        {
+            int currentIndex = startIndex + 1;
+            Token bodyStartToken = _lexer.PeekAheadByN(currentIndex + 1);
+
+            if (bodyStartToken.Type == TokenType.L_BRACE)
+            {
+                int braceDepth = 1;
+                currentIndex++; // Move past the opening '{'
+
+                while (braceDepth > 0)
+                {
+                    Token currentToken = _lexer.PeekAheadByN(currentIndex + 1);
+
+                    if (currentToken.Type == TokenType.L_BRACE)
+                    {
+                        braceDepth++;
+                    }
+                    else if (currentToken.Type == TokenType.R_BRACE)
+                    {
+                        braceDepth--;
+                    }
+                    else if (currentToken.Type == TokenType.EOF)
+                    {
+                        // This is a syntax error.
+                        throw new Exception($"Syntax Error: Unclosed function body. Reached end of file while looking for matching '}}'.");
+                    }
+
+                    // If we've found the final closing brace, we're done.
+                    if (braceDepth == 0)
+                    {
+                        return currentIndex;
+                    }
+
+                    currentIndex++;
+                }
+            }
+
+            int parenDepth = 0;
+            while (true)
+            {
+                Token currentToken = _lexer.PeekAheadByN(currentIndex + 1);
+
+                if (currentToken.Type == TokenType.L_PAREN) parenDepth++;
+                else if (currentToken.Type == TokenType.R_PAREN) parenDepth--;
+
+                // A semicolon (EOL) only terminates the statement if we are not inside parentheses.
+                if (currentToken.Type == TokenType.EOL && parenDepth == 0)
+                {
+                    return currentIndex;
+                }
+
+                if (currentToken.Type == TokenType.EOF)
+                {
+                    throw new Exception("Syntax Error: Unterminated expression body for function. Reached end of file.");
+                }
+
+                currentIndex++;
+            }
+        }
+
+        private void ParseFunctionHeaderDeclaration(int startTokenIndex, int endTokenIndex)
+        {
+            Token nameToken = _lexer.PeekAheadByN(startTokenIndex + 1 + 1);
+            string funcName = nameToken.Text;
+
+            int arity = 0;
+            // Start scanning for members after the opening '('.
+            // `func` `Name` `(`
+            int currentIndex = startTokenIndex + 3;
+
+            while ( currentIndex < endTokenIndex)
+            {
+                Token currentToken = _lexer.PeekAheadByN(currentIndex + 1);
+
+                if (currentToken.Type == TokenType.IDENTIFIER)
+                {
+                    arity++;
+                    currentIndex++;
+                }
+                else if (currentToken.Type == TokenType.COMMA || currentToken.Type == TokenType.R_PAREN)
+                {
+                    currentIndex++;
+                }
+
+                currentIndex++;
+            }
+
+            FunctionSymbol functionSymbol = new FunctionSymbol(funcName, arity, -1);
+
+            if (_currentParseState.SymbolTable.TryGetValue(funcName, out Symbol symbol))
+            {
+                FunctionSymbol funcSymbol = symbol as FunctionSymbol;
+                if (funcSymbol.Arity == arity)
+                {
+                    Console.WriteLine("here");
+                    // error here, duplicate function, same arguments.
+                }
+            }
+
+            _currentParseState.SymbolTable.Add(funcName, functionSymbol);
         }
 
         private void ParseEnumDeclaration(int startTokenIndex, int endTokenIndex)
@@ -652,6 +793,8 @@ namespace Fluence
 
             ConsumeAndTryThrowIfUnequal(TokenType.L_PAREN, "Expected '(' after function name.");
 
+            FunctionSymbol functionSymbol = _currentParseState.SymbolTable[functionName] as FunctionSymbol;
+
             List<string> parameters = new List<string>();
             // Has arguments
             if (_lexer.PeekNextToken().Type != TokenType.R_PAREN)
@@ -673,6 +816,8 @@ namespace Fluence
             int jumpOverBodyGoTo = _currentParseState.CodeInstructions.Count - 1;
 
             int functionStartAddress = _currentParseState.CodeInstructions.Count + 1;
+
+            functionSymbol.SetStartAddress( functionStartAddress );
 
             FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress, FormatByteCodeAddress(functionStartAddress));
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, new VariableValue(functionName), func));

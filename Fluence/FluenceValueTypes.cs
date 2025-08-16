@@ -301,4 +301,20 @@ namespace Fluence
             Name = name;
         }
     }
+
+    internal sealed class FunctionSymbol : Symbol
+    {
+        internal string Name { get; }
+        internal int Arity { get; }
+        internal int StartAddress { get; private set; }
+
+        internal void SetStartAddress(int addr) => StartAddress = addr;
+
+        internal FunctionSymbol(string name, int arity, int startAddress)
+        {
+            Name = name;
+            Arity = arity;
+            StartAddress = startAddress;
+        }
+    }
 }

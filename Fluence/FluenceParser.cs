@@ -151,6 +151,7 @@ namespace Fluence
 
                 if (token.Type == TokenType.ENUM)
                 {
+                    Console.WriteLine("here");
                     int declarationStartIndex = currentIndex;
                     int declarationEndIndex = FindEnumStructDeclarationEnd(declarationStartIndex);
 
@@ -176,9 +177,8 @@ namespace Fluence
                 {
                     int declarationStartIndex = currentIndex;
                     int declarationEndIndex = FindStructDeclarationEnd(declarationStartIndex);
-
                     ParseStructDeclaration(declarationStartIndex, declarationEndIndex);
-                    currentIndex = declarationEndIndex + 1;
+                    currentIndex = declarationEndIndex ;
                     continue;
                 }
 
@@ -376,7 +376,7 @@ namespace Fluence
         {
             string structName = _lexer.PeekAheadByN(startTokenIndex + 2).Text;
             StructSymbol structSymbol = new StructSymbol(structName);
-
+ 
             for (int i = startTokenIndex + 3; i < endTokenIndex; i++)
             {
                 Token token = _lexer.PeekAheadByN(i + 1);
@@ -391,6 +391,17 @@ namespace Fluence
                     if (next.Type == TokenType.EQUAL)
                     {
                         structSymbol.Fields.Add(token.Text);
+
+                        int statementEndIndex = i + 2; // Start looking after the '='
+                        while (statementEndIndex < endTokenIndex)
+                        {
+                            if (_lexer.PeekAheadByN(statementEndIndex + 1).Type == TokenType.EOL)
+                            {
+                                break; // Found the semicolon or newline
+                            }
+                            statementEndIndex++;
+                        }
+                        i = statementEndIndex;
                     }
                 }
                 else if (token.Type == TokenType.FUNC)
@@ -455,7 +466,6 @@ namespace Fluence
             {
                 // error here, duplicate struct declaration.
             }
-
             _currentParseState.SymbolTable.Add(structName, structSymbol);
         }
 
@@ -534,6 +544,8 @@ namespace Fluence
                     case TokenType.LOOP:
                         ParseLoopStatement();
                         break;
+                    case TokenType.EOF:
+                        return;
                     case TokenType.BREAK:
                         _lexer.ConsumeToken(); // Consume break;
 
@@ -648,11 +660,19 @@ namespace Fluence
             var structSymbol = (StructSymbol)_currentParseState.SymbolTable[structName];
             _currentParseState.CurrentStructContext = structSymbol;
 
+            // Empty struct.
+            if (_lexer.PeekNextToken().Type == TokenType.R_BRACE)
+            {
+                _currentParseState.CurrentStructContext = null;
+                _lexer.ConsumeToken();
+                return;
+            }
+
             int currentIndex = 1;
             while (true)
             {
                 Token currentToken = _lexer.PeekNextToken();
-
+      
                 if (currentToken.Type == TokenType.FUNC)
                 {
                     bool isInit = _lexer.PeekAheadByN(2).Text == "init";
@@ -667,10 +687,9 @@ namespace Fluence
                 // End of struct body.
                 if (currentToken.Type == TokenType.R_BRACE)
                 {
-                    _lexer.ConsumeToken();
                     break;
                 }
-            }
+            } 
 
             _currentParseState.CurrentStructContext = null;
         }
@@ -1366,11 +1385,11 @@ namespace Fluence
                 _auxLexer = _lexer;
                 _lexer = new FluenceLexer(expr);
 
-                Value exprInside = ParseTernary();
+                Value exprInside = ResolveValue(ParseTernary());
                 _lexer = _auxLexer;
 
                 TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.ToString, temp, exprInside));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.ToString, ResolveValue(temp), exprInside));
 
                 result = ConcatenateStringValues(result, temp);
 
@@ -1511,7 +1530,6 @@ namespace Fluence
                     }
                     else if (left is ElementAccessValue access)
                     {
-                        Console.WriteLine("here");
                         // This is a "write" operation. Generate SetElement.
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, ResolveValue(access.Target), access.Index, rhs));
                     }

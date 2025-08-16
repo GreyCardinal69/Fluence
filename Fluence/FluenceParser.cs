@@ -1511,8 +1511,9 @@ namespace Fluence
                     }
                     else if (left is ElementAccessValue access)
                     {
+                        Console.WriteLine("here");
                         // This is a "write" operation. Generate SetElement.
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, access.Target, access.Index, rhs));
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, ResolveValue(access.Target), access.Index, rhs));
                     }
                     else if (left is PropertyAccessValue propAccess)
                     {
@@ -2565,7 +2566,7 @@ namespace Fluence
             {
                 // It's a descriptor. Generate the GetElement instruction.
                 TempValue result = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetElement, result, access.Target, access.Index));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetElement, ResolveValue(result), ResolveValue(access.Target), access.Index));
                 // Return the temporary that will hold the result.
                 return result;
             }

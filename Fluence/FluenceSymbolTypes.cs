@@ -1,6 +1,6 @@
 ﻿namespace Fluence
 {
-    internal abstract class Symbol { }
+    internal abstract class Symbol : Value { }
 
     internal sealed class EnumSymbol : Symbol
     {
@@ -23,6 +23,11 @@
         internal StructSymbol(string name)
         {
             Name = name;
+        }
+
+        public override string ToString()
+        {
+            return $"StructSymbol<{Name}>";
         }
     }
 

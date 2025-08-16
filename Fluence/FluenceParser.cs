@@ -36,6 +36,7 @@ namespace Fluence
             internal Stack<LoopContext> ActiveLoopContexts = new Stack<LoopContext>();
             internal Stack<MatchContext> ActiveMatchContexts = new Stack<MatchContext>();
             internal Dictionary<string, Symbol> SymbolTable = new Dictionary<string, Symbol>();
+            internal StructSymbol CurrentStructContext { get; set; } = null;
 
             internal int NextTempNumber = 0;
             internal int CurrentTempNumber => NextTempNumber - 1;
@@ -386,7 +387,7 @@ namespace Fluence
                     // TO DO, as of now just checks for x; y; declaration of fields.
                     // Alternatively, what about x = 0; Default initialization?
                     // Must do further checks later.
-                    if ( next.Type == TokenType.EOL)
+                    if (next.Type == TokenType.EOL)
                     {
                         structSymbol.Fields.Add(token.Text);
                     }
@@ -412,7 +413,7 @@ namespace Fluence
                             {
                                 arity++;
                                 currentIndex++;
-         
+
                             }
                             else if (currentToken.Type == TokenType.COMMA)
                             {
@@ -601,6 +602,9 @@ namespace Fluence
                     case TokenType.STRUCT:
                         ParseStructStatement();
                         break;
+                    case TokenType.SELF:
+                        ParseAssignment(); // Self is really just a variable.
+                        break;
                 }
             }
             // Most likely an expression
@@ -640,6 +644,9 @@ namespace Fluence
             string structName = _lexer.ConsumeToken().Text; // Consume name;
             _lexer.ConsumeToken(); // Consume {
 
+            var structSymbol = (StructSymbol)_currentParseState.SymbolTable[structName];
+            _currentParseState.CurrentStructContext = structSymbol;
+
             int currentIndex = 1;
             while (true)
             {
@@ -663,6 +670,8 @@ namespace Fluence
                     break;
                 }
             }
+
+            _currentParseState.CurrentStructContext = null;
         }
 
         private void ParseForStatement()
@@ -988,7 +997,7 @@ namespace Fluence
             string functionName = nameToken.Text;
 
             ConsumeAndTryThrowIfUnequal(TokenType.L_PAREN, "Expected '(' after function name.");
- 
+
             List<string> parameters = new List<string>();
             // Has arguments
             if (_lexer.PeekNextToken().Type != TokenType.R_PAREN)
@@ -1032,7 +1041,11 @@ namespace Fluence
             }
 
             FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress, FormatByteCodeAddress(functionStartAddress));
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, new VariableValue(functionName), func));
+
+            if (!inStruct)
+            {
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, new VariableValue(functionName), func));
+            }
 
             // Either => for one line, or => {...} for a block.
             if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
@@ -1494,6 +1507,11 @@ namespace Fluence
                         // This is a "write" operation. Generate SetElement.
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, access.Target, access.Index, rhs));
                     }
+                    else if (left is PropertyAccessValue propAccess)
+                    {
+                        Value resolvedTarget = ResolveValue(propAccess.Target);
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, resolvedTarget, new StringValue(propAccess.FieldName), rhs));
+                    }
                 }
                 else if (type == TokenType.SWAP)
                 {
@@ -1583,6 +1601,11 @@ namespace Fluence
                     TempValue newTemp = new TempValue(_currentParseState.NextTempNumber++);
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, temp));
                 }
+                else if (resolvedLhs is PropertyAccessValue propAccess)
+                {
+                    Value resolvedTarget = ResolveValue(propAccess.Target);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, resolvedTarget, new StringValue(propAccess.FieldName), temp));
+                }
             }
         }
 
@@ -1668,7 +1691,7 @@ namespace Fluence
             Token op = _lexer.ConsumeToken();
 
             bool isOptional = op.Type == TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN;
- 
+
             // Sequential assign operators do not expect any other pipes.
             do
             {
@@ -1691,6 +1714,11 @@ namespace Fluence
                     if (lhs[lhsIndex] is ElementAccessValue val)
                     {
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, val.Target, val.Index, valueToAssign));
+                    }
+                    else if (lhs[lhsIndex] is PropertyAccessValue propAccess)
+                    {
+                        Value resolvedTarget = ResolveValue(propAccess.Target);
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, resolvedTarget, new StringValue(propAccess.FieldName), valueToAssign));
                     }
                     else
                     {
@@ -1806,6 +1834,11 @@ namespace Fluence
                             {
                                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, val.Target, val.Index, valueToAssign));
                             }
+                            else if (lhs[lhsIndex] is PropertyAccessValue propAccess)
+                            {
+                                Value resolvedTarget = ResolveValue(propAccess.Target);
+                                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, resolvedTarget, new StringValue(propAccess.FieldName), valueToAssign));
+                            }
                             else
                             {
                                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs[lhsIndex], valueToAssign));
@@ -1820,6 +1853,11 @@ namespace Fluence
                             if (lhs[lhsIndex] is ElementAccessValue val)
                             {
                                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, val.Target, val.Index, valueToAssign));
+                            }
+                            else if (lhs[lhsIndex] is PropertyAccessValue propAccess)
+                            {
+                                Value resolvedTarget = ResolveValue(propAccess.Target);
+                                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, resolvedTarget, new StringValue(propAccess.FieldName), valueToAssign));
                             }
                             else
                             {
@@ -2495,6 +2533,11 @@ namespace Fluence
                 {
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, accessValue.Target, accessValue.Index, temp));
                 }
+                else if (original is PropertyAccessValue propAccess)
+                {
+                    Value resolvedTarget = ResolveValue(propAccess.Target);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, resolvedTarget, new StringValue(propAccess.FieldName), temp));
+                }
                 else
                 {
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, parsable, temp));
@@ -2513,6 +2556,13 @@ namespace Fluence
                 TempValue result = new TempValue(_currentParseState.NextTempNumber++);
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetElement, result, access.Target, access.Index));
                 // Return the temporary that will hold the result.
+                return result;
+            }
+            else if (val is PropertyAccessValue propAccess)
+            {
+                TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+                Value resolvedTarget = ResolveValue(propAccess.Target);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetField, result, resolvedTarget, new StringValue(propAccess.FieldName)));
                 return result;
             }
 
@@ -2563,8 +2613,11 @@ namespace Fluence
                                 // Error, invalid enum member.
                             }
                         }
+                        else
+                        {
+                            left = new PropertyAccessValue(left, memberName);
+                        }
                     }
-
                     // TODO
                     // struct access.
                 }
@@ -2587,11 +2640,34 @@ namespace Fluence
 
                     foreach (var arg in arguments)
                     {
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, arg));
+                        if (arg is PropertyAccessValue propertyAccess)
+                        {
+                            Value resolvedTarget = ResolveValue(propertyAccess.Target);
+                            TempValue toPush = new TempValue(_currentParseState.NextTempNumber++);
+                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetField, toPush, resolvedTarget, new StringValue(propertyAccess.FieldName)));
+                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, toPush));
+                        }
+                        else
+                        {
+                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, arg));
+                        }
                     }
 
                     TempValue result = new TempValue(_currentParseState.NextTempNumber++);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, result, left, new NumberValue(arguments.Count)));
+
+                    if (left is PropertyAccessValue propAccess)
+                    {
+                        _currentParseState.AddCodeInstruction(new InstructionLine(
+                               InstructionCode.CallMethod,
+                               result,
+                               ResolveValue(propAccess.Target),
+                               new StringValue(propAccess.FieldName)
+                           ));
+                    }
+                    else
+                    {
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, result, left, new NumberValue(arguments.Count)));
+                    }
 
                     left = result;
                 }
@@ -2618,6 +2694,86 @@ namespace Fluence
             }
 
             return false; // Not a match, do nothing.
+        }
+
+        private Value ParseConstructorCall(StructSymbol symbol)
+        {
+            _lexer.ConsumeToken(); // Consume (.
+
+            TempValue instance = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewInstance, instance, symbol));
+
+            List<Value> arguments = new List<Value>();
+
+            do
+            {
+                arguments.Add(ParseTernary());
+            } while (ConsumeTokenIfMatch(TokenType.COMMA));
+
+            ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, " Expected closing ) in constructor call.");
+
+            if (symbol.Constructor == null)
+            {
+                if (arguments.Count > 0)
+                {
+                    throw new Exception($"Semantic Error: Struct '{symbol.Name}' has no constructor, but was called with {arguments.Count} arguments.");
+                }
+                // If no args were given, the `NewInstance` is enough. Just return the instance.
+                return instance;
+            }
+
+            foreach (var arg in arguments)
+            {
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, arg));
+            }
+
+            TempValue ignoredResult = new TempValue(_currentParseState.NextTempNumber++);
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(
+                InstructionCode.CallMethod,
+                ignoredResult,
+                instance,
+                new StringValue("init")
+            ));
+            return instance;
+        }
+
+        private Value ParseDirectInitializer(StructSymbol symbol)
+        {
+            _lexer.ConsumeToken(); // Consume '{'
+
+            TempValue instance = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewInstance, instance, symbol));
+
+            var initializedFields = new HashSet<string>();
+            if (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
+            {
+                do
+                {
+                    Token fieldToken = ConsumeAndTryThrowIfUnequal(TokenType.IDENTIFIER, "Expected field name in struct initializer.");
+                    string fieldName = fieldToken.Text;
+
+                    if (!symbol.Fields.Contains(fieldName))
+                    {
+                        throw new Exception($"Semantic Error: Struct '{symbol.Name}' has no field named '{fieldName}'.");
+                    }
+                    if (initializedFields.Contains(fieldName))
+                    {
+                        throw new Exception($"Semantic Error: Field '{fieldName}' initialized more than once.");
+                    }
+                    initializedFields.Add(fieldName);
+
+                    ConsumeAndTryThrowIfUnequal(TokenType.COLON, "Expected ':' after field name in initializer.");
+                    Value fieldValue = ParseExpression();
+
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, instance, new StringValue(fieldName), fieldValue));
+
+                } while (ConsumeTokenIfMatch(TokenType.COMMA));
+            }
+
+            ConsumeAndTryThrowIfUnequal(TokenType.R_BRACE, "Expected '}' to close struct initializer.");
+
+            return instance;
         }
 
         private Value ParsePrimary()
@@ -2661,7 +2817,27 @@ namespace Fluence
             switch (token.Type)
             {
                 case TokenType.IDENTIFIER:
-                    return new VariableValue(token.Text);
+                    string name = token.Text;
+
+                    if (_currentParseState.SymbolTable.TryGetValue(name, out Symbol symbol) && symbol is StructSymbol structSymbol)
+                    {
+                        // It's a struct, check if it's a constructor call Vec2(2,3).
+                        // or a direct initializer Vec2{ x: 2, y: 3 }.
+                        if (_lexer.PeekNextToken().Type == TokenType.L_PAREN)
+                        {
+                            return ParseConstructorCall(structSymbol);
+                        }
+                        else if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
+                        {
+                            return ParseDirectInitializer(structSymbol);
+                        }
+                    }
+                    else
+                    {
+                        // Normal variable.
+                        return new VariableValue(name);
+                    }
+                    break;
                 case TokenType.NUMBER:
                     return NumberValue.FromToken(token);
                 case TokenType.STRING:
@@ -2681,6 +2857,18 @@ namespace Fluence
                     // This is when we call lhs = match x.
                     // Returning an actual value, an expression based match.
                     return ParseMatchStatement();
+            }
+
+            if (token.Type == TokenType.SELF)
+            {
+                if (_currentParseState.CurrentStructContext == null)
+                {
+                    throw new Exception("Syntax Error: The 'self' keyword can only be used inside a struct method or constructor.");
+                }
+
+                //    The 'self' keyword is just a special, pre-defined local variable.
+                //    At runtime, the VM will ensure the instance is available.
+                return new VariableValue("self");
             }
 
             if (token.Type == TokenType.L_PAREN)

@@ -257,6 +257,23 @@ namespace Fluence
         }
     }
 
+    internal sealed class PropertyAccessValue : Value
+    {
+        internal Value Target;
+        internal string FieldName;
+
+        internal PropertyAccessValue(Value target, string fieldName)
+        {
+            Target = target;
+            FieldName = fieldName;
+        }
+
+        public override string ToString()
+        {
+            return $"FieldAccess<{Target}:{FieldName}>";
+        }
+    }
+
     internal class VariableValue : Value
     {
         internal string IdentifierValue;

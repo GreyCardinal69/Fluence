@@ -68,6 +68,7 @@
                 NewInstance,
                 GetField,
                 SetField,
+                CallMethod,
 
                 NewList,
                 GetElement,

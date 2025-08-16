@@ -1206,6 +1206,47 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
+        public void ParsesNestedListAssignmentCorrectly()
+        {
+            string source = @"
+                A = [
+                    [2, -6, -2],
+                    [-2, 4, 1],
+                    [4, -4, 1]
+                ];
+                A[0][2] = A[2][0];
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.NewList, new TempValue(0)),
+                new(InstructionCode.NewList, new TempValue(1)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(2)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(-6)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(-2)),
+                new(InstructionCode.PushElement, new TempValue(0), new TempValue(1)),
+                new(InstructionCode.NewList, new TempValue(2)),
+                new(InstructionCode.PushElement, new TempValue(2), new NumberValue(-2)),
+                new(InstructionCode.PushElement, new TempValue(2), new NumberValue(4)),
+                new(InstructionCode.PushElement, new TempValue(2), new NumberValue(1)),
+                new(InstructionCode.PushElement, new TempValue(0), new TempValue(2)),
+                new(InstructionCode.NewList, new TempValue(3)),
+                new(InstructionCode.PushElement, new TempValue(3), new NumberValue(4)),
+                new(InstructionCode.PushElement, new TempValue(3), new NumberValue(-4)),
+                new(InstructionCode.PushElement, new TempValue(3), new NumberValue(1)),
+                new(InstructionCode.PushElement, new TempValue(0), new TempValue(3)),
+                new(InstructionCode.Assign, new VariableValue("A"), new TempValue(0)),
+                new(InstructionCode.GetElement, new TempValue(9), new VariableValue("A"), new NumberValue(2)),
+                new(InstructionCode.GetElement, new TempValue(8), new TempValue(9), new NumberValue(0)),
+                new(InstructionCode.GetElement, new TempValue(10), new VariableValue("A"), new NumberValue(0)),
+                new(InstructionCode.SetElement, new TempValue(10), new NumberValue(2), new TempValue(8)),
+                new(InstructionCode.CallFunction, new TempValue(11), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
         public void ParsesComplexBroadcastWithPlaceholderInSecondPosition()
         {
             string source = "add(5, _) <| 10, 20;";

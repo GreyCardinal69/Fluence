@@ -1414,7 +1414,7 @@ namespace Fluence
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushElement, temp, rhs));
             }
 
-            _lexer.ConsumeToken(); // Consume ].
+            _lexer.ConsumeToken(); // Consume ]
 
             return temp;
         }
@@ -1631,6 +1631,10 @@ namespace Fluence
                 TokenType type = _lexer.PeekAheadByN(lookahead).Type;
 
                 if (type == TokenType.R_PAREN) break; // End of argument list
+                if (type == TokenType.EOL)
+                {
+                    return false;
+                }
                 if (type == TokenType.EOF) return false; // End of file, not a valid call
 
                 if (type == TokenType.UNDERSCORE) hasUnderscore = true;
@@ -1650,7 +1654,7 @@ namespace Fluence
         private List<Value> ParseChainAssignmentLhs()
         {
             List<Value> lhs = new List<Value>();
-
+            
             if (IsBroadCastPipeFunctionCall())
             {
                 Value functionToCall = ParsePrimary();
@@ -1675,7 +1679,7 @@ namespace Fluence
                     }
                     currentIndex++;
                 } while (ConsumeTokenIfMatch(TokenType.COMMA));
-
+                 
                 ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Expecting closing ) in function call.");
 
                 if (underscoreIndex != -1) ; // error here.

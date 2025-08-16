@@ -74,16 +74,18 @@ namespace Fluence
                         sb.AppendLine();
                         break;
                     case StructSymbol structSymbol:
-                        sb.Append($"\nSymbol: {item.Key}, type Struct.\n");
+                        sb.Append($"\nSymbol: {item.Key}, type Struct. {{\n");
                         sb.Append($"\tFields: {string.Join(", ", structSymbol.Fields)}. \n");
                         sb.Append($"\tFunctions: {(structSymbol.Functions.Count == 0 ? "None.\n" : "\n")}");
                         foreach (var function in structSymbol.Functions)
                         {
-                            sb.AppendLine($"\t\tName: {function.Key}, Arity: {function.Value.Arity}.");
+                            sb.AppendLine($"\t\tName: {function.Key}, Arity: {function.Value.Arity}. Start Address: {function.Value.FullAddress}.");
                         }
                         FunctionValue constructor = structSymbol.Constructor;
                         string constructorArity = constructor == null ? "0" : $"{constructor.Arity}";
-                        sb.AppendLine($"\tConstructor: {(constructor == null ? "None" : constructor.Name)}. Arity: {constructorArity}.");
+                        string constructorStartAddress = constructor == null ? "0" : constructor.FullAddress;
+                        sb.AppendLine($"\tConstructor: {(constructor == null ? "None" : constructor.Name)}. Arity: {constructorArity}. Start Adress: {constructorStartAddress}.");
+                        sb.AppendLine("}");
                         break;
                 }
             }
@@ -379,46 +381,13 @@ namespace Fluence
 
                 if (token.Type == TokenType.IDENTIFIER)
                 {
-                    // Constructor.
-                    if (token.Text == "init")
+                    Token next = _lexer.PeekAheadByN(i + 2);
+
+                    // TO DO, as of now just checks for x; y; declaration of fields.
+                    // Alternatively, what about x = 0; Default initialization?
+                    // Must do further checks later.
+                    if ( next.Type == TokenType.EOL)
                     {
-                        int currentIndex = i + 2;
-                        Token next = _lexer.PeekAheadByN(currentIndex);
-
-                        if (next.Type == TokenType.L_PAREN)
-                        {
-                            currentIndex++;
-                            string funcName = "init";
-
-                            int arity = 0;
-                            while (_lexer.PeekAheadByN(currentIndex).Type != TokenType.R_PAREN)
-                            {
-                                Token currentToken = _lexer.PeekAheadByN(currentIndex);
-
-                                if (currentToken.Type == TokenType.IDENTIFIER)
-                                {
-                                    arity++;
-                                    currentIndex++;
-                                }
-                                else if (currentToken.Type == TokenType.COMMA)
-                                {
-                                    currentIndex++;
-                                }
-                                else if (currentToken.Type == TokenType.ARROW)
-                                {
-                                    break;
-                                }
-
-                                currentIndex++;
-                            }
-
-                            i = currentIndex;
-                            structSymbol.Constructor = new FunctionValue(funcName, arity, -1, "");
-                        }
-                    }
-                    else
-                    {
-                        // Field declaration.
                         structSymbol.Fields.Add(token.Text);
                     }
                 }
@@ -443,6 +412,7 @@ namespace Fluence
                             {
                                 arity++;
                                 currentIndex++;
+         
                             }
                             else if (currentToken.Type == TokenType.COMMA)
                             {
@@ -466,7 +436,15 @@ namespace Fluence
                             }
                         }
                         i = currentIndex;
-                        structSymbol.Functions.Add(funcName, functionValue);
+
+                        if (funcName == "init")
+                        {
+                            structSymbol.Constructor = functionValue;
+                        }
+                        else
+                        {
+                            structSymbol.Functions.Add(funcName, functionValue);
+                        }
                     }
                 }
             }
@@ -620,6 +598,9 @@ namespace Fluence
                     case TokenType.MATCH:
                         ParseMatchStatement();
                         break;
+                    case TokenType.STRUCT:
+                        ParseStructStatement();
+                        break;
                 }
             }
             // Most likely an expression
@@ -642,6 +623,45 @@ namespace Fluence
                 // If we reach here, then we lack a semicolon, most likely at the end of an expression,
                 // not within if/loops/etc. Or we have a bug.
                 ConsumeAndTryThrowIfUnequal(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
+            }
+        }
+
+        private void ParseStructStatement()
+        {
+            // This is basically a second pass of structs.
+            // On the first pass we create the symbol table.
+            // Fields, methods, init.
+            // Now we only seek to generate bytecode of the functions and
+            // Patch start addresses.
+
+            // TO DO, currently can't have functions with the same name, even if different arity.
+
+            _lexer.ConsumeToken(); // Consume struct.
+            string structName = _lexer.ConsumeToken().Text; // Consume name;
+            _lexer.ConsumeToken(); // Consume {
+
+            int currentIndex = 1;
+            while (true)
+            {
+                Token currentToken = _lexer.PeekNextToken();
+
+                if (currentToken.Type == TokenType.FUNC)
+                {
+                    bool isInit = _lexer.PeekAheadByN(2).Text == "init";
+                    ParseFunction(true, isInit, structName);
+                }
+                else
+                {
+                    _lexer.ConsumeToken();
+                    currentIndex++;
+                }
+
+                // End of struct body.
+                if (currentToken.Type == TokenType.R_BRACE)
+                {
+                    _lexer.ConsumeToken();
+                    break;
+                }
             }
         }
 
@@ -960,7 +980,7 @@ namespace Fluence
             return "-1";
         }
 
-        private void ParseFunction()
+        private void ParseFunction(bool inStruct = false, bool isInit = false, string structName = null)
         {
             _lexer.ConsumeToken(); // Consume func.
 
@@ -968,9 +988,7 @@ namespace Fluence
             string functionName = nameToken.Text;
 
             ConsumeAndTryThrowIfUnequal(TokenType.L_PAREN, "Expected '(' after function name.");
-
-            FunctionSymbol functionSymbol = _currentParseState.SymbolTable[functionName] as FunctionSymbol;
-
+ 
             List<string> parameters = new List<string>();
             // Has arguments
             if (_lexer.PeekNextToken().Type != TokenType.R_PAREN)
@@ -993,7 +1011,25 @@ namespace Fluence
 
             int functionStartAddress = _currentParseState.CodeInstructions.Count + 1;
 
-            functionSymbol.SetStartAddress(functionStartAddress);
+            if (!inStruct)
+            {
+                FunctionSymbol functionSymbol = _currentParseState.SymbolTable[functionName] as FunctionSymbol;
+                functionSymbol.SetStartAddress(functionStartAddress);
+            }
+
+            if (structName != null)
+            {
+                StructSymbol structSymbol = _currentParseState.SymbolTable[structName] as StructSymbol;
+
+                if (isInit)
+                {
+                    structSymbol.Constructor.SetStartAddress(functionStartAddress, FormatByteCodeAddress(functionStartAddress));
+                }
+                else
+                {
+                    structSymbol.Functions[functionName].SetStartAddress(functionStartAddress, FormatByteCodeAddress(functionStartAddress));
+                }
+            }
 
             FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress, FormatByteCodeAddress(functionStartAddress));
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, new VariableValue(functionName), func));

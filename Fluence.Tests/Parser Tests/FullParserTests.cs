@@ -1428,6 +1428,86 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
+        public void ParsesEnumAndHandlesForwardReferenceAssignment()
+        {
+            string source = @"
+                enumy = Color.Green;
+                enum Color { Red, Green, Blue }
+                enumy2 = Color.Red;
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("enumy"), new EnumValue("Color", "Green", 1)),
+                new(InstructionCode.Assign, new VariableValue("enumy2"), new EnumValue("Color", "Red", 0)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesMatchStatementWithEnumValues()
+        {
+            string source = @"
+                enum Color { Red, Green }
+                myColor = Color.Red;
+                match myColor {
+                    Color.Red: print(1); break;
+                    Color.Green: print(2); break;
+                    rest: print(3); break;
+                };
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("myColor"), new EnumValue("Color", "Red", 0)),
+                new(InstructionCode.Equal, new TempValue(1), new VariableValue("myColor"), new EnumValue("Color", "Red", 0)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(7), new TempValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Goto, new NumberValue(15)),
+                new(InstructionCode.Equal, new TempValue(3), new VariableValue("myColor"), new EnumValue("Color", "Green", 1)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(12), new TempValue(3)),
+                new(InstructionCode.PushParam, new NumberValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Goto, new NumberValue(15)),
+                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Goto, new NumberValue(15)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesMatchExpressionReturningEnum()
+        {
+            string source = @"
+                enum Status { Ok, Err }
+                result = match 1 {
+                    1 -> Status.Ok;
+                    rest -> Status.Err;
+                };
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Equal, new TempValue(2), new NumberValue(1), new NumberValue(1)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(2)),
+                new(InstructionCode.Assign, new TempValue(1), new EnumValue("Status", "Ok", 0)),
+                new(InstructionCode.Goto, new NumberValue(7)),
+                new(InstructionCode.Assign, new TempValue(1), new EnumValue("Status", "Err", 1)),
+                new(InstructionCode.Goto, new NumberValue(7)),
+                new(InstructionCode.Assign, new VariableValue("result"), new TempValue(1)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
         public void ParsesFullCalculatorProgramCorrectly()
         {
             string source = @"

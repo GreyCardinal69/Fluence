@@ -73,6 +73,18 @@ namespace Fluence
                         sb.Append($"StartAddress: {FormatByteCodeAddress(functionSymbol.StartAddress)}\n");
                         sb.AppendLine();
                         break;
+                    case StructSymbol structSymbol:
+                        sb.Append($"\nSymbol: {item.Key}, type Struct.\n");
+                        sb.Append($"\tFields: {string.Join(", ", structSymbol.Fields)}. \n");
+                        sb.Append($"\tFunctions: {(structSymbol.Functions.Count == 0 ? "None.\n" : "\n")}");
+                        foreach (var function in structSymbol.Functions)
+                        {
+                            sb.AppendLine($"\t\tName: {function.Key}, Arity: {function.Value.Arity}.");
+                        }
+                        FunctionValue constructor = structSymbol.Constructor;
+                        string constructorArity = constructor == null ? "0" : $"{constructor.Arity}";
+                        sb.AppendLine($"\tConstructor: {(constructor == null ? "None" : constructor.Name)}. Arity: {constructorArity}.");
+                        break;
                 }
             }
 
@@ -136,14 +148,13 @@ namespace Fluence
                 if (token.Type == TokenType.ENUM)
                 {
                     int declarationStartIndex = currentIndex;
-                    int declarationEndIndex = FindEnumDeclarationEnd(declarationStartIndex);
+                    int declarationEndIndex = FindEnumStructDeclarationEnd(declarationStartIndex);
 
                     ParseEnumDeclaration(declarationStartIndex, declarationEndIndex);
 
                     int count = declarationEndIndex - declarationStartIndex + 1;
 
                     _lexer.RemoveTokens(declarationStartIndex, count);
-
                     continue;
                 }
                 else if (token.Type == TokenType.FUNC)
@@ -157,11 +168,19 @@ namespace Fluence
                     currentIndex = functionEndIndex + 1;
                     continue;
                 }
+                else if (token.Type == TokenType.STRUCT)
+                {
+                    int declarationStartIndex = currentIndex;
+                    int declarationEndIndex = FindStructDeclarationEnd(declarationStartIndex);
+
+                    ParseStructDeclaration(declarationStartIndex, declarationEndIndex);
+                    currentIndex = declarationEndIndex + 1;
+                    continue;
+                }
 
                 currentIndex++;
             }
         }
-
 
         private int FindFunctionHeaderDeclarationEnd(int startIndex)
         {
@@ -184,7 +203,7 @@ namespace Fluence
             }
         }
 
-        private int FindEnumDeclarationEnd(int startIndex)
+        private int FindEnumStructDeclarationEnd(int startIndex)
         {
             int currentIndex = startIndex + 1;
             while (true)
@@ -198,11 +217,53 @@ namespace Fluence
 
                 if (token.Type == TokenType.EOF)
                 {
-                    throw new Exception("Syntax Error: Unclosed enum or function declaration.");
+                    throw new Exception("Syntax Error: Unclosed enum or struct declaration.");
                 }
 
                 currentIndex++;
             }
+        }
+
+        private int FindStructDeclarationEnd(int startIndex)
+        {
+            int currentIndex = startIndex + 1;
+            Token bodyStartToken = _lexer.PeekAheadByN(currentIndex + 2); // Skip struct + Name.
+            currentIndex += 2;
+
+            if (bodyStartToken.Type == TokenType.L_BRACE)
+            {
+                int braceDepth = 1;
+                currentIndex++; // Move past the opening '{'
+
+                while (braceDepth > 0)
+                {
+                    Token currentToken = _lexer.PeekAheadByN(currentIndex);
+
+                    if (currentToken.Type == TokenType.L_BRACE)
+                    {
+                        braceDepth++;
+                    }
+                    else if (currentToken.Type == TokenType.R_BRACE)
+                    {
+                        braceDepth--;
+                    }
+                    else if (currentToken.Type == TokenType.EOF)
+                    {
+                        // This is a syntax error.
+                        throw new Exception($"Syntax Error: Unclosed Struct body. Reached end of file while looking for matching '}}'.");
+                    }
+
+                    // If we've found the final closing brace, we're done.
+                    if (braceDepth == 0)
+                    {
+                        return currentIndex;
+                    }
+
+                    currentIndex++;
+                }
+            }
+
+            return currentIndex;
         }
 
         private int FindFunctionBodyEnd(int startIndex)
@@ -276,7 +337,7 @@ namespace Fluence
             // `func` `Name` `(`
             int currentIndex = startTokenIndex + 3;
 
-            while ( currentIndex < endTokenIndex)
+            while (currentIndex < endTokenIndex)
             {
                 Token currentToken = _lexer.PeekAheadByN(currentIndex + 1);
 
@@ -300,12 +361,122 @@ namespace Fluence
                 FunctionSymbol funcSymbol = symbol as FunctionSymbol;
                 if (funcSymbol.Arity == arity)
                 {
-                    Console.WriteLine("here");
                     // error here, duplicate function, same arguments.
                 }
             }
 
             _currentParseState.SymbolTable.Add(funcName, functionSymbol);
+        }
+
+        private void ParseStructDeclaration(int startTokenIndex, int endTokenIndex)
+        {
+            string structName = _lexer.PeekAheadByN(startTokenIndex + 2).Text;
+            StructSymbol structSymbol = new StructSymbol(structName);
+
+            for (int i = startTokenIndex + 3; i < endTokenIndex; i++)
+            {
+                Token token = _lexer.PeekAheadByN(i + 1);
+
+                if (token.Type == TokenType.IDENTIFIER)
+                {
+                    // Constructor.
+                    if (token.Text == "init")
+                    {
+                        int currentIndex = i + 2;
+                        Token next = _lexer.PeekAheadByN(currentIndex);
+
+                        if (next.Type == TokenType.L_PAREN)
+                        {
+                            currentIndex++;
+                            string funcName = "init";
+
+                            int arity = 0;
+                            while (_lexer.PeekAheadByN(currentIndex).Type != TokenType.R_PAREN)
+                            {
+                                Token currentToken = _lexer.PeekAheadByN(currentIndex);
+
+                                if (currentToken.Type == TokenType.IDENTIFIER)
+                                {
+                                    arity++;
+                                    currentIndex++;
+                                }
+                                else if (currentToken.Type == TokenType.COMMA)
+                                {
+                                    currentIndex++;
+                                }
+                                else if (currentToken.Type == TokenType.ARROW)
+                                {
+                                    break;
+                                }
+
+                                currentIndex++;
+                            }
+
+                            i = currentIndex;
+                            structSymbol.Constructor = new FunctionValue(funcName, arity, -1, "");
+                        }
+                    }
+                    else
+                    {
+                        // Field declaration.
+                        structSymbol.Fields.Add(token.Text);
+                    }
+                }
+                else if (token.Type == TokenType.FUNC)
+                {
+                    Token nameToken = _lexer.PeekAheadByN(i + 2);
+
+                    int currentIndex = i + 3;
+                    Token next = _lexer.PeekAheadByN(currentIndex);
+
+                    if (next.Type == TokenType.L_PAREN)
+                    {
+                        currentIndex++;
+                        string funcName = nameToken.Text;
+
+                        int arity = 0;
+                        while (_lexer.PeekAheadByN(currentIndex).Type != TokenType.R_PAREN)
+                        {
+                            Token currentToken = _lexer.PeekAheadByN(currentIndex);
+
+                            if (currentToken.Type == TokenType.IDENTIFIER)
+                            {
+                                arity++;
+                                currentIndex++;
+                            }
+                            else if (currentToken.Type == TokenType.COMMA)
+                            {
+                                currentIndex++;
+                            }
+                            else if (currentToken.Type == TokenType.ARROW)
+                            {
+                                break;
+                            }
+
+                            currentIndex++;
+                        }
+
+                        FunctionValue functionValue = new FunctionValue(funcName, arity, -1, "");
+
+                        if (structSymbol.Functions.TryGetValue(funcName, out FunctionValue functionValue1))
+                        {
+                            if (functionValue1.Arity == functionValue.Arity)
+                            {
+                                // Error, duplicate function.
+                            }
+                        }
+                        i = currentIndex;
+                        structSymbol.Functions.Add(funcName, functionValue);
+                    }
+                }
+            }
+
+            if (_currentParseState.SymbolTable.ContainsKey(structName))
+            {
+                // error here, duplicate struct declaration.
+            }
+
+            _currentParseState.SymbolTable.Add(structName, structSymbol);
         }
 
         private void ParseEnumDeclaration(int startTokenIndex, int endTokenIndex)
@@ -341,6 +512,11 @@ namespace Fluence
                 }
 
                 currentIndex++;
+            }
+
+            if (_currentParseState.SymbolTable.ContainsKey(enumName))
+            {
+                // error here, duplicate enum declaration.
             }
 
             _currentParseState.SymbolTable.Add(enumName, enumSymbol);
@@ -817,7 +993,7 @@ namespace Fluence
 
             int functionStartAddress = _currentParseState.CodeInstructions.Count + 1;
 
-            functionSymbol.SetStartAddress( functionStartAddress );
+            functionSymbol.SetStartAddress(functionStartAddress);
 
             FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress, FormatByteCodeAddress(functionStartAddress));
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, new VariableValue(functionName), func));
@@ -1456,7 +1632,7 @@ namespace Fluence
             Token op = _lexer.ConsumeToken();
 
             bool isOptional = op.Type == TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN;
-            Console.WriteLine(isOptional);
+ 
             // Sequential assign operators do not expect any other pipes.
             do
             {

@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using Fluence;
+using System.Text;
 
 namespace Fluence
 {
@@ -265,6 +266,22 @@ namespace Fluence
         }
     }
 
+    internal sealed class InstanceValue : Value
+    {
+        internal StructSymbol Type { get; }
+        internal Dictionary<string, Value> Fields { get; } = new();
+
+        internal InstanceValue(StructSymbol type)
+        {
+            Type = type;
+        }
+
+        public override string ToString()
+        {
+            return $"InstanceValue<{Type.Name}>";
+        }
+    }
+
     internal sealed class EnumValue : Value
     {
         internal string EnumTypeName { get; }
@@ -286,35 +303,6 @@ namespace Fluence
         internal override object GetValue()
         {
             return Value;
-        }
-    }
-
-    internal abstract class Symbol { }
-
-    internal sealed class EnumSymbol : Symbol
-    {
-        internal string Name { get; }
-        internal Dictionary<string, EnumValue> Members { get; } = new();
-
-        internal EnumSymbol(string name)
-        {
-            Name = name;
-        }
-    }
-
-    internal sealed class FunctionSymbol : Symbol
-    {
-        internal string Name { get; }
-        internal int Arity { get; }
-        internal int StartAddress { get; private set; }
-
-        internal void SetStartAddress(int addr) => StartAddress = addr;
-
-        internal FunctionSymbol(string name, int arity, int startAddress)
-        {
-            Name = name;
-            Arity = arity;
-            StartAddress = startAddress;
         }
     }
 }

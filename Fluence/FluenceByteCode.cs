@@ -65,9 +65,9 @@
                 GotoIfTrue,      // Jump to Lhs if RhsA is true
                 GotoIfFalse,     // Jump to Lhs if RhsA is false
 
-                NewStruct,       // Lhs = a new struct of type RhsA
-                GetProperty,     // Lhs = RhsA.RhsB (e.g., my_obj.prop)
-                SetProperty,     // Lhs.RhsA = RhsB (e.g., my_obj.prop = val)
+                NewInstance,
+                GetField,
+                SetField,
 
                 NewList,
                 GetElement,

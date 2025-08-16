@@ -982,6 +982,6 @@ namespace Fluence
             return new Token(type, text, lieteral);
         }
 
-        private static bool IsWhiteSpace(char c) => c is ' ' or '\t' || c is '\r';
+        private static bool IsWhiteSpace(char c) => c is ' ' or '\t' || c is '\r' || c is '\n';
     }
 }

@@ -31,11 +31,11 @@ namespace Fluence.LexerTests
 
                 if num1, num2, op <!=| nil {
                     result = match op {
-                        ""+"" -> num1 + num2,
-                        ""-"" -> num1 - num2,
-                        ""*"" -> num1 * num2,
-                        ""/"" -> num2 == 0 ? nil : num1 / num2,
-                        rest   -> nil
+                        ""+"" -> num1 + num2;
+                        ""-"" -> num1 - num2;
+                        ""*"" -> num1 * num2;
+                        ""/"" -> num2 == 0 ? nil : num1 / num2;
+                        rest   -> nil;
                     };
 
                     if result is nil -> print(""Error..."") |> exit(_);
@@ -44,15 +44,15 @@ namespace Fluence.LexerTests
             }";
 
             var expectedTypes = new List<Token.TokenType> {
-                EOL, FUNC, IDENTIFIER, L_PAREN, R_PAREN, ARROW, IDENTIFIER, L_PAREN, IDENTIFIER, L_PAREN, R_PAREN, R_PAREN,
-                EOL, FUNC, IDENTIFIER, L_PAREN, R_PAREN, ARROW, L_BRACE, EOL,
+                FUNC, IDENTIFIER, L_PAREN, R_PAREN, ARROW, IDENTIFIER, L_PAREN, IDENTIFIER, L_PAREN, R_PAREN, R_PAREN,
+                EOL, FUNC, IDENTIFIER, L_PAREN, R_PAREN, ARROW, L_BRACE,
                 IDENTIFIER, COMMA, IDENTIFIER, COMMA, IDENTIFIER, CHAIN_ASSIGN_N, IDENTIFIER, L_PAREN, R_PAREN, CHAIN_ASSIGN_N, IDENTIFIER, L_PAREN, R_PAREN, EOL,
-                IF, IDENTIFIER, COMMA, IDENTIFIER, COMMA, IDENTIFIER, COLLECTIVE_NOT_EQUAL, NIL, L_BRACE, EOL,
-                IDENTIFIER, EQUAL, MATCH, IDENTIFIER, L_BRACE, EOL,
-                STRING, THIN_ARROW, IDENTIFIER, PLUS, IDENTIFIER, COMMA, EOL,
-                STRING, THIN_ARROW, IDENTIFIER, MINUS, IDENTIFIER, COMMA,EOL,
-                STRING, THIN_ARROW, IDENTIFIER, STAR, IDENTIFIER, COMMA,EOL,
-                STRING, THIN_ARROW, IDENTIFIER, EQUAL_EQUAL, NUMBER, QUESTION, NIL, COLON, IDENTIFIER, SLASH, IDENTIFIER, COMMA,EOL,
+                IF, IDENTIFIER, COMMA, IDENTIFIER, COMMA, IDENTIFIER, COLLECTIVE_NOT_EQUAL, NIL, L_BRACE,
+                IDENTIFIER, EQUAL, MATCH, IDENTIFIER, L_BRACE,
+                STRING, THIN_ARROW, IDENTIFIER, PLUS, IDENTIFIER, EOL,
+                STRING, THIN_ARROW, IDENTIFIER, MINUS, IDENTIFIER,EOL,
+                STRING, THIN_ARROW, IDENTIFIER, STAR, IDENTIFIER,EOL,
+                STRING, THIN_ARROW, IDENTIFIER, EQUAL_EQUAL, NUMBER, QUESTION, NIL, COLON, IDENTIFIER, SLASH, IDENTIFIER,EOL,
                 REST, THIN_ARROW, NIL,EOL,
                 R_BRACE, EOL,
                 IF, IDENTIFIER, EQUAL_EQUAL, NIL, THIN_ARROW, IDENTIFIER, L_PAREN, STRING, R_PAREN, PIPE, IDENTIFIER, L_PAREN, UNDERSCORE, R_PAREN,EOL,

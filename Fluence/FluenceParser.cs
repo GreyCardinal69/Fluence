@@ -1396,12 +1396,12 @@ namespace Fluence
 
             // Non empty array, parse and push first element, the while loop will likely encounter a comma,
             // if not the list has just one element.
+
             Value firstElement = ParseExpression();
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushElement, temp, firstElement));
 
             while (_lexer.PeekNextToken().Type == TokenType.COMMA)
             {
-
                 _lexer.ConsumeToken(); // Consume comma.
 
                 if (_lexer.PeekNextToken().Type == TokenType.R_BRACKET) // Trailing comma in list.

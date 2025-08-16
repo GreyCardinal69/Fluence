@@ -65,7 +65,6 @@ namespace Fluence
                 }
             }
 
-
             internal TokenBuffer(FluenceLexer lexer)
             {
                 _lexer = lexer;
@@ -359,31 +358,7 @@ namespace Fluence
                 case '(': return MakeTokenAndTryAdvance(TokenType.L_PAREN, 1);
                 case ')': return MakeTokenAndTryAdvance(TokenType.R_PAREN, 1);
                 case ';':
-                    string result;
-                    // Check for cases like ;\r\n
-                    if (CanLookAheadStartInclusive(3))
-                    {
-                        if (PeekString(3).SequenceEqual(";\r\n"))
-                        {
-                            result = ";\r\n";
-                            AdvancePosition(3);
-                            AdvanceCurrentLine();
-                        }
-                        else if (PeekString(2).SequenceEqual(";\n"))
-                        {
-                            result = ";\n";
-                            AdvancePosition(2);
-                            AdvanceCurrentLine();
-                        }
-                        else
-                        {
-                            AdvancePosition();
-                            result = ";";
-                        }
-                        // Remove all EOLS that follow, they are redundant.
-                        RemoveRedundantEOLS();
-                        return MakeTokenAndTryAdvance(TokenType.EOL, 0, result);
-                    }
+                    RemoveRedundantEOLS();
                     return MakeTokenAndTryAdvance(TokenType.EOL, 1, ";");
                 case ',': return MakeTokenAndTryAdvance(TokenType.COMMA, 1);
                 case '?':
@@ -396,24 +371,6 @@ namespace Fluence
                 case '\'':
                     _currentPosition++;
                     return MakeTokenAndTryAdvance(TokenType.CHARACTER, 2, _sourceCode[_currentPosition].ToString(), _sourceCode[_currentPosition]);
-                case '\n':
-                    AdvanceCurrentLine();
-                    return MakeTokenAndTryAdvance(TokenType.EOL, 1, "\n", "\n");
-                case '\r':
-                    string text;
-                    if (CanLookAheadStartInclusive(2) && PeekNext() == '\n')
-                    {
-                        AdvancePosition(2);
-                        text = "\r\n";
-                        // Remove all EOLS that follow, they are redundant.
-                        RemoveRedundantEOLS();
-                    }
-                    else
-                    {
-                        text = "\r";
-                    }
-                    AdvanceCurrentLine();
-                    return MakeTokenAndTryAdvance(TokenType.EOL, 1, text, text);
             }
 
             // Other cases done individually.
@@ -494,7 +451,7 @@ namespace Fluence
 
                         if (currChar == 'E' || currChar == 'e')
                         {
-                            // After seeing an 'E', the very next character MUST be a digit or a sign.
+                            // After seeing an 'E', the next character should be a digit or a sign.
                             char next = PeekNext();
                             if (!IsNumeric(next) && next != '+' && next != '-')
                             {

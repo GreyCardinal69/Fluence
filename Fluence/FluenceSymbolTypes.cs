@@ -5,12 +5,12 @@
     /// This is the abstract base class for functions, structs, and enums.
     /// It inherits from <see cref="Value"/> to be storable in the bytecode stream if needed (e.g., for NewInstance).
     /// </summary>
-    internal abstract class Symbol : Value { }
+    internal abstract record class Symbol : Value { }
 
     /// <summary>
     /// Represents an enum declaration. It contains the enum's name and a collection of its members.
     /// </summary>
-    internal sealed class EnumSymbol : Symbol
+    internal sealed record class EnumSymbol : Symbol
     {
         /// <summary>
         /// The name of the enum.
@@ -31,7 +31,7 @@
     /// <summary>
     /// Represents a struct declaration. It contains the struct's name, fields, methods, and constructor information.
     /// </summary>
-    internal sealed class StructSymbol : Symbol
+    internal sealed record class StructSymbol : Symbol
     {
         /// <summary>
         /// The name of the struct.
@@ -82,7 +82,7 @@
     /// Represents a function or method declaration. It can be a user-defined Fluence function
     /// with a bytecode address or a native C# intrinsic function with a delegate.
     /// </summary>
-    internal sealed class FunctionSymbol : Symbol
+    internal sealed record class FunctionSymbol : Symbol
     {
         /// <summary>
         /// The name of the function.

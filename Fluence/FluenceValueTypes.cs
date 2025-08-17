@@ -2,7 +2,7 @@
 
 namespace Fluence
 {
-    internal abstract class Value
+    internal abstract record class Value
     {
         public override string ToString()
         {
@@ -12,7 +12,7 @@ namespace Fluence
         internal virtual object GetValue() { return null; }
     }
 
-    internal sealed class CharValue : Value
+    internal sealed record class CharValue : Value
     {
         internal char Value;
 
@@ -27,14 +27,14 @@ namespace Fluence
         }
     }
 
-    internal sealed class StatementCompleteValue : Value
+    internal sealed record class StatementCompleteValue : Value
     {
         // It has no data. Its existence is its meaning.
         public override string ToString() => "StatementComplete";
         internal override object GetValue() => null;
     }
 
-    internal sealed class ElementAccessValue : Value
+    internal sealed record class ElementAccessValue : Value
     {
         internal Value Target { get; }
         internal Value Index { get; }
@@ -54,7 +54,7 @@ namespace Fluence
         }
     }
 
-    internal sealed class BroadcastCallTemplate : Value
+    internal sealed record class BroadcastCallTemplate : Value
     {
         // The function to be called.
         internal Value Callable { get; }
@@ -70,7 +70,7 @@ namespace Fluence
         }
     }
 
-    internal sealed class StringValue : Value
+    internal sealed record class StringValue : Value
     {
         internal string Text;
 
@@ -88,7 +88,7 @@ namespace Fluence
         }
     }
 
-    internal sealed class NumberValue : Value
+    internal sealed record class NumberValue : Value
     {
         internal enum NumberType
         {
@@ -157,7 +157,7 @@ namespace Fluence
         }
     }
 
-    internal sealed class NilValue : Value
+    internal sealed record class NilValue : Value
     {
         public override string ToString()
         {
@@ -165,7 +165,7 @@ namespace Fluence
         }
     }
 
-    internal sealed class BooleanValue : Value
+    internal sealed record class BooleanValue : Value
     {
         internal bool Value;
 
@@ -180,7 +180,7 @@ namespace Fluence
         }
     }
 
-    internal sealed class TempValue : Value
+    internal sealed record class TempValue : Value
     {
         internal string TempName;
         internal object Value;
@@ -201,7 +201,7 @@ namespace Fluence
         }
     }
 
-    internal sealed class ListValue : Value
+    internal sealed record class ListValue : Value
     {
         internal readonly List<Value> List = new List<Value>();
 
@@ -221,7 +221,7 @@ namespace Fluence
         }
     }
 
-    internal sealed class FunctionValue : Value
+    internal sealed record class FunctionValue : Value
     {
         // The name of the function (for debugging/stack traces).
         internal string Name { get; }
@@ -260,7 +260,7 @@ namespace Fluence
         }
     }
 
-    internal sealed class PropertyAccessValue : Value
+    internal sealed record class PropertyAccessValue : Value
     {
         internal Value Target;
         internal string FieldName;
@@ -277,7 +277,7 @@ namespace Fluence
         }
     }
 
-    internal sealed class VariableValue : Value
+    internal sealed record class VariableValue : Value
     {
         internal string IdentifierValue;
 
@@ -292,7 +292,7 @@ namespace Fluence
         }
     }
 
-    internal sealed class InstanceValue : Value
+    internal sealed record class InstanceValue : Value
     {
         internal StructSymbol Type { get; }
         internal Dictionary<string, Value> Fields { get; } = new();
@@ -308,7 +308,7 @@ namespace Fluence
         }
     }
 
-    internal sealed class EnumValue : Value
+    internal sealed record class EnumValue : Value
     {
         internal string EnumTypeName { get; }
         internal string MemberName;

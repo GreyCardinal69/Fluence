@@ -2,66 +2,11 @@
 
 namespace Fluence
 {
+    /// <summary>
+    /// A static utility class for managing and identifying Fluence language keywords.
+    /// </summary>
     internal static class FluenceKeywords
     {
-        private static readonly HashSet<string> _keywords =
-        [
-                "break",
-                "continue",
-                "if",
-                "else",
-                "for",
-                "while",
-                "loop",
-                "in",
-                "func",
-                "nil",
-                "return",
-                "true",
-                "false",
-                "is",
-                "or",
-                "not",
-                "and",
-                "space",
-                "use",
-                "type",
-                "struct",
-                "enum",
-                "match",
-                "self",
-                "rest"
-        ];
-
-        private static readonly Dictionary<string, TokenType> _keywordTypes = new()
-        {
-            { "if", TokenType.IF },
-            { "else", TokenType.ELSE },
-            { "break", TokenType.BREAK },
-            { "continue", TokenType.CONTINUE },
-            { "for", TokenType.FOR },
-            { "while", TokenType.WHILE },
-            { "loop", TokenType.LOOP },
-            { "in", TokenType.IN },
-            { "func", TokenType.FUNC },
-            { "nil", TokenType.NIL },
-            { "return", TokenType.RETURN },
-            { "true", TokenType.TRUE },
-            { "false", TokenType.FALSE },
-            { "is", TokenType.EQUAL_EQUAL },
-            { "not", TokenType.BANG_EQUAL },
-            { "or", TokenType.OR },
-            { "and", TokenType.AND },
-            { "space", TokenType.SPACE },
-            { "use", TokenType.USE },
-            { "type", TokenType.TYPE },
-            { "struct", TokenType.STRUCT },
-            { "enum", TokenType.ENUM },
-            { "match", TokenType.MATCH },
-            { "self", TokenType.SELF },
-            { "rest", TokenType.REST },
-        };
-
         internal static bool TokenTypeIsAKeywordType(TokenType type) =>
             type switch
             {
@@ -93,33 +38,50 @@ namespace Fluence
                 _ => false,
             };
 
+        /// <summary>
+        /// Gets the corresponding <see cref="TokenType"/> for a given keyword string.
+        /// If the text is not a keyword, it returns <see cref="TokenType.IDENTIFIER"/>.
+        /// </summary>
+        /// <param name="text">A ReadOnlySpan of characters representing the potential keyword.</param>
+        /// <returns>The associated <see cref="TokenType"/> or <see cref="TokenType.IDENTIFIER"/>.</returns>
         internal static TokenType GetKeywordType(ReadOnlySpan<char> text)
         {
             switch (text.Length)
             {
                 case 2:
-                    if (text.SequenceEqual("if")) return TokenType.IF;
-                    if (text.SequenceEqual("in")) return TokenType.IN;
-                    if (text.SequenceEqual("is")) return TokenType.EQUAL_EQUAL;
+                    if (text[0] == 'i')
+                    {
+                        if (text.SequenceEqual("if")) return TokenType.IF;
+                        if (text.SequenceEqual("in")) return TokenType.IN;
+                        if (text.SequenceEqual("is")) return TokenType.EQUAL_EQUAL;
+                    }
                     if (text.SequenceEqual("or")) return TokenType.OR;
                     break;
                 case 3:
+                    if (text[0] == 'n')
+                    {
+                        if (text.SequenceEqual("nil")) return TokenType.NIL;
+                        if (text.SequenceEqual("not")) return TokenType.BANG_EQUAL;
+                    }
                     if (text.SequenceEqual("for")) return TokenType.FOR;
-                    if (text.SequenceEqual("nil")) return TokenType.NIL;
-                    if (text.SequenceEqual("not")) return TokenType.BANG_EQUAL;
                     if (text.SequenceEqual("and")) return TokenType.AND;
-                    if (text.SequenceEqual("not")) return TokenType.BANG_EQUAL;
                     if (text.SequenceEqual("use")) return TokenType.USE;
                     break;
                 case 4:
-                    if (text.SequenceEqual("else")) return TokenType.ELSE;
-                    if (text.SequenceEqual("enum")) return TokenType.ENUM;
+                    if (text[0] == 'e')
+                    {
+                        if (text[1] == 'l') return TokenType.ELSE;
+                        if (text[1] == 'n') return TokenType.ENUM;
+                    }
+                    if (text[0] == 't')
+                    {
+                        if (text[1] == 'r') return TokenType.TRUE;
+                        if (text[1] == 'y') return TokenType.TYPE;
+                    }
                     if (text.SequenceEqual("func")) return TokenType.FUNC;
                     if (text.SequenceEqual("loop")) return TokenType.LOOP;
                     if (text.SequenceEqual("rest")) return TokenType.REST;
                     if (text.SequenceEqual("self")) return TokenType.SELF;
-                    if (text.SequenceEqual("true")) return TokenType.TRUE;
-                    if (text.SequenceEqual("type")) return TokenType.TYPE;
                     break;
                 case 5:
                     if (text.SequenceEqual("break")) return TokenType.BREAK;
@@ -140,10 +102,5 @@ namespace Fluence
             // If we fall through the switch, it's not a keyword.
             return TokenType.IDENTIFIER;
         }
-
-        internal static bool IsAKeyword(string key) => _keywords.Contains(key);
-
-        internal static TokenType GetTokenTypeFromKeyword(string key) =>
-            _keywordTypes.TryGetValue(key, out var type) ? type : TokenType.IDENTIFIER;
     }
 }

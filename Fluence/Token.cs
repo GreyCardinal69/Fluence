@@ -137,6 +137,7 @@
 
             UNDERSCORE,
             EOL,
+            EOL_LEXER,
             EOF
         }
 

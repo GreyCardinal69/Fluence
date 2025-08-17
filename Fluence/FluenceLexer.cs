@@ -23,6 +23,7 @@ namespace Fluence
             }
         }
 
+        internal int TokenCount => _tokenBuffer.TokenCount;
         internal int CurrentPosition => _currentPosition;
         internal int SourceLength => _sourceLength;
         internal char CharAtCurrentPosition => _sourceCode[_currentPosition];
@@ -37,6 +38,11 @@ namespace Fluence
             _currentColumn = 0;
         }
 
+        internal FluenceLexer()
+        {
+            _tokenBuffer = new TokenBuffer(this);
+        }
+
         private sealed class TokenBuffer
         {
             private readonly List<Token> _buffer = new List<Token>();
@@ -47,7 +53,9 @@ namespace Fluence
             // A reasonable threshold for trimming the buffer.
             private const int _trimThreshold = 256;
 
-            public bool HasReachedEnd
+            internal int TokenCount => _buffer.Count;
+
+            internal bool HasReachedEnd
             {
                 get
                 {
@@ -117,6 +125,17 @@ namespace Fluence
                 }
             }
 
+            internal void AddRange(List<Token> tokens)
+            {
+                _buffer.AddRange(tokens);
+                _head = 0;
+            }
+
+            internal void RemoveLexerEOLS()
+            {
+                _buffer.RemoveAll(token => token.Type == TokenType.EOL_LEXER);
+            }
+
             /// <summary>
             /// Removes consumed tokens from the beginning of the list to save memory.
             /// </summary>
@@ -179,6 +198,13 @@ namespace Fluence
         {
             _tokenBuffer.RemoveRange(startIndex, count);
         }
+
+        internal void AddTokens(List<Token> tokens)
+        {
+            _tokenBuffer.AddRange(tokens);
+        }
+
+        internal void RemoveLexerEOLS() => _tokenBuffer.RemoveLexerEOLS();
 
         internal void DumpTokenStream(string title)
         {
@@ -357,9 +383,7 @@ namespace Fluence
                 case '}': return MakeTokenAndTryAdvance(TokenType.R_BRACE, 1);
                 case '(': return MakeTokenAndTryAdvance(TokenType.L_PAREN, 1);
                 case ')': return MakeTokenAndTryAdvance(TokenType.R_PAREN, 1);
-                case ';':
-                    RemoveRedundantEOLS();
-                    return MakeTokenAndTryAdvance(TokenType.EOL, 1, ";");
+                case ';': return MakeTokenAndTryAdvance(TokenType.EOL, 1, ";");
                 case ',': return MakeTokenAndTryAdvance(TokenType.COMMA, 1);
                 case '?':
                     if (CanLookAheadStartInclusive(2))
@@ -371,6 +395,19 @@ namespace Fluence
                 case '\'':
                     _currentPosition++;
                     return MakeTokenAndTryAdvance(TokenType.CHARACTER, 2, _sourceCode[_currentPosition].ToString(), _sourceCode[_currentPosition]);
+                case '\r':
+                case '\n':
+                    // If it's a newline, we need to update our position trackers.
+                    if (CanLookAheadStartInclusive(2))
+                    {
+                        if (currChar == '\r' && _sourceCode[_currentPosition + 1] == '\n')
+                        {
+                            AdvancePosition(); // Consume the \n as part of the \r\n pair.
+                        }
+                    }
+                    _currentLine++;
+                    _currentColumn = 1;
+                    return MakeTokenAndTryAdvance(TokenType.EOL_LEXER, 1);
             }
 
             // Other cases done individually.
@@ -645,19 +682,6 @@ namespace Fluence
                 return span[lineStart..].ToString();
 
             return string.Empty;
-        }
-
-        private void RemoveRedundantEOLS()
-        {
-            while (!_hasReachedEndInternal)
-            {
-                if (CanLookAheadStartInclusive(2) && PeekString(2).SequenceEqual("\r\n"))
-                {
-                    AdvanceCurrentLine();
-                    AdvancePosition(2);
-                }
-                else break;
-            }
         }
 
         private Token ScanPipe()
@@ -939,6 +963,6 @@ namespace Fluence
             return new Token(type, text, lieteral);
         }
 
-        private static bool IsWhiteSpace(char c) => c is ' ' or '\t' || c is '\r' || c is '\n';
+        private static bool IsWhiteSpace(char c) => c is ' ' or '\t';
     }
 }

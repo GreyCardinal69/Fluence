@@ -398,7 +398,8 @@ namespace Fluence
                     }
                     _currentLine++;
                     _currentColumn = 1;
-                    return MakeTokenAndTryAdvance(TokenType.EOL_LEXER, 1);
+                    AdvancePosition();
+                    return EOL_LEXER;
             }
 
             // Other cases done individually.

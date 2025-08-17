@@ -58,11 +58,10 @@ namespace Fluence
 
     internal sealed class BroadcastCallTemplate : Value
     {
-        // The function to be called (e.g., VariableValue("print"))
+        // The function to be called.
         internal Value Callable { get; }
-        // The list of arguments, with one being a special placeholder.
         internal List<Value> Arguments { get; }
-        // The index of the placeholder in the argument list.
+        // The underscore used in pipes.
         internal int PlaceholderIndex { get; }
 
         public BroadcastCallTemplate(Value callable, List<Value> args, int placeholderIndex)
@@ -84,7 +83,7 @@ namespace Fluence
 
         public override string ToString()
         {
-            string str = Text == null ? "__Null" : Text;
+            string str = Text ?? "__Null";
             str = str == "" ? "__EmptyString" : str;
 
             return $"StringValue: \"{str}\"";
@@ -102,7 +101,6 @@ namespace Fluence
 
         internal object Value { get; }
         internal NumberType Type { get; }
-
 
         internal NumberValue(object literal, NumberType type = NumberType.Integer)
         {
@@ -233,8 +231,9 @@ namespace Fluence
         internal int Arity { get; }
         // The address of the first instruction of the function's body in the bytecode.
         internal int StartAddress { get; private set; }
-        // Debug full address.
+        // Debug full address. F.e 0005.
         internal string FullAddress { get; private set; }
+
         internal FunctionValue(string name, int arity, int startAddress)
         {
             Name = name;

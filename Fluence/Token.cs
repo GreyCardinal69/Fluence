@@ -137,7 +137,7 @@
 
             UNDERSCORE,
             EOL,
-            EOL_LEXER,
+            EOL_LEXER,  // EOL for \n and \r\n, used for Lexer error context, parser removes those before first pass.
             EOF
         }
 
@@ -145,7 +145,7 @@
         internal readonly string Text;
         internal readonly object Literal;
 
-        internal static Token EOL => new Token(TokenType.EOL, "\n");
+        internal static Token EOL_LEXER => new Token(TokenType.EOL_LEXER, "NewLine");
         internal static Token EOF = new Token(TokenType.EOF);
 
         internal Token(TokenType type = TokenType.UNKNOWN, string text = "", object literal = null)

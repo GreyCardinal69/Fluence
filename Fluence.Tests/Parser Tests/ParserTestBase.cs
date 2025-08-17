@@ -12,7 +12,7 @@ namespace Fluence.ParserTests
             var lexer = new FluenceLexer(source);
             var parser = new FluenceParser(lexer);
             FluenceIntrinsics fluenceIntrinsics = new FluenceIntrinsics(parser);
-            fluenceIntrinsics.RegisterIntrinsics();
+            fluenceIntrinsics.Register();
             parser.Parse();
             return parser.CompiledCode;
         }

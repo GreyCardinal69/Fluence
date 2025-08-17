@@ -589,7 +589,7 @@ namespace Fluence.ParserTests
                 struct Globuloid { Name = ""globuloid""; }
                 space MyProgram {
                     use MyMath;
-                    use FluidMath;
+                    use FluenceMath;
                     struct Number {
                         num = 10;
                         num2 = 10 + 10;
@@ -717,7 +717,7 @@ namespace Fluence.ParserTests
                 struct Globuloid { Name = ""globuloid""; }
                 space MyProgram {
                     use MyMath;
-                    use FluidMath;
+                    use FluenceMath;
                     struct Number {
                         num = 10; num2 = 10 + 10; numType = nil;
                         func Length() => (self.x**2 + self.y**2) ** 0.5;

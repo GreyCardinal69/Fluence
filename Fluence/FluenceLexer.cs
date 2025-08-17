@@ -38,8 +38,8 @@ namespace Fluence
             _sourceCode = source;
             _sourceLength = source.Length;
             _currentPosition = 0;
-            _currentLine = 0;
-            _currentColumn = 0;
+            _currentLine = 1;
+            _currentColumn = 1;
         }
 
         internal FluenceLexer(List<Token> tokens)
@@ -227,7 +227,7 @@ namespace Fluence
             Console.WriteLine($"--- {title} ---");
             Console.WriteLine();
 
-            string header = string.Format("{0,-35} {1,-40} {2,-30}", "TYPE", "TEXT", "LITERAL");
+            string header = string.Format("{0,-35} {1,-40} {2,-30} {3, -10} {4, -10}", "TYPE", "TEXT", "LITERAL", "LINE", "COLUMN");
             Console.WriteLine(header);
             Console.WriteLine(new string('-', header.Length));
 
@@ -241,7 +241,7 @@ namespace Fluence
                 if (token.Type == TokenType.EOF)
                 {
                     // Also print the EOF token for completeness.
-                    Console.WriteLine("{0,-35} {1,-40} {2,-30}", token.Type, "EOF", "EOF");
+                    Console.WriteLine("{0,-35} {1,-40} {2,-30} {3, -10} {4, -10}", token.Type, "EOF", "EOF", "EOF", "EOF");
                     break;
                 }
 
@@ -252,10 +252,12 @@ namespace Fluence
                 string literalToDisplay = token.Literal?.ToString() ?? "null";
                 literalToDisplay = (literalToDisplay == "\r\n" || literalToDisplay == "\n") ? "NewLine" : literalToDisplay;
 
-                Console.WriteLine("{0,-35} {1,-40} {2,-30}",
+                Console.WriteLine("{0,-35} {1,-40} {2,-30} {3, -10} {4, -10}",
                     token.Type,
                     textToDisplay,
-                    literalToDisplay);
+                    literalToDisplay,
+                    token.LineInSourceCode,
+                    token.ColumnInSourceCode);
 
                 lookahead++;
             }
@@ -436,6 +438,11 @@ namespace Fluence
 
                     ReadOnlySpan<char> peek = PeekString(4);
 
+                    if (peek.SequenceEqual(".and"))
+                    {
+                        return MakeTokenAndTryAdvance(TokenType.DOT_AND_CHECK, 4);
+                    }
+
                     ReadOnlySpan<char> peek3 = peek[..3];
 
                     switch (peek3)
@@ -447,11 +454,6 @@ namespace Fluence
                         case ".+=": return MakeTokenAndTryAdvance(TokenType.DOT_PLUS_EQUAL, 3);
                         case "./=": return MakeTokenAndTryAdvance(TokenType.DOT_SLASH_EQUAL, 3);
                         case ".*=": return MakeTokenAndTryAdvance(TokenType.DOT_STAR_EQUAL, 3);
-                    }
-
-                    if (peek.SequenceEqual(".and"))
-                    {
-                        return MakeTokenAndTryAdvance(TokenType.DOT_AND_CHECK, 4);
                     }
                 }
 
@@ -494,8 +496,8 @@ namespace Fluence
                         {
                             if (decimalPointAlreadyDefined)
                             {
-                                faultyCodeLine = GetCodeLineFromSource(_sourceCode, _currentLine + 1).TrimStart();
-                                ConstructAndThrowLexerException(_currentLine + 1, _currentColumn, "Invalid number format: multiple decimal points found.", faultyCodeLine, PeekNextToken());
+                                faultyCodeLine = GetCodeLineFromSource(_sourceCode, _currentLine).TrimStart();
+                                ConstructAndThrowLexerException(_currentLine, _currentColumn, "Invalid number format: multiple decimal points found.", faultyCodeLine, PeekNextToken());
                             }
                             decimalPointAlreadyDefined = true;
                         }
@@ -506,8 +508,8 @@ namespace Fluence
                             char next = PeekNext();
                             if (!IsNumeric(next) && next != '+' && next != '-')
                             {
-                                string faultyLine = GetCodeLineFromSource(_sourceCode, _currentLine + 1);
-                                ConstructAndThrowLexerException(_currentLine + 1, _currentColumn + 1, "Scientific notation 'E' must be followed by digits.", faultyLine, PeekNextToken());
+                                string faultyLine = GetCodeLineFromSource(_sourceCode, _currentLine);
+                                ConstructAndThrowLexerException(_currentLine, _currentColumn + 1, "Scientific notation 'E' must be followed by digits.", faultyLine, PeekNextToken());
                             }
                             else
                             {
@@ -527,7 +529,7 @@ namespace Fluence
                     if (_sourceCode[_currentPosition - 1] == '.')
                     {
                         faultyCodeLine = GetCodeLineFromSource(_sourceCode, _currentLine + 1).TrimStart();
-                        ConstructAndThrowLexerException(_currentLine + 1, _currentColumn, "Number literal cannot end with a decimal point.", faultyCodeLine, PeekNextToken());
+                        ConstructAndThrowLexerException(_currentLine, _currentColumn, "Number literal cannot end with a decimal point.", faultyCodeLine, PeekNextToken());
                     }
 
                     // Float here.
@@ -548,7 +550,7 @@ namespace Fluence
                     return MakeTokenAndTryAdvance(TokenType.NUMBER, 0, lexeme, lexeme);
                 }
 
-                // Can't look ahead, just a random dot?
+                // Just a dot.
                 return MakeTokenAndTryAdvance(TokenType.DOT, 1);
             }
 
@@ -573,12 +575,12 @@ namespace Fluence
 
                 if (type != TokenType.IDENTIFIER)
                 {
-                    return new Token(type);
+                    return MakeTokenAndTryAdvance(type);
                 }
                 else
                 {
                     string text = identifierSpan.ToString();
-                    return new Token(TokenType.IDENTIFIER, text, text);
+                    return MakeTokenAndTryAdvance(TokenType.IDENTIFIER, 0, text, text);
                 }
             }
 
@@ -596,12 +598,12 @@ namespace Fluence
             }
 
             int errorColumn = _currentColumn == 0 ? 2 : _currentColumn;
-            faultyCodeLine = GetCodeLineFromSource(_sourceCode, _currentLine + 1).TrimStart();
+            faultyCodeLine = GetCodeLineFromSource(_sourceCode, _currentLine).TrimStart();
             char invalidChar = _sourceCode[startPos];
 
             LexerExceptionContext context = new LexerExceptionContext()
             {
-                LineNum = _currentLine + 1,
+                LineNum = _currentLine,
                 Column = errorColumn + 2,
                 FaultyLine = faultyCodeLine,
                 Token = new Token(TokenType.UNKNOWN, _sourceCode[_currentPosition].ToString())
@@ -624,7 +626,7 @@ namespace Fluence
         private Token ScanString(int startPos, bool isFString = false)
         {
             int stringOpenColumn = _currentColumn;
-            int stringInitialLine = _currentLine + 1;
+            int stringInitialLine = _currentLine;
 
             while (Peek() != '"' && !_hasReachedEndInternal)
             {
@@ -655,7 +657,7 @@ namespace Fluence
 
             TokenType type = isFString ? TokenType.F_STRING : TokenType.STRING;
 
-            return new Token(type, lexeme, literalValue);
+            return MakeTokenAndTryAdvance(type, 0, lexeme, literalValue);
         }
 
         private static string TruncateLine(string line, int maxLength = 75)
@@ -828,10 +830,10 @@ namespace Fluence
                 // If we get here then we have an error.
                 // incomplete chain assignment.
 
-                string initialLineContent = GetCodeLineFromSource(_sourceCode, _currentLine + 1).TrimStart();
+                string initialLineContent = GetCodeLineFromSource(_sourceCode, _currentLine).TrimStart();
                 string truncatedLine = TruncateLine(initialLineContent);
 
-                ConstructAndThrowLexerException(_currentLine + 1, _currentColumn - 2, "Faulty chain assignment pipe operator detected, expected '<n|' or '<n?|' or '<|' format.", truncatedLine, PeekNextToken());
+                ConstructAndThrowLexerException(_currentLine, _currentColumn - 2, "Faulty chain assignment pipe operator detected, expected '<n|' or '<n?|' or '<|' format.", truncatedLine, PeekNextToken());
             }
 
             // Now we check 3 Char operators.
@@ -902,7 +904,7 @@ namespace Fluence
 
         internal void SkipWhiteSpaceAndComments()
         {
-            int commentStartLine = _currentLine + 1;
+            int commentStartLine = _currentLine;
             int commentStartCol = _currentColumn + 1;
 
             while (!_hasReachedEndInternal)
@@ -973,8 +975,10 @@ namespace Fluence
 
         private Token MakeTokenAndTryAdvance(TokenType type, int len = 0, string text = null, object lieteral = null)
         {
+            int line = _currentLine;
+            int column = _currentColumn;
             AdvancePosition(len);
-            return new Token(type, text, lieteral);
+            return new Token(type, text, lieteral, (short)line, (short)column);
         }
 
         private static bool IsWhiteSpace(char c) => c is ' ' or '\t';

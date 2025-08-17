@@ -173,6 +173,19 @@
         /// </summary>
         internal readonly object Literal;
 
+        // Line and Column indexes are stored as a short, to save some memory, this means that code length of a file
+        // Is limited to 32,767 lines, which is more than a reasonable amount.
+
+        /// <summary>
+        /// Stores the line location of the token in the original lexer stream, for debugging and better exception context.
+        /// </summary>
+        internal readonly short LineInSourceCode;
+
+        /// <summary>
+        /// Stores the column location of the token in the original lexer stream, for debugging and better exception context.
+        /// </summary>
+        internal readonly short ColumnInSourceCode;
+
         /// <summary>A shared, single instance of the End-Of-Line-Lexer token.</summary>
         internal static Token EOL_LEXER => new Token(TokenType.EOL_LEXER);
 
@@ -185,11 +198,13 @@
         /// <param name="type">The type of the token.</param>
         /// <param name="text">The raw text of the token.</param>
         /// <param name="literal">The literal value, if any.</param>
-        internal Token(TokenType type = TokenType.UNKNOWN, string text = "", object literal = null)
+        internal Token(TokenType type = TokenType.UNKNOWN, string text = "", object literal = null, short line = -1, short column = -1)
         {
             Type = type;
             Text = text;
             Literal = literal;
+            LineInSourceCode = line;
+            ColumnInSourceCode = column;
         }
 
         public override string ToString()

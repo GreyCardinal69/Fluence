@@ -575,119 +575,112 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
-        public void ParsesComplexSourceFileWithMixedDeclarations()
+        public void ParsesComplexSourceWithMultipleNamespacesAndGlobals()
         {
             string source = @"
-                enum Result {
-                    Ok,
-                    Err,
-                }
-
-                enum NumberType {
-                    Int,
-                    Double,
-                    Float,
-                }
-
-                struct Vector3 {
-                    
-                }
-
-                enum retw {
-                    
-                }
-
-                struct Vector2 {
-                    x = 0;
-                    y = 0;
-                    NumType = NumberType.Int;
-
-                    func Length() => ( self.x**2 + self.y**2 ) ** 0.5;
-
-                    func init(x, y, numType) => {
-                        self.x, self.y, self.NumType <~| x,y,numType;
+                space MyMath {
+                    struct Vector3 {
+                        x = 0; y = 0; z = 0;
+                        func init(x,y,z) => {
+                            self.x, self.y, self.z <~| x,y,z;
+                        }
                     }
-
-                    func ToString() => f""Vector2| x: {self.x}, y: {self.y}"";
                 }
-
-                func Main() => {
-                    Test();
-                    position = Vector2( 1,4, NumberType.Float);
-                    print(position.Length());
-                    print(""Hello World!"");
-                }
-
-                func Test() => {
-                    a = 214;
-                    a++;
-                }
-
-                struct Vectoasfr3 {
-                    
-                }
-
-                enum ret353w {
-                    
+                enum A { b, c }
+                struct Globuloid { Name = ""globuloid""; }
+                space MyProgram {
+                    use MyMath;
+                    use FluidMath;
+                    struct Number {
+                        num = 10;
+                        num2 = 10 + 10;
+                        numType = nil;
+                        func Length() => (self.x**2 + self.y**2) ** 0.5;
+                        func init(num, numType) => {
+                            self.num, self.numType <~| num, numType;
+                        }
+                    }
+                    enum NumberType { Int, Float, Integer }
+                    func Main() => {
+                        number = Number(10, NumberType.Float);
+                        print(number);
+                        Helper();
+                        position3D = Vector3(1,2,3);
+                        print(position3D);
+                        print(cos(120));
+                    }
+                    func Helper() => { print(""helper""); }
                 }
             ";
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.Goto, new NumberValue(8)),
-                new(InstructionCode.GetField, new TempValue(1), new VariableValue("self"), new StringValue("x")),
-                new(InstructionCode.Power, new TempValue(0), new TempValue(1), new NumberValue(2)),
-                new(InstructionCode.GetField, new TempValue(3), new VariableValue("self"), new StringValue("y")),
-                new(InstructionCode.Power, new TempValue(2), new TempValue(3), new NumberValue(2)),
-                new(InstructionCode.Add, new TempValue(4), new TempValue(0), new TempValue(2)),
-                new(InstructionCode.Power, new TempValue(5), new TempValue(4), new NumberValue(0.5, NumberValue.NumberType.Double)),
-                new(InstructionCode.Return, new TempValue(5)),
-                new(InstructionCode.Goto, new NumberValue(16)),
-                new(InstructionCode.Assign, new TempValue(6), new VariableValue("x")),
-                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("x"), new TempValue(6)),
-                new(InstructionCode.Assign, new TempValue(7), new VariableValue("y")),
-                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("y"), new TempValue(7)),
-                new(InstructionCode.Assign, new TempValue(8), new VariableValue("numType")),
-                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("NumType"), new TempValue(8)),
+                new(InstructionCode.Goto, new NumberValue(11)),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("x"), new NumberValue(0)),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("y"), new NumberValue(0)),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("z"), new NumberValue(0)),
+                new(InstructionCode.Assign, new TempValue(0), new VariableValue("x")),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("x"), new TempValue(0)),
+                new(InstructionCode.Assign, new TempValue(1), new VariableValue("y")),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("y"), new TempValue(1)),
+                new(InstructionCode.Assign, new TempValue(2), new VariableValue("z")),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("z"), new TempValue(2)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(25)),
-                new(InstructionCode.GetField, new TempValue(9), new VariableValue("self"), new StringValue("x")),
-                new(InstructionCode.ToString, new TempValue(10), new TempValue(9)),
-                new(InstructionCode.Add, new TempValue(11), new StringValue("Vector2| x: "), new TempValue(10)),
-                new(InstructionCode.Add, new TempValue(12), new TempValue(11), new StringValue(", y: ")),
-                new(InstructionCode.GetField, new TempValue(13), new VariableValue("self"), new StringValue("y")),
-                new(InstructionCode.ToString, new TempValue(14), new TempValue(13)),
-                new(InstructionCode.Add, new TempValue(15), new TempValue(12), new TempValue(14)),
-                new(InstructionCode.Return, new TempValue(15)),
-                new(InstructionCode.Goto, new NumberValue(39)),
-                new(InstructionCode.CallFunction, new TempValue(16), new VariableValue("Test"), new NumberValue(0)),
-                new(InstructionCode.NewInstance, new TempValue(17), new StructSymbol("Vector2")),
+                new(InstructionCode.Goto, new NumberValue(19)),
+                new(InstructionCode.GetField, new TempValue(4), new VariableValue("self"), new StringValue("x")),
+                new(InstructionCode.Power, new TempValue(3), new TempValue(4), new NumberValue(2)),
+                new(InstructionCode.GetField, new TempValue(6), new VariableValue("self"), new StringValue("y")),
+                new(InstructionCode.Power, new TempValue(5), new TempValue(6), new NumberValue(2)),
+                new(InstructionCode.Add, new TempValue(7), new TempValue(3), new TempValue(5)),
+                new(InstructionCode.Power, new TempValue(8), new TempValue(7), new NumberValue(0.5, NumberValue.NumberType.Double)),
+                new(InstructionCode.Return, new TempValue(8)),
+                new(InstructionCode.Goto, new NumberValue(29)),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("num"), new NumberValue(10)),
+                new(InstructionCode.Add, new TempValue(9), new NumberValue(10), new NumberValue(10)),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("num2"), new TempValue(9)),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("numType"), new NilValue()),
+                new(InstructionCode.Assign, new TempValue(10), new VariableValue("num")),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("num"), new TempValue(10)),
+                new(InstructionCode.Assign, new TempValue(11), new VariableValue("numType")),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("numType"), new TempValue(11)),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Goto, new NumberValue(51)),
+                new(InstructionCode.NewInstance, new TempValue(12), new StructSymbol("Number")),
+                new(InstructionCode.PushParam, new NumberValue(10)),
+                new(InstructionCode.PushParam, new EnumValue("NumberType", "Float", 1)),
+                new(InstructionCode.CallMethod, new TempValue(13), new TempValue(12), new StringValue("init")),
+                new(InstructionCode.Assign, new VariableValue("number"), new TempValue(12)),
+                new(InstructionCode.PushParam, new VariableValue("number")),
+                new(InstructionCode.CallFunction, new TempValue(14), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(15), new VariableValue("Helper"), new NumberValue(0)),
+                new(InstructionCode.NewInstance, new TempValue(16), new StructSymbol("Vector3")),
                 new(InstructionCode.PushParam, new NumberValue(1)),
-                new(InstructionCode.PushParam, new NumberValue(4)),
-                new(InstructionCode.PushParam, new EnumValue("NumberType", "Float", 2)),
-                new(InstructionCode.CallMethod, new TempValue(18), new TempValue(17), new StringValue("init")),
-                new(InstructionCode.Assign, new VariableValue("position"), new TempValue(17)),
-                new(InstructionCode.CallMethod, new TempValue(19), new VariableValue("position"), new StringValue("Length")),
+                new(InstructionCode.PushParam, new NumberValue(2)),
+                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.CallMethod, new TempValue(17), new TempValue(16), new StringValue("init")),
+                new(InstructionCode.Assign, new VariableValue("position3D"), new TempValue(16)),
+                new(InstructionCode.PushParam, new VariableValue("position3D")),
+                new(InstructionCode.CallFunction, new TempValue(18), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(120)),
+                new(InstructionCode.CallFunction, new TempValue(19), new VariableValue("cos"), new NumberValue(1)),
                 new(InstructionCode.PushParam, new TempValue(19)),
                 new(InstructionCode.CallFunction, new TempValue(20), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.PushParam, new StringValue("Hello World!")),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Goto, new NumberValue(55)),
+                new(InstructionCode.PushParam, new StringValue("helper")),
                 new(InstructionCode.CallFunction, new TempValue(21), new VariableValue("print"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(44)),
-                new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(214)),
-                new(InstructionCode.Add, new TempValue(22), new VariableValue("a"), new NumberValue(1)),
-                new(InstructionCode.Assign, new VariableValue("a"), new TempValue(22)),
-                new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Assign, new VariableValue("Vector2.Length"), new FunctionValue("Length", 0, 1)),
-                new(InstructionCode.Assign, new VariableValue("Vector2.init"), new FunctionValue("init", 3, 9)),
-                new(InstructionCode.Assign, new VariableValue("Vector2.ToString"), new FunctionValue("ToString", 0, 17)),
-                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 27)),
-                new(InstructionCode.Assign, new VariableValue("Test"), new FunctionValue("Test", 0, 41)),
-                new(InstructionCode.CallFunction, new TempValue(23), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1)),
+                new(InstructionCode.Assign, new VariableValue("Number.Length"), new FunctionValue("Length", 0, 12)),
+                new(InstructionCode.Assign, new VariableValue("Number.init"), new FunctionValue("init", 2, 20)),
+                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 30)),
+                new(InstructionCode.Assign, new VariableValue("Helper"), new FunctionValue("Helper", 0, 52)),
+                new(InstructionCode.CallFunction, new TempValue(22), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
         }
+
 
         [Fact]
         public void ParsesBroadcastWithComplexArgumentExpression()
@@ -704,6 +697,217 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushParam, new NumberValue(20)),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("add"), new NumberValue(2)),
                 new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesComplexSourceWithNamespacesAndGlobals()
+        {
+            string source = @"
+                space MyMath {
+                    struct Vector3 {
+                        x = 0; y = 0; z = 0;
+                        func init(x,y,z) => {
+                            self.x, self.y, self.z <~| x,y,z;
+                        }
+                    }
+                }
+                enum A { b, c, }
+                struct Globuloid { Name = ""globuloid""; }
+                space MyProgram {
+                    use MyMath;
+                    use FluidMath;
+                    struct Number {
+                        num = 10; num2 = 10 + 10; numType = nil;
+                        func Length() => (self.x**2 + self.y**2) ** 0.5;
+                        func init(num, numType) => {
+                            self.num, self.numType <~| num, numType;
+                        }
+                    }
+                    enum NumberType { Int, Float, Integer, }
+                    func Main() => {
+                        number = Number(10, NumberType.Float);
+                        print(number);
+                        Helper();
+                        position3D = Vector3(1,2,3);
+                        print(position3D);
+                        print(cos(120));
+                    }
+                    func Helper() => { print(""helper""); }
+                }
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.Goto, new NumberValue(11)),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("x"), new NumberValue(0)),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("y"), new NumberValue(0)),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("z"), new NumberValue(0)),
+                new(InstructionCode.Assign, new TempValue(0), new VariableValue("x")),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("x"), new TempValue(0)),
+                new(InstructionCode.Assign, new TempValue(1), new VariableValue("y")),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("y"), new TempValue(1)),
+                new(InstructionCode.Assign, new TempValue(2), new VariableValue("z")),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("z"), new TempValue(2)),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Goto, new NumberValue(19)),
+                new(InstructionCode.GetField, new TempValue(4), new VariableValue("self"), new StringValue("x")),
+                new(InstructionCode.Power, new TempValue(3), new TempValue(4), new NumberValue(2)),
+                new(InstructionCode.GetField, new TempValue(6), new VariableValue("self"), new StringValue("y")),
+                new(InstructionCode.Power, new TempValue(5), new TempValue(6), new NumberValue(2)),
+                new(InstructionCode.Add, new TempValue(7), new TempValue(3), new TempValue(5)),
+                new(InstructionCode.Power, new TempValue(8), new TempValue(7), new NumberValue(0.5, NumberValue.NumberType.Double)),
+                new(InstructionCode.Return, new TempValue(8)),
+                new(InstructionCode.Goto, new NumberValue(29)),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("num"), new NumberValue(10)),
+                new(InstructionCode.Add, new TempValue(9), new NumberValue(10), new NumberValue(10)),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("num2"), new TempValue(9)),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("numType"), new NilValue()),
+                new(InstructionCode.Assign, new TempValue(10), new VariableValue("num")),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("num"), new TempValue(10)),
+                new(InstructionCode.Assign, new TempValue(11), new VariableValue("numType")),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("numType"), new TempValue(11)),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Goto, new NumberValue(51)),
+                new(InstructionCode.NewInstance, new TempValue(12), new StructSymbol("Number")),
+                new(InstructionCode.PushParam, new NumberValue(10)),
+                new(InstructionCode.PushParam, new EnumValue("NumberType", "Float", 1)),
+                new(InstructionCode.CallMethod, new TempValue(13), new TempValue(12), new StringValue("init")),
+                new(InstructionCode.Assign, new VariableValue("number"), new TempValue(12)),
+                new(InstructionCode.PushParam, new VariableValue("number")),
+                new(InstructionCode.CallFunction, new TempValue(14), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(15), new VariableValue("Helper"), new NumberValue(0)),
+                new(InstructionCode.NewInstance, new TempValue(16), new StructSymbol("Vector3")),
+                new(InstructionCode.PushParam, new NumberValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(2)),
+                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.CallMethod, new TempValue(17), new TempValue(16), new StringValue("init")),
+                new(InstructionCode.Assign, new VariableValue("position3D"), new TempValue(16)),
+                new(InstructionCode.PushParam, new VariableValue("position3D")),
+                new(InstructionCode.CallFunction, new TempValue(18), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(120)),
+                new(InstructionCode.CallFunction, new TempValue(19), new VariableValue("cos"), new NumberValue(1)),
+                new(InstructionCode.PushParam, new TempValue(19)),
+                new(InstructionCode.CallFunction, new TempValue(20), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Goto, new NumberValue(55)),
+                new(InstructionCode.PushParam, new StringValue("helper")),
+                new(InstructionCode.CallFunction, new TempValue(21), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1)),
+                new(InstructionCode.Assign, new VariableValue("Number.Length"), new FunctionValue("Length", 0, 12)),
+                new(InstructionCode.Assign, new VariableValue("Number.init"), new FunctionValue("init", 2, 20)),
+                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 30)),
+                new(InstructionCode.Assign, new VariableValue("Helper"), new FunctionValue("Helper", 0, 52)),
+                new(InstructionCode.CallFunction, new TempValue(22), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesDeclarationsWithGlobalsDefinedAfterNamespaces()
+        {
+            string source = @"
+                space MyProgram {
+                    use MyMath;
+                    func Main() => { pos = Vector3(1,2,3); }
+                }
+                space MyMath {
+                    struct Vector3 { func init(x,y,z) => {} }
+                }
+                enum GlobalEnum { A, B }
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.Goto, new NumberValue(8)),
+                new(InstructionCode.NewInstance, new TempValue(0), new StructSymbol("Vector3")),
+                new(InstructionCode.PushParam, new NumberValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(2)),
+                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.CallMethod, new TempValue(1), new TempValue(0), new StringValue("init")),
+                new(InstructionCode.Assign, new VariableValue("pos"), new TempValue(0)),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Goto, new NumberValue(10)),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 3)),
+                new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesDeclarationsWithGlobalsDefinedBeforeNamespaces()
+        {
+            string source = @"
+                enum GlobalEnum { A, B }
+                space MyProgram {
+                    use MyMath;
+                    func Main() => { pos = Vector3(1,2,3); }
+                }
+                space MyMath {
+                    struct Vector3 { func init(x,y,z) => {} }
+                }
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.Goto, new NumberValue(8)),
+                new(InstructionCode.NewInstance, new TempValue(0), new StructSymbol("Vector3")),
+                new(InstructionCode.PushParam, new NumberValue(1)),
+                new(InstructionCode.PushParam, new NumberValue(2)),
+                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.CallMethod, new TempValue(1), new TempValue(0), new StringValue("init")),
+                new(InstructionCode.Assign, new VariableValue("pos"), new TempValue(0)),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Goto, new NumberValue(10)),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 3)),
+                new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void GeneratesCorrectBytecodeForConstructorOverridingDefaults()
+        {
+            string source = @"
+                struct Point {
+                    x = 0;
+                    y = 1 + 1;
+                    func init(val) => {
+                        self.x = val;
+                    }
+                }
+                func Main() => {
+                    p = Point(100);
+                }
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.Goto, new NumberValue(6)),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("x"), new NumberValue(0)),
+                new(InstructionCode.Add, new TempValue(0), new NumberValue(1), new NumberValue(1)),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("y"), new TempValue(0)),
+                new(InstructionCode.SetField, new VariableValue("self"), new StringValue("x"), new VariableValue("val")),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Goto, new NumberValue(12)),
+                new(InstructionCode.NewInstance, new TempValue(2), new StructSymbol("Point")),
+                new(InstructionCode.PushParam, new NumberValue(100)),
+                new(InstructionCode.CallMethod, new TempValue(3), new TempValue(2), new StringValue("init")),
+                new(InstructionCode.Assign, new VariableValue("p"), new TempValue(2)),
+                new(InstructionCode.Return, new NilValue()),
+                new(InstructionCode.Assign, new VariableValue("Point.init"), new FunctionValue("init", 1, 1)),
+                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 8)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);

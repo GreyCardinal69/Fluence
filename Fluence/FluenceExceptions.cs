@@ -2,18 +2,35 @@
 
 namespace Fluence
 {
+    /// <summary>
+    /// Provides detailed, context-rich information about a compiler error.
+    /// </summary>
     internal abstract record ExceptionContext
     {
+        /// <summary>
+        /// Formats the exception context into a user-friendly, multi-line error message.
+        /// </summary>
+        /// <returns>A formatted string detailing the error context.</returns>
         internal abstract string Format();
     }
 
+    /// <summary>
+    /// Provides context for an error that occurred during the lexing phase.
+    /// </summary>
     internal record LexerExceptionContext : ExceptionContext
     {
+        /// <summary>The line number where the error occurred.</summary>
         internal int LineNum { get; init; }
+
+        /// <summary>The column number where the error occurred.</summary>
         internal int Column { get; init; }
+
+        /// <summary>
+        /// Last parsed <see cref="Fluence.Token"/>, can be null or <see cref="Token.TokenType.UNKNOWN"/>
+        /// </summary>
         internal Token Token { get; init; }
-        // Line number where error occured and the string of that line is better than just 
-        // the number.
+
+        /// <summary>The source code of the line where the error occurred.</summary>
         internal required string FaultyLine { get; init; }
 
         internal override string Format()
@@ -40,16 +57,24 @@ namespace Fluence
         }
     }
 
+    /// <summary>
+    /// Provides context for an error that occurred during the parsing phase.
+    /// </summary>
     internal record ParserExceptionContext : ExceptionContext
     {
-        // Parser and Lexer sort of work at the same time, so these values can be obtained from lexer,
-        // With some degree of accuracy.
+        /// <summary>The line number where the error occurred.</summary>
         internal int LineNum { get; init; }
+
+        /// <summary>The column number where the error occurred.</summary>
         internal int Column { get; init; }
+
+        /// <summary>The source code of the line where the error occurred.</summary>
         internal string FaultyLine { get; init; }
 
-        // Parser-specific details
+        /// <summary>Gets the token that the parser could not process.</summary>
         internal required Token UnexpectedToken { get; init; }
+
+        /// <summary>Gets a description of what the parser was expecting to find.</summary>
         internal required string ExpectedDescription { get; init; }
 
         internal override string Format()
@@ -81,6 +106,9 @@ namespace Fluence
         }
     }
 
+    /// <summary>
+    /// The base class for all exceptions thrown by the Fluence Interpreter.
+    /// </summary>
     public class FluenceException : Exception
     {
         internal readonly ExceptionContext? _context;
@@ -107,12 +135,26 @@ namespace Fluence
         }
     }
 
+    /// <summary>
+    /// Represents an exception that occurs during the execution of a Fluence script by the VM.
+    /// </summary>
+    public class FluenceRuntimeException : Exception
+    {
+        public FluenceRuntimeException(string message) : base(message) { }
+    }
+
+    /// <summary>
+    /// Represents an error that occurs during lexical analysis.
+    /// </summary>
     public class FluenceLexerException : FluenceException
     {
         internal FluenceLexerException(string message, LexerExceptionContext context)
             : base(message, context) { }
     }
 
+    /// <summary>
+    /// Represents an error that occurs during parsing.
+    /// </summary>
     public class FluenceParserException : FluenceException
     {
         internal FluenceParserException(string message, ParserExceptionContext context)

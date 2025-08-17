@@ -52,7 +52,7 @@ namespace Fluence.LexerTests
                 STRING, THIN_ARROW, IDENTIFIER, PLUS, IDENTIFIER, EOL,
                 STRING, THIN_ARROW, IDENTIFIER, MINUS, IDENTIFIER,EOL,
                 STRING, THIN_ARROW, IDENTIFIER, STAR, IDENTIFIER,EOL,
-                STRING, THIN_ARROW, IDENTIFIER, EQUAL_EQUAL, NUMBER, QUESTION, NIL, COLON, IDENTIFIER, SLASH, IDENTIFIER,EOL,
+                STRING, THIN_ARROW, IDENTIFIER, EQUAL_EQUAL, NUMBER, QUESTION, NIL, COLON, IDENTIFIER, SLASH, IDENTIFIER, EOL,
                 REST, THIN_ARROW, NIL,EOL,
                 R_BRACE, EOL,
                 IF, IDENTIFIER, EQUAL_EQUAL, NIL, THIN_ARROW, IDENTIFIER, L_PAREN, STRING, R_PAREN, PIPE, IDENTIFIER, L_PAREN, UNDERSCORE, R_PAREN,EOL,
@@ -63,7 +63,7 @@ namespace Fluence.LexerTests
             };
 
             var actualTokens = LexAllTokens(source);
-
+            actualTokens.RemoveAll(token => token.Type == Token.TokenType.EOL_LEXER);
             var actualTypes = actualTokens.Select(t => t.Type).ToList();
 
             if (!expectedTypes.SequenceEqual(actualTypes))

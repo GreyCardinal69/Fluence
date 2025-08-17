@@ -2,6 +2,10 @@
 
 namespace Fluence
 {
+    /// <summary>
+    /// The lexical analyzer for the Fluence language.
+    /// It scans the source code string and converts it into a stream of tokens.
+    /// </summary>
     internal sealed class FluenceLexer
     {
         private readonly string _sourceCode;
@@ -191,8 +195,20 @@ namespace Fluence
             }
         }
 
+
+        /// <summary>
+        /// Peeks at the next token in the stream without consuming it.
+        /// </summary>
         internal Token PeekNextToken() => _tokenBuffer.Peek();
+
+        /// <summary>
+        /// Peeks N tokens ahead in the stream without consuming them.
+        /// </summary>
         internal Token PeekAheadByN(int n) => _tokenBuffer.Peek(n);
+
+        /// <summary>
+        /// Consumes and returns the next token from the stream.
+        /// </summary>
         internal Token ConsumeToken() => _tokenBuffer.Consume();
 
         internal void RemoveTokenRange(int startIndex, int count)
@@ -200,6 +216,9 @@ namespace Fluence
             _tokenBuffer.RemoveRange(startIndex, count);
         }
 
+        /// <summary>
+        /// Removes all <see cref="TokenType.EOL_LEXER"/> tokens from the buffer. Called by the parser before its first pass.
+        /// </summary>
         internal void RemoveLexerEOLS() => _tokenBuffer.RemoveLexerEOLS();
 
         internal void DumpTokenStream(string title)
@@ -246,6 +265,9 @@ namespace Fluence
             Console.WriteLine();
         }
 
+        /// <summary>
+        /// Forces the entire source file to be tokenized immediately.
+        /// </summary>
         internal void LexFullSource()
         {
             int lookAhead = 1;
@@ -374,7 +396,7 @@ namespace Fluence
                 case '}': return MakeTokenAndTryAdvance(TokenType.R_BRACE, 1);
                 case '(': return MakeTokenAndTryAdvance(TokenType.L_PAREN, 1);
                 case ')': return MakeTokenAndTryAdvance(TokenType.R_PAREN, 1);
-                case ';': return MakeTokenAndTryAdvance(TokenType.EOL, 1, ";");
+                case ';': return MakeTokenAndTryAdvance(TokenType.EOL, 1);
                 case ',': return MakeTokenAndTryAdvance(TokenType.COMMA, 1);
                 case '?':
                     if (CanLookAheadStartInclusive(2))
@@ -389,9 +411,9 @@ namespace Fluence
                 case '\r':
                 case '\n':
                     // If it's a newline, we need to update our position trackers.
-                    if (CanLookAheadStartInclusive(2))
+                    if (currChar == '\r')
                     {
-                        if (currChar == '\r' && _sourceCode[_currentPosition + 1] == '\n')
+                        if (CanLookAheadStartInclusive(2) && _sourceCode[_currentPosition + 1] == '\n')
                         {
                             AdvancePosition(); // Consume the \n as part of the \r\n pair.
                         }

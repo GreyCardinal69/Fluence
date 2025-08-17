@@ -77,7 +77,6 @@ namespace Fluence.LexerTests
             Assert.Equal(TokenType.NUMBER, nextToken.Type);
 
             nextToken = lexer.ConsumeToken();
-            Assert.Equal(";", nextToken.Text);
             Assert.Equal(TokenType.EOL, nextToken.Type);
 
             nextToken = lexer.ConsumeToken();
@@ -85,7 +84,6 @@ namespace Fluence.LexerTests
             Assert.Equal(TokenType.NUMBER, nextToken.Type);
 
             nextToken = lexer.ConsumeToken();
-            Assert.Equal(";", nextToken.Text);
             Assert.Equal(TokenType.EOL, nextToken.Type);
 
             nextToken = lexer.ConsumeToken();

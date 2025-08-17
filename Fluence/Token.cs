@@ -174,7 +174,7 @@
         internal readonly object Literal;
 
         /// <summary>A shared, single instance of the End-Of-Line-Lexer token.</summary>
-        internal static Token EOL_LEXER => new Token(TokenType.EOL_LEXER, "NewLine");
+        internal static Token EOL_LEXER => new Token(TokenType.EOL_LEXER);
 
         /// <summary>A shared, single instance of the End-of-File token.</summary>
         internal static readonly Token EOF = new Token(TokenType.EOF);

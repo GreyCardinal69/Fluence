@@ -20,7 +20,7 @@
 
   <ItemGroup>
     <Reference Include="Fluence">
-      <HintPath>..\bin\Debug\net8.0\Fluence.dll</HintPath>
+      <HintPath>..\bin\Release\net8.0\Fluence.dll</HintPath>
     </Reference>
   </ItemGroup>
 

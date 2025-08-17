@@ -11,10 +11,6 @@ namespace Fluence
         private int _currentColumn;
         private readonly TokenBuffer _tokenBuffer;
 
-        internal int CurrentLine => _currentLine;
-        internal int CurrentColumn => _currentColumn;
-        internal bool HasReachedEnd => _currentPosition >= _sourceLength & _tokenBuffer.HasReachedEnd;
-
         private bool _hasReachedEndInternal
         {
             get
@@ -23,9 +19,13 @@ namespace Fluence
             }
         }
 
+        internal int CurrentLine => _currentLine;
+        internal int CurrentColumn => _currentColumn;
+        internal bool HasReachedEnd => _currentPosition >= _sourceLength & _tokenBuffer.HasReachedEnd;
         internal int TokenCount => _tokenBuffer.TokenCount;
         internal int CurrentPosition => _currentPosition;
         internal int SourceLength => _sourceLength;
+        internal string SourceCode => _sourceCode;
         internal char CharAtCurrentPosition => _sourceCode[_currentPosition];
 
         internal FluenceLexer(string source)
@@ -38,9 +38,10 @@ namespace Fluence
             _currentColumn = 0;
         }
 
-        internal FluenceLexer()
+        internal FluenceLexer(List<Token> tokens)
         {
             _tokenBuffer = new TokenBuffer(this);
+            _tokenBuffer.AddRange(tokens);
         }
 
         private sealed class TokenBuffer
@@ -194,14 +195,9 @@ namespace Fluence
         internal Token PeekAheadByN(int n) => _tokenBuffer.Peek(n);
         internal Token ConsumeToken() => _tokenBuffer.Consume();
 
-        internal void RemoveTokens(int startIndex, int count)
+        internal void RemoveTokenRange(int startIndex, int count)
         {
             _tokenBuffer.RemoveRange(startIndex, count);
-        }
-
-        internal void AddTokens(List<Token> tokens)
-        {
-            _tokenBuffer.AddRange(tokens);
         }
 
         internal void RemoveLexerEOLS() => _tokenBuffer.RemoveLexerEOLS();
@@ -216,7 +212,6 @@ namespace Fluence
             Console.WriteLine(header);
             Console.WriteLine(new string('-', header.Length));
 
-            // To inspect the stream without consuming it, we use a lookahead loop.
             int lookahead = 1;
             while (true)
             {
@@ -251,11 +246,6 @@ namespace Fluence
             Console.WriteLine();
         }
 
-        internal void TrySkipEOLToken()
-        {
-            if (_tokenBuffer.Peek().Type == TokenType.EOL) _ = _tokenBuffer.Consume();
-        }
-
         internal void LexFullSource()
         {
             int lookAhead = 1;
@@ -281,11 +271,12 @@ namespace Fluence
             /* The operator suite is quite large.
              * 1 Char: + - * / % < > = ! ^ ~ | &
              * 2 Char: == != <= => || && ** is >> << |> |? <| ~> .. ++ --
-             * +=. -=. *=, /=
-             * 3 Char: |?? |>> |~> <<| <>| <n| <?| not
-             * 4 Char: |>>= <==| <!=| <<=| <>=| <??| <n|?
-             * 5 Char: Surprisingly none yet.
+             * +=. -=. *=, /=, or
+             * 3 Char: |?? |>> |~> <<| <>| <n| <?| not, <~|
+             * 4 Char: |>>= <==| <!=| <<=| <>=| <??| <n|?, <~?|
+             * 5 Char: <||<| <||>|
              * 6 Char: <||!=| <||==| <||??|
+             * And more.
              */
 
             /* Starting With _char_
@@ -644,7 +635,7 @@ namespace Fluence
             return new Token(type, lexeme, literalValue);
         }
 
-        internal static string TruncateLine(string line, int maxLength = 75)
+        private static string TruncateLine(string line, int maxLength = 75)
         {
             if (string.IsNullOrEmpty(line) || line.Length <= maxLength)
             {
@@ -653,7 +644,7 @@ namespace Fluence
             return string.Concat(line.AsSpan(0, maxLength - 3), "...");
         }
 
-        internal static string GetCodeLineFromSource(string source, int lineNumber)
+        private static string GetCodeLineFromSource(string source, int lineNumber)
         {
             if (lineNumber <= 0)
                 return string.Empty;

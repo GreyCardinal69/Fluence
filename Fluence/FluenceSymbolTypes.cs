@@ -1,5 +1,7 @@
 ﻿namespace Fluence
 {
+    // Symbols represent structs, enums, functions.
+    // In a struct, in a namespace, in global scope.
     internal abstract class Symbol : Value { }
 
     internal sealed class EnumSymbol : Symbol
@@ -18,7 +20,12 @@
         internal string Name { get; }
         internal List<string> Fields { get; } = new();
         internal Dictionary<string, FunctionValue> Functions { get; } = new();
+        // In the first pass of the parser, we can not modify token stream, so we store the.
+        // Expressions of the default values to be generated as bytecode during the second pass.
+        // More precisely when generating the init constructor function bytecode.
         internal Dictionary<string, List<Token>> DefaultFieldValuesAsTokens { get; } = new();
+        // Constructor is defined as func init(...) {...}
+        // The fields are initialized as their default values first, then come user defined code.
         internal FunctionValue Constructor { get; set; }
 
         internal StructSymbol(string name)

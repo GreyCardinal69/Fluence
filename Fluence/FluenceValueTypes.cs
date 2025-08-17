@@ -4,8 +4,6 @@ namespace Fluence
 {
     internal abstract class Value
     {
-        internal string Name = "";
-
         public override string ToString()
         {
             return "";
@@ -14,7 +12,7 @@ namespace Fluence
         internal virtual object GetValue() { return null; }
     }
 
-    internal class CharValue : Value
+    internal sealed class CharValue : Value
     {
         internal char Value;
 
@@ -72,7 +70,7 @@ namespace Fluence
         }
     }
 
-    internal class StringValue : Value
+    internal sealed class StringValue : Value
     {
         internal string Text;
 
@@ -90,7 +88,7 @@ namespace Fluence
         }
     }
 
-    internal class NumberValue : Value
+    internal sealed class NumberValue : Value
     {
         internal enum NumberType
         {
@@ -167,7 +165,7 @@ namespace Fluence
         }
     }
 
-    internal class BooleanValue : Value
+    internal sealed class BooleanValue : Value
     {
         internal bool Value;
 
@@ -182,7 +180,7 @@ namespace Fluence
         }
     }
 
-    internal class TempValue : Value
+    internal sealed class TempValue : Value
     {
         internal string TempName;
         internal object Value;
@@ -223,7 +221,7 @@ namespace Fluence
         }
     }
 
-    internal class FunctionValue : Value
+    internal sealed class FunctionValue : Value
     {
         // The name of the function (for debugging/stack traces).
         internal string Name { get; }
@@ -279,7 +277,7 @@ namespace Fluence
         }
     }
 
-    internal class VariableValue : Value
+    internal sealed class VariableValue : Value
     {
         internal string IdentifierValue;
 

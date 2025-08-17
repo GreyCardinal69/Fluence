@@ -1,7 +1,6 @@
 ﻿using Xunit.Abstractions;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Fluence.ParserTests
 {

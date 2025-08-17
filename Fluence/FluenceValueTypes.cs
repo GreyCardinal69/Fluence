@@ -1,5 +1,4 @@
-﻿using Fluence;
-using System.Text;
+﻿using System.Text;
 
 namespace Fluence
 {
@@ -233,7 +232,7 @@ namespace Fluence
         // The number of parameters the function expects.
         internal int Arity { get; }
         // The address of the first instruction of the function's body in the bytecode.
-        internal int StartAddress { get; private set;  }
+        internal int StartAddress { get; private set; }
         // Debug full address.
         internal string FullAddress { get; private set; }
         internal FunctionValue(string name, int arity, int startAddress)

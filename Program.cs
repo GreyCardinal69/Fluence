@@ -8,6 +8,8 @@
 
             FluenceLexer lexer = new(source);
             FluenceParser parser = new FluenceParser(lexer);
+            FluenceIntrinsics intrinsics = new FluenceIntrinsics(parser);
+            intrinsics.RegisterIntrinsics();
 
             try
             {

@@ -109,6 +109,7 @@ namespace Fluence
                     if (text.SequenceEqual("not")) return TokenType.BANG_EQUAL;
                     if (text.SequenceEqual("and")) return TokenType.AND;
                     if (text.SequenceEqual("not")) return TokenType.BANG_EQUAL;
+                    if (text.SequenceEqual("use")) return TokenType.USE;
                     break;
                 case 4:
                     if (text.SequenceEqual("else")) return TokenType.ELSE;

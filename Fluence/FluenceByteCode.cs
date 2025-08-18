@@ -31,7 +31,7 @@
         /// Represents a single line of executable Fluence bytecode.
         /// An instruction consists of an opcode and up to three operands (LHS, RHS, RHS2).
         /// </summary>
-        internal class InstructionLine
+        internal sealed class InstructionLine
         {
             /// <summary>
             /// Defines all possible operation codes (opcodes) for the Fluence VM.

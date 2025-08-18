@@ -21,7 +21,7 @@ namespace Fluence
 
         public List<InstructionLine> CompiledCode => _currentParseState.CodeInstructions;
 
-        private class LoopContext
+        private sealed class LoopContext
         {
             internal List<int> ContinuePatchAddresses { get; } = new List<int>();
             internal List<int> BreakPatchAddresses { get; } = new List<int>();
@@ -29,12 +29,12 @@ namespace Fluence
             internal LoopContext() { }
         }
 
-        private class MatchContext
+        private sealed class MatchContext
         {
             internal List<int> BreakPatches { get; } = new List<int>();
         }
 
-        private class ParseState
+        private sealed class ParseState
         {
             internal List<InstructionLine> CodeInstructions = new List<InstructionLine>();
             internal Stack<LoopContext> ActiveLoopContexts = new Stack<LoopContext>();

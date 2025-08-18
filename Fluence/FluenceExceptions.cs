@@ -17,7 +17,7 @@ namespace Fluence
     /// <summary>
     /// Provides context for an error that occurred during the lexing phase.
     /// </summary>
-    internal record LexerExceptionContext : ExceptionContext
+    internal sealed record LexerExceptionContext : ExceptionContext
     {
         /// <summary>The line number where the error occurred.</summary>
         internal int LineNum { get; init; }
@@ -60,7 +60,7 @@ namespace Fluence
     /// <summary>
     /// Provides context for an error that occurred during the parsing phase.
     /// </summary>
-    internal record ParserExceptionContext : ExceptionContext
+    internal sealed record ParserExceptionContext : ExceptionContext
     {
         /// <summary>The line number where the error occurred.</summary>
         internal int LineNum { get; init; }
@@ -130,7 +130,7 @@ namespace Fluence
     /// <summary>
     /// Represents an exception that occurs during the execution of a Fluence script by the VM.
     /// </summary>
-    public class FluenceRuntimeException : Exception
+    public sealed class FluenceRuntimeException : Exception
     {
         public FluenceRuntimeException(string message) : base(message) { }
     }
@@ -138,7 +138,7 @@ namespace Fluence
     /// <summary>
     /// Represents an error that occurs during lexical analysis.
     /// </summary>
-    public class FluenceLexerException : FluenceException
+    public sealed class FluenceLexerException : FluenceException
     {
         internal FluenceLexerException(string message, LexerExceptionContext context)
             : base(message, context) { }
@@ -147,7 +147,7 @@ namespace Fluence
     /// <summary>
     /// Represents an error that occurs during parsing.
     /// </summary>
-    public class FluenceParserException : FluenceException
+    public sealed class FluenceParserException : FluenceException
     {
         internal FluenceParserException(string message, ParserExceptionContext context)
             : base(message, context) { }

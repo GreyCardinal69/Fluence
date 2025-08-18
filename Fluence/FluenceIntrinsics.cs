@@ -4,7 +4,7 @@
     /// Manages the registration of all built-in (intrinsic) functions and namespaces for the Fluence language.
     /// This class populates the initial scopes with the standard library.
     /// </summary>
-    internal class FluenceIntrinsics
+    internal sealed class FluenceIntrinsics
     {
         private readonly FluenceParser _parser;
 

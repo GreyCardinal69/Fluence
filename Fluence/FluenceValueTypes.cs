@@ -229,15 +229,12 @@ namespace Fluence
         internal int Arity { get; }
         // The address of the first instruction of the function's body in the bytecode.
         internal int StartAddress { get; private set; }
-        // Debug full address. F.e 0005.
-        internal string FullAddress { get; private set; }
 
         internal FunctionValue(string name, int arity, int startAddress)
         {
             Name = name;
             Arity = arity;
             StartAddress = startAddress;
-            FullAddress = FluenceParser.FormatByteCodeAddress(startAddress);
         }
 
         internal FunctionValue(string name, int arity, int startAddress, string fullAddress)
@@ -245,18 +242,16 @@ namespace Fluence
             Name = name;
             Arity = arity;
             StartAddress = startAddress;
-            FullAddress = fullAddress;
         }
 
-        internal void SetStartAddress(int adr, string formatted)
+        internal void SetStartAddress(int adr)
         {
             StartAddress = adr;
-            FullAddress = formatted;
         }
 
         public override string ToString()
         {
-            return $"FunctionValue: {Name} {FullAddress}, {Arity} args.";
+            return $"FunctionValue: {Name} {FluenceDebug.FormatByteCodeAddress(StartAddress)}, {Arity} args.";
         }
     }
 

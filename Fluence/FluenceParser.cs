@@ -1669,7 +1669,7 @@ namespace Fluence
 
         private void ParseAssignment()
         {
-            List<Value> lhs = ParseChainAssignmentLhs();
+            List<Value> lhs = ParseLhs();
 
             // Multi-Assign operators like .+=, .-= and so on.
             if (IsMultiCompoundAssignmentOperator(_lexer.PeekNextToken().Type))
@@ -1767,11 +1767,7 @@ namespace Fluence
 
             InstructionCode operation = GetInstructionCodeForMultiCompoundAssignment(opToken.Type);
 
-            var rhsList = new List<Value>();
-            do
-            {
-                rhsList.Add(ParseExpression());
-            } while (ConsumeTokenIfMatch(TokenType.COMMA));
+            List<Value> rhsList = ParseCommaSeparatedArguments();
 
             if (leftSides.Count != rhsList.Count)
             {
@@ -1806,42 +1802,56 @@ namespace Fluence
             }
         }
 
-        private List<Value> ParseChainAssignmentLhs()
-        {
-            List<Value> lhs = new List<Value>();
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /// <summary>
+        /// Parses the left-hand side of a potential assignment expression.
+        /// </summary>
+        /// <returns>A list of Value objects representing the parsed LHS.</returns>
+        private List<Value> ParseLhs()
+        {
             if (IsBroadCastPipeFunctionCall())
             {
-                Value functionToCall = ParsePrimary();
-                _lexer.ConsumeToken(); // Consume ).
-
-                List<Value> args = new List<Value>();
-                int underscoreIndex = -1;
-                int currentIndex = 0;
-
-                do
-                {
-                    if (_lexer.PeekNextToken().Type == TokenType.UNDERSCORE)
-                    {
-                        _lexer.ConsumeToken();
-                        if (underscoreIndex != -1) ; // error here.
-                        underscoreIndex = currentIndex;
-                        args.Add(new NilValue());
-                    }
-                    else
-                    {
-                        args.Add(ParseTernary());
-                    }
-                    currentIndex++;
-                } while (ConsumeTokenIfMatch(TokenType.COMMA));
-
-                ConsumeAndExpect(TokenType.R_PAREN, "Expecting closing ) in function call.");
-
-                if (underscoreIndex != -1) ; // error here.
-                lhs.Add(new BroadcastCallTemplate(functionToCall, args, underscoreIndex));
-                return lhs;
+                return [ ParseBroadcastCallTemplate() ];
             }
 
+            return ParseCommaSeparatedArguments();
+        }
+
+        /// <summary>
+        /// Parses a comma-separated list of one or more expressions.
+        /// This is a common helper for parsing argument lists, list literals, and multi-assign targets.
+        /// </summary>
+        /// <returns>A list of Value objects representing the parsed expressions.</returns>
+        private List<Value> ParseCommaSeparatedArguments()
+        {
+            List<Value> lhs = new List<Value>();
             do
             {
                 lhs.Add(ParseTernary());
@@ -1850,88 +1860,86 @@ namespace Fluence
             return lhs;
         }
 
-        private void ParseSequentialRestAssign(List<Value> lhs)
+        /// <summary>
+        /// A helper method to parse a broadcast call template.
+        /// </summary>
+        /// <returns>A BroadcastCallTemplate object representing the parsed template.</returns>
+        private BroadcastCallTemplate ParseBroadcastCallTemplate()
         {
-            int lhsIndex = 0;
-            Value firstLhs = lhs[0];
-            Token op = _lexer.ConsumeToken();
+            Value functionToCall = ParsePrimary();
+            Token openingParen = ConsumeAndExpect(TokenType.L_PAREN, "Expected an opening '(' for the broadcast call template.");
 
-            bool isOptional = op.Type == TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN;
+            List<Value> args = new List<Value>();
+            int underscoreIndex = -1;
 
-            // Sequential assign operators do not expect any other pipes.
             do
             {
-                Value rhs = ParseTernary();
+                if (_lexer.PeekNextToken().Type == TokenType.UNDERSCORE)
+                {
+                    Token token = _lexer.ConsumeToken();
+                    if (underscoreIndex != -1)
+                    {
+                        ConstructAndThrowParserException("Cannot use more than one `_` placeholder in a broadcast call.", token);
+                    }
+                    underscoreIndex = args.Count;
+                    args.Add(new NilValue());
+                }
+                else
+                {
+                    args.Add(ParseTernary());
+                }
+            } while (ConsumeTokenIfMatch(TokenType.COMMA));
 
+            ConsumeAndExpect(TokenType.R_PAREN, "Expected a closing ')' for the broadcast call template.");
+
+            // Semantic check: A broadcast template MUST contain a placeholder.
+            if (underscoreIndex == -1)
+            {
+                ConstructAndThrowParserException("Broadcast call template must contain an `_` placeholder.", openingParen);
+            }
+
+            return new BroadcastCallTemplate(functionToCall, args, underscoreIndex);
+        }
+
+        /// <summary>
+        /// Parses a sequential assignment expression, both optional and not.
+        /// </summary>
+        /// <param name="lhsDescriptors">A list of the left-hand side variables or descriptors to be assigned to.</param>
+        private void ParseSequentialRestAssign(List<Value> lhsDescriptors)
+        {
+            int lhsIndex = 0;
+            Token opToken = _lexer.ConsumeToken();
+            bool isOptional = opToken.Type == TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN;
+
+            List<Value> rhsExpressions = ParseCommaSeparatedArguments();
+
+            if (lhsDescriptors.Count != rhsExpressions.Count)
+            {
+                ConstructAndThrowParserException($"Mismatched number of items for sequential assignment '{opToken.ToDisplayString()}'.", opToken);
+            }
+
+            do
+            {
                 TempValue valueToAssign = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, valueToAssign, rhs));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, valueToAssign, rhsExpressions[lhsIndex]));
 
                 int skipOptionalAssign = -1;
                 if (isOptional)
                 {
                     TempValue isNil = new TempValue(_currentParseState.NextTempNumber++);
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, valueToAssign, new NilValue()));
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null, isNil));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null!, isNil));
                     skipOptionalAssign = _currentParseState.CodeInstructions.Count - 1;
                 }
 
-                if (lhsIndex < lhs.Count)
-                {
-                    if (lhs[lhsIndex] is ElementAccessValue val)
-                    {
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, val.Target, val.Index, valueToAssign));
-                    }
-                    else if (lhs[lhsIndex] is PropertyAccessValue propAccess)
-                    {
-                        Value resolvedTarget = propAccess.Target;
-
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, resolvedTarget, new StringValue(propAccess.FieldName), valueToAssign));
-                    }
-                    else
-                    {
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs[lhsIndex], valueToAssign));
-                    }
-                    lhsIndex++;
-                }
-
-
+                GenerateWriteBackInstruction(lhsDescriptors[lhsIndex], valueToAssign);
+                lhsIndex++;
                 if (skipOptionalAssign != -1)
                 {
                     _currentParseState.CodeInstructions[skipOptionalAssign].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
                 }
-            }
-            while (ConsumeTokenIfMatch(TokenType.COMMA));
+            } while (lhsIndex < lhsDescriptors.Count);
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         /// <summary>
         /// Parses a chain assignment expression.
@@ -1967,7 +1975,7 @@ namespace Fluence
 
                 bool isOptional = op.Type == TokenType.OPTIONAL_REST_ASSIGN || op.Type == TokenType.OPTIONAL_ASSIGN_N;
 
-                Value rhs = ResolveValue(ParseTernary());
+                Value rhs = ParseTernary();
 
                 TempValue valueToAssign = new TempValue(_currentParseState.NextTempNumber++);
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, valueToAssign, rhs));
@@ -2029,12 +2037,7 @@ namespace Fluence
 
                 bool isOptional = op.Type == TokenType.OPTIONAL_REST_ASSIGN;
 
-                List<Value> rhsExpressions = new List<Value>();
-
-                do
-                {
-                    rhsExpressions.Add(ParseTernary());
-                } while (ConsumeTokenIfMatch(TokenType.COMMA));
+                List<Value> rhsExpressions = ParseCommaSeparatedArguments();
 
                 if (rhsExpressions.Count == 0)
                 {

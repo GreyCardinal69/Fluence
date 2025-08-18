@@ -2214,7 +2214,6 @@ namespace Fluence
             TokenType.EQUAL_AMPERSAND => InstructionCode.BitwiseAnd,
             TokenType.EQUAL_PERCENT => InstructionCode.Modulo,
 
-            // Logical (as keywords)
             TokenType.AND => InstructionCode.And,
             TokenType.OR => InstructionCode.Or,
 

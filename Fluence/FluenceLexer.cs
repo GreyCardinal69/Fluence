@@ -52,11 +52,11 @@ namespace Fluence
         {
             private readonly List<Token> _buffer = new List<Token>();
             private readonly FluenceLexer _lexer;
-            private int _head = 0;
-            private bool _lexerFinished = false;
+            private int _head;
+            private bool _lexerFinished;
 
             // A reasonable threshold for trimming the buffer.
-            private const int _trimThreshold = 256;
+            private const int _trimThreshold = 128;
 
             internal int TokenCount => _buffer.Count;
 
@@ -580,7 +580,7 @@ namespace Fluence
                 else
                 {
                     string text = identifierSpan.ToString();
-                    return MakeTokenAndTryAdvance(TokenType.IDENTIFIER, 0, text, text);
+                    return MakeTokenAndTryAdvance(TokenType.IDENTIFIER, 0, text);
                 }
             }
 

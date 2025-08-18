@@ -1657,153 +1657,6 @@ namespace Fluence
             ConsumeAndExpect(TokenType.EOL, "a ';' or newline to end the 'use' statement.");
         }
 
-        private void ParseBlockStatement()
-        {
-            ConsumeAndExpect(TokenType.L_BRACE, "Expected '{' to start a block.");
-            while (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
-            {
-                ParseStatement();
-            }
-            ConsumeAndExpect(TokenType.R_BRACE, "Expected '}' to end a block.");
-        }
-
-        private void ParseAssignment()
-        {
-            List<Value> lhs = ParseLhs();
-
-            // Multi-Assign operators like .+=, .-= and so on.
-            if (IsMultiCompoundAssignmentOperator(_lexer.PeekNextToken().Type))
-            {
-                ParseMultiCompoundAssignment(lhs);
-                return;
-            }
-
-            TokenType type = _lexer.PeekNextToken().Type;
-
-            if (IsChainAssignmentOperator(type))
-            {
-                if (type == TokenType.SEQUENTIAL_REST_ASSIGN || type == TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN)
-                {
-                    ParseSequentialRestAssign(lhs);
-                    return;
-                }
-
-                ParseChainAssignment(lhs);
-                return;
-            }
-
-            Value left = lhs[0];
-
-            if (IsSimpleAssignmentOperator(type) || type == TokenType.SWAP)
-            {
-                _lexer.ConsumeToken(); // Consume the "="
-
-                // Parse the right-hand side expression.
-                Value rhs = ResolveValue(ParseTernary());
-
-                if (type == TokenType.EQUAL)
-                {
-                    if (left is VariableValue)
-                    {
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, left, rhs));
-                    }
-                    else if (left is ElementAccessValue access)
-                    {
-                        // This is a "write" operation. Generate SetElement.
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, ResolveValue(access.Target), access.Index, rhs));
-                    }
-                    else if (left is PropertyAccessValue propAccess)
-                    {
-                        Value resolvedTarget = ResolveValue(propAccess.Target);
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, resolvedTarget, new StringValue(propAccess.FieldName), rhs));
-                    }
-                }
-                else if (type == TokenType.SWAP)
-                {
-                    Value temp = new TempValue(_currentParseState.NextTempNumber++);
-
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, temp, left));
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, left, rhs));
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, rhs, temp));
-                }
-                else  // Compound, -=, +=, etc.
-                {
-                    InstructionCode instrType = GetInstructionCodeForBinaryOperator(type);
-
-                    TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
-
-                    // temp = var - value.
-                    _currentParseState.AddCodeInstruction(new InstructionLine(instrType, temp, left, rhs));
-
-                    // var = temp.
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, left, temp));
-                }
-            }
-            else
-            {
-                // In Fluence the statement variable; is valid, but it would be ignored.
-                // We should generate bytecode regardless. That would return StatementCompleteValue.
-                // It represents nothing so we just skip here.
-                if (left is StatementCompleteValue)
-                {
-                    // do nothing
-                }
-                else if (left is ElementAccessValue val)
-                {
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, val.Target, val.Index, new NilValue()));
-                }
-                else if (left is VariableValue variable)
-                {
-                    // The expression was just a variable. Force a read.
-                    var temp = new TempValue(_currentParseState.NextTempNumber++);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, temp, variable));
-                }
-            }
-        }
-
-        private void ParseMultiCompoundAssignment(List<Value> leftSides)
-        {
-            Token opToken = _lexer.ConsumeToken();
-
-            InstructionCode operation = GetInstructionCodeForMultiCompoundAssignment(opToken.Type);
-
-            List<Value> rhsList = ParseCommaSeparatedArguments();
-
-            if (leftSides.Count != rhsList.Count)
-            {
-                throw new Exception("Syntax Error: Mismatched number of targets and values in multi-compound assignment.");
-            }
-
-            for (int i = 0; i < leftSides.Count; i++)
-            {
-                Value lhs = leftSides[i];
-                Value rhs = rhsList[i];
-
-                Value resolvedRhs = ResolveValue(rhs);
-                Value resolvedLhs = ResolveValue(lhs);
-
-                TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(operation, temp, resolvedLhs, resolvedRhs));
-
-                if (lhs is ElementAccessValue val)
-                {
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, val.Target, val.Index, temp));
-                }
-                else if (resolvedLhs is VariableValue variable)
-                {
-                    TempValue newTemp = new TempValue(_currentParseState.NextTempNumber++);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, temp));
-                }
-                else if (resolvedLhs is PropertyAccessValue propAccess)
-                {
-                    Value resolvedTarget = ResolveValue(propAccess.Target);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, resolvedTarget, new StringValue(propAccess.FieldName), temp));
-                }
-            }
-        }
-
-
-
 
 
 
@@ -1831,6 +1684,138 @@ namespace Fluence
 
 
         /// <summary>
+        /// Parses a block of statements enclosed in curly braces `{ ... }`.
+        /// </summary>
+        private void ParseBlockStatement()
+        {
+            ConsumeAndExpect(TokenType.L_BRACE, "Expected an opening '{' to start a block of code.");
+            while (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
+            {
+                ParseStatement();
+            }
+            ConsumeAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end a block of code.");
+        }
+
+        /// <summary>
+        /// Parses an assignment expression, which is the lowest level of precedence.
+        /// This method acts as a dispatcher for all assignment-related syntax
+        /// or handles a standalone expression used as a statement.
+        /// </summary>
+        private void ParseAssignment()
+        {
+            List<Value> lhsList = ParseLhs();
+            Value firstLhs = lhsList[0];
+
+            Token token = _lexer.PeekNextToken();
+            TokenType opType = token.Type;
+
+            if ((IsSimpleAssignmentOperator(opType) || opType == TokenType.SWAP) && lhsList.Count > 1)
+            {
+                ConstructAndThrowParserException("Simple assignment operators (=, +=, ><) cannot be used with a multi-variable list.", token);
+            }
+
+            // Multi-Assign operators like .+=, .-= and so on.
+            if (IsMultiCompoundAssignmentOperator(opType))
+            {
+                ParseMultiCompoundAssignment(lhsList);
+                return;
+            }
+
+            if (IsChainAssignmentOperator(opType))
+            {
+                if (opType == TokenType.SEQUENTIAL_REST_ASSIGN || opType == TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN)
+                {
+                    ParseSequentialRestAssign(lhsList);
+                    return;
+                }
+
+                ParseChainAssignment(lhsList);
+                return;
+            }
+
+            if (IsSimpleAssignmentOperator(opType) || opType == TokenType.SWAP)
+            {
+                TokenType type = _lexer.ConsumeToken().Type;
+                Value rhs = ResolveValue(ParseTernary());
+              
+                if (type == TokenType.EQUAL)
+                {
+                    GenerateWriteBackInstruction(firstLhs, rhs);
+                }
+                else if (type == TokenType.SWAP)
+                {
+                    Value resolvedLhs = ResolveValue(firstLhs);
+                    Value result = new TempValue(_currentParseState.NextTempNumber++);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, result, resolvedLhs));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, resolvedLhs, rhs));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, rhs, result));
+                }
+                else  // Compound, -=, +=, etc.
+                {
+                    Value resolvedLhs = ResolveValue(firstLhs);
+                    InstructionCode opCode = GetInstructionCodeForBinaryOperator(type);
+
+                    TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+
+                    _currentParseState.AddCodeInstruction(new InstructionLine(opCode, result, resolvedLhs, rhs));
+                    GenerateWriteBackInstruction(resolvedLhs, result);
+                }
+            }
+            else
+            {
+                // In Fluence the statement variable; is valid, but it would be ignored.
+                // We should generate bytecode regardless. That would return StatementCompleteValue.
+                // It represents nothing so we just skip here.
+                if ((firstLhs is StatementCompleteValue) || (firstLhs is ElementAccessValue))
+                {
+                    // Either a StatementCompleteValue and we do nothing.
+                    // Or some nonsense like:
+                    // list[0]; Not a write, but reading is pointless. Do nothing.
+                    return;
+                }
+                else if (firstLhs is VariableValue variable)
+                {
+                    // The expression was just a variable. Force a read.
+                    var temp = new TempValue(_currentParseState.NextTempNumber++);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, temp, variable));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Parses a multi-target compound assignment expression, e.g., `a, b.x .+= 5, 9`.
+        /// </summary>
+        /// <param name="lhsDescriptors">The list of left-hand side targets to be modified.</param>
+        private void ParseMultiCompoundAssignment(List<Value> lhsDescriptors)
+        {
+            Token opToken = _lexer.ConsumeToken();
+
+            InstructionCode operation = GetInstructionCodeForMultiCompoundAssignment(opToken.Type);
+
+            List<Value> rhsExpressions = ParseCommaSeparatedArguments();
+
+            if (lhsDescriptors.Count != rhsExpressions.Count)
+            {
+                ConstructAndThrowParserException(
+                    $"Mismatched number of items for multi-compound assignment '{opToken.ToDisplayString()}'.",
+                    opToken
+                );
+            }
+
+            for (int i = 0; i < lhsDescriptors.Count; i++)
+            {
+                Value targetDescriptor = lhsDescriptors[i];
+                Value rhsValue = ResolveValue(rhsExpressions[i]);
+                Value lhsValue = ResolveValue(targetDescriptor);
+
+                TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(operation, result, lhsValue, rhsValue));
+
+                GenerateWriteBackInstruction(targetDescriptor, result);
+            }
+        }
+
+        /// <summary>
         /// Parses the left-hand side of a potential assignment expression.
         /// </summary>
         /// <returns>A list of Value objects representing the parsed LHS.</returns>
@@ -1838,7 +1823,7 @@ namespace Fluence
         {
             if (IsBroadCastPipeFunctionCall())
             {
-                return [ ParseBroadcastCallTemplate() ];
+                return [ParseBroadcastCallTemplate()];
             }
 
             return ParseCommaSeparatedArguments();
@@ -2780,9 +2765,6 @@ namespace Fluence
                     ));
                     break;
                 default:
-                    // This should not happen with valid syntax (e.g., trying to assign to a literal like `5++`).
-                    // The parser would likely fail earlier, but this is a good safeguard.
-                    ConstructAndThrowParserException("Invalid assignment target. Expected a variable, property, or list element.\"", _lexer.PeekAheadByN(1));
                     break;
             }
         }

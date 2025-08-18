@@ -2159,204 +2159,15 @@ namespace Fluence
             return ParseLogicalOr();
         }
 
-        private Value ParseLogicalOr()
-        {
-            // This calls the next higher precedence level.
-            Value left = ParseLogicalAnd();
-
-            while (_lexer.PeekNextToken().Type == TokenType.OR)
-            {
-                Token op = _lexer.ConsumeToken();
-                Value right = ParseLogicalAnd();
-
-                Value temp = new TempValue(_currentParseState.NextTempNumber++);
-
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Or, temp, left, right, op));
-
-                left = temp; // The result becomes the new left-hand side for the next loop.
-            }
-
-            return left;
-        }
-
-        private Value ParseLogicalAnd()
-        {
-            // This calls the next higher precedence level.
-            Value left = ParseBitwiseOr();
-
-            while (_lexer.PeekNextToken().Type == TokenType.AND)
-            {
-                Token op = _lexer.ConsumeToken();
-                Value right = ParseBitwiseOr();
-
-                Value temp = new TempValue(_currentParseState.NextTempNumber++);
-
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.And, temp, left, right, op));
-
-                left = temp; // The result becomes the new left-hand side for the next loop.
-            }
-
-            return left;
-        }
-
-        private Value ParseBitwiseOr()
-        {
-            // This calls the next higher precedence level.
-            Value left = ParseBitwiseXor();
-
-            // | is called PIPE_CHAR.
-            while (_lexer.PeekNextToken().Type == TokenType.PIPE_CHAR)
-            {
-                Token op = _lexer.ConsumeToken();
-                Value right = ParseBitwiseXor();
-
-                Value temp = new TempValue(_currentParseState.NextTempNumber++);
-
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseOr, temp, left, right, op));
-
-                left = temp; // The result becomes the new left-hand side for the next loop.
-            }
-
-            return left;
-        }
-
-        private Value ParseBitwiseXor()
-        {
-            // This calls the next higher precedence level.
-            Value left = ParseBitwiseAnd();
-
-            // ^
-            while (_lexer.PeekNextToken().Type == TokenType.CARET)
-            {
-                Token op = _lexer.ConsumeToken();
-                Value right = ParseBitwiseAnd();
-
-                Value temp = new TempValue(_currentParseState.NextTempNumber++);
-
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseXor, temp, left, right, op));
-
-                left = temp; // The result becomes the new left-hand side for the next loop.
-            }
-
-            return left;
-        }
-
-        private Value ParseBitwiseAnd()
-        {
-            // This calls the next higher precedence level.
-            Value left = ParseEquality();
-
-            // &
-            while (_lexer.PeekNextToken().Type == TokenType.AMPERSAND)
-            {
-                Token op = _lexer.ConsumeToken();
-                Value right = ParseEquality();
-
-                Value temp = new TempValue(_currentParseState.NextTempNumber++);
-
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseAnd, temp, left, right, op));
-
-                left = temp; // The result becomes the new left-hand side for the next loop.
-            }
-
-            return left;
-        }
-
-        private Value ParseEquality()
-        {
-            // This calls the next higher precedence level.
-            Value left = ParseBitwiseShift();
-
-            while (_lexer.PeekNextToken().Type == TokenType.EQUAL_EQUAL || _lexer.PeekNextToken().Type == TokenType.BANG_EQUAL)
-            {
-                Token op = _lexer.ConsumeToken();
-                Value right = ParseBitwiseShift();
-
-                Value temp = new TempValue(_currentParseState.NextTempNumber++);
-                var opcode = (op.Type == TokenType.EQUAL_EQUAL)
-                    ? InstructionCode.Equal
-                    : InstructionCode.NotEqual;
-
-                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, temp, left, right, op));
-
-                left = temp; // The result becomes the new left-hand side for the next loop.
-            }
-
-            return left;
-        }
-
-        private Value ParseBitwiseShift()
-        {
-            // This calls the next higher precedence level.
-            Value left = ParseComparison();
-
-            while (_lexer.PeekNextToken().Type == TokenType.BITWISE_LEFT_SHIFT || _lexer.PeekNextToken().Type == TokenType.BITWISE_RIGHT_SHIFT)
-            {
-                Token op = _lexer.ConsumeToken();
-                Value right = ParseComparison();
-
-                Value temp = new TempValue(_currentParseState.NextTempNumber++);
-                var opcode = (op.Type == TokenType.BITWISE_LEFT_SHIFT)
-                    ? InstructionCode.BitwiseLShift
-                    : InstructionCode.BitwiseRShift;
-
-                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, temp, left, right, op));
-
-                left = temp; // The result becomes the new left-hand side for the next loop.
-            }
-
-            return left;
-        }
-
-        private Value ParseComparison()
-        {
-            TokenType type = _lexer.PeekNextToken().Type;
-
-            if (type == TokenType.DOT_AND_CHECK || type == TokenType.DOT_OR_CHECK)
-            {
-                return ParseDotAndOrOperators();
-            }
-
-            Value left = ParseRange();
-
-            // Potential collective comparison
-            if (_lexer.PeekNextToken().Type == TokenType.COMMA)
-            {
-                // indeed so.
-                if (IsCollectiveComparisonAhead())
-                {
-
-                    List<Value> args = new List<Value>() { left };
-                    _lexer.ConsumeToken();
-
-                    do
-                    {
-                        args.Add(ParseRange());
-                    } while (ConsumeTokenIfMatch(TokenType.COMMA) && IsNotAStandardComparison(_lexer.PeekNextToken().Type));
-
-                    return GenerateCollectiveComparisonByteCode(args, _lexer.ConsumeToken(), ParseRange());
-                }
-            }
-
-            while (IsStandardComparisonOperator(_lexer.PeekNextToken().Type))
-            {
-                Token op = _lexer.ConsumeToken();
-                Value right = ParseRange();
-
-                Value temp = new TempValue(_currentParseState.NextTempNumber++);
-
-                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCode(op.Type), temp, left, right, op));
-
-                left = temp; // The result becomes the new left-hand side for the next loop.
-            }
-
-            return left;
-        }
 
 
 
 
- 
+
+
+
+
+
 
         private static InstructionCode GetInstructionCode(TokenType type) => type switch
         {
@@ -2434,14 +2245,214 @@ namespace Fluence
 
 
 
+        /// <summary>
+        /// Parses logical OR expressions (||).
+        /// </summary>
+        private Value ParseLogicalOr()
+        {
+            Value left = ParseLogicalAnd();
 
+            while (_lexer.PeekNextToken().Type == TokenType.OR)
+            {
+                Token op = _lexer.ConsumeToken();
+                Value right = ParseLogicalAnd();
 
+                Value result = new TempValue(_currentParseState.NextTempNumber++);
 
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Or, result, ResolveValue(left), ResolveValue(right), op));
 
+                left = result; // The result becomes the new left-hand side for the next loop.
+            }
 
+            return left;
+        }
 
+        /// <summary>
+        /// Parses logical AND expressions (&&).
+        /// </summary>
+        private Value ParseLogicalAnd()
+        {
+            Value left = ParseBitwiseOr();
 
+            while (_lexer.PeekNextToken().Type == TokenType.AND)
+            {
+                Token op = _lexer.ConsumeToken();
+                Value right = ParseBitwiseOr();
 
+                Value result = new TempValue(_currentParseState.NextTempNumber++);
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.And, result, ResolveValue(left), ResolveValue(right), op));
+
+                left = result; // The result becomes the new left-hand side for the next loop.
+            }
+
+            return left;
+        }
+
+        /// <summary>
+        /// Parses bitwise OR expressions (|).
+        /// </summary>
+        private Value ParseBitwiseOr()
+        {
+            Value left = ParseBitwiseXor();
+
+            // | is called PIPE_CHAR.
+            while (_lexer.PeekNextToken().Type == TokenType.PIPE_CHAR)
+            {
+                Token op = _lexer.ConsumeToken();
+                Value right = ParseBitwiseXor();
+
+                Value result = new TempValue(_currentParseState.NextTempNumber++);
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseOr, result, ResolveValue(left), ResolveValue(right), op));
+
+                left = result; // The result becomes the new left-hand side for the next loop.
+            }
+
+            return left;
+        }
+
+        /// <summary>
+        /// Parses bitwise XOR expressions (^).
+        /// </summary>
+        private Value ParseBitwiseXor()
+        {
+            Value left = ParseBitwiseAnd();
+
+            while (_lexer.PeekNextToken().Type == TokenType.CARET)
+            {
+                Token op = _lexer.ConsumeToken();
+                Value right = ParseBitwiseAnd();
+
+                Value result = new TempValue(_currentParseState.NextTempNumber++);
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseXor, result, ResolveValue(left), ResolveValue(right), op));
+
+                left = result; // The result becomes the new left-hand side for the next loop.
+            }
+
+            return left;
+        }
+
+        /// <summary>
+        /// Parses bitwise AND expressions (&).
+        /// </summary>
+        private Value ParseBitwiseAnd()
+        {
+            Value left = ParseEquality();
+
+            while (_lexer.PeekNextToken().Type == TokenType.AMPERSAND)
+            {
+                Token op = _lexer.ConsumeToken();
+                Value right = ParseBitwiseAnd();
+
+                Value result = new TempValue(_currentParseState.NextTempNumber++);
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseAnd, result, ResolveValue(left), ResolveValue(right), op));
+
+                left = result; // The result becomes the new left-hand side for the next loop.
+            }
+
+            return left;
+        }
+
+        /// <summary>
+        /// Parses equality expressions.
+        /// </summary>
+        private Value ParseEquality()
+        {
+            Value left = ParseBitwiseShift();
+
+            while (_lexer.PeekNextToken().Type == TokenType.EQUAL_EQUAL || _lexer.PeekNextToken().Type == TokenType.BANG_EQUAL)
+            {
+                Token op = _lexer.ConsumeToken();
+                Value right = ParseBitwiseShift();
+
+                Value result = new TempValue(_currentParseState.NextTempNumber++);
+                var opcode = (op.Type == TokenType.EQUAL_EQUAL)
+                    ? InstructionCode.Equal
+                    : InstructionCode.NotEqual;
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, result, ResolveValue(left), ResolveValue(right), op));
+
+                left = result; // The result becomes the new left-hand side for the next loop.
+            }
+
+            return left;
+        }
+
+        /// <summary>
+        /// Parses bitwise shift expressions (<<, >>).
+        /// </summary>
+        private Value ParseBitwiseShift()
+        {
+            Value left = ParseComparison();
+
+            while (_lexer.PeekNextToken().Type == TokenType.BITWISE_LEFT_SHIFT || _lexer.PeekNextToken().Type == TokenType.BITWISE_RIGHT_SHIFT)
+            {
+                Token op = _lexer.ConsumeToken();
+                Value right = ParseComparison();
+
+                Value result = new TempValue(_currentParseState.NextTempNumber++);
+                var opcode = (op.Type == TokenType.BITWISE_LEFT_SHIFT)
+                    ? InstructionCode.BitwiseLShift
+                    : InstructionCode.BitwiseRShift;
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, result, ResolveValue(left), ResolveValue(right), op));
+
+                left = result; // The result becomes the new left-hand side for the next loop.
+            }
+
+            return left;
+        }
+
+        /// <summary>
+        /// Parses comparison expressions. This is a complex precedence level that handles three forms of syntax:
+        /// 1. Dot-prefixed logical operators (`.and(...)`, `.or(...)`).
+        /// 2. Collective comparisons.
+        /// 3. Standard binary comparisons.
+        /// </summary>
+        private Value ParseComparison()
+        {
+            TokenType opType = _lexer.PeekNextToken().Type;
+
+            // The .and()/.or() syntax must be checked first, as it doesn't follow the infix `left op right` pattern.
+            if (opType == TokenType.DOT_AND_CHECK || opType == TokenType.DOT_OR_CHECK)
+            {
+                return ParseDotAndOrOperators();
+            }
+
+            Value left = ParseRange();
+
+            // Potential collective comparison.
+            if (_lexer.PeekNextToken().Type == TokenType.COMMA && IsCollectiveComparisonAhead())
+            {
+                List<Value> args = new List<Value>() { left };
+                _lexer.ConsumeToken();
+
+                // We collect all comma separated arguments on the left.
+                do
+                {
+                    args.Add(ParseRange());
+                } while (ConsumeTokenIfMatch(TokenType.COMMA) && IsNotAStandardComparison(_lexer.PeekNextToken().Type));
+
+                return GenerateCollectiveComparisonByteCode(args, _lexer.ConsumeToken(), ParseRange());
+            }
+
+            while (IsStandardComparisonOperator(_lexer.PeekNextToken().Type))
+            {
+                Token op = _lexer.ConsumeToken();
+                Value right = ParseRange();
+
+                Value result = new TempValue(_currentParseState.NextTempNumber++);
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCode(op.Type), result, ResolveValue(left), ResolveValue(right), op));
+
+                left = result; // The result becomes the new left-hand side for the next loop.
+            }
+
+            return left;
+        }
 
         /// <summary>
         /// Parses a short-circuiting logical check using `.and(...)` or `.or(...)` syntax.
@@ -2869,7 +2880,7 @@ namespace Fluence
                 {
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, arg));
                 }
-                
+
                 // The new instance is stored in 'instance'.
                 TempValue ignoredResult = new TempValue(_currentParseState.NextTempNumber++);
 

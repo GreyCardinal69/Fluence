@@ -2457,12 +2457,12 @@ namespace Fluence
         //  MULTIPLICATION, DIVISION, MODULO (*, /, %)
         private Value ParseMulDivModulo()
         {
-            Value left = ParseExponentation();
+            Value left = ParseExponentiation();
 
             while (IsMultiplicativeOperator(_lexer.PeekNextToken().Type))
             {
                 Token op = _lexer.ConsumeToken();
-                Value right = ParseExponentation();
+                Value right = ParseExponentiation();
 
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
 
@@ -2472,89 +2472,6 @@ namespace Fluence
             }
 
             return left;
-        }
-
-        private Value ParseExponentation()
-        {
-            Value left = ParseUnary();
-
-            while (_lexer.PeekNextToken().Type == TokenType.EXPONENT)
-            {
-                Token op = _lexer.ConsumeToken();
-                Value right = ParseUnary();
-
-                Value temp = new TempValue(_currentParseState.NextTempNumber++);
-
-                if (left is PropertyAccessValue propAccess)
-                {
-                    Value resolved = ResolveValue(propAccess);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCode(op.Type), temp, resolved, right, op));
-                }
-                else
-                {
-                    _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCode(op.Type), temp, left, right, op));
-                }
-
-                left = temp;
-            }
-
-            return left;
-        }
-
-        private Value ParseUnary()
-        {
-            Value left = ParsePostFix();
-
-            while (IsUnaryOperator(_lexer.PeekNextToken().Type))
-            {
-                Token op = _lexer.ConsumeToken();
-                Value right = ParsePostFix();
-
-                Value temp = new TempValue(_currentParseState.NextTempNumber++);
-
-                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCode(op.Type), temp, left, right, op));
-
-                left = temp;
-            }
-
-            return left;
-        }
-
-        private Value ParsePostFix()
-        {
-            // ++ and --
-            if (_lexer.PeekNextToken().Type == TokenType.DOT_DECREMENT || _lexer.PeekNextToken().Type == TokenType.DOT_INCREMENT)
-            {
-                ParseMultiIncrementDecrementOperators();
-                return new StatementCompleteValue();
-            }
-
-            Value left = ParseAccess();
-            bool operationPerformed = false;
-
-            while (IsPostFixToken(_lexer.PeekNextToken().Type))
-            {
-                operationPerformed = true;
-                Token op = _lexer.ConsumeToken();
-
-                if (op.Type == TokenType.BOOLEAN_FLIP)
-                {
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Negate, left));
-                    continue;
-                }
-
-                Value one = new NumberValue(1, NumberValue.NumberType.Integer);
-                Value temp = new TempValue(_currentParseState.NextTempNumber++);
-
-                InstructionCode instrCode = (op.Type == TokenType.INCREMENT) ? InstructionCode.Add : InstructionCode.Subtract;
-
-                _currentParseState.AddCodeInstruction(new InstructionLine(instrCode, temp, left, one, op));
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, left, temp, null, op));
-
-                left = temp;
-            }
-
-            return operationPerformed ? new StatementCompleteValue() : left;
         }
 
 
@@ -2650,8 +2567,101 @@ namespace Fluence
 
 
 
+        /// <summary>
+        /// Parses exponentiation expressions (**), which are right-associative.
+        /// This is the highest precedence binary operator.
+        /// </summary>
+        private Value ParseExponentiation()
+        {
+            Value left = ParseUnary();
 
+            while (_lexer.PeekNextToken().Type == TokenType.EXPONENT)
+            {
+                Token op = _lexer.ConsumeToken();
+                // For right-associativity, the right-hand side recursively calls the *same* precedence level.
+                Value right = ParseExponentiation();
 
+                TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(
+                    InstructionCode.Power,
+                    result,
+                    ResolveValue(left),
+                    ResolveValue(right),
+                    op
+                ));
+                return result;
+            }
+
+            return left;
+        }
+
+        /// <summary>
+        /// Parses prefix unary operators (!, -, ~). These are right-associative.
+        /// </summary>
+        private Value ParseUnary()
+        {
+            Value left = ParsePostFix();
+
+            while (IsUnaryOperator(_lexer.PeekNextToken().Type))
+            {
+                Token op = _lexer.ConsumeToken();
+                Value operand = ParseUnary();
+
+                Value result = new TempValue(_currentParseState.NextTempNumber++);
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCode(op.Type), result, left, ResolveValue(operand), op));
+
+                left = result;
+            }
+
+            return left;
+        }
+
+        /// <summary>
+        /// Parses postfix operators (++, --, !!) and multi-increment/decrement expressions (.++, .--).
+        /// Chained postfix operators are not valid in Fluence, such as !!!!, ++++, ----, or ++--, --++ and so on.
+        /// </summary>
+        private Value ParsePostFix()
+        {
+            // Handle multi-target operators first as they are a complete statement.
+            if (_lexer.PeekNextToken().Type == TokenType.DOT_DECREMENT || _lexer.PeekNextToken().Type == TokenType.DOT_INCREMENT)
+            {
+                ParseMultiIncrementDecrementOperators();
+                // This operation does not return a value.
+                return new StatementCompleteValue();
+            }
+
+            Value left = ParseAccess();
+
+            // Check for a postfix operator.
+            if (_lexer.PeekNextToken().Type is TokenType.INCREMENT or TokenType.DECREMENT or TokenType.BOOLEAN_FLIP)
+            {
+                Token op = _lexer.ConsumeToken();
+                Value originalValue = ResolveValue(left);
+
+                Value modifiedValue;
+
+                if (op.Type == TokenType.BOOLEAN_FLIP)
+                {
+                    TempValue flippedValue = new TempValue(_currentParseState.NextTempNumber++);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Not, flippedValue, originalValue));
+                    modifiedValue = flippedValue;
+                }
+                else // ++ and --.
+                {
+                    InstructionCode operation = (op.Type == TokenType.INCREMENT) ? InstructionCode.Add : InstructionCode.Subtract;
+                    TempValue incrementedValue = new TempValue(_currentParseState.NextTempNumber++);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(operation, incrementedValue, originalValue, new NumberValue(1)));
+                    modifiedValue = incrementedValue;
+                }
+
+                GenerateWriteBackInstruction(left, modifiedValue);
+
+                return modifiedValue;
+            }
+
+            return left;
+        }
 
         /// <summary>
         /// Parses a multi-target increment or decrement operation.

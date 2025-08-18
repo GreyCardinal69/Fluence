@@ -57,22 +57,6 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
-        public void ParsesChainedPostfixBooleanFlipCorrectly()
-        {
-            string source = "flag = true; flag!!!!;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
-            {
-                new(InstructionCode.Assign, new VariableValue("flag"), new BooleanValue(true)),
-                new(InstructionCode.Negate, new VariableValue("flag")),
-                new(InstructionCode.Negate, new VariableValue("flag")),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
-                new(InstructionCode.Terminate, null)
-            };
-            AssertBytecodeEqual(expectedCode, compiledCode);
-        }
-
-        [Fact]
         public void ParsesChainedFunctionCallAndIndexerCorrectly()
         {
             string source = "x = MyFunc()[230];";
@@ -185,7 +169,8 @@ namespace Fluence.ParserTests
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("flag"), new BooleanValue(true)),
-                new(InstructionCode.Negate, new VariableValue("flag")),
+                new(InstructionCode.Not, new TempValue(0), new VariableValue("flag")),
+                new(InstructionCode.Assign, new VariableValue("flag"), new TempValue(0)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null)
             };

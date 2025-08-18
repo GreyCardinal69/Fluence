@@ -1528,6 +1528,30 @@ namespace Fluence
             return result;
         }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /// <summary>
+        /// A simple helper to generate an `Add` instruction to concatenate two string values.
+        /// </summary>
         private Value ConcatenateStringValues(Value left, Value right)
         {
             if (left == null) return right;
@@ -1538,84 +1562,98 @@ namespace Fluence
             return temp;
         }
 
+        /// <summary>
+        /// Parses a formatted string (f-string) literal, breaking it into literal text and interpolated expressions.
+        /// It generates bytecode to evaluate expressions, convert them to strings, and concatenate all parts.
+        /// </summary>
+        /// <param name="literal">The raw string content from the token, without the leading 'f' or quotes.</param>
+        /// <returns>A Value (StringValue or TempValue) that will hold the final concatenated string at runtime.</returns>
         private Value ParseFString(object literal)
         {
-            // f".... {var} ....".
-            string str = literal.ToString();
-
-            Value result = null;
+            string fstringContent = literal.ToString()!;
+            var stringParts = new List<Value>();
             int lastIndex = 0;
 
-            while (lastIndex < str.Length)
+            while (lastIndex < fstringContent.Length)
             {
-                int exprStart = str.IndexOf('{', lastIndex);
+                int exprStart = fstringContent.IndexOf('{', lastIndex);
 
-                if (exprStart == -1)
+                if (exprStart == -1) // No more expressions found.
                 {
-                    string end = str[lastIndex..];
-                    result = ConcatenateStringValues(result, new StringValue(end));
+                    string literalPart = fstringContent[lastIndex..];
+                    if (!string.IsNullOrEmpty(literalPart))
+                    {
+                        stringParts.Add(new StringValue(literalPart));
+                    }
                     break;
                 }
 
-                string startOfLiteral = str[lastIndex..exprStart];
-                if (!string.IsNullOrEmpty(startOfLiteral))
+                // Add the literal text before the expression.
+                if (exprStart > lastIndex)
                 {
-                    result = ConcatenateStringValues(result, new StringValue(startOfLiteral));
+                    string literalPart = fstringContent[lastIndex..exprStart];
+                    stringParts.Add(new StringValue(literalPart));
                 }
 
-                int exprClose = str.IndexOf('}', exprStart);
-
-                // no closing }
-                if (exprClose == -1)
+                int exprEnd = fstringContent.IndexOf('}', exprStart);
+                if (exprEnd == -1)
                 {
-                    // error?
+                    ConstructAndThrowParserException("Unclosed expression in f-string.", _lexer.PeekNextToken());
                 }
 
-                // skip { at start, } at end.
-                string expr = str.Substring(exprStart + 1, exprClose - exprStart - 1);
+                // Parse the expression inside the braces.
+                string expressionSource = fstringContent.Substring(exprStart + 1, exprEnd - exprStart - 1);
+                Value expressionValue = ParseSubExpression(expressionSource);
 
-                // We push our main code's token stream into the aux lexer,
-                // In the current lexer we put the {expr}, parse it, then we switch back.
-                _auxLexer = _lexer;
-                _lexer = new FluenceLexer(expr);
+                TempValue stringResult = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.ToString, stringResult, expressionValue));
+                stringParts.Add(stringResult);
 
-                Value exprInside = ResolveValue(ParseTernary());
-                _lexer = _auxLexer;
-
-                TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.ToString, ResolveValue(temp), exprInside));
-
-                result = ConcatenateStringValues(result, temp);
-
-                lastIndex = exprClose + 1;
+                lastIndex = exprEnd + 1;
             }
 
-            return result ?? new StringValue("");
+            if (stringParts.Count == 0)
+            {
+                return new StringValue("");
+            }
+            if (stringParts.Count == 1)
+            {
+                // If there's only one part, no concatenation is needed.
+                return stringParts[0];
+            }
+
+            // Chain `Add` instructions for multiple parts.
+            Value finalResult = stringParts[0];
+            for (int i = 1; i < stringParts.Count; i++)
+            {
+                finalResult = ConcatenateStringValues(finalResult, stringParts[i]);
+            }
+
+            return finalResult;
         }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        /// <summary>
+        /// A robust helper to parse a sub-expression from a string, using a temporary, isolated lexer.
+        /// This safely handles parsing interpolated expressions inside f-strings.
+        /// </summary>
+        private Value ParseSubExpression(string source)
+        {
+            FluenceLexer savedLexer = _lexer;
+            try
+            {
+                _lexer = new FluenceLexer(source);
+                _lexer.RemoveLexerEOLS(); // Ensure the sub-stream is clean
+                return ResolveValue(ParseTernary());
+            }
+            catch (FluenceException)
+            {
+                throw;
+            }
+            finally
+            {
+                _lexer = savedLexer;
+            }
+        }
 
         /// <summary>
         /// Parses a list literal expression, e.g., `[1, "hello", 2 + 2]`.
@@ -1643,7 +1681,7 @@ namespace Fluence
                 }
             }
 
-            ConsumeAndExpect(TokenType.R_BRACKET, "a closing ']' to end the list literal.");
+            ConsumeAndExpect(TokenType.R_BRACKET, "Expected a closing ']' to end the list literal.");
             return list;
         }
 
@@ -1729,7 +1767,7 @@ namespace Fluence
             {
                 TokenType type = _lexer.ConsumeToken().Type;
                 Value rhs = ResolveValue(ParseTernary());
-              
+
                 if (type == TokenType.EQUAL)
                 {
                     GenerateWriteBackInstruction(firstLhs, rhs);

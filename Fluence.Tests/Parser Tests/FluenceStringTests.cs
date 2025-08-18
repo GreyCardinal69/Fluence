@@ -86,23 +86,20 @@ namespace Fluence.ParserTests
                 a = ""end"";
                 c = f""start {10 + 20} middle {a}"";
             ";
-
             var compiledCode = Compile(source);
-
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new StringValue("end")),
                 new(InstructionCode.Add, new TempValue(0), new NumberValue(10), new NumberValue(20)),
                 new(InstructionCode.ToString, new TempValue(1), new TempValue(0)),
-                new(InstructionCode.Add, new TempValue(2), new StringValue("start "), new TempValue(1)),
-                new(InstructionCode.Add, new TempValue(3), new TempValue(2), new StringValue(" middle ")),
-                new(InstructionCode.ToString, new TempValue(4), new VariableValue("a")),
-                new(InstructionCode.Add, new TempValue(5), new TempValue(3), new TempValue(4)),
+                new(InstructionCode.ToString, new TempValue(2), new VariableValue("a")),
+                new(InstructionCode.Add, new TempValue(3), new StringValue("start "), new TempValue(1)),
+                new(InstructionCode.Add, new TempValue(4), new TempValue(3), new StringValue(" middle ")),
+                new(InstructionCode.Add, new TempValue(5), new TempValue(4), new TempValue(2)),
                 new(InstructionCode.Assign, new VariableValue("c"), new TempValue(5)),
                 new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null)
             };
-
             AssertBytecodeEqual(expectedCode, compiledCode);
         }
     }

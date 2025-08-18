@@ -1593,95 +1593,87 @@ namespace Fluence
             return result ?? new StringValue("");
         }
 
-        private Value ParseList()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /// <summary>
+        /// Parses a list literal expression, e.g., `[1, "hello", 2 + 2]`.
+        /// </summary>
+        /// <returns>A TempValue that will hold the new list instance at runtime.</returns>
+        private TempValue ParseList()
         {
             // [ is already consumed.
 
-            TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewList, temp));
+            TempValue list = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewList, list));
 
-            // Empty list: [].
-            if (_lexer.PeekNextToken().Type == TokenType.R_BRACKET)
+            if (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
             {
-                _lexer.ConsumeToken(); // Consume ending bracket ].
-                return temp;
-            }
+                // Non empty array.
+                List<Value> elements = ParseCommaSeparatedArguments();
 
-            // Non empty array, parse and push first element, the while loop will likely encounter a comma,
-            // if not the list has just one element.
-
-            Value firstElement = ParseExpression();
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushElement, temp, firstElement));
-
-            while (_lexer.PeekNextToken().Type == TokenType.COMMA)
-            {
-                _lexer.ConsumeToken(); // Consume comma.
-
-                if (_lexer.PeekNextToken().Type == TokenType.R_BRACKET) // Trailing comma in list.
+                foreach (var element in elements)
                 {
-                    Console.WriteLine("Trailing comma in list");
-                    throw new Exception();
+                    _currentParseState.AddCodeInstruction(new InstructionLine(
+                        InstructionCode.PushElement,
+                        list,
+                        ResolveValue(element)
+                    ));
                 }
-
-                Value rhs = ParseExpression();
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushElement, temp, rhs));
             }
 
-            _lexer.ConsumeToken(); // Consume ]
-
-            return temp;
+            ConsumeAndExpect(TokenType.R_BRACKET, "a closing ']' to end the list literal.");
+            return list;
         }
 
+        /// <summary>
+        /// Parses a `use` statement, which imports symbols from one or more namespaces.
+        /// into the current scop
         private void ParseUseStatement()
         {
-            ConsumeAndExpect(TokenType.USE, "the 'use' keyword.");
+            ConsumeAndExpect(TokenType.USE, "Expected the 'use' keyword.");
 
             do
             {
-                Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "a namespace name.");
+                Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a namespace name after a 'use' statement.");
                 string namespaceName = nameToken.Text;
 
                 if (!_currentParseState.NameSpaces.TryGetValue(namespaceName, out FluenceScope namespaceToUse))
                 {
                     ConstructAndThrowParserException($"Namespace '{namespaceName}' not found. Expected a defined namespace.", nameToken);
                 }
-                foreach (var entry in namespaceToUse.Symbols)
+                foreach (var entry in namespaceToUse!.Symbols)
                 {
                     if (!_currentParseState.CurrentScope.Declare(entry.Key, entry.Value))
                     {
-                        ConstructAndThrowParserException($"Symbol '{entry.Key}' from namespace '{namespaceName}' conflicts with an existing symbol. Expected a unique symbol.", nameToken);
+                        ConstructAndThrowParserException($"Symbol '{entry.Key}' from namespace '{namespaceName}' conflicts with a symbol already defined in this scope.", nameToken);
                     }
                 }
             } while (ConsumeTokenIfMatch(TokenType.COMMA));
 
-            ConsumeAndExpect(TokenType.EOL, "a ';' or newline to end the 'use' statement.");
+            ConsumeAndExpect(TokenType.EOL, "Expected a ';' to end the 'use' statement.");
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         /// <summary>
         /// Parses a block of statements enclosed in curly braces `{ ... }`.

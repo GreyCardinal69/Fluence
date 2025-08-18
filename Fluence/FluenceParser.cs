@@ -2412,67 +2412,6 @@ namespace Fluence
             return result;
         }
 
-        private Value ParseRange()
-        {
-            Value left = ParseAdditionSubtraction(); // Parse the start of the range
-
-            if (_lexer.PeekNextToken().Type == TokenType.DOT_DOT)
-            {
-                _lexer.ConsumeToken(); // Consume '..'
-                Value right = ParseAdditionSubtraction();
-                TempValue resultList = new TempValue(_currentParseState.NextTempNumber++);
-
-                // A user can do 10..0, the inverse of 0..10, should be accounted for in the Interpreter/VM.
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewRangeList, resultList, left, right));
-
-                return resultList;
-            }
-
-            return left; // Not a range, just a regular expression.
-        }
-
-        private Value ParseAdditionSubtraction()
-        {
-            // This calls the next higher precedence level.
-            Value left = ParseMulDivModulo();
-
-            while (_lexer.PeekNextToken().Type == TokenType.PLUS || _lexer.PeekNextToken().Type == TokenType.MINUS)
-            {
-                Token op = _lexer.ConsumeToken();
-                Value right = ParseMulDivModulo();
-
-                Value temp = new TempValue(_currentParseState.NextTempNumber++);
-                var opcode = (op.Type == TokenType.PLUS)
-                    ? InstructionCode.Add
-                    : InstructionCode.Subtract;
-
-                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, temp, left, right, op));
-
-                left = temp; // The result becomes the new left-hand side for the next loop.
-            }
-
-            return left;
-        }
-
-        //  MULTIPLICATION, DIVISION, MODULO (*, /, %)
-        private Value ParseMulDivModulo()
-        {
-            Value left = ParseExponentiation();
-
-            while (IsMultiplicativeOperator(_lexer.PeekNextToken().Type))
-            {
-                Token op = _lexer.ConsumeToken();
-                Value right = ParseExponentiation();
-
-                Value temp = new TempValue(_currentParseState.NextTempNumber++);
-
-                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCode(op.Type), ResolveValue(temp), left, right, op));
-
-                left = temp;
-            }
-
-            return left;
-        }
 
 
  
@@ -2564,8 +2503,82 @@ namespace Fluence
 
 
 
+        /// <summary>
+        /// Parses range expressions.
+        /// This has higher precedence than comparison but lower than addition.
+        /// </summary>
+        private Value ParseRange()
+        {
+            Value left = ParseAdditionSubtraction(); // Parse the start of the range
 
+            if (_lexer.PeekNextToken().Type == TokenType.DOT_DOT)
+            {
+                _lexer.ConsumeToken(); // Consume the '..'.
 
+                // The end of the range.
+                Value right = ParseAdditionSubtraction();
+                TempValue resultList = new TempValue(_currentParseState.NextTempNumber++);
+
+                // A user can do 10..0, the inverse of 0..10, should be accounted for in the Interpreter/VM.
+                _currentParseState.AddCodeInstruction(new InstructionLine(
+                    InstructionCode.NewRangeList,
+                    resultList,
+                    ResolveValue(left),
+                    ResolveValue(right)
+                ));
+
+                return resultList;
+            }
+
+            return left;
+        }
+
+        /// <summary>
+        /// Parses Addition & Subtraction expressions (+, -).
+        /// </summary>
+        private Value ParseAdditionSubtraction()
+        {
+            Value left = ParseMulDivModulo();
+
+            while (_lexer.PeekNextToken().Type == TokenType.PLUS || _lexer.PeekNextToken().Type == TokenType.MINUS)
+            {
+                Token op = _lexer.ConsumeToken();
+                Value right = ParseMulDivModulo();
+
+                Value result = new TempValue(_currentParseState.NextTempNumber++);
+                var opcode = (op.Type == TokenType.PLUS)
+                    ? InstructionCode.Add
+                    : InstructionCode.Subtract;
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, result, ResolveValue(left), ResolveValue(right), op));
+
+                left = result;
+            }
+
+            return left;
+        }
+
+        /// <summary>
+        /// Parses Multiplication, Division, and Modulo expressions (*, /, %).
+        /// </summary>
+        private Value ParseMulDivModulo()
+        {
+            Value left = ParseExponentiation();
+
+            while (IsMultiplicativeOperator(_lexer.PeekNextToken().Type))
+            {
+                Token op = _lexer.ConsumeToken();
+                Value right = ParseExponentiation();
+
+                Value result = new TempValue(_currentParseState.NextTempNumber++);
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCode(op.Type), result, ResolveValue(left), ResolveValue(right), op));
+
+                left = result;
+            }
+
+            return left;
+        }
 
         /// <summary>
         /// Parses exponentiation expressions (**), which are right-associative.

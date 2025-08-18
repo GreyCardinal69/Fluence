@@ -46,8 +46,8 @@ namespace Fluence
             internal FluenceScope GlobalScope { get; } = new FluenceScope();
             internal FluenceScope CurrentScope { get; set; } = new FluenceScope();
             internal Dictionary<string, FluenceScope> NameSpaces { get; } = new();
-
-            internal int NextTempNumber = 0;
+            
+            internal int NextTempNumber;
             internal int CurrentTempNumber => NextTempNumber - 1;
 
             internal void AddFunctionVariableDeclaration(InstructionLine instructionLine)
@@ -1728,7 +1728,7 @@ namespace Fluence
                 }
                 else  // Compound, -=, +=, etc.
                 {
-                    InstructionCode instrType = GetInstructionCode(type);
+                    InstructionCode instrType = GetInstructionCodeForBinaryOperator(type);
 
                     TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
 
@@ -2156,79 +2156,77 @@ namespace Fluence
 
 
 
-        private static InstructionCode GetInstructionCode(TokenType type) => type switch
-        {
-            // LEVEL 1: ASSIGNMENT (=, +=, -=, *=, /=) - LOWEST PRECEDENCE
-            TokenType.EQUAL_PLUS => InstructionCode.Add,
-            TokenType.EQUAL_MINUS => InstructionCode.Subtract,
-            TokenType.EQUAL_MUL => InstructionCode.Multiply,
-            TokenType.EQUAL_DIV => InstructionCode.Divide,
-            TokenType.EQUAL_PERCENT => InstructionCode.Modulo,
-            TokenType.EQUAL_AMPERSAND => InstructionCode.BitwiseAnd,
 
-            //  LEVEL 2: ADDITION AND SUBTRACTION (+, -)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /// <summary>
+        /// Converts a binary operator TokenType into its corresponding InstructionCode.
+        /// Handles arithmetic, comparison, logical, and bitwise operators.
+        /// </summary>
+        /// <param name="type">The TokenType of the binary operator.</param>
+        /// <returns>The corresponding InstructionCode.</returns>
+        private static InstructionCode GetInstructionCodeForBinaryOperator(TokenType type) => type switch
+        {
+            // Arithmetic
             TokenType.PLUS => InstructionCode.Add,
             TokenType.MINUS => InstructionCode.Subtract,
-
-            // Precedent level 3: MULTIPLICATION, DIVISION, MODULO (*, /, %)
             TokenType.STAR => InstructionCode.Multiply,
             TokenType.SLASH => InstructionCode.Divide,
             TokenType.PERCENT => InstructionCode.Modulo,
-
-            // Precedent level 4: EXPONENTIATION (**)
             TokenType.EXPONENT => InstructionCode.Power,
 
-            // LEVEL 5: UNARY OPERATORS (-, ++, --)
-            // TokenType.MINUS => InstructionCode.Subtract,
-            TokenType.INCREMENT => InstructionCode.Increment,
-            TokenType.DECREMENT => InstructionCode.Decrement,
-
-            // Equality
+            // Equality & Comparison (including `is` and `not` aliases)
             TokenType.EQUAL_EQUAL => InstructionCode.Equal,
             TokenType.BANG_EQUAL => InstructionCode.NotEqual,
-
-            // Comparisons
             TokenType.GREATER => InstructionCode.GreaterThan,
             TokenType.LESS => InstructionCode.LessThan,
             TokenType.GREATER_EQUAL => InstructionCode.GreaterEqual,
             TokenType.LESS_EQUAL => InstructionCode.LessEqual,
 
+            TokenType.EQUAL_PLUS => InstructionCode.Add,
+            TokenType.EQUAL_MINUS => InstructionCode.Subtract,
+            TokenType.EQUAL_DIV => InstructionCode.Divide,
+            TokenType.EQUAL_MUL => InstructionCode.Multiply,
+            TokenType.EQUAL_AMPERSAND => InstructionCode.BitwiseAnd,
+            TokenType.EQUAL_PERCENT => InstructionCode.Modulo,
+
+            // Logical (as keywords)
+            TokenType.AND => InstructionCode.And,
+            TokenType.OR => InstructionCode.Or,
+
+            // Bitwise
             TokenType.BITWISE_LEFT_SHIFT => InstructionCode.BitwiseLShift,
             TokenType.BITWISE_RIGHT_SHIFT => InstructionCode.BitwiseRShift,
-            TokenType.TILDE => InstructionCode.BitwiseNot,
             TokenType.CARET => InstructionCode.BitwiseXor,
             TokenType.PIPE_CHAR => InstructionCode.BitwiseOr,
             TokenType.AMPERSAND => InstructionCode.BitwiseAnd,
 
-            _ => InstructionCode.Skip
+            _ => throw new ArgumentException($"Token type '{type}' is not a recognized binary operator.", nameof(type))
         };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         /// <summary>
         /// The main entry point for parsing any expression.
@@ -2437,7 +2435,7 @@ namespace Fluence
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCode(op.Type), result, ResolveValue(left), ResolveValue(right), op));
+                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCodeForBinaryOperator(op.Type), result, ResolveValue(left), ResolveValue(right), op));
 
                 left = result; // The result becomes the new left-hand side for the next loop.
             }
@@ -2604,7 +2602,7 @@ namespace Fluence
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCode(op.Type), result, ResolveValue(left), ResolveValue(right), op));
+                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCodeForBinaryOperator(op.Type), result, ResolveValue(left), ResolveValue(right), op));
 
                 left = result;
             }
@@ -2654,7 +2652,7 @@ namespace Fluence
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCode(op.Type), result, left, ResolveValue(operand), op));
+                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCodeForBinaryOperator(op.Type), result, left, ResolveValue(operand), op));
 
                 left = result;
             }

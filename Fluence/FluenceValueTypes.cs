@@ -201,26 +201,6 @@ namespace Fluence
         }
     }
 
-    internal sealed record class ListValue : Value
-    {
-        internal readonly List<Value> List = new List<Value>();
-
-        public override string ToString()
-        {
-            StringBuilder sb = new StringBuilder();
-
-            int i = 0;
-            sb.Append($"List Elements:\n");
-            foreach (var val in List)
-            {
-                sb.Append($"{i}.\r{val.ToString()}\n");
-                i++;
-            }
-
-            return sb.ToString();
-        }
-    }
-
     internal sealed record class FunctionValue : Value
     {
         // The name of the function (for debugging/stack traces).
@@ -229,6 +209,9 @@ namespace Fluence
         internal int Arity { get; }
         // The address of the first instruction of the function's body in the bytecode.
         internal int StartAddress { get; private set; }
+
+        internal readonly IntrinsicMethod IntrinsicBody;
+        internal readonly bool IsIntrinsic;
 
         internal FunctionValue(string name, int arity, int startAddress)
         {
@@ -242,6 +225,15 @@ namespace Fluence
             Name = name;
             Arity = arity;
             StartAddress = startAddress;
+        }
+
+        public FunctionValue(string name, int arity, IntrinsicMethod body)
+        {
+            Name = name;
+            Arity = arity;
+            StartAddress = -1;
+            IsIntrinsic = true;
+            IntrinsicBody = body;
         }
 
         internal void SetStartAddress(int adr)

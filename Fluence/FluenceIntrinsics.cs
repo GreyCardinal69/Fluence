@@ -23,7 +23,12 @@
         internal void Register()
         {
             RegisterGlobalIntrinsics();
+
+            // Fluence namespace oriented around something specific.
             RegisterMathNamespace();
+
+            // Core Fluence types like string, list and their methods.
+            RegisterCoreTypes();
         }
 
         /// <summary>
@@ -80,6 +85,25 @@
 
                 double radians = Convert.ToDouble(num.Value);
                 return new NumberValue(Math.Sin(radians));
+            }));
+        }
+
+        /// <summary>
+        /// Creates and registers intrinsic struct types such as list, string and their intrinsic methods.
+        /// </summary>
+        private void RegisterCoreTypes()
+        {
+            var global = _parser.CurrentParserStateGlobalScope;
+
+            var listSymbol = new StructSymbol("List");
+
+            listSymbol.Functions.Add("length", new FunctionValue("length", 0, (args) =>
+            {
+                if (args[0] is ListValue list)
+                {
+                    return new NumberValue(list.Elements.Count);
+                }
+                return new NumberValue(0);
             }));
         }
     }

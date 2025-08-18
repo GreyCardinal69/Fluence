@@ -214,7 +214,7 @@
                 TokenType.ARROW => "=>",
                 TokenType.THIN_ARROW => "->",
                 TokenType.PIPE => "|>",
-                
+
                 // This method is called in the FluenceParser, in the parser
                 // EOL means only ';' semicolon.
                 TokenType.EOL => ";",

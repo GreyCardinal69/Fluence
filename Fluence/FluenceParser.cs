@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.Metrics;
-using System.Text;
-using System.Xml.Linq;
+﻿using System.Text;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.Token;
@@ -17,7 +15,7 @@ namespace Fluence
         // Used for parsing default field values in first pass.
         private FluenceLexer _fieldLexer;
 
-        private ParseState _currentParseState;
+        private readonly ParseState _currentParseState;
 
         internal FluenceScope CurrentParserStateGlobalScope => _currentParseState.GlobalScope;
 
@@ -2617,86 +2615,6 @@ namespace Fluence
             return val;
         }
 
-        private Value ParseConstructorCall(StructSymbol symbol)
-        {
-            _lexer.ConsumeToken(); // Consume (.
-
-            TempValue instance = new TempValue(_currentParseState.NextTempNumber++);
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewInstance, instance, symbol));
-
-            List<Value> arguments = new List<Value>();
-
-            do
-            {
-                arguments.Add(ParseTernary());
-            } while (ConsumeTokenIfMatch(TokenType.COMMA));
-
-            ConsumeAndExpect(TokenType.R_PAREN, " Expected closing ) in constructor call.");
-
-            if (symbol.Constructor == null)
-            {
-                if (arguments.Count > 0)
-                {
-                    throw new Exception($"Semantic Error: Struct '{symbol.Name}' has no constructor, but was called with {arguments.Count} arguments.");
-                }
-                // If no args were given, the `NewInstance` is enough. Just return the instance.
-                return instance;
-            }
-
-            foreach (var arg in arguments)
-            {
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, arg));
-            }
-
-            TempValue ignoredResult = new TempValue(_currentParseState.NextTempNumber++);
-
-            _currentParseState.AddCodeInstruction(new InstructionLine(
-                InstructionCode.CallMethod,
-                ignoredResult,
-                instance,
-                new StringValue("init")
-            ));
-            return instance;
-        }
-
-        private Value ParseDirectInitializer(StructSymbol symbol)
-        {
-            _lexer.ConsumeToken(); // Consume '{'
-
-            TempValue instance = new TempValue(_currentParseState.NextTempNumber++);
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewInstance, instance, symbol));
-
-            var initializedFields = new HashSet<string>();
-            if (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
-            {
-                do
-                {
-                    Token fieldToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected field name in struct initializer.");
-                    string fieldName = fieldToken.Text;
-
-                    if (!symbol.Fields.Contains(fieldName))
-                    {
-                        throw new Exception($"Semantic Error: Struct '{symbol.Name}' has no field named '{fieldName}'.");
-                    }
-                    if (initializedFields.Contains(fieldName))
-                    {
-                        throw new Exception($"Semantic Error: Field '{fieldName}' initialized more than once.");
-                    }
-                    initializedFields.Add(fieldName);
-
-                    ConsumeAndExpect(TokenType.COLON, "Expected ':' after field name in initializer.");
-                    Value fieldValue = ParseExpression();
-
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, instance, new StringValue(fieldName), fieldValue));
-
-                } while (ConsumeTokenIfMatch(TokenType.COMMA));
-            }
-
-            ConsumeAndExpect(TokenType.R_BRACE, "Expected '}' to close struct initializer.");
-
-            return instance;
-        }
-
         private static InstructionCode GetInstructionCode(TokenType type) => type switch
         {
             // LEVEL 1: ASSIGNMENT (=, +=, -=, *=, /=) - LOWEST PRECEDENCE
@@ -2796,8 +2714,113 @@ namespace Fluence
 
 
 
+        /// <summary>
+        /// Parses a constructor call via parentheses, e.g., `MyStruct(arg1, arg2)`.
+        /// </summary>
+        /// <param name="structSymbol">The symbol for the struct being instantiated.</param>
+        /// <returns>A TempValue that will hold the new struct instance at runtime.</returns>
+        private TempValue ParseConstructorCall(StructSymbol structSymbol)
+        {
+            ConsumeAndExpect(TokenType.L_PAREN, $"Expected an opening '(' for the constructor call to '{structSymbol.Name}'.");
 
+            TempValue instance = CreateNewInstance(structSymbol);
 
+            List<Value> arguments = ParseArgumentList();
+
+            ConsumeAndExpect(TokenType.R_PAREN, $"Expected closing ')' for the constructor call to '{structSymbol.Name}'.");
+
+            // Check if an `init` method should be called.
+            if (structSymbol.Constructor != null)
+            {
+                // A user-defined constructor exists. Check arity.
+                if (arguments.Count != structSymbol.Constructor.Arity)
+                {
+                    Token errorToken = _lexer.PeekNextToken();
+                    ConstructAndThrowParserException(
+                        $"Mismatched arguments for constructor '{structSymbol.Name}'. Expected {structSymbol.Constructor.Arity} arguments, but got {arguments.Count}.",
+                        errorToken
+                    );
+                }
+
+                foreach (var arg in arguments)
+                {
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, arg));
+                }
+                
+                // The new instance is stored in 'instance'.
+                TempValue ignoredResult = new TempValue(_currentParseState.NextTempNumber++);
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(
+                    InstructionCode.CallMethod,
+                    ignoredResult,
+                    instance,
+                    new StringValue("init")
+                ));
+            }
+            else if (arguments.Count > 0)
+            {
+                // No user-defined constructor, but arguments were provided. This is an error.
+                Token errorToken = _lexer.PeekAheadByN(1);
+                ConstructAndThrowParserException(
+                    $"Invalid constructor call for '{structSymbol.Name}'. Struct '{structSymbol.Name}' has no 'init' constructor and cannot be called with arguments.",
+                    errorToken
+                );
+            }
+
+            return instance;
+        }
+
+        /// <summary>
+        /// Parses a direct struct initializer using brace syntax.
+        /// </summary>
+        /// <param name="structSymbol">The symbol for the struct being instantiated.</param>
+        /// <returns>A TempValue that will hold the new struct instance at runtime.</returns>
+        private TempValue ParseDirectInitializer(StructSymbol structSymbol)
+        {
+            ConsumeAndExpect(TokenType.L_BRACE, $"an opening '{{' for the direct initializer of '{structSymbol.Name}'.");
+
+            // Create the new instance. Default field values are set here.
+            TempValue instance = CreateNewInstance(structSymbol);
+            var initializedFields = new HashSet<string>();
+
+            if (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
+            {
+                do
+                {
+                    Token fieldToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a field name in the struct initializer.");
+                    string fieldName = fieldToken.Text;
+
+                    if (!structSymbol.Fields.Contains(fieldName))
+                    {
+                        ConstructAndThrowParserException($"Invalid field '{fieldName}'. Struct '{structSymbol.Name}' does not have a field with this name.", fieldToken);
+                    }
+                    if (!initializedFields.Add(fieldName))
+                    {
+                        ConstructAndThrowParserException($"Duplicate field '{fieldName}'. Each field can only be initialized only once.", fieldToken);
+                    }
+
+                    ConsumeAndExpect(TokenType.COLON, $"Expected a ':' after the field name '{fieldName}'.");
+                    Value fieldValue = ParseExpression();
+
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, instance, new StringValue(fieldName), ResolveValue(fieldValue)));
+
+                } while (ConsumeTokenIfMatch(TokenType.COMMA));
+            }
+
+            ConsumeAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end the struct initializer.");
+
+            return instance;
+        }
+
+        /// <summary>
+        /// A helper method that generates the NewInstance bytecode instruction for a given struct.
+        /// </summary>
+        private TempValue CreateNewInstance(StructSymbol symbol)
+        {
+            TempValue instance = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewInstance, instance, symbol));
+            return instance;
+        }
 
         /// <summary>
         /// Parses postfix expressions, which include function calls `()`, index access `[]`, and property access `.`.
@@ -2837,7 +2860,7 @@ namespace Fluence
                             }
                             else
                             {
-                                ConstructAndThrowParserException($"Enum '{enumSymbol.Name}' does not have a member named '{memberToken.Text}'.", memberToken );
+                                ConstructAndThrowParserException($"Enum '{enumSymbol.Name}' does not have a member named '{memberToken.Text}'.", memberToken);
                             }
                         }
                         else
@@ -2898,7 +2921,7 @@ namespace Fluence
                 ));
             }
 
-           return result;
+            return result;
         }
 
         /// <summary>

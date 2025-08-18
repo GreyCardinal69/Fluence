@@ -718,7 +718,7 @@ namespace Fluence
                         if (_currentParseState.ActiveLoopContexts.Count == 0) { /* throw error: 'break' outside loop */ }
                         LoopContext currentLoop = _currentParseState.ActiveLoopContexts.Peek();
 
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
                         currentLoop.BreakPatchAddresses.Add(_currentParseState.CodeInstructions.Count - 1);
 
                         next = _lexer.PeekNextToken();
@@ -739,7 +739,7 @@ namespace Fluence
 
                         LoopContext currentLoop2 = _currentParseState.ActiveLoopContexts.Peek();
 
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
 
                         currentLoop2.ContinuePatchAddresses.Add(_currentParseState.CodeInstructions.Count - 1);
 
@@ -904,11 +904,11 @@ namespace Fluence
             int conditionCheckIndex = _currentParseState.CodeInstructions.Count;
             _lexer.ConsumeToken(); // Consume the ;
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, condition));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
             int loopExitPatchIndex = _currentParseState.CodeInstructions.Count - 1;
 
             // Add a placeholder jump to skip over the incrementer and go directly to the loop body.
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
             int loopBodyJumpPatchIndex = _currentParseState.CodeInstructions.Count - 1;
 
             // Part 3: Incrementer (e.g., "i += 1")
@@ -986,7 +986,7 @@ namespace Fluence
             TempValue conditionVar = new TempValue(_currentParseState.NextTempNumber++);
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.LessThan, conditionVar, indexVar, lengthVar));
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, conditionVar));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, conditionVar));
             int loopExitPatchIndex = _currentParseState.CodeInstructions.Count - 1;
 
             // Assign the loop variable: `item = collection[index]`
@@ -1042,7 +1042,7 @@ namespace Fluence
 
             // the condition of the while, we must jump back here if loop reaches end ( not terminated by break ).
             // We'll patch this later.
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, condition));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
             int loopExitPatch = _currentParseState.CodeInstructions.Count - 1;
 
             // While has two forms, block {...} or while cond -> ...;
@@ -1109,7 +1109,7 @@ namespace Fluence
             _lexer.ConsumeToken(); // Consume the if.
             var condition = ParseTernary();
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, condition));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
 
             int elsePatchIndex = _currentParseState.CodeInstructions.Count - 1;
 
@@ -1132,7 +1132,7 @@ namespace Fluence
             if (_lexer.PeekNextToken().Type == TokenType.ELSE)
             {
                 int elseIfJumpOverIndex = _currentParseState.CodeInstructions.Count;
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
 
                 _lexer.ConsumeToken();
 
@@ -1220,7 +1220,7 @@ namespace Fluence
 
             FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress);
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
             int jumpOverBodyGoTo = _currentParseState.CodeInstructions.Count - 1;
 
             if (inStruct)
@@ -1368,7 +1368,7 @@ namespace Fluence
 
                     TempValue condition = new TempValue(_currentParseState.NextTempNumber++);
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, condition, matchOn, pattern));
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, condition));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
 
                     if (fallThrough)
                     {
@@ -1388,7 +1388,7 @@ namespace Fluence
                     if (_lexer.PeekNextToken().Type == TokenType.BREAK)
                     {
                         _lexer.ConsumeToken();
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
                         context.BreakPatches.Add(_currentParseState.CodeInstructions.Count - 1);
                         break;
                     }
@@ -1396,7 +1396,7 @@ namespace Fluence
                     {
                         // We have fallthrough cases here, we make this goto, but fill it in the next iteration.
                         // This skips the next cases equal and gotoIfFalse instructions.
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
                         fallThroughSkipIndex = _currentParseState.CodeInstructions.Count - 1;
                         fallThrough = true;
                         break;
@@ -1461,7 +1461,7 @@ namespace Fluence
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, condition, matchOn, pattern));
 
                     // We'll patch later
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, condition));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
                     nextCasePatch = _currentParseState.CodeInstructions.Count - 1;
                 }
 
@@ -1501,7 +1501,7 @@ namespace Fluence
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, result, caseResult));
                 }
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
                 endJumpPatches.Add(_currentParseState.CodeInstructions.Count - 1);
 
                 if (nextCasePatch != -1)
@@ -2063,7 +2063,7 @@ namespace Fluence
                 _lexer.ConsumeToken(); // Consume '?' or '?:'
 
                 // Immediately generate the conditional jump. We will back-patch its target.
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, left));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, left));
                 int falseJumpPatch = _currentParseState.CodeInstructions.Count - 1;
 
                 Value trueExpr = ParseTernary();
@@ -2071,7 +2071,7 @@ namespace Fluence
                 TempValue result = new TempValue(_currentParseState.NextTempNumber++);
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, result, trueExpr));
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
                 int endJumpPatch = _currentParseState.CodeInstructions.Count - 1;
 
                 int falsePathAddress = _currentParseState.CodeInstructions.Count;

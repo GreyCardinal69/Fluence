@@ -158,6 +158,69 @@
         }
 
         /// <summary>
+        /// Provides a user-friendly string representation of a token, prioritizing its raw text
+        /// but falling back to a representation of its type for tokens without text.
+        /// </summary>
+        /// <returns>A string representing the token.</returns>
+        internal string ToDisplayString()
+        {
+            // If the token has explicit text, that's the best representation.
+            if (!string.IsNullOrEmpty(Text))
+            {
+                return Text;
+            }
+
+            // Otherwise, provide a "pretty print" version for common operator types.
+            return Type switch
+            {
+                // Single characters
+                TokenType.L_PAREN => "(",
+                TokenType.R_PAREN => ")",
+                TokenType.L_BRACE => "{",
+                TokenType.R_BRACE => "}",
+                TokenType.L_BRACKET => "[",
+                TokenType.R_BRACKET => "]",
+                TokenType.COMMA => ",",
+                TokenType.DOT => ".",
+                TokenType.COLON => ":",
+                TokenType.PLUS => "+",
+                TokenType.MINUS => "-",
+                TokenType.STAR => "*",
+                TokenType.SLASH => "/",
+                TokenType.PERCENT => "%",
+                TokenType.AMPERSAND => "&",
+                TokenType.PIPE_CHAR => "|",
+                TokenType.CARET => "^",
+                TokenType.TILDE => "~",
+                TokenType.QUESTION => "?",
+
+                // Multi-character operators
+                TokenType.BANG => "!",
+                TokenType.BANG_EQUAL => "!=",
+                TokenType.EQUAL => "=",
+                TokenType.EQUAL_EQUAL => "==",
+                TokenType.GREATER => ">",
+                TokenType.GREATER_EQUAL => ">=",
+                TokenType.LESS => "<",
+                TokenType.LESS_EQUAL => "<=",
+                TokenType.DOT_DOT => "..",
+                TokenType.BITWISE_LEFT_SHIFT => "<<",
+                TokenType.BITWISE_RIGHT_SHIFT => ">>",
+                TokenType.AND => "&&",
+                TokenType.OR => "||",
+                TokenType.INCREMENT => "++",
+                TokenType.DECREMENT => "--",
+                TokenType.EXPONENT => "**",
+                TokenType.ARROW => "=>",
+                TokenType.THIN_ARROW => "->",
+                TokenType.PIPE => "|>",
+
+                // For other token types without text, the type name is the best we can do.
+                _ => Type.ToString()
+            };
+        }
+
+        /// <summary>
         /// The grammatical type of the token.
         /// </summary>
         internal readonly TokenType Type;

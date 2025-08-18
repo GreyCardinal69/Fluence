@@ -74,9 +74,6 @@ namespace Fluence
         /// <summary>Gets the token that the parser could not process.</summary>
         internal required Token UnexpectedToken { get; init; }
 
-        /// <summary>Gets a description of what the parser was expecting to find.</summary>
-        internal required string ExpectedDescription { get; init; }
-
         internal override string Format()
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -93,14 +90,9 @@ namespace Fluence
 
             string tokenText = (UnexpectedToken.Text == "\r" || UnexpectedToken.Text == "\n")
                 ? "NewLine"
-                : UnexpectedToken.Text;
+                : UnexpectedToken.ToDisplayString();
 
             stringBuilder.AppendLine($"Error: Unexpected token '{tokenText}' (Type: {UnexpectedToken.Type}).");
-
-            if (!string.IsNullOrEmpty(ExpectedDescription))
-            {
-                stringBuilder.AppendLine($"Expected: {ExpectedDescription}");
-            }
 
             return stringBuilder.ToString();
         }

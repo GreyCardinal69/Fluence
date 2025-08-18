@@ -1,4 +1,6 @@
-﻿namespace Fluence
+﻿using static Fluence.Token;
+
+namespace Fluence
 {
     internal static class FluenceDebug
     {

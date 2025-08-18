@@ -660,7 +660,7 @@ namespace Fluence
             return MakeTokenAndTryAdvance(type, 0, lexeme, literalValue);
         }
 
-        private static string TruncateLine(string line, int maxLength = 75)
+        internal static string TruncateLine(string line, int maxLength = 75)
         {
             if (string.IsNullOrEmpty(line) || line.Length <= maxLength)
             {
@@ -669,7 +669,7 @@ namespace Fluence
             return string.Concat(line.AsSpan(0, maxLength - 3), "...");
         }
 
-        private static string GetCodeLineFromSource(string source, int lineNumber)
+        internal static string GetCodeLineFromSource(string source, int lineNumber)
         {
             if (lineNumber <= 0)
                 return string.Empty;

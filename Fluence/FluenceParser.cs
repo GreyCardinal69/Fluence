@@ -2557,63 +2557,8 @@ namespace Fluence
             return operationPerformed ? new StatementCompleteValue() : left;
         }
 
-        private void ParseMultiIncrementDecrementOperators()
-        {
-            Token token = _lexer.ConsumeToken(); // Consume .++ or .--
 
-            ConsumeAndExpect(TokenType.L_PAREN, "Expected opening ( after .++ or .-- operator");
-
-            InstructionCode code = token.Type == TokenType.DOT_DECREMENT ? InstructionCode.Decrement : InstructionCode.Increment;
-
-            do
-            {
-                Value original = ParseExpression();
-                Value parsable = ResolveValue(original);
-                Value one = new NumberValue(1, NumberValue.NumberType.Integer);
-
-                TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(code, temp, parsable, one, token));
-
-                if (original is ElementAccessValue accessValue)
-                {
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, accessValue.Target, accessValue.Index, temp));
-                }
-                else if (original is PropertyAccessValue propAccess)
-                {
-                    Value resolvedTarget = ResolveValue(propAccess.Target);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, resolvedTarget, new StringValue(propAccess.FieldName), temp));
-                }
-                else
-                {
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, parsable, temp));
-                }
-            } while (ConsumeTokenIfMatch(TokenType.COMMA));
-
-
-            ConsumeAndExpect(TokenType.R_PAREN, "Expected closing ) after .++ or .-- operator");
-        }
-
-        private Value ResolveValue(Value val)
-        {
-            if (val is ElementAccessValue access)
-            {
-                // It's a descriptor. Generate the GetElement instruction.
-                TempValue result = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetElement, ResolveValue(result), ResolveValue(access.Target), access.Index));
-                // Return the temporary that will hold the result.
-                return result;
-            }
-            else if (val is PropertyAccessValue propAccess)
-            {
-                TempValue result = new TempValue(_currentParseState.NextTempNumber++);
-                Value resolvedTarget = ResolveValue(propAccess.Target);
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetField, result, resolvedTarget, new StringValue(propAccess.FieldName)));
-                return result;
-            }
-
-            // If it's not a descriptor, just return it as is.
-            return val;
-        }
+ 
 
         private static InstructionCode GetInstructionCode(TokenType type) => type switch
         {
@@ -2708,11 +2653,136 @@ namespace Fluence
 
 
 
+        /// <summary>
+        /// Parses a multi-target increment or decrement operation.
+        /// </summary>
+        private void ParseMultiIncrementDecrementOperators()
+        {
+            Token opToken = _lexer.ConsumeToken(); // Consume .++ or .--
+
+            ConsumeAndExpect(TokenType.L_PAREN, $"Expected an opening '(' after the '{opToken.ToDisplayString()}' operator.");
+
+            InstructionCode operation = (opToken.Type == TokenType.DOT_DECREMENT)
+                ? InstructionCode.Decrement
+                : InstructionCode.Increment;
+
+            do
+            {
+                // This gives us the original descriptor or variable.
+                Value targetDescriptor = ParseExpression();
+
+                // Resolve the *current value* of the target into a temporary variable.
+                Value currentValue = ResolveValue(targetDescriptor);
+
+                TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+                var one = new NumberValue(1);
+                _currentParseState.AddCodeInstruction(new InstructionLine(operation, result, currentValue, one, opToken));
+
+                GenerateWriteBackInstruction(targetDescriptor, result);
+            } while (ConsumeTokenIfMatch(TokenType.COMMA));
 
 
+            ConsumeAndExpect(TokenType.R_PAREN, $"a closing ')' after the '{opToken.ToDisplayString()}' operator's arguments.");
+        }
 
+        /// <summary>
+        /// A helper method that generates the correct instruction (Assign, SetField, or SetElement)
+        /// to write a value back to the location described by a descriptor.
+        /// </summary>
+        /// <param name="descriptor">The original Value, which may be a simple VariableValue or a complex descriptor like PropertyAccessValue.</param>
+        /// <param name="valueToAssign">The Value (usually a TempValue) that holds the result to be written.</param>
+        private void GenerateWriteBackInstruction(Value descriptor, Value valueToAssign)
+        {
+            switch (descriptor)
+            {
+                case VariableValue variable:
+                    // Simple case: a = result
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, variable, valueToAssign));
+                    break;
+                case PropertyAccessValue propAccess:
+                    // Complex case: a.b.c = result
+                    // We must resolve the target object (a.b) before setting the field (c).
+                    Value targetObject = ResolveValue(propAccess.Target);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(
+                        InstructionCode.SetField,
+                        targetObject,
+                        new StringValue(propAccess.FieldName),
+                        valueToAssign
+                    ));
+                    break;
+                case ElementAccessValue elementAccess:
+                    // Complex case: a[i][j] = result
+                    // We must resolve the target collection (a[i]) and the index (j) before setting the element.
+                    Value targetCollection = ResolveValue(elementAccess.Target);
+                    Value index = ResolveValue(elementAccess.Index);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(
+                        InstructionCode.SetElement,
+                        targetCollection,
+                        index,
+                        valueToAssign
+                    ));
+                    break;
+                default:
+                    // This should not happen with valid syntax (e.g., trying to assign to a literal like `5++`).
+                    // The parser would likely fail earlier, but this is a good safeguard.
+                    ConstructAndThrowParserException("Invalid assignment target. Expected a variable, property, or list element.\"", _lexer.PeekAheadByN(1));
+                    break;
+            }
+        }
 
+        /// <summary>
+        /// Ensures that a given Value is a simple, usable value
+        /// rather than an abstract descriptor. If the input Value is a descriptor (like PropertyAccessValue
+        /// or ElementAccessValue), this method generates the necessary GetField or GetElement bytecode
+        /// to retrieve the actual value and returns the TempValue that will hold the result at runtime.
+        /// </summary>
+        /// <param name="val">The Value to resolve.</param>
+        /// <returns>A simple Value that can be used as an operand in other instructions.</returns>
+        private Value ResolveValue(Value val)
+        {
+            // Base case: The value is already a simple type, not a descriptor. Return it directly.
+            if (val is not (PropertyAccessValue or ElementAccessValue))
+            {
+                return val;
+            }
 
+            if (val is PropertyAccessValue propAccess)
+            {
+                // First, we must recursively resolve the object being accessed.
+                // This correctly handles chained accesses like `a.b.c`.
+                Value resolvedTarget = ResolveValue(propAccess.Target);
+
+                TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(
+                    InstructionCode.GetField,
+                    result,
+                    resolvedTarget,
+                    new StringValue(propAccess.FieldName)
+                ));
+
+                return result;
+            }
+
+            if (val is ElementAccessValue elementAccess)
+            {
+                // Recursively resolve the collection and the index.
+                Value resolvedCollection = ResolveValue(elementAccess.Target);
+                Value resolvedIndex = ResolveValue(elementAccess.Index);
+
+                TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(
+                    InstructionCode.GetElement,
+                    result,
+                    resolvedCollection,
+                    resolvedIndex
+                ));
+
+                return result;
+            }
+
+            // This should be unreachable, but it satisfies the compiler.
+            return val;
+        }
 
         /// <summary>
         /// Parses a constructor call via parentheses, e.g., `MyStruct(arg1, arg2)`.

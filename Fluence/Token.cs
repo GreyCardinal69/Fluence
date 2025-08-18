@@ -215,6 +215,9 @@
                 TokenType.THIN_ARROW => "->",
                 TokenType.PIPE => "|>",
 
+                TokenType.DOT_DECREMENT => ".--",
+                TokenType.DOT_INCREMENT => ".++",
+
                 // This method is called in the FluenceParser, in the parser
                 // EOL means only ';' semicolon.
                 TokenType.EOL => ";",

@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.Token;
@@ -1160,123 +1161,139 @@ namespace Fluence
             }
         }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /// <summary>
+        /// Parses a `return` statement. This can be a return with a value
+        /// or a return without a value which implicitly returns nil.
+        /// </summary>
         private void ParseReturnStatement()
         {
-            _lexer.ConsumeToken(); // Consume return;
+            _lexer.ConsumeToken(); // Consume return.
 
-            Value result;
-
-            // return;
-            if (_lexer.PeekNextToken().Type == TokenType.EOL)
-            {
-                result = new NilValue();
-            }
-            else
-            {
-                result = ParseExpression();
-            }
+            Value result = _lexer.PeekNextToken().Type == TokenType.EOL
+                ? new NilValue() // Empty 'return';
+                : ParseExpression();
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, result));
         }
 
-        private void ParseFunction(bool inStruct = false, bool isInit = false, string structName = null)
+        /// <summary>
+        /// Helper to update the symbol table with the function's start address and
+        /// add the final `Assign` instruction to the declaration list.
+        /// </summary>
+        private void UpdateFunctionSymbolsAndGenerateDeclaration(FunctionValue funcValue, Token nameToken, bool inStruct, bool isInit, string structName)
         {
-            _lexer.ConsumeToken(); // Consume func.
-
-            Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected function name.");
             string functionName = nameToken.Text;
-
-            ConsumeAndExpect(TokenType.L_PAREN, "Expected '(' after function name.");
-
-            List<string> parameters = new List<string>();
-            // Has arguments
-            if (_lexer.PeekNextToken().Type != TokenType.R_PAREN)
-            {
-                while (_lexer.PeekNextToken().Type == TokenType.IDENTIFIER)
-                {
-                    parameters.Add(_lexer.ConsumeToken().Text);
-                    if (_lexer.PeekNextToken().Type == TokenType.COMMA)
-                    {
-                        _lexer.ConsumeToken();
-                    }
-                }
-            }
-            ConsumeAndExpect(TokenType.R_PAREN, "No closing parenthesis '}' after function args.");
-            ConsumeAndExpect(TokenType.ARROW, "No arrow after function declaration");
-
-            int functionStartAddress;
-            if (inStruct)
-            {
-                functionStartAddress = _currentParseState.CodeInstructions.Count + 1;
-            }
-            else
-            {
-                functionStartAddress = _currentParseState.CodeInstructions.Count + 1;
-            }
-
-            FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress);
-
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
-            int jumpOverBodyGoTo = _currentParseState.CodeInstructions.Count - 1;
+            int functionStartAddress = funcValue.StartAddress;
 
             if (inStruct)
             {
-                if (!_currentParseState.CurrentScope.TryResolve(structName, out Symbol symbol) || symbol is not StructSymbol structSymbol)
+                bool isResolved = _currentParseState.CurrentScope.TryResolve(structName, out Symbol symbol);
+
+                if (!isResolved || symbol is not StructSymbol)
                 {
-                    throw new Exception($"Internal Compiler Error: Could not find struct '{structName}' in current scope '{_currentParseState.CurrentScope.Name}'.");
+                    ConstructAndThrowParserException($"Internal error: Could not resolve struct symbol '{structName}' in current scope.", nameToken);
                 }
 
-                if (isInit)
-                {
-                    if (structSymbol.Constructor == null)
-                    {
-                        throw new Exception($"Internal Compiler Error: Constructor for '{structName}' was not found in the symbol table.");
-                    }
-                    foreach (var field in structSymbol.DefaultFieldValuesAsTokens)
-                    {
-                        string fieldName = field.Key;
-                        List<Token> expressionTokens = field.Value;
+                StructSymbol structSymbol = (StructSymbol)symbol;
 
-                        _fieldLexer = _lexer;
-                        _lexer = new FluenceLexer(expressionTokens);
-
-                        Value defaultValueResult = ParseTernary();
-
-                        _lexer = _fieldLexer; // Restore the main lexer
-
-                        _currentParseState.AddCodeInstruction(
-                            new InstructionLine(
-                                InstructionCode.SetField,
-                                new VariableValue("self"),
-                                new StringValue(fieldName),
-                                defaultValueResult // This will be the TempValue from the 'Add' instruction
-                            )
-                        );
-                    }
-                    structSymbol.Constructor.SetStartAddress(functionStartAddress);
-                    _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{structSymbol.Constructor.Name}"), structSymbol.Constructor));
-                }
-                else
+                if (!isInit)
                 {
                     if (!structSymbol.Functions.TryGetValue(functionName, out FunctionValue functionValue))
                     {
-                        throw new Exception($"Internal Compiler Error: Method '{functionName}' for struct '{structName}' was not found in the symbol table.");
+                        ConstructAndThrowParserException($"Internal error: Method '{funcValue.Name}' not found in the symbol table for struct '{structName}'.", nameToken);
                     }
-                    functionValue.SetStartAddress(functionStartAddress);
+                    functionValue!.SetStartAddress(functionStartAddress);
                     _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{functionValue.Name}"), functionValue));
+                    return;
                 }
+
+                // Constructor init here.
+                if (structSymbol.Constructor == null)
+                {
+                    ConstructAndThrowParserException($"Internal error: Constructor for '{structName}' not found in symbol table.", nameToken);
+                }
+
+                foreach (var field in structSymbol.DefaultFieldValuesAsTokens)
+                {
+                    string fieldName = field.Key;
+                    List<Token> expressionTokens = field.Value;
+
+                    _fieldLexer = _lexer;
+                    _lexer = new FluenceLexer(expressionTokens);
+
+                    Value defaultValueResult = ParseTernary();
+
+                    _lexer = _fieldLexer; // Restore the main lexer.
+
+                    _currentParseState.AddCodeInstruction(
+                        new InstructionLine(
+                            InstructionCode.SetField,
+                            new VariableValue("self"),
+                            new StringValue(fieldName),
+                            defaultValueResult // This will be the TempValue from the 'Add' instruction.
+                        )
+                    );
+                }
+                structSymbol.Constructor.SetStartAddress(functionStartAddress);
+                _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{structSymbol.Constructor.Name}"), structSymbol.Constructor));
             }
-            else // !inStruct
+            // Standalone function.
+            else
             {
                 // This will also work for functions defined in the current scope.
                 if (!_currentParseState.CurrentScope.TryResolve(functionName, out Symbol symbol) || symbol is not FunctionSymbol functionSymbol)
                 {
-                    throw new Exception($"Internal Compiler Error: Could not find function '{functionName}' in current scope '{_currentParseState.CurrentScope.Name}'.");
+                    ConstructAndThrowParserException($"Internal error: Could not resolve function symbol '{funcValue.Name}'. Function does not exist.", nameToken);
                 }
-
-                functionSymbol.SetStartAddress(functionStartAddress);
-                _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{func.Name}"), func));
+                else
+                {
+                    functionSymbol.SetStartAddress(functionStartAddress);
+                    _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{funcValue.Name}"), funcValue));
+                }
             }
+        }
+
+        /// <summary>
+        /// Parses a complete function, method, or constructor declaration and generates its bytecode.
+        /// This is the main dispatcher for all `func` keyword-related parsing.
+        /// </summary>
+        /// <param name="inStruct">True if parsing a method within a struct body.</param>
+        /// <param name="isInit">True if the method being parsed is a constructor (`init`).</param>
+        /// <param name="structName">The name of the struct, if `inStruct` is true.</param>
+        private void ParseFunction(bool inStruct = false, bool isInit = false, string structName = null!)
+        {
+            (Token nameToken, List<string> parameters) = ParseFunctionHeader();
+            string functionName = nameToken.Text;
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
+            int functionStartAddress = _currentParseState.CodeInstructions.Count - 1;
+            FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress);
+
+            UpdateFunctionSymbolsAndGenerateDeclaration(func, nameToken, inStruct, isInit, structName);
 
             // Either => for one line, or => {...} for a block.
             if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
@@ -1290,42 +1307,40 @@ namespace Fluence
             else
             {
                 // func Test() =>, this format is just for returning something.
-                Value returnValue = ParseExpression();
+                Value returnValue = ResolveValue(ParseExpression());
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, returnValue));
             }
 
             int afterBodyAddress = _currentParseState.CodeInstructions.Count;
-            _currentParseState.CodeInstructions[jumpOverBodyGoTo].Lhs = new NumberValue(afterBodyAddress);
+            _currentParseState.CodeInstructions[functionStartAddress].Lhs = new NumberValue(afterBodyAddress);
         }
 
+        /// <summary>
+        /// Helper to parse the function header, from `func` up to the `=>`.
+        /// </summary>
+        /// <returns>A tuple containing the function's name token and a list of its parameter names.</returns>
+        private (Token nameToken, List<string> parameters) ParseFunctionHeader()
+        {
+            ConsumeAndExpect(TokenType.FUNC, "Expected the 'func' keyword.");
+            Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a function name after 'func'.");
+            ConsumeAndExpect(TokenType.L_PAREN, $"Expected an opening '(' for function '{nameToken.Text}' parameters.");
 
+            var parameters = new List<string>();
+            if (_lexer.PeekNextToken().Type != TokenType.R_PAREN)
+            {
+                do
+                {
+                    // TO DO, allow expressions for default values.
+                    Token paramToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a parameter name.");
+                    parameters.Add(paramToken.Text);
+                } while (ConsumeTokenIfMatch(TokenType.COMMA));
+            }
 
+            ConsumeAndExpect(TokenType.R_PAREN, $"Expected a closing ')' after parameters for function '{nameToken.Text}'.");
+            ConsumeAndExpect(TokenType.ARROW, $"Expected an '=>' to define the body of function '{nameToken.Text}'.");
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            return (nameToken, parameters);
+        }
 
         /// <summary>
         /// Parses a `match` statement or expression. This method acts as a dispatcher,

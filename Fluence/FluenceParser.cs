@@ -1166,7 +1166,7 @@ namespace Fluence
         {
             _lexer.ConsumeToken(); // Consume return;
 
-            Value result = null;
+            Value result;
 
             // return;
             if (_lexer.PeekNextToken().Type == TokenType.EOL)
@@ -1223,7 +1223,7 @@ namespace Fluence
 
             if (inStruct)
             {
-                if (!_currentParseState.CurrentScope.TryResolve(structName, out Symbol symbol) || !(symbol is StructSymbol structSymbol))
+                if (!_currentParseState.CurrentScope.TryResolve(structName, out Symbol symbol) || symbol is not StructSymbol structSymbol)
                 {
                     throw new Exception($"Internal Compiler Error: Could not find struct '{structName}' in current scope '{_currentParseState.CurrentScope.Name}'.");
                 }
@@ -1271,7 +1271,7 @@ namespace Fluence
             else // !inStruct
             {
                 // This will also work for functions defined in the current scope.
-                if (!_currentParseState.CurrentScope.TryResolve(functionName, out Symbol symbol) || !(symbol is FunctionSymbol functionSymbol))
+                if (!_currentParseState.CurrentScope.TryResolve(functionName, out Symbol symbol) || symbol is not FunctionSymbol functionSymbol)
                 {
                     throw new Exception($"Internal Compiler Error: Could not find function '{functionName}' in current scope '{_currentParseState.CurrentScope.Name}'.");
                 }

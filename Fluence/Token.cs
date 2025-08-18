@@ -257,7 +257,7 @@
         internal readonly short ColumnInSourceCode;
 
         /// <summary>A shared, single instance of the End-Of-Line-Lexer token.</summary>
-        internal static Token EOL_LEXER => new Token(TokenType.EOL_LEXER);
+        internal static readonly Token EOL_LEXER = new Token(TokenType.EOL_LEXER);
 
         /// <summary>A shared, single instance of the End-of-File token.</summary>
         internal static readonly Token EOF = new Token(TokenType.EOF);

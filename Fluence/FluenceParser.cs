@@ -1634,32 +1634,27 @@ namespace Fluence
 
         private void ParseUseStatement()
         {
-            _lexer.ConsumeToken();
+            ConsumeAndExpect(TokenType.USE, "the 'use' keyword.");
 
-            Token nameToken = _lexer.ConsumeToken();
-            string namespaceName = nameToken.Text;
-
-            if (!_currentParseState.NameSpaces.ContainsKey(namespaceName))
+            do
             {
-                // Error, unknown space.
-            }
+                Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "a namespace name.");
+                string namespaceName = nameToken.Text;
 
-            FluenceScope namespaceToUse = _currentParseState.NameSpaces[namespaceName];
-
-            foreach (var entry in namespaceToUse.Symbols)
-            {
-                string key = entry.Key;
-                Symbol symbol = entry.Value;
-
-                if (_currentParseState.CurrentScope.TryGetLocalSymbol(key, out Symbol _))
+                if (!_currentParseState.NameSpaces.TryGetValue(namespaceName, out FluenceScope namespaceToUse))
                 {
-                    // error conflicting symbols.
+                    ConstructAndThrowParserException($"Namespace '{namespaceName}' not found. Expected a defined namespace.", nameToken);
                 }
+                foreach (var entry in namespaceToUse.Symbols)
+                {
+                    if (!_currentParseState.CurrentScope.Declare(entry.Key, entry.Value))
+                    {
+                        ConstructAndThrowParserException($"Symbol '{entry.Key}' from namespace '{namespaceName}' conflicts with an existing symbol. Expected a unique symbol.", nameToken);
+                    }
+                }
+            } while (ConsumeTokenIfMatch(TokenType.COMMA));
 
-                _currentParseState.CurrentScope.Declare(key, symbol);
-            }
-
-            ConsumeAndExpect(TokenType.EOL, "Expected ';' or newline after 'use' statement.");
+            ConsumeAndExpect(TokenType.EOL, "a ';' or newline to end the 'use' statement.");
         }
 
         private void ParseBlockStatement()
@@ -2149,15 +2144,7 @@ namespace Fluence
             return result;
         }
 
-        /// <summary>
-        /// The main entry point for parsing any expression.
-        /// It begins the chain of precedence by calling <see cref="ParseLogicalOr"/>.
-        /// </summary>
-        private Value ParseExpression()
-        {
-            // for now
-            return ParseLogicalOr();
-        }
+
 
 
 
@@ -2243,7 +2230,11 @@ namespace Fluence
 
 
 
-
+        /// <summary>
+        /// The main entry point for parsing any expression.
+        /// It begins the chain of precedence by calling <see cref="ParseLogicalOr"/>.
+        /// </summary>
+        private Value ParseExpression() => ParseLogicalOr();
 
         /// <summary>
         /// Parses logical OR expressions (||).

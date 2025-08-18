@@ -10,8 +10,6 @@ namespace Fluence
     internal sealed class FluenceParser
     {
         private FluenceLexer _lexer;
-        // Used to lex special, tiny bits of code, like expressions in f-string.
-        private FluenceLexer _auxLexer;
         // Used for parsing default field values in first pass.
         private FluenceLexer _fieldLexer;
 
@@ -1300,6 +1298,43 @@ namespace Fluence
             _currentParseState.CodeInstructions[jumpOverBodyGoTo].Lhs = new NumberValue(afterBodyAddress);
         }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /// <summary>
+        /// Parses a `match` statement or expression. This method acts as a dispatcher,
+        /// determining whether to parse a statement-style (`case:`) or expression-style (`case ->`) match.
+        /// </summary>
+        /// <returns>
+        /// A <see cref="Value"/> representing the result of the match if it's an expression,
+        /// or a <see cref="NilValue"/> if it's a statement.
+        /// </returns>
         private Value ParseMatchStatement()
         {
             if (_lexer.PeekNextToken().Type == TokenType.MATCH)
@@ -1310,28 +1345,33 @@ namespace Fluence
                 _lexer.ConsumeToken();
             }
 
-            Value matchOn = ParseTernary();
+            Value matchOn = ResolveValue(ParseTernary());
 
-            ConsumeAndExpect(TokenType.L_BRACE, "Missing opening [ on match.");
+            ConsumeAndExpect(TokenType.L_BRACE, "Expected an opening '{' to begin the match block.");
+
+            // Check for match x { } empty match.
+            if (_lexer.PeekNextToken().Type == TokenType.R_BRACE)
+            {
+                _lexer.ConsumeToken(); // Consume '}'
+                return new NilValue(); // An empty match does nothing and returns nil.
+            }
 
             if (IsSwitchStyleMatch())
             {
                 ParseMatchSwitchStyle(matchOn);
                 return new NilValue();
             }
-            // Check for match x { } empty match.
-            else if (_lexer.PeekAheadByN(2).Type == TokenType.R_BRACE)
-            {
-                return new NilValue();
-            }
-            else
-            {
-                return ParseMatchExpressionStyle(matchOn);
-            }
+
+            return ParseMatchExpressionStyle(matchOn);
         }
 
+        /// <summary>
+        /// Parses a switch-style `match` statement, which does not return a value and uses `break` and fallthrough.
+        /// </summary>
+        /// <param name="matchOn">The value being matched against, already parsed.</param>
         private void ParseMatchSwitchStyle(Value matchOn)
         {
+            // matchOn is already resolved.
             MatchContext context = new MatchContext();
             _currentParseState.ActiveMatchContexts.Push(context);
 
@@ -1341,9 +1381,10 @@ namespace Fluence
 
             while (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
             {
-                if (_lexer.PeekNextToken().Type == TokenType.EOL)
+                TokenType nextType = _lexer.PeekNextToken().Type;
+
+                if (nextType == TokenType.EOL)
                 {
-                    // in an indented match there will be eols between cases, skip them.
                     _lexer.ConsumeToken();
                     continue;
                 }
@@ -1356,13 +1397,13 @@ namespace Fluence
                 }
                 nextCasePatches.Clear();
 
-                if (_lexer.PeekNextToken().Type == TokenType.REST)
+                if (nextType == TokenType.REST)
                 {
                     _lexer.ConsumeToken();
                 }
                 else
                 {
-                    Value pattern = ParseExpression();
+                    Value pattern = ResolveValue(ParseExpression());
 
                     TempValue condition = new TempValue(_currentParseState.NextTempNumber++);
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, condition, matchOn, pattern));
@@ -1378,10 +1419,10 @@ namespace Fluence
                     nextCasePatches.Add(_currentParseState.CodeInstructions.Count - 1);
                 }
 
-                ConsumeAndExpect(TokenType.COLON, "Expected ':' after match case pattern.");
+                ConsumeAndExpect(TokenType.COLON, "Expected a ':' after the match case pattern.");
 
-                // Parse the body after the colon
-                while (_lexer.PeekNextToken().Type != TokenType.R_BRACE && _lexer.PeekNextToken().Type != TokenType.REST)
+                // Parse the body after the colon.
+                while (_lexer.PeekNextToken().Type is not TokenType.R_BRACKET and not TokenType.REST)
                 {
                     if (_lexer.PeekNextToken().Type == TokenType.BREAK)
                     {
@@ -1405,7 +1446,7 @@ namespace Fluence
                 nextCasePatches.Add(_currentParseState.CodeInstructions.Count - 1);
             }
 
-            ConsumeAndExpect(TokenType.R_BRACE, "Expecting closing } after match");
+            ConsumeAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end the match statement.");
 
             _currentParseState.ActiveMatchContexts.Pop();
 
@@ -1422,8 +1463,15 @@ namespace Fluence
             }
         }
 
-        private Value ParseMatchExpressionStyle(Value matchOn)
+        /// <summary>
+        /// Parses a `match` expression that returns a value.
+        /// </summary>
+        /// <param name="matchOn">The value being matched against, already parsed.</param>
+        /// <returns>A TempValue that will hold the result of the matched case at runtime.</returns>
+        private TempValue ParseMatchExpressionStyle(Value matchOn)
         {
+            // matchOn is already resolved.
+            Value resolvedMatchOn = matchOn;
             TempValue result = new TempValue(_currentParseState.NextTempNumber++);
 
             List<int> endJumpPatches = new List<int>();
@@ -1431,51 +1479,43 @@ namespace Fluence
 
             while (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
             {
-                if (_lexer.PeekNextToken().Type == TokenType.EOL)
-                {
-                    // in an indented match there will be eols between cases, skip them.
-                    _lexer.ConsumeToken();
-                    continue;
-                }
+                Token caseToken = _lexer.PeekNextToken();
 
                 if (hasRestCase)
                 {
-                    // error, can't define after rest.
+                    ConstructAndThrowParserException("The 'rest' case must be the final case in a match expression.", caseToken);
                 }
 
-                int nextCasePatch = -1;
+                int nextCasePatchIndex = -1;
 
                 if (_lexer.PeekNextToken().Type == TokenType.REST)
                 {
                     hasRestCase = true;
                     _lexer.ConsumeToken(); // Consume the rest.
-                    // Nothing else, final else, no comparison.
+                    nextCasePatchIndex = -1;
                 }
                 else
                 {
-                    Value pattern = ParseTernary();
+                    Value pattern = ResolveValue(ParseTernary());
 
                     TempValue condition = new TempValue(_currentParseState.NextTempNumber++);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, condition, matchOn, pattern));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, condition, resolvedMatchOn, pattern));
 
                     // We'll patch later
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
-                    nextCasePatch = _currentParseState.CodeInstructions.Count - 1;
+                    nextCasePatchIndex = _currentParseState.CodeInstructions.Count - 1;
                 }
-
-                Value caseResult = null;
-
-                bool generatedAssign = false;
 
                 if (_lexer.PeekNextToken().Type == TokenType.THIN_ARROW)
                 {
-                    ConsumeAndExpect(TokenType.THIN_ARROW, "Missing thin arrow in match case.");
+                    ConsumeAndExpect(TokenType.THIN_ARROW, "Expected a '->' for the match case expression.");
 
-                    caseResult = ParseTernary();
+                    Value caseResult = ResolveValue(ParseTernary());
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, result, caseResult));
                 }
                 else
                 {
-                    ConsumeAndExpect(TokenType.ARROW, "Missing arrow in match case.");
+                    ConsumeAndExpect(TokenType.ARROW, "Expected a '=>' for the match case block.");
                     int instructionCountBeforeBlock = _currentParseState.CodeInstructions.Count;
                     ParseBlockStatement();
 
@@ -1483,39 +1523,33 @@ namespace Fluence
                     if (_currentParseState.CodeInstructions.Count == instructionCountBeforeBlock ||
                         _currentParseState.CodeInstructions[^1].Instruction != InstructionCode.Return)
                     {
-                        throw new Exception("Syntax Error: A block body '=> { ... }' in a match expression must end with a 'return' statement.");
+                        ConstructAndThrowParserException("A block body '=> { ... }' in a match expression must end with a 'return' statement.", _lexer.PeekNextToken());
                     }
 
                     Value returnedValue = _currentParseState.CodeInstructions[^1].Lhs;
-                    generatedAssign = true;
 
                     // Parseblock ends with a return statement, but we don't want to exit function, just the block,
                     // so we replace it with an assign instruction instead.
                     _currentParseState.CodeInstructions[^1] = new InstructionLine(InstructionCode.Assign, result, returnedValue);
                 }
 
-                if (!generatedAssign)
-                {
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, result, caseResult));
-                }
-
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
                 endJumpPatches.Add(_currentParseState.CodeInstructions.Count - 1);
 
-                if (nextCasePatch != -1)
+                if (nextCasePatchIndex != -1)
                 {
                     int nextCaseAddress = _currentParseState.CodeInstructions.Count;
-                    _currentParseState.CodeInstructions[nextCasePatch].Lhs = new NumberValue(nextCaseAddress);
+                    _currentParseState.CodeInstructions[nextCasePatchIndex].Lhs = new NumberValue(nextCaseAddress);
                 }
 
-                ConsumeAndExpect(TokenType.EOL, "Expecting ; after expression or block body in match cases.");
+                ConsumeAndExpect(TokenType.EOL, "Expected a ';' or after each match case.");
             }
 
-            ConsumeAndExpect(TokenType.R_BRACE, "Expecting closing } after match.");
+            ConsumeAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end the match expression.");
 
             if (!hasRestCase)
             {
-                // error, rest is a must.
+                ConstructAndThrowParserException("A 'match' expression that returns a value must be exhaustive and include a 'rest' case.", _lexer.PeekNextToken());
             }
 
             int matchEndAddress = _currentParseState.CodeInstructions.Count;
@@ -1527,27 +1561,6 @@ namespace Fluence
 
             return result;
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         /// <summary>
         /// A simple helper to generate an `Add` instruction to concatenate two string values.
@@ -3111,7 +3124,7 @@ namespace Fluence
                 return new NilValue();
             }
 
-            if (token.Type == TokenType.MINUS || token.Type == TokenType.BANG || token.Type == TokenType.TILDE)
+            if (token.Type is TokenType.MINUS or TokenType.BANG or TokenType.TILDE)
             {
                 Value operand = ParsePrimary();
 

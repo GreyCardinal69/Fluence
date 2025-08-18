@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-namespace Fluence
+﻿namespace Fluence
 {
     internal abstract record class Value
     {

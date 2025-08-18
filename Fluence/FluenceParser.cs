@@ -2353,64 +2353,6 @@ namespace Fluence
             return left;
         }
 
-        private Value ParseDotAndOrOperators()
-        {
-            Token token = _lexer.ConsumeToken(); // Consume .and or .or
-
-            ConsumeAndExpect(TokenType.L_PAREN, "Expecting opening ( after .and/.or");
-
-            InstructionCode logicalOp = token.Type == TokenType.DOT_AND_CHECK ? InstructionCode.And : InstructionCode.Or;
-
-            Value result = null;
-
-            do
-            {
-                Value condition = ParseExpression();
-
-                if (result == null)
-                {
-                    result = condition;
-                }
-                else
-                {
-                    TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(logicalOp, temp, condition, result));
-                    result = temp;
-                }
-            }
-            while (ConsumeTokenIfMatch(TokenType.COMMA));
-
-            ConsumeAndExpect(TokenType.R_PAREN, "Expecting closing ) after .and/.or");
-
-            return result ?? new BooleanValue(logicalOp == InstructionCode.And);
-        }
-
-        private Value GenerateCollectiveComparisonByteCode(List<Value> lhsExprs, Token op, Value rhs)
-        {
-            Value result = null;
-
-            InstructionCode comparisonType = GetInstructionCodeForCollectiveOp(op.Type);
-            InstructionCode logicalOp = IsOrCollectiveOperator(op.Type) ? InstructionCode.Or : InstructionCode.And;
-
-            foreach (Value lhs in lhsExprs)
-            {
-                TempValue currentResult = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(comparisonType, currentResult, lhs, rhs));
-
-                if (result == null)
-                {
-                    result = currentResult;
-                }
-                else
-                {
-                    TempValue combinedResult = new TempValue(_currentParseState.NextTempNumber++);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(logicalOp, combinedResult, result, currentResult));
-                    result = combinedResult;
-                }
-            }
-
-            return result;
-        }
 
 
 
@@ -2501,7 +2443,95 @@ namespace Fluence
 
 
 
+        /// <summary>
+        /// Parses a short-circuiting logical check using `.and(...)` or `.or(...)` syntax.
+        /// </summary>
+        /// <returns>A TempValue that will hold the final boolean result at runtime.</returns>
+        private Value ParseDotAndOrOperators()
+        {
+            Token opToken = _lexer.ConsumeToken(); // Consume .and or .or
 
+            ConsumeAndExpect(TokenType.L_PAREN, $"Expected an opening '(' after '{opToken.ToDisplayString()}'.");
+
+            InstructionCode logicalOp = opToken.Type == TokenType.DOT_AND_CHECK ? InstructionCode.And : InstructionCode.Or;
+
+            // Handle empty call case.
+            if (_lexer.PeekNextToken().Type == TokenType.R_PAREN)
+            {
+                ConstructAndThrowParserException("Argument list for .and()/.or() cannot be empty. Expected at least one boolean expression.", opToken);
+            }
+
+            Value result = ResolveValue(ParseExpression());
+
+            while (ConsumeTokenIfMatch(TokenType.COMMA))
+            {
+                Value nextCondition = ResolveValue(ParseExpression());
+
+                TempValue combinedResult = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(
+                    logicalOp,
+                    combinedResult,
+                    result, // The result of the previous operation
+                    nextCondition
+                ));
+
+                result = combinedResult;
+            }
+
+            ConsumeAndExpect(TokenType.R_PAREN, $"Expected a closing ')' after '{opToken.ToDisplayString()}' arguments.");
+
+            return result;
+        }
+
+        /// <summary>
+        /// Generates the bytecode for a collective comparison expression.
+        /// </summary>
+        /// <param name="lhsExprs">The list of left-hand side expressions to compare.</param>
+        /// <param name="opToken">The collective comparison operator token.</param>
+        /// <param name="rhs">The single right-hand side expression to compare against.</param>
+        /// <returns>A TempValue that will hold the final boolean result at runtime.</returns>
+        private Value GenerateCollectiveComparisonByteCode(List<Value> lhsExprs, Token opToken, Value rhs)
+        {
+            Value resolvedRhs = ResolveValue(rhs);
+
+            InstructionCode comparisonOp = GetInstructionCodeForCollectiveOp(opToken.Type);
+            InstructionCode logicalOp = IsOrCollectiveOperator(opToken.Type) ? InstructionCode.Or : InstructionCode.And;
+
+            // Perform the first comparison to establish the initial result.
+            TempValue finalResult = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(
+                comparisonOp,
+                finalResult,
+                ResolveValue(lhsExprs[0]),
+                resolvedRhs
+            ));
+
+            // Loop through the rest of the expressions and combine them.
+            for (int i = 1; i < lhsExprs.Count; i++)
+            {
+                // Perform the comparison for the next item.
+                TempValue nextComparisonResult = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(
+                    comparisonOp,
+                    nextComparisonResult,
+                    ResolveValue(lhsExprs[i]),
+                    resolvedRhs
+                ));
+
+                // Combine this result with the running total.
+                TempValue combinedResult = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(
+                    logicalOp,
+                    combinedResult,
+                    finalResult, // The result of the previous operations
+                    nextComparisonResult
+                ));
+
+                finalResult = combinedResult;
+            }
+
+            return finalResult;
+        }
 
         /// <summary>
         /// Parses range expressions.

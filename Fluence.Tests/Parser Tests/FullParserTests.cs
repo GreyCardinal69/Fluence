@@ -321,8 +321,8 @@ namespace Fluence.ParserTests
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.And, new TempValue(0), new VariableValue("b"), new VariableValue("a")),
-                new(InstructionCode.Or, new TempValue(1), new VariableValue("d"), new VariableValue("c")),
+                new(InstructionCode.And, new TempValue(0), new VariableValue("a"), new VariableValue("b")),
+                new(InstructionCode.Or, new TempValue(1), new VariableValue("c"), new VariableValue("d")),
                 new(InstructionCode.Or, new TempValue(2), new TempValue(0), new TempValue(1)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(1)),

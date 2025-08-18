@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System.Diagnostics.Metrics;
+using System.Text;
+using System.Xml.Linq;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.Token;
@@ -12,8 +14,12 @@ namespace Fluence
         private FluenceLexer _lexer;
         // Used to lex special, tiny bits of code, like expressions in f-string.
         private FluenceLexer _auxLexer;
+        // Used for parsing default field values in first pass.
+        private FluenceLexer _fieldLexer;
 
         private ParseState _currentParseState;
+
+        internal FluenceScope CurrentParserStateGlobalScope => _currentParseState.GlobalScope;
 
         public List<InstructionLine> CompiledCode => _currentParseState.CodeInstructions;
 
@@ -35,9 +41,13 @@ namespace Fluence
             internal List<InstructionLine> CodeInstructions = new List<InstructionLine>();
             internal Stack<LoopContext> ActiveLoopContexts = new Stack<LoopContext>();
             internal Stack<MatchContext> ActiveMatchContexts = new Stack<MatchContext>();
-            internal Dictionary<string, Symbol> SymbolTable = new Dictionary<string, Symbol>();
             internal List<InstructionLine> FunctionVariableDeclarations = new List<InstructionLine>();
+
             internal StructSymbol CurrentStructContext { get; set; } = null;
+
+            internal FluenceScope GlobalScope { get; } = new FluenceScope();
+            internal FluenceScope CurrentScope { get; set; } = new FluenceScope();
+            internal Dictionary<string, FluenceScope> NameSpaces { get; } = new();
 
             internal int NextTempNumber = 0;
             internal int CurrentTempNumber => NextTempNumber - 1;
@@ -61,49 +71,112 @@ namespace Fluence
         internal FluenceParser(FluenceLexer lexer)
         {
             _currentParseState = new();
+            _currentParseState.CurrentScope = _currentParseState.GlobalScope;
             _lexer = lexer;
         }
 
         internal void DumpSymbolTables()
         {
-            StringBuilder sb = new StringBuilder("------------------------------------\n\nGenerated Symbol Table:\n");
+            StringBuilder sb = new StringBuilder("------------------------------------\n\nGenerated Symbol Hierarchy:\n\n");
 
-            foreach (var item in _currentParseState.SymbolTable)
+            // Dump the global scope first
+            DumpScope(sb, _currentParseState.GlobalScope, "Global Scope", 0);
+
+            // If there are any namespaces, dump them as separate top-level scopes
+            if (_currentParseState.NameSpaces.Any())
             {
-                switch (item.Value)
+                sb.AppendLine(); // Add a separator
+                foreach (var ns in _currentParseState.NameSpaces)
                 {
-                    case EnumSymbol enumSymbol:
-                        sb.Append($"\nSymbol: {item.Key}, type Enum. Members:\n");
-                        foreach (var member in enumSymbol.Members)
-                        {
-                            sb.AppendLine($"{member.Value.MemberName}, {member.Value.Value}");
-                        }
-                        sb.AppendLine();
-                        break;
-                    case FunctionSymbol functionSymbol:
-                        sb.Append($"\nSymbol: {item.Key}, type Function Header. Arity {functionSymbol.Arity}. ");
-                        sb.Append($"StartAddress: {FormatByteCodeAddress(functionSymbol.StartAddress)}\n");
-                        sb.AppendLine();
-                        break;
-                    case StructSymbol structSymbol:
-                        sb.Append($"\nSymbol: {item.Key}, type Struct. {{\n");
-                        sb.Append($"\tFields: {string.Join(", ", structSymbol.Fields)}. \n");
-                        sb.Append($"\tFunctions: {(structSymbol.Functions.Count == 0 ? "None.\n" : "\n")}");
-                        foreach (var function in structSymbol.Functions)
-                        {
-                            sb.AppendLine($"\t\tName: {function.Key}, Arity: {function.Value.Arity}. Start Address: {function.Value.FullAddress}.");
-                        }
-                        FunctionValue constructor = structSymbol.Constructor;
-                        string constructorArity = constructor == null ? "0" : $"{constructor.Arity}";
-                        string constructorStartAddress = constructor == null ? "0" : constructor.FullAddress;
-                        sb.AppendLine($"\tConstructor: {(constructor == null ? "None" : constructor.Name)}. Arity: {constructorArity}. Start Adress: {constructorStartAddress}.");
-                        sb.AppendLine("}");
-                        break;
+                    DumpScope(sb, ns.Value, $"Namespace: {ns.Key}", 0);
                 }
             }
 
-            sb.AppendLine("\n------------------------------------");
+            sb.AppendLine("------------------------------------");
             Console.WriteLine(sb.ToString());
+        }
+
+        /// <summary>
+        /// A recursive helper to dump the contents of a single scope and its children.
+        /// </summary>
+        /// <param name="sb">The StringBuilder to append to.</param>
+        /// <param name="scope">The scope to dump.</param>
+        /// <param name="scopeName">The display name for this scope.</param>
+        /// <param name="indentationLevel">The current level of indentation.</param>
+        private void DumpScope(StringBuilder sb, FluenceScope scope, string scopeName, int indentationLevel)
+        {
+            string indent = new string(' ', indentationLevel * 4);
+
+            sb.Append(indent).Append(scopeName).AppendLine(" {");
+
+            if (!scope.Symbols.Any())
+            {
+                sb.Append(indent).AppendLine("    (empty)");
+            }
+            else
+            {
+                // Dump all symbols within the current scope
+                foreach (var item in scope.Symbols)
+                {
+                    DumpSymbol(sb, item.Key, item.Value, indentationLevel + 1);
+                }
+            }
+
+            sb.Append(indent).AppendLine("}");
+        }
+
+        /// <summary>
+        /// Helper to dump a single symbol's details with proper indentation.
+        /// </summary>
+        private void DumpSymbol(StringBuilder sb, string symbolName, Symbol symbol, int indentationLevel)
+        {
+            string indent = new string(' ', indentationLevel * 4);
+            string innerIndent = new string(' ', (indentationLevel + 1) * 4);
+
+            switch (symbol)
+            {
+                case EnumSymbol enumSymbol:
+                    sb.Append(indent).Append($"Symbol: {symbolName}, type Enum {{").AppendLine();
+                    foreach (var member in enumSymbol.Members)
+                    {
+                        sb.Append(innerIndent).Append(member.Value.MemberName).Append(", ").Append(member.Value.Value).AppendLine();
+                    }
+                    sb.Append(indent).AppendLine("}");
+                    break;
+
+                case FunctionSymbol functionSymbol:
+                    sb.Append(indent).Append($"Symbol: {symbolName}, type Function Header {{ Arity: {functionSymbol.Arity}, StartAddress: {FluenceDebug.FormatByteCodeAddress(functionSymbol.StartAddress)} }}").AppendLine();
+                    break;
+
+                case StructSymbol structSymbol:
+                    sb.Append(indent).Append($"Symbol: {symbolName}, type Struct {{").AppendLine();
+                    sb.Append(innerIndent).Append("Fields: ").Append(string.Join(", ", structSymbol.Fields)).AppendLine(".");
+
+                    if (structSymbol.Functions.Any())
+                    {
+                        sb.Append(innerIndent).AppendLine("Functions: {");
+                        foreach (var function in structSymbol.Functions)
+                        {
+                            sb.Append(innerIndent).Append($"    Name: {function.Key}, Arity: {function.Value.Arity}, Start Address: {FluenceDebug.FormatByteCodeAddress(function.Value.StartAddress)}").AppendLine();
+                        }
+                        sb.Append(innerIndent).AppendLine("}");
+                    }
+
+                    sb.Append("\tDefault Values of Fields:\n");
+                    foreach (var item in structSymbol.DefaultFieldValuesAsTokens)
+                    {
+                        sb.Append($"\t\t{item.Key} : {string.Join(", ", item.Value)}\n");
+                    }
+
+                    FunctionValue constructor = structSymbol.Constructor;
+                    if (constructor != null)
+                    {
+                        sb.Append(innerIndent).Append($"Constructor: {constructor.Name} {{ Arity: {constructor.Arity}, Start Address: {FluenceDebug.FormatByteCodeAddress(constructor.StartAddress)} }}").AppendLine();
+                    }
+
+                    sb.Append(indent).AppendLine("}");
+                    break;
+            }
         }
 
         internal void Parse()
@@ -126,21 +199,28 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Terminate, null));
         }
 
+        internal void AddNameSpace(FluenceScope nameSpace)
+        {
+            _currentParseState.NameSpaces.TryAdd(nameSpace.Name, nameSpace);
+        }
+
         private void ParseTokens()
         {
             _lexer.LexFullSource();
+            _lexer.RemoveLexerEOLS();
 
-            // Disable this when compiling. Just a debug thing.
+#if DEBUG
             _lexer.DumpTokenStream("Initial Token Stream (Before Pre-Parsing declarations)");
+#endif
 
-            ParseDeclarations();
+            ParseDeclarations(0, _lexer.TokenCount);
 
-            // Disable this when compiling. Just a debug thing.
+#if DEBUG
             _lexer.DumpTokenStream("Token stream after parsing declarations.");
+#endif
 
             while (!_lexer.HasReachedEnd)
             {
-                _lexer.TrySkipEOLToken();
                 if (_lexer.HasReachedEnd) break;
 
                 // We reached end of file, so we just quit.
@@ -154,13 +234,32 @@ namespace Fluence
             }
         }
 
-        private void ParseDeclarations()
+        private void ParseDeclarations(int start, int end)
         {
-            int currentIndex = 0;
-            while (true)
+            int currentIndex = start;
+            while (currentIndex < end)
             {
                 Token token = _lexer.PeekAheadByN(currentIndex + 1);
                 if (token.Type == TokenType.EOF) break;
+
+                if (token.Type == TokenType.SPACE)
+                {
+                    int namespaceNameIndex = currentIndex + 1;
+                    int namespaceEndIndex = FindMatchingBrace(namespaceNameIndex);
+
+                    string namespaceName = _lexer.PeekAheadByN(namespaceNameIndex + 1).Text;
+                    FluenceScope parentScope = _currentParseState.CurrentScope;
+                    FluenceScope namespaceScope = new FluenceScope(parentScope, namespaceName);
+                    _currentParseState.NameSpaces.TryAdd(namespaceName, namespaceScope);
+                    _currentParseState.CurrentScope = namespaceScope;
+
+                    ParseDeclarations(namespaceNameIndex + 2, namespaceEndIndex + 1);
+
+                    _currentParseState.CurrentScope = parentScope;
+
+                    currentIndex = namespaceEndIndex + 1;
+                    continue;
+                }
 
                 if (token.Type == TokenType.ENUM)
                 {
@@ -171,7 +270,7 @@ namespace Fluence
 
                     int count = declarationEndIndex - declarationStartIndex + 1;
 
-                    _lexer.RemoveTokens(declarationStartIndex, count);
+                    _lexer.RemoveTokenRange(declarationStartIndex, count);
                     continue;
                 }
                 else if (token.Type == TokenType.FUNC)
@@ -190,12 +289,61 @@ namespace Fluence
                     int declarationStartIndex = currentIndex;
                     int declarationEndIndex = FindStructDeclarationEnd(declarationStartIndex);
                     ParseStructDeclaration(declarationStartIndex, declarationEndIndex);
-                    currentIndex = declarationEndIndex ;
+                    currentIndex = declarationEndIndex;
                     continue;
+                }
+                currentIndex++;
+
+
+            }
+        }
+
+        private int FindMatchingBrace(int startIndex)
+        {
+            int currentIndex = startIndex;
+
+            while (_lexer.PeekAheadByN(currentIndex + 1).Type != TokenType.L_BRACE)
+            {
+                if (_lexer.PeekAheadByN(currentIndex + 1).Type == TokenType.EOF)
+                {
+                    throw new Exception($"Syntax Error: Could not find opening brace '{{' to start block after index {startIndex}.");
+                }
+                currentIndex++;
+            }
+
+            currentIndex++;
+            int braceDepth = 1;
+
+            while (braceDepth > 0)
+            {
+                if (currentIndex >= _lexer.TokenCount)
+                {
+                    throw new Exception("Syntax Error: Unclosed block. Reached end of file while looking for matching '}'.");
+                }
+
+                Token currentToken = _lexer.PeekAheadByN(currentIndex + 1);
+
+                switch (currentToken.Type)
+                {
+                    case TokenType.L_BRACE:
+                        braceDepth++;
+                        break;
+                    case TokenType.R_BRACE:
+                        braceDepth--;
+                        break;
+                    case TokenType.EOF:
+                        throw new Exception("Syntax Error: Unclosed block. Reached end of file while looking for matching '}'.");
+                }
+
+                if (braceDepth == 0)
+                {
+                    return currentIndex;
                 }
 
                 currentIndex++;
             }
+
+            throw new Exception($"Internal Parser Error: Failed to find matching brace starting from index {startIndex}.");
         }
 
         private int FindFunctionHeaderDeclarationEnd(int startIndex)
@@ -372,23 +520,19 @@ namespace Fluence
 
             FunctionSymbol functionSymbol = new FunctionSymbol(funcName, arity, -1);
 
-            if (_currentParseState.SymbolTable.TryGetValue(funcName, out Symbol symbol))
+            if (!_currentParseState.CurrentScope.Declare(funcName, functionSymbol))
             {
-                FunctionSymbol funcSymbol = symbol as FunctionSymbol;
-                if (funcSymbol.Arity == arity)
-                {
-                    // error here, duplicate function, same arguments.
-                }
+                // error here, duplicate function.
             }
 
-            _currentParseState.SymbolTable.Add(funcName, functionSymbol);
+            _currentParseState.CurrentScope.Declare(funcName, functionSymbol);
         }
 
         private void ParseStructDeclaration(int startTokenIndex, int endTokenIndex)
         {
             string structName = _lexer.PeekAheadByN(startTokenIndex + 2).Text;
             StructSymbol structSymbol = new StructSymbol(structName);
- 
+
             for (int i = startTokenIndex + 3; i < endTokenIndex; i++)
             {
                 Token token = _lexer.PeekAheadByN(i + 1);
@@ -404,16 +548,20 @@ namespace Fluence
                     {
                         structSymbol.Fields.Add(token.Text);
 
-                        int statementEndIndex = i + 2; // Start looking after the '='
-                        while (statementEndIndex < endTokenIndex)
+                        int statementEndIndex = i + 2;
+                        while (statementEndIndex < endTokenIndex && _lexer.PeekAheadByN(statementEndIndex + 1).Type != TokenType.EOL)
                         {
-                            if (_lexer.PeekAheadByN(statementEndIndex + 1).Type == TokenType.EOL)
-                            {
-                                break; // Found the semicolon or newline
-                            }
                             statementEndIndex++;
                         }
+
+                        List<Token> defaultValueTokens = new List<Token>();
+                        for (int z = i + 3; z < statementEndIndex + 1; z++)
+                        {
+                            defaultValueTokens.Add(_lexer.PeekAheadByN(z));
+                        }
                         i = statementEndIndex;
+
+                        structSymbol.DefaultFieldValuesAsTokens.TryAdd(token.Text, defaultValueTokens);
                     }
                 }
                 else if (token.Type == TokenType.FUNC)
@@ -474,14 +622,14 @@ namespace Fluence
                 }
             }
 
-            if (_currentParseState.SymbolTable.ContainsKey(structName))
+            if (!_currentParseState.CurrentScope.Declare(structName, structSymbol))
             {
                 // error here, duplicate struct declaration.
             }
-            _currentParseState.SymbolTable.Add(structName, structSymbol);
+            _currentParseState.CurrentScope.Declare(structName, structSymbol);
         }
 
-        private void ParseEnumDeclaration(int startTokenIndex, int endTokenIndex)
+        private void ParseEnumDeclaration(int startTokenIndex, int endTokenIndex, bool inGlobal = false)
         {
             Token nameToken = _lexer.PeekAheadByN(startTokenIndex + 1 + 1);
             string enumName = nameToken.Text;
@@ -516,12 +664,18 @@ namespace Fluence
                 currentIndex++;
             }
 
-            if (_currentParseState.SymbolTable.ContainsKey(enumName))
+            if (inGlobal && !_currentParseState.GlobalScope.Declare(enumName, enumSymbol))
+            {
+                _currentParseState.GlobalScope.Declare(enumName, enumSymbol);
+                return;
+            }
+
+            if (!_currentParseState.CurrentScope.Declare(enumName, enumSymbol))
             {
                 // error here, duplicate enum declaration.
             }
 
-            _currentParseState.SymbolTable.Add(enumName, enumSymbol);
+            _currentParseState.CurrentScope.Declare(enumName, enumSymbol);
         }
 
         private void ParseStatement()
@@ -569,10 +723,6 @@ namespace Fluence
 
                         next = _lexer.PeekNextToken();
 
-                        if (next.Type == TokenType.EOL)
-                        {
-                            if (next.Text != ";" && next.Text != ";\r\n" && next.Text != ";\n") throw new Exception("; mandate");
-                        }
 
                         if (next.Type == TokenType.EOF)
                         {
@@ -581,7 +731,7 @@ namespace Fluence
 
                         // If we reach here, then we lack a semicolon, most likely at the end of an expression,
                         // not within if/loops/etc. Or we have a bug.
-                        ConsumeAndTryThrowIfUnequal(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
+                        ConsumeAndExpect(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
                         break;
                     case TokenType.CONTINUE:
                         _lexer.ConsumeToken(); // Consume 'continue'
@@ -595,10 +745,6 @@ namespace Fluence
 
                         next = _lexer.PeekNextToken();
 
-                        if (next.Type == TokenType.EOL)
-                        {
-                            if (next.Text != ";" && next.Text != ";\r\n" && next.Text != ";\n") throw new Exception("; mandate");
-                        }
 
                         if (next.Type == TokenType.EOF)
                         {
@@ -607,7 +753,7 @@ namespace Fluence
 
                         // If we reach here, then we lack a semicolon, most likely at the end of an expression,
                         // not within if/loops/etc. Or we have a bug.
-                        ConsumeAndTryThrowIfUnequal(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
+                        ConsumeAndExpect(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
                         break;
                     case TokenType.WHILE:
                         ParseWhileStatement();
@@ -630,6 +776,36 @@ namespace Fluence
                     case TokenType.SELF:
                         ParseAssignment(); // Self is really just a variable.
                         break;
+                    case TokenType.SPACE:  // In the second pass, we don't create a new namespace. We just enter it.
+                        ConsumeAndExpect(TokenType.SPACE, "Expected 'space'.");
+                        Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected namespace name.");
+                        string namespaceName = nameToken.Text;
+                        ConsumeAndExpect(TokenType.L_BRACE, "Expected '{'.");
+
+                        // --- THE FIX ---
+                        // Get the PRE-EXISTING scope that was created during ParseDeclarations.
+                        if (!_currentParseState.NameSpaces.TryGetValue(namespaceName, out FluenceScope namespaceScope))
+                        {
+                            throw new Exception($"Internal Compiler Error: Namespace '{namespaceName}' was not found in the symbol table during the second pass.");
+                        }
+
+                        // Temporarily enter the namespace scope
+                        FluenceScope parentScope = _currentParseState.CurrentScope;
+                        _currentParseState.CurrentScope = namespaceScope;
+
+                        // Parse all statements inside the block
+                        while (_lexer.PeekNextToken().Type != TokenType.R_BRACE && !_lexer.HasReachedEnd)
+                        {
+                            ParseStatement();
+                        }
+                        ConsumeAndExpect(TokenType.R_BRACE, "Expected '}'.");
+
+                        // Restore the parent scope
+                        _currentParseState.CurrentScope = parentScope;
+                        break;
+                    case TokenType.USE:
+                        ParseUseStatement();
+                        break;
                 }
             }
             // Most likely an expression
@@ -639,10 +815,6 @@ namespace Fluence
 
                 next = _lexer.PeekNextToken();
 
-                if (next.Type == TokenType.EOL)
-                {
-                    if (next.Text != ";" && next.Text != ";\r\n" && next.Text != ";\n") throw new Exception("; mandate");
-                }
 
                 if (next.Type == TokenType.EOF)
                 {
@@ -651,7 +823,7 @@ namespace Fluence
 
                 // If we reach here, then we lack a semicolon, most likely at the end of an expression,
                 // not within if/loops/etc. Or we have a bug.
-                ConsumeAndTryThrowIfUnequal(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
+                ConsumeAndExpect(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
             }
         }
 
@@ -669,7 +841,10 @@ namespace Fluence
             string structName = _lexer.ConsumeToken().Text; // Consume name;
             _lexer.ConsumeToken(); // Consume {
 
-            var structSymbol = (StructSymbol)_currentParseState.SymbolTable[structName];
+            StructSymbol structSymbol;
+            _currentParseState.CurrentScope.TryResolve(structName, out Symbol symbol);
+            structSymbol = (StructSymbol)symbol;
+
             _currentParseState.CurrentStructContext = structSymbol;
 
             // Empty struct.
@@ -684,7 +859,7 @@ namespace Fluence
             while (true)
             {
                 Token currentToken = _lexer.PeekNextToken();
-      
+
                 if (currentToken.Type == TokenType.FUNC)
                 {
                     bool isInit = _lexer.PeekAheadByN(2).Text == "init";
@@ -701,7 +876,7 @@ namespace Fluence
                 {
                     break;
                 }
-            } 
+            }
 
             _currentParseState.CurrentStructContext = null;
         }
@@ -723,16 +898,12 @@ namespace Fluence
 
         private void ParseForCStyleStatement()
         {
-            // Part 1: Initializer (e.g., "i = 0;")
-            // This runs once before the loop begins.
             ParseStatement();
 
-            // Part 2: Condition (e.g., "i < 10")
             Value condition = ParseExpression();
             int conditionCheckIndex = _currentParseState.CodeInstructions.Count;
             _lexer.ConsumeToken(); // Consume the ;
 
-            // Add a placeholder jump that will exit the loop if the condition is false.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, condition));
             int loopExitPatchIndex = _currentParseState.CodeInstructions.Count - 1;
 
@@ -759,7 +930,7 @@ namespace Fluence
             }
             else
             {
-                ConsumeAndTryThrowIfUnequal(TokenType.THIN_ARROW, "Expected '->' token for single line for loop statement");
+                ConsumeAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line for loop statement");
                 ParseStatement();
             }
 
@@ -791,10 +962,10 @@ namespace Fluence
 
         private void ParseForInStatement()
         {
-            Token itemToken = ConsumeAndTryThrowIfUnequal(TokenType.IDENTIFIER, "Expected loop variable name after 'for'.");
+            Token itemToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected loop variable name after 'for'.");
             VariableValue loopVariable = new VariableValue(itemToken.Text);
 
-            ConsumeAndTryThrowIfUnequal(TokenType.IN, "Expected 'in' keyword in for-loop.");
+            ConsumeAndExpect(TokenType.IN, "Expected 'in' keyword in for-loop.");
 
             Value collectionExpr = ParseExpression();
 
@@ -830,7 +1001,7 @@ namespace Fluence
             }
             else
             {
-                ConsumeAndTryThrowIfUnequal(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
+                ConsumeAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
                 ParseStatement();
             }
 
@@ -881,7 +1052,7 @@ namespace Fluence
             }
             else
             {
-                ConsumeAndTryThrowIfUnequal(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
+                ConsumeAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
                 ParseStatement();
             }
 
@@ -950,7 +1121,7 @@ namespace Fluence
             }
             else  // Single line if, expects ; instead.
             {
-                ConsumeAndTryThrowIfUnequal(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
+                ConsumeAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
                 ParseStatement();
             }
 
@@ -979,7 +1150,7 @@ namespace Fluence
                 }
                 else // single line else.
                 {
-                    ConsumeAndTryThrowIfUnequal(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
+                    ConsumeAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
                     ParseStatement();
                 }
 
@@ -1012,23 +1183,14 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, result));
         }
 
-        internal static string FormatByteCodeAddress(int startAddress)
-        {
-            if (startAddress < 10) return $"000{startAddress}";
-            if (startAddress < 100) return $"00{startAddress}";
-            if (startAddress < 1000) return $"0{startAddress}";
-            if (startAddress < 1000) return $"{startAddress}";
-            return "-1";
-        }
-
         private void ParseFunction(bool inStruct = false, bool isInit = false, string structName = null)
         {
             _lexer.ConsumeToken(); // Consume func.
 
-            Token nameToken = ConsumeAndTryThrowIfUnequal(TokenType.IDENTIFIER, "Expected function name.");
+            Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected function name.");
             string functionName = nameToken.Text;
 
-            ConsumeAndTryThrowIfUnequal(TokenType.L_PAREN, "Expected '(' after function name.");
+            ConsumeAndExpect(TokenType.L_PAREN, "Expected '(' after function name.");
 
             List<string> parameters = new List<string>();
             // Has arguments
@@ -1043,8 +1205,8 @@ namespace Fluence
                     }
                 }
             }
-            ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "No closing parenthesis '}' after function args.");
-            ConsumeAndTryThrowIfUnequal(TokenType.ARROW, "No arrow after function declaration");
+            ConsumeAndExpect(TokenType.R_PAREN, "No closing parenthesis '}' after function args.");
+            ConsumeAndExpect(TokenType.ARROW, "No arrow after function declaration");
 
             int functionStartAddress;
             if (inStruct)
@@ -1053,38 +1215,71 @@ namespace Fluence
             }
             else
             {
-                functionStartAddress = _currentParseState.CodeInstructions.Count + 2;
+                functionStartAddress = _currentParseState.CodeInstructions.Count + 1;
             }
 
-            FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress, FormatByteCodeAddress(functionStartAddress));
+            FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress);
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null));
             int jumpOverBodyGoTo = _currentParseState.CodeInstructions.Count - 1;
 
-            FunctionValue functionValue;
-
-            if (!inStruct)
+            if (inStruct)
             {
-                FunctionSymbol functionSymbol = _currentParseState.SymbolTable[functionName] as FunctionSymbol;
-                functionSymbol.SetStartAddress(functionStartAddress);
-                _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{func.Name}"), func));
-            }
-
-            if (structName != null)
-            {
-                StructSymbol structSymbol = _currentParseState.SymbolTable[structName] as StructSymbol;
+                if (!_currentParseState.CurrentScope.TryResolve(structName, out Symbol symbol) || !(symbol is StructSymbol structSymbol))
+                {
+                    throw new Exception($"Internal Compiler Error: Could not find struct '{structName}' in current scope '{_currentParseState.CurrentScope.Name}'.");
+                }
 
                 if (isInit)
                 {
-                    structSymbol.Constructor.SetStartAddress(functionStartAddress, FormatByteCodeAddress(functionStartAddress));
+                    if (structSymbol.Constructor == null)
+                    {
+                        throw new Exception($"Internal Compiler Error: Constructor for '{structName}' was not found in the symbol table.");
+                    }
+                    foreach (var field in structSymbol.DefaultFieldValuesAsTokens)
+                    {
+                        string fieldName = field.Key;
+                        List<Token> expressionTokens = field.Value;
+
+                        _fieldLexer = _lexer;
+                        _lexer = new FluenceLexer(expressionTokens);
+
+                        Value defaultValueResult = ParseTernary();
+
+                        _lexer = _fieldLexer; // Restore the main lexer
+
+                        _currentParseState.AddCodeInstruction(
+                            new InstructionLine(
+                                InstructionCode.SetField,
+                                new VariableValue("self"),
+                                new StringValue(fieldName),
+                                defaultValueResult // This will be the TempValue from the 'Add' instruction
+                            )
+                        );
+                    }
+                    structSymbol.Constructor.SetStartAddress(functionStartAddress);
                     _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{structSymbol.Constructor.Name}"), structSymbol.Constructor));
                 }
                 else
                 {
-                    functionValue = structSymbol.Functions[functionName];
-                    functionValue.SetStartAddress(functionStartAddress, FormatByteCodeAddress(functionStartAddress));
-                    _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{functionValue.Name}"), structSymbol.Functions[functionName]));
+                    if (!structSymbol.Functions.TryGetValue(functionName, out FunctionValue functionValue))
+                    {
+                        throw new Exception($"Internal Compiler Error: Method '{functionName}' for struct '{structName}' was not found in the symbol table.");
+                    }
+                    functionValue.SetStartAddress(functionStartAddress);
+                    _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{functionValue.Name}"), functionValue));
                 }
+            }
+            else // !inStruct
+            {
+                // This will also work for functions defined in the current scope.
+                if (!_currentParseState.CurrentScope.TryResolve(functionName, out Symbol symbol) || !(symbol is FunctionSymbol functionSymbol))
+                {
+                    throw new Exception($"Internal Compiler Error: Could not find function '{functionName}' in current scope '{_currentParseState.CurrentScope.Name}'.");
+                }
+
+                functionSymbol.SetStartAddress(functionStartAddress);
+                _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{func.Name}"), func));
             }
 
             // Either => for one line, or => {...} for a block.
@@ -1119,7 +1314,7 @@ namespace Fluence
 
             Value matchOn = ParseTernary();
 
-            ConsumeAndTryThrowIfUnequal(TokenType.L_BRACE, "Missing opening [ on match.");
+            ConsumeAndExpect(TokenType.L_BRACE, "Missing opening [ on match.");
 
             if (IsSwitchStyleMatch())
             {
@@ -1134,19 +1329,6 @@ namespace Fluence
             else
             {
                 return ParseMatchExpressionStyle(matchOn);
-            }
-        }
-
-        private bool IsSwitchStyleMatch()
-        {
-            int lookAhead = 1;
-            while (true)
-            {
-                TokenType type = _lexer.PeekAheadByN(lookAhead).Type;
-                if (type == TokenType.THIN_ARROW || type == TokenType.ARROW) return false;
-                if (type == TokenType.COLON) return true;
-                if (type == TokenType.R_BRACE) return false; // Empty match.
-                lookAhead++;
             }
         }
 
@@ -1198,7 +1380,7 @@ namespace Fluence
                     nextCasePatches.Add(_currentParseState.CodeInstructions.Count - 1);
                 }
 
-                ConsumeAndTryThrowIfUnequal(TokenType.COLON, "Expected ':' after match case pattern.");
+                ConsumeAndExpect(TokenType.COLON, "Expected ':' after match case pattern.");
 
                 // Parse the body after the colon
                 while (_lexer.PeekNextToken().Type != TokenType.R_BRACE && _lexer.PeekNextToken().Type != TokenType.REST)
@@ -1225,7 +1407,7 @@ namespace Fluence
                 nextCasePatches.Add(_currentParseState.CodeInstructions.Count - 1);
             }
 
-            ConsumeAndTryThrowIfUnequal(TokenType.R_BRACE, "Expecting closing } after match");
+            ConsumeAndExpect(TokenType.R_BRACE, "Expecting closing } after match");
 
             _currentParseState.ActiveMatchContexts.Pop();
 
@@ -1289,13 +1471,13 @@ namespace Fluence
 
                 if (_lexer.PeekNextToken().Type == TokenType.THIN_ARROW)
                 {
-                    ConsumeAndTryThrowIfUnequal(TokenType.THIN_ARROW, "Missing thin arrow in match case.");
+                    ConsumeAndExpect(TokenType.THIN_ARROW, "Missing thin arrow in match case.");
 
                     caseResult = ParseTernary();
                 }
                 else
                 {
-                    ConsumeAndTryThrowIfUnequal(TokenType.ARROW, "Missing arrow in match case.");
+                    ConsumeAndExpect(TokenType.ARROW, "Missing arrow in match case.");
                     int instructionCountBeforeBlock = _currentParseState.CodeInstructions.Count;
                     ParseBlockStatement();
 
@@ -1328,10 +1510,10 @@ namespace Fluence
                     _currentParseState.CodeInstructions[nextCasePatch].Lhs = new NumberValue(nextCaseAddress);
                 }
 
-                ConsumeAndTryThrowIfUnequal(TokenType.EOL, "Expecting ; after expression or block body in match cases.");
+                ConsumeAndExpect(TokenType.EOL, "Expecting ; after expression or block body in match cases.");
             }
 
-            ConsumeAndTryThrowIfUnequal(TokenType.R_BRACE, "Expecting closing } after match.");
+            ConsumeAndExpect(TokenType.R_BRACE, "Expecting closing } after match.");
 
             if (!hasRestCase)
             {
@@ -1452,55 +1634,45 @@ namespace Fluence
             return temp;
         }
 
+        private void ParseUseStatement()
+        {
+            _lexer.ConsumeToken();
+
+            Token nameToken = _lexer.ConsumeToken();
+            string namespaceName = nameToken.Text;
+
+            if (!_currentParseState.NameSpaces.ContainsKey(namespaceName))
+            {
+                // Error, unknown space.
+            }
+
+            FluenceScope namespaceToUse = _currentParseState.NameSpaces[namespaceName];
+
+            foreach (var entry in namespaceToUse.Symbols)
+            {
+                string key = entry.Key;
+                Symbol symbol = entry.Value;
+
+                if (_currentParseState.CurrentScope.TryGetLocalSymbol(key, out Symbol _))
+                {
+                    // error conflicting symbols.
+                }
+
+                _currentParseState.CurrentScope.Declare(key, symbol);
+            }
+
+            ConsumeAndExpect(TokenType.EOL, "Expected ';' or newline after 'use' statement.");
+        }
+
         private void ParseBlockStatement()
         {
-            ConsumeAndTryThrowIfUnequal(TokenType.L_BRACE, "Expected '{' to start a block.");
+            ConsumeAndExpect(TokenType.L_BRACE, "Expected '{' to start a block.");
             while (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
             {
                 ParseStatement();
             }
-            ConsumeAndTryThrowIfUnequal(TokenType.R_BRACE, "Expected '}' to end a block.");
+            ConsumeAndExpect(TokenType.R_BRACE, "Expected '}' to end a block.");
         }
-
-        private static bool IsSimpleAssignmentOperator(TokenType type) => type switch
-        {
-            TokenType.EQUAL or
-            TokenType.EQUAL_DIV or
-            TokenType.EQUAL_MINUS or
-            TokenType.EQUAL_PLUS or
-            TokenType.EQUAL_MUL or
-            TokenType.EQUAL_AMPERSAND or
-            TokenType.EQUAL_PERCENT => true,
-            _ => false,
-        };
-
-        private static bool IsChainAssignmentOperator(TokenType type) => type switch
-        {
-            TokenType.CHAIN_ASSIGN_N or
-            TokenType.OPTIONAL_REST_ASSIGN or
-            TokenType.OPTIONAL_ASSIGN_N or
-            TokenType.SEQUENTIAL_REST_ASSIGN or
-            TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN or
-            TokenType.REST_ASSIGN => true,
-            _ => false
-        };
-
-        private static bool IsUnaryOperator(TokenType type) => type switch
-        {
-            TokenType.DECREMENT or
-            TokenType.INCREMENT or
-            TokenType.MINUS => true,
-            _ => false,
-        };
-
-        private static bool IsMultiCompoundAssignmentOperator(TokenType type) => type switch
-        {
-            TokenType.DOT_PLUS_EQUAL or
-            TokenType.DOT_MINUS_EQUAL or
-            TokenType.DOT_STAR_EQUAL or
-            TokenType.DOT_SLASH_EQUAL => true,
-            _ => false,
-        };
 
         private void ParseAssignment()
         {
@@ -1596,19 +1768,11 @@ namespace Fluence
             }
         }
 
-        private static InstructionCode GetMultiCompountInstructionCode(TokenType type) => type switch
-        {
-            TokenType.DOT_STAR_EQUAL => InstructionCode.Multiply,
-            TokenType.DOT_SLASH_EQUAL => InstructionCode.Divide,
-            TokenType.DOT_PLUS_EQUAL => InstructionCode.Add,
-            TokenType.DOT_MINUS_EQUAL => InstructionCode.Subtract,
-        };
-
         private void ParseMultiCompoundAssignment(List<Value> leftSides)
         {
             Token opToken = _lexer.ConsumeToken();
 
-            InstructionCode operation = GetMultiCompountInstructionCode(opToken.Type);
+            InstructionCode operation = GetInstructionCodeForMultiCompoundAssignment(opToken.Type);
 
             var rhsList = new List<Value>();
             do
@@ -1649,45 +1813,10 @@ namespace Fluence
             }
         }
 
-        private bool IsBroadCastPipeFunctionCall()
-        {
-            if (_lexer.PeekNextToken().Type != TokenType.IDENTIFIER && _lexer.PeekAheadByN(2).Type != TokenType.L_PAREN)
-            {
-                return false;
-            }
-
-            int lookahead = 3;
-            bool hasUnderscore = false;
-
-            while (true)
-            {
-                TokenType type = _lexer.PeekAheadByN(lookahead).Type;
-
-                if (type == TokenType.R_PAREN) break; // End of argument list
-                if (type == TokenType.EOL)
-                {
-                    return false;
-                }
-                if (type == TokenType.EOF) return false; // End of file, not a valid call
-
-                if (type == TokenType.UNDERSCORE) hasUnderscore = true;
-
-                // Skip the argument and a potential comma
-                lookahead++;
-                if (_lexer.PeekAheadByN(lookahead).Type == TokenType.COMMA)
-                {
-                    lookahead++;
-                }
-            }
-
-            // After the ')' at `lookahead`, the next token must be a chain operator.
-            return hasUnderscore && IsChainAssignmentOperator(_lexer.PeekAheadByN(lookahead + 1).Type);
-        }
-
         private List<Value> ParseChainAssignmentLhs()
         {
             List<Value> lhs = new List<Value>();
-            
+
             if (IsBroadCastPipeFunctionCall())
             {
                 Value functionToCall = ParsePrimary();
@@ -1712,8 +1841,8 @@ namespace Fluence
                     }
                     currentIndex++;
                 } while (ConsumeTokenIfMatch(TokenType.COMMA));
-                 
-                ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Expecting closing ) in function call.");
+
+                ConsumeAndExpect(TokenType.R_PAREN, "Expecting closing ) in function call.");
 
                 if (underscoreIndex != -1) ; // error here.
                 lhs.Add(new BroadcastCallTemplate(functionToCall, args, underscoreIndex));
@@ -1754,7 +1883,7 @@ namespace Fluence
                 }
 
                 if (lhsIndex < lhs.Count)
-                { 
+                {
                     if (lhs[lhsIndex] is ElementAccessValue val)
                     {
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetElement, val.Target, val.Index, valueToAssign));
@@ -1762,7 +1891,7 @@ namespace Fluence
                     else if (lhs[lhsIndex] is PropertyAccessValue propAccess)
                     {
                         Value resolvedTarget = propAccess.Target;
- 
+
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, resolvedTarget, new StringValue(propAccess.FieldName), valueToAssign));
                     }
                     else
@@ -1937,8 +2066,6 @@ namespace Fluence
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null, left));
                 int falseJumpPatch = _currentParseState.CodeInstructions.Count - 1;
 
-                _lexer.TrySkipEOLToken(); // Parser can be sensitive. Will throw error.
-
                 Value trueExpr = ParseTernary();
 
                 TempValue result = new TempValue(_currentParseState.NextTempNumber++);
@@ -1953,16 +2080,14 @@ namespace Fluence
                 // 7. Consume the ':' or ',' delimiter.
                 if (type == TokenType.QUESTION)
                 {
-                    ConsumeAndTryThrowIfUnequal(TokenType.COLON, "Expected ':' in standard ternary.");
+                    ConsumeAndExpect(TokenType.COLON, "Expected ':' in standard ternary.");
                 }
                 else
                 {
-                    ConsumeAndTryThrowIfUnequal(TokenType.COMMA, "Expected ',' in Fluid-style ternary.");
+                    ConsumeAndExpect(TokenType.COMMA, "Expected ',' in Fluid-style ternary.");
                 }
 
                 // Recursively parse the "false" path expression.
-
-                _lexer.TrySkipEOLToken();
 
                 Value falseExpr = ParseTernary();
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, result, falseExpr));
@@ -1996,7 +2121,7 @@ namespace Fluence
         private Value ParsePipedFunctionCall(Value leftSidePipedValue)
         {
             Value targetFunction = ParsePrimary();
-            ConsumeAndTryThrowIfUnequal(TokenType.L_PAREN, "Expected a function opening ( for call.");
+            ConsumeAndExpect(TokenType.L_PAREN, "Expected a function opening ( for call.");
 
             List<Value> args = new List<Value>();
 
@@ -2013,7 +2138,7 @@ namespace Fluence
                 }
             }
 
-            ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Expected closing ) for function call/pipe.");
+            ConsumeAndExpect(TokenType.R_PAREN, "Expected closing ) for function call/pipe.");
 
             foreach (var arg in args)
             {
@@ -2026,53 +2151,10 @@ namespace Fluence
             return result;
         }
 
-        private static InstructionCode GetInstructionCode(TokenType type) => type switch
-        {
-            // LEVEL 1: ASSIGNMENT (=, +=, -=, *=, /=) - LOWEST PRECEDENCE
-            TokenType.EQUAL_PLUS => InstructionCode.Add,
-            TokenType.EQUAL_MINUS => InstructionCode.Subtract,
-            TokenType.EQUAL_MUL => InstructionCode.Multiply,
-            TokenType.EQUAL_DIV => InstructionCode.Divide,
-            TokenType.EQUAL_PERCENT => InstructionCode.Modulo,
-            TokenType.EQUAL_AMPERSAND => InstructionCode.BitwiseAnd,
-
-            //  LEVEL 2: ADDITION AND SUBTRACTION (+, -)
-            TokenType.PLUS => InstructionCode.Add,
-            TokenType.MINUS => InstructionCode.Subtract,
-
-            // Precedent level 3: MULTIPLICATION, DIVISION, MODULO (*, /, %)
-            TokenType.STAR => InstructionCode.Multiply,
-            TokenType.SLASH => InstructionCode.Divide,
-            TokenType.PERCENT => InstructionCode.Modulo,
-
-            // Precedent level 4: EXPONENTIATION (**)
-            TokenType.EXPONENT => InstructionCode.Power,
-
-            // LEVEL 5: UNARY OPERATORS (-, ++, --)
-            // TokenType.MINUS => InstructionCode.Subtract,
-            TokenType.INCREMENT => InstructionCode.Increment,
-            TokenType.DECREMENT => InstructionCode.Decrement,
-
-            // Equality
-            TokenType.EQUAL_EQUAL => InstructionCode.Equal,
-            TokenType.BANG_EQUAL => InstructionCode.NotEqual,
-
-            // Comparisons
-            TokenType.GREATER => InstructionCode.GreaterThan,
-            TokenType.LESS => InstructionCode.LessThan,
-            TokenType.GREATER_EQUAL => InstructionCode.GreaterEqual,
-            TokenType.LESS_EQUAL => InstructionCode.LessEqual,
-
-            TokenType.BITWISE_LEFT_SHIFT => InstructionCode.BitwiseLShift,
-            TokenType.BITWISE_RIGHT_SHIFT => InstructionCode.BitwiseRShift,
-            TokenType.TILDE => InstructionCode.BitwiseNot,
-            TokenType.CARET => InstructionCode.BitwiseXor,
-            TokenType.PIPE_CHAR => InstructionCode.BitwiseOr,
-            TokenType.AMPERSAND => InstructionCode.BitwiseAnd,
-
-            _ => InstructionCode.Skip
-        };
-
+        /// <summary>
+        /// The main entry point for parsing any expression.
+        /// It begins the chain of precedence by calling <see cref="ParseLogicalOr"/>.
+        /// </summary>
         private Value ParseExpression()
         {
             // for now
@@ -2228,12 +2310,6 @@ namespace Fluence
             return left;
         }
 
-        private static bool IsComparisonTokenType(TokenType type) =>
-            type == TokenType.GREATER ||
-            type == TokenType.LESS ||
-            type == TokenType.GREATER_EQUAL ||
-            type == TokenType.LESS_EQUAL;
-
         private Value ParseComparison()
         {
             TokenType type = _lexer.PeekNextToken().Type;
@@ -2264,7 +2340,7 @@ namespace Fluence
                 }
             }
 
-            while (IsComparisonTokenType(_lexer.PeekNextToken().Type))
+            while (IsStandardComparisonOperator(_lexer.PeekNextToken().Type))
             {
                 Token op = _lexer.ConsumeToken();
                 Value right = ParseRange();
@@ -2283,7 +2359,7 @@ namespace Fluence
         {
             Token token = _lexer.ConsumeToken(); // Consume .and or .or
 
-            ConsumeAndTryThrowIfUnequal(TokenType.L_PAREN, "Expecting opening ( after .and/.or");
+            ConsumeAndExpect(TokenType.L_PAREN, "Expecting opening ( after .and/.or");
 
             InstructionCode logicalOp = token.Type == TokenType.DOT_AND_CHECK ? InstructionCode.And : InstructionCode.Or;
 
@@ -2306,47 +2382,16 @@ namespace Fluence
             }
             while (ConsumeTokenIfMatch(TokenType.COMMA));
 
-            ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Expecting closing ) after .and/.or");
+            ConsumeAndExpect(TokenType.R_PAREN, "Expecting closing ) after .and/.or");
 
             return result ?? new BooleanValue(logicalOp == InstructionCode.And);
-        }
-
-        private static bool IsNotAStandardComparison(TokenType type)
-        {
-            return !IsComparisonTokenType(type) && type != TokenType.EQUAL_EQUAL && type != TokenType.BANG_EQUAL;
-        }
-
-        private bool IsCollectiveComparisonAhead()
-        {
-            int lookahead = 1;
-            bool hasComma = false;
-
-            while (true)
-            {
-                TokenType type = _lexer.PeekAheadByN(lookahead).Type;
-
-                if (type == TokenType.COMMA) hasComma = true;
-
-                if (IsCollectiveOperator(type) && hasComma)
-                {
-                    return true; // Found the pattern.
-                }
-
-                // Stop conditions
-                if (type == TokenType.L_BRACE || type == TokenType.THIN_ARROW || type == TokenType.EOF || type == TokenType.EOL)
-                {
-                    return false; // Reached the end of the potential condition.
-                }
-
-                lookahead++;
-            }
         }
 
         private Value GenerateCollectiveComparisonByteCode(List<Value> lhsExprs, Token op, Value rhs)
         {
             Value result = null;
 
-            InstructionCode comparisonType = GetComparisonInstructionCodeFromCollectiveOp(op.Type);
+            InstructionCode comparisonType = GetInstructionCodeForCollectiveOp(op.Type);
             InstructionCode logicalOp = IsOrCollectiveOperator(op.Type) ? InstructionCode.Or : InstructionCode.And;
 
             foreach (Value lhs in lhsExprs)
@@ -2368,47 +2413,6 @@ namespace Fluence
 
             return result;
         }
-
-        private static bool IsOrCollectiveOperator(TokenType type) => type switch
-        {
-            TokenType.COLLECTIVE_OR_EQUAL => true,
-            TokenType.COLLECTIVE_OR_NOT_EQUAL => true,
-            TokenType.COLLECTIVE_OR_LESS => true,
-            TokenType.COLLECTIVE_OR_LESS_EQUAL => true,
-            TokenType.COLLECTIVE_OR_GREATER => true,
-            TokenType.COLLECTIVE_OR_GREATER_EQUAL => true,
-            _ => false
-        };
-
-        private static InstructionCode GetComparisonInstructionCodeFromCollectiveOp(TokenType type) => type switch
-        {
-            TokenType.COLLECTIVE_EQUAL => InstructionCode.Equal,
-            TokenType.COLLECTIVE_NOT_EQUAL => InstructionCode.NotEqual,
-            TokenType.COLLECTIVE_GREATER => InstructionCode.GreaterThan,
-            TokenType.COLLECTIVE_GREATER_EQUAL => InstructionCode.GreaterEqual,
-            TokenType.COLLECTIVE_LESS => InstructionCode.LessThan,
-            TokenType.COLLECTIVE_LESS_EQUAL => InstructionCode.LessEqual,
-            TokenType.COLLECTIVE_OR_EQUAL => InstructionCode.Equal,
-            TokenType.COLLECTIVE_OR_NOT_EQUAL => InstructionCode.NotEqual,
-            TokenType.COLLECTIVE_OR_LESS => InstructionCode.LessEqual,
-            TokenType.COLLECTIVE_OR_LESS_EQUAL => InstructionCode.LessEqual,
-            TokenType.COLLECTIVE_OR_GREATER => InstructionCode.GreaterThan,
-            TokenType.COLLECTIVE_OR_GREATER_EQUAL => InstructionCode.GreaterEqual,
-        };
-
-        private static bool IsCollectiveOperator(TokenType type) =>
-            type == TokenType.COLLECTIVE_EQUAL ||
-            type == TokenType.COLLECTIVE_GREATER ||
-            type == TokenType.COLLECTIVE_GREATER_EQUAL ||
-            type == TokenType.COLLECTIVE_NOT_EQUAL ||
-            type == TokenType.COLLECTIVE_LESS ||
-            type == TokenType.COLLECTIVE_LESS_EQUAL ||
-            type == TokenType.COLLECTIVE_OR_EQUAL ||
-            type == TokenType.COLLECTIVE_OR_GREATER ||
-            type == TokenType.COLLECTIVE_OR_GREATER_EQUAL ||
-            type == TokenType.COLLECTIVE_OR_LESS ||
-            type == TokenType.COLLECTIVE_OR_LESS_EQUAL ||
-            type == TokenType.COLLECTIVE_OR_NOT_EQUAL;
 
         private Value ParseRange()
         {
@@ -2452,17 +2456,12 @@ namespace Fluence
             return left;
         }
 
-        private static bool TokenTypeIsMulDivOrModulo(TokenType type)
-            => type == TokenType.PERCENT ||
-               type == TokenType.STAR ||
-               type == TokenType.SLASH;
-
         //  MULTIPLICATION, DIVISION, MODULO (*, /, %)
         private Value ParseMulDivModulo()
         {
             Value left = ParseExponentation();
 
-            while (TokenTypeIsMulDivOrModulo(_lexer.PeekNextToken().Type))
+            while (IsMultiplicativeOperator(_lexer.PeekNextToken().Type))
             {
                 Token op = _lexer.ConsumeToken();
                 Value right = ParseExponentation();
@@ -2523,11 +2522,6 @@ namespace Fluence
             return left;
         }
 
-        private static bool IsPostFixToken(TokenType type) =>
-            type == TokenType.INCREMENT ||
-            type == TokenType.DECREMENT ||
-            type == TokenType.BOOLEAN_FLIP;
-
         private Value ParsePostFix()
         {
             // ++ and --
@@ -2569,7 +2563,7 @@ namespace Fluence
         {
             Token token = _lexer.ConsumeToken(); // Consume .++ or .--
 
-            ConsumeAndTryThrowIfUnequal(TokenType.L_PAREN, "Expected opening ( after .++ or .-- operator");
+            ConsumeAndExpect(TokenType.L_PAREN, "Expected opening ( after .++ or .-- operator");
 
             InstructionCode code = token.Type == TokenType.DOT_DECREMENT ? InstructionCode.Decrement : InstructionCode.Increment;
 
@@ -2598,7 +2592,7 @@ namespace Fluence
             } while (ConsumeTokenIfMatch(TokenType.COMMA));
 
 
-            ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Expected closing ) after .++ or .-- operator");
+            ConsumeAndExpect(TokenType.R_PAREN, "Expected closing ) after .++ or .-- operator");
         }
 
         private Value ResolveValue(Value val)
@@ -2623,130 +2617,6 @@ namespace Fluence
             return val;
         }
 
-        private Value ParseAccess()
-        {
-            // Array access [], get and set.
-            Value left = ParsePrimary();
-
-            while (true)
-            {
-                TokenType type = _lexer.PeekNextToken().Type;
-
-                // Access get/set.
-                if (type == TokenType.L_BRACKET)
-                {
-                    _lexer.ConsumeToken(); // Consume [.
-
-                    Value index = ParseExpression();
-
-                    ConsumeAndTryThrowIfUnequal(TokenType.R_BRACKET, "Bad list access, not ending bracket.");
-
-                    // list[...] = ...
-                    left = new ElementAccessValue(left, index, _currentParseState.NextTempNumber++, "Access");
-                }
-                // Property access.
-                else if (type == TokenType.DOT)
-                {
-                    _lexer.ConsumeToken(); // Consume the dot.
-
-                    Token memberToken = ConsumeAndTryThrowIfUnequal(TokenType.IDENTIFIER, "Expected member name after '.'.");
-                    string memberName = memberToken.Text;
-
-                    if (left is VariableValue variable)
-                    {
-                        if (_currentParseState.SymbolTable.TryGetValue(variable.IdentifierValue, out Symbol symbol) && symbol is EnumSymbol enumSymbol)
-                        {
-                            if (enumSymbol.Members.TryGetValue(memberName, out EnumValue enumValue))
-                            {
-                                left = enumValue;
-                                continue;
-                            }
-                            else
-                            {
-                                // Error, invalid enum member.
-                            }
-                        }
-                        else
-                        {
-                            left = new PropertyAccessValue(left, memberName);
-                        }
-                    }
-                }
-                // Function call.
-                else if (type == TokenType.L_PAREN)
-                {
-                    _lexer.ConsumeToken(); // Consume (.
-                    List<Value> arguments = new List<Value>();
-
-                    if (_lexer.PeekNextToken().Type != TokenType.R_PAREN)
-                    {
-                        do
-                        {
-                            arguments.Add(ParseTernary());
-                        }
-                        while (ConsumeTokenIfMatch(TokenType.COMMA));
-                    }
-
-                    ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Missing closing ) after function call.");
-
-                    foreach (var arg in arguments)
-                    {
-                        if (arg is PropertyAccessValue propertyAccess)
-                        {
-                            Value resolvedTarget = ResolveValue(propertyAccess.Target);
-                            TempValue toPush = new TempValue(_currentParseState.NextTempNumber++);
-                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetField, toPush, resolvedTarget, new StringValue(propertyAccess.FieldName)));
-                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, toPush));
-                        }
-                        else
-                        {
-                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, arg));
-                        }
-                    }
-
-                    TempValue result = new TempValue(_currentParseState.NextTempNumber++);
-
-                    if (left is PropertyAccessValue propAccess)
-                    {
-                        _currentParseState.AddCodeInstruction(new InstructionLine(
-                               InstructionCode.CallMethod,
-                               result,
-                               ResolveValue(propAccess.Target),
-                               new StringValue(propAccess.FieldName)
-                           ));
-                    }
-                    else
-                    {
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, result, left, new NumberValue(arguments.Count)));
-                    }
-
-                    left = result;
-                }
-                else
-                {
-                    break;
-                }
-            }
-
-            return left;
-        }
-
-        /// <summary>
-        /// Checks if the next token's type matches the expected type.
-        /// If it matches, the token is consumed and the method returns true.
-        /// If it does not match, the token is NOT consumed and the method returns false.
-        /// </summary>
-        private bool ConsumeTokenIfMatch(TokenType expectedType)
-        {
-            if (_lexer.PeekNextToken().Type == expectedType)
-            {
-                _lexer.ConsumeToken(); // It's a match, so we consume it.
-                return true;
-            }
-
-            return false; // Not a match, do nothing.
-        }
-
         private Value ParseConstructorCall(StructSymbol symbol)
         {
             _lexer.ConsumeToken(); // Consume (.
@@ -2761,7 +2631,7 @@ namespace Fluence
                 arguments.Add(ParseTernary());
             } while (ConsumeTokenIfMatch(TokenType.COMMA));
 
-            ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, " Expected closing ) in constructor call.");
+            ConsumeAndExpect(TokenType.R_PAREN, " Expected closing ) in constructor call.");
 
             if (symbol.Constructor == null)
             {
@@ -2801,7 +2671,7 @@ namespace Fluence
             {
                 do
                 {
-                    Token fieldToken = ConsumeAndTryThrowIfUnequal(TokenType.IDENTIFIER, "Expected field name in struct initializer.");
+                    Token fieldToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected field name in struct initializer.");
                     string fieldName = fieldToken.Text;
 
                     if (!symbol.Fields.Contains(fieldName))
@@ -2814,7 +2684,7 @@ namespace Fluence
                     }
                     initializedFields.Add(fieldName);
 
-                    ConsumeAndTryThrowIfUnequal(TokenType.COLON, "Expected ':' after field name in initializer.");
+                    ConsumeAndExpect(TokenType.COLON, "Expected ':' after field name in initializer.");
                     Value fieldValue = ParseExpression();
 
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, instance, new StringValue(fieldName), fieldValue));
@@ -2822,14 +2692,259 @@ namespace Fluence
                 } while (ConsumeTokenIfMatch(TokenType.COMMA));
             }
 
-            ConsumeAndTryThrowIfUnequal(TokenType.R_BRACE, "Expected '}' to close struct initializer.");
+            ConsumeAndExpect(TokenType.R_BRACE, "Expected '}' to close struct initializer.");
 
             return instance;
         }
 
+        private static InstructionCode GetInstructionCode(TokenType type) => type switch
+        {
+            // LEVEL 1: ASSIGNMENT (=, +=, -=, *=, /=) - LOWEST PRECEDENCE
+            TokenType.EQUAL_PLUS => InstructionCode.Add,
+            TokenType.EQUAL_MINUS => InstructionCode.Subtract,
+            TokenType.EQUAL_MUL => InstructionCode.Multiply,
+            TokenType.EQUAL_DIV => InstructionCode.Divide,
+            TokenType.EQUAL_PERCENT => InstructionCode.Modulo,
+            TokenType.EQUAL_AMPERSAND => InstructionCode.BitwiseAnd,
+
+            //  LEVEL 2: ADDITION AND SUBTRACTION (+, -)
+            TokenType.PLUS => InstructionCode.Add,
+            TokenType.MINUS => InstructionCode.Subtract,
+
+            // Precedent level 3: MULTIPLICATION, DIVISION, MODULO (*, /, %)
+            TokenType.STAR => InstructionCode.Multiply,
+            TokenType.SLASH => InstructionCode.Divide,
+            TokenType.PERCENT => InstructionCode.Modulo,
+
+            // Precedent level 4: EXPONENTIATION (**)
+            TokenType.EXPONENT => InstructionCode.Power,
+
+            // LEVEL 5: UNARY OPERATORS (-, ++, --)
+            // TokenType.MINUS => InstructionCode.Subtract,
+            TokenType.INCREMENT => InstructionCode.Increment,
+            TokenType.DECREMENT => InstructionCode.Decrement,
+
+            // Equality
+            TokenType.EQUAL_EQUAL => InstructionCode.Equal,
+            TokenType.BANG_EQUAL => InstructionCode.NotEqual,
+
+            // Comparisons
+            TokenType.GREATER => InstructionCode.GreaterThan,
+            TokenType.LESS => InstructionCode.LessThan,
+            TokenType.GREATER_EQUAL => InstructionCode.GreaterEqual,
+            TokenType.LESS_EQUAL => InstructionCode.LessEqual,
+
+            TokenType.BITWISE_LEFT_SHIFT => InstructionCode.BitwiseLShift,
+            TokenType.BITWISE_RIGHT_SHIFT => InstructionCode.BitwiseRShift,
+            TokenType.TILDE => InstructionCode.BitwiseNot,
+            TokenType.CARET => InstructionCode.BitwiseXor,
+            TokenType.PIPE_CHAR => InstructionCode.BitwiseOr,
+            TokenType.AMPERSAND => InstructionCode.BitwiseAnd,
+
+            _ => InstructionCode.Skip
+        };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /// <summary>
+        /// Parses postfix expressions, which include function calls `()`, index access `[]`, and property access `.`.
+        /// This method is called repeatedly in a loop to handle chained accesses like `my_obj.field[0]()`.
+        /// </summary>
+        /// <returns>A Value representing the result of the access chain.</returns>
+        private Value ParseAccess()
+        {
+            // First, parse the primary expression that is being "accessed".
+            Value left = ParsePrimary();
+
+            // Then, loop to handle any number of chained postfix operators.
+            while (true)
+            {
+                TokenType type = _lexer.PeekNextToken().Type;
+
+                // Access get/set.
+                if (type == TokenType.L_BRACKET)
+                {
+                    left = ParseIndexAccess(left);
+                }
+                // Property access.
+                else if (type == TokenType.DOT)
+                {
+                    _lexer.ConsumeToken(); // Consume the dot.
+
+                    Token memberToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a member name after '.' .");
+                    string memberName = memberToken.Text;
+
+                    if (left is VariableValue variable)
+                    {
+                        if (_currentParseState.CurrentScope.TryResolve(variable.IdentifierValue, out Symbol symbol) && symbol is EnumSymbol enumSymbol)
+                        {
+                            if (enumSymbol.Members.TryGetValue(memberName, out EnumValue enumValue))
+                            {
+                                left = enumValue;
+                            }
+                            else
+                            {
+                                ConstructAndThrowParserException($"Enum '{enumSymbol.Name}' does not have a member named '{memberToken.Text}'.", memberToken );
+                            }
+                        }
+                        else
+                        {
+                            left = new PropertyAccessValue(left, memberName);
+                        }
+                    }
+                }
+                // Function call.
+                else if (type == TokenType.L_PAREN)
+                {
+                    left = ParseFunctionCall(left);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return left;
+        }
+
+        /// <summary>
+        /// Parses a function or method call, assuming the callable expression (`left`) has already been parsed.
+        /// </summary>
+        private TempValue ParseFunctionCall(Value callable)
+        {
+            _lexer.ConsumeToken(); // Consume (.
+            List<Value> arguments = ParseArgumentList();
+
+            ConsumeAndExpect(TokenType.R_PAREN, "Expected a closing ')' for function call after function arguments.");
+
+            foreach (Value arg in arguments)
+            {
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, ResolveValue(arg)));
+            }
+
+            TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+
+            if (callable is PropertyAccessValue propAccess)
+            {
+                // This is a method call: instance.Method().
+                _currentParseState.AddCodeInstruction(new InstructionLine(
+                       InstructionCode.CallMethod,
+                       result,
+                       ResolveValue(propAccess.Target),
+                       new StringValue(propAccess.FieldName)
+                   ));
+            }
+            else
+            {
+                // This is a direct function call: func()
+                _currentParseState.AddCodeInstruction(new InstructionLine(
+                    InstructionCode.CallFunction,
+                    result,
+                    callable,
+                    new NumberValue(arguments.Count)
+                ));
+            }
+
+           return result;
+        }
+
+        /// <summary>
+        /// Parses a comma-separated list of arguments until a closing parenthesis is encountered.
+        /// </summary>
+        /// <returns>A list of Values representing the parsed arguments.</returns>
+        private List<Value> ParseArgumentList()
+        {
+            List<Value> arguments = new List<Value>();
+            if (_lexer.PeekNextToken().Type != TokenType.R_PAREN)
+            {
+                do
+                {
+                    // Each argument is a full expression. We use the lowest precedence parser.
+                    arguments.Add(ParseTernary());
+                } while (ConsumeTokenIfMatch(TokenType.COMMA));
+            }
+            return arguments;
+        }
+
+        /// <summary>
+        /// Parses an index access expression assuming the collection has been parsed.
+        /// </summary>
+        private ElementAccessValue ParseIndexAccess(Value left)
+        {
+            _lexer.ConsumeToken(); // Consume [.
+
+            Value index = ParseExpression();
+
+            ConsumeAndExpect(TokenType.R_BRACKET, "Expected a closing ']' for the index accessor.");
+
+            // Create a descriptor for the access. This will be resolved into a GetElement
+            // or SetElement instruction by a higher-level parsing method.
+            return new ElementAccessValue(left, index, _currentParseState.NextTempNumber++, "Access");
+        }
+
+        /// <summary>
+        /// Parses a primary expression, which is the highest level of precedence.
+        /// This includes literals (numbers, strings, etc.), identifiers, grouping parentheses,
+        /// and prefix unary operators.
+        /// </summary>
+        /// <returns>A Value representing the parsed primary expression.</returns>
         private Value ParsePrimary()
         {
             Token token = _lexer.ConsumeToken();
+
             if (token.Type == TokenType.NIL)
             {
                 return new NilValue();
@@ -2870,7 +2985,8 @@ namespace Fluence
                 case TokenType.IDENTIFIER:
                     string name = token.Text;
 
-                    if (_currentParseState.SymbolTable.TryGetValue(name, out Symbol symbol) && symbol is StructSymbol structSymbol)
+                    // Check if it's a struct type, which could lead to a constructor call.
+                    if (_currentParseState.CurrentScope.TryResolve(name, out Symbol symbol) && symbol is StructSymbol structSymbol)
                     {
                         // It's a struct, check if it's a constructor call Vec2(2,3).
                         // or a direct initializer Vec2{ x: 2, y: 3 }.
@@ -2885,22 +3001,16 @@ namespace Fluence
                     }
                     else
                     {
-                        // Normal variable.
+                        // Otherwise, it's just a regular variable.
                         return new VariableValue(name);
                     }
                     break;
-                case TokenType.NUMBER:
-                    return NumberValue.FromToken(token);
-                case TokenType.STRING:
-                    return new StringValue(token.Text);
-                case TokenType.TRUE:
-                    return new BooleanValue(true);
-                case TokenType.FALSE:
-                    return new BooleanValue(false);
-                case TokenType.F_STRING:
-                    return ParseFString(token.Literal);
-                case TokenType.CHARACTER:
-                    return new CharValue((char)token.Literal);
+                case TokenType.NUMBER: return NumberValue.FromToken(token);
+                case TokenType.STRING: return new StringValue(token.Text);
+                case TokenType.TRUE: return new BooleanValue(true);
+                case TokenType.FALSE: return new BooleanValue(false);
+                case TokenType.F_STRING: return ParseFString(token.Literal);
+                case TokenType.CHARACTER: return new CharValue((char)token.Literal);
                 case TokenType.L_BRACKET:
                     // We are in list, either initialization, or [i] access.
                     return ParseList();
@@ -2908,56 +3018,298 @@ namespace Fluence
                     // This is when we call lhs = match x.
                     // Returning an actual value, an expression based match.
                     return ParseMatchStatement();
+                case TokenType.SELF:
+                    if (_currentParseState.CurrentStructContext == null)
+                    {
+                        ConstructAndThrowParserException("The 'self' keyword can only be used inside a struct method.", token);
+                    }
+                    // The 'self' keyword is just a special, pre-defined local variable.
+                    // At runtime, the VM will ensure the instance is available.
+                    return new VariableValue("self");
+                case TokenType.L_PAREN:
+                    // Go back to the lowest precedence to parse the inner expression.
+                    Value expr = ParseTernary();
+                    // Unclosed parentheses.
+                    ConsumeAndExpect(TokenType.R_PAREN, "Expected: a closing ')' to match the opening parenthesis.");
+                    return expr;
             }
 
-            if (token.Type == TokenType.SELF)
-            {
-                if (_currentParseState.CurrentStructContext == null)
-                {
-                    throw new Exception("Syntax Error: The 'self' keyword can only be used inside a struct method or constructor.");
-                }
-
-                //    The 'self' keyword is just a special, pre-defined local variable.
-                //    At runtime, the VM will ensure the instance is available.
-                return new VariableValue("self");
-            }
-
-            if (token.Type == TokenType.L_PAREN)
-            {
-                Value expr = ParseTernary();
-                // Unclosed parentheses.
-                ConsumeAndTryThrowIfUnequal(TokenType.R_PAREN, "Expected ')' to close parenthesized expression.");
-                return expr;
-            }
-
-            // Log the token type for now, for debugging.
-            Console.WriteLine(token + $"  _  Line: {_lexer.CurrentLine} Column: {_lexer.CurrentColumn}.");
-            throw new Exception();
+            // If we've fallen through the entire switch, we have an invalid token.
+            ConstructAndThrowParserException($"Unexpected token '{token.ToDisplayString()}' when expecting an expression. Expected a literal (e.g., number, string), variable, or '('.", token);
+            return null;
         }
 
-        private void ConstructAndThrowParserException(int lineNum, int column, string errorMessage, string faultyLine, string expected, Token token)
+        /// <summary>
+        /// Checks if the next token's type matches the expected type.
+        /// If it matches, the token is consumed and the method returns true.
+        /// If it does not match, the token is not consumed and the method returns false.
+        /// </summary>
+        private bool ConsumeTokenIfMatch(TokenType expectedType)
         {
-            ParserExceptionContext context = new ParserExceptionContext()
+            if (_lexer.PeekNextToken().Type == expectedType)
             {
-                Column = column,
-                FaultyLine = faultyLine,
-                LineNum = lineNum,
-                UnexpectedToken = token,
-                ExpectedDescription = expected
-            };
-            throw new FluenceParserException(errorMessage, context);
+                _lexer.ConsumeToken(); // It's a match, so we consume it.
+                return true;
+            }
+
+            return false;
         }
 
-        private Token ConsumeAndTryThrowIfUnequal(TokenType expectedType, string errorMessage)
+        /// <summary>
+        /// Consumes the next token from the lexer and throws a formatted parser exception if it does not match the expected type.
+        /// This is the primary method for enforcing grammatical structure.
+        /// </summary>
+        /// <param name="expectedType">The TokenType that is grammatically required at this point in the stream.</param>
+        /// <returns>The consumed token if it matches the expected type.</returns>
+        /// <exception cref="FluenceParserException">Thrown if the consumed token's type does not match the expectedType.</exception>
+        private Token ConsumeAndExpect(TokenType expectedType, string errorMessage)
         {
             Token token = _lexer.ConsumeToken();
             if (token.Type != expectedType)
             {
-                // for now just log.
-                Console.WriteLine(errorMessage);
-                // throw
+                ConstructAndThrowParserException(errorMessage, token);
             }
             return token;
         }
+
+        private void ConstructAndThrowParserException(string errorMessage, Token token)
+        {
+            ParserExceptionContext context = new ParserExceptionContext()
+            {
+                Column = token.ColumnInSourceCode,
+                FaultyLine = FluenceLexer.TruncateLine(FluenceLexer.GetCodeLineFromSource(_lexer.SourceCode, token.LineInSourceCode)),
+                LineNum = token.LineInSourceCode,
+                UnexpectedToken = token,
+            };
+            throw new FluenceParserException(errorMessage, context);
+        }
+
+        /// <summary>
+        /// Checks if a token type is a multiplicative operator (*, /, %).
+        /// </summary>
+        private static bool IsMultiplicativeOperator(TokenType type) =>
+            type is TokenType.STAR or TokenType.SLASH or TokenType.PERCENT;
+
+        /// <summary>
+        /// Checks if a token type is a simple assignment operator (=, +=, -=, etc.).
+        /// </summary>
+        private static bool IsSimpleAssignmentOperator(TokenType type) => type switch
+        {
+            TokenType.EQUAL or
+            TokenType.EQUAL_DIV or
+            TokenType.EQUAL_MINUS or
+            TokenType.EQUAL_PLUS or
+            TokenType.EQUAL_MUL or
+            TokenType.EQUAL_AMPERSAND or
+            TokenType.EQUAL_PERCENT => true,
+            _ => false,
+        };
+
+        /// <summary>
+        /// Checks if a token type is one of the chain-assignment operators (<|, <n|, <?|, etc.).
+        /// </summary>
+        private static bool IsChainAssignmentOperator(TokenType type) => type switch
+        {
+            TokenType.CHAIN_ASSIGN_N or
+            TokenType.OPTIONAL_REST_ASSIGN or
+            TokenType.OPTIONAL_ASSIGN_N or
+            TokenType.SEQUENTIAL_REST_ASSIGN or
+            TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN or
+            TokenType.REST_ASSIGN => true,
+            _ => false
+        };
+
+        /// <summary>
+        /// Checks if a token type is a multi-target compound assignment operator (.+=, .-=, etc.).
+        /// </summary>
+        private static bool IsMultiCompoundAssignmentOperator(TokenType type) => type switch
+        {
+            TokenType.DOT_PLUS_EQUAL or
+            TokenType.DOT_MINUS_EQUAL or
+            TokenType.DOT_STAR_EQUAL or
+            TokenType.DOT_SLASH_EQUAL => true,
+            _ => false,
+        };
+
+        /// <summary>
+        /// Checks if a token type is a standard comparison operator (>, <, >=, <=).
+        /// </summary>
+        private static bool IsStandardComparisonOperator(TokenType type) =>
+            type == TokenType.GREATER ||
+            type == TokenType.LESS ||
+            type == TokenType.GREATER_EQUAL ||
+            type == TokenType.LESS_EQUAL;
+
+        /// <summary>
+        /// Checks if a token type is a collective comparison operator (<==|, <||==|, etc.).
+        /// </summary>
+        private static bool IsCollectiveOperator(TokenType type) =>
+            type >= TokenType.COLLECTIVE_EQUAL && type <= TokenType.COLLECTIVE_OR_GREATER_EQUAL;
+
+        /// <summary>
+        /// Peeks ahead to determine if a match statement is using the switch-style syntax (`case:`)
+        /// or the expression-style syntax (`case ->`).
+        /// </summary>
+        private bool IsSwitchStyleMatch()
+        {
+            int lookAhead = 1;
+            while (true)
+            {
+                TokenType type = _lexer.PeekAheadByN(lookAhead).Type;
+                if (type == TokenType.THIN_ARROW || type == TokenType.ARROW) return false;
+                if (type == TokenType.COLON) return true;
+                if (type == TokenType.R_BRACE) return false; // Empty match.
+                lookAhead++;
+            }
+        }
+
+        /// <summary>
+        /// Peeks ahead to see if the upcoming tokens form a collective comparison expression.
+        /// </summary>
+        private bool IsCollectiveComparisonAhead()
+        {
+            int lookahead = 1;
+            bool hasComma = false;
+
+            while (true)
+            {
+                TokenType type = _lexer.PeekAheadByN(lookahead).Type;
+
+                if (type == TokenType.COMMA) hasComma = true;
+
+                if (IsCollectiveOperator(type) && hasComma)
+                {
+                    return true;
+                }
+
+                if (type == TokenType.L_BRACE || type == TokenType.THIN_ARROW || type == TokenType.EOF || type == TokenType.EOL)
+                {
+                    // Reached the end of the potential condition.
+                    return false;
+                }
+
+                lookahead++;
+            }
+        }
+
+        /// <summary>
+        /// Peeks ahead in the token stream to determine if a broadcast pipe call (e.g., `func(_) <| ...`) is coming up.
+        /// </summary>
+        private bool IsBroadCastPipeFunctionCall()
+        {
+            // A broadcast call must start with `identifier (`
+            if (_lexer.PeekNextToken().Type != TokenType.IDENTIFIER && _lexer.PeekAheadByN(2).Type != TokenType.L_PAREN)
+            {
+                return false;
+            }
+
+            int lookahead = 3;
+            bool hasUnderscore = false;
+
+            while (true)
+            {
+                TokenType type = _lexer.PeekAheadByN(lookahead).Type;
+
+                if (type == TokenType.R_PAREN) break; // End of argument list
+                if (type == TokenType.EOL)
+                {
+                    return false;
+                }
+
+                if (type == TokenType.EOF) return false; // End of file, not a valid call
+
+                if (type == TokenType.UNDERSCORE) hasUnderscore = true;
+
+                // Skip the argument and a potential comma
+                lookahead++;
+                if (_lexer.PeekAheadByN(lookahead).Type == TokenType.COMMA)
+                {
+                    lookahead++;
+                }
+            }
+
+            // After the ')' at `lookahead`, the next token must be a chain operator.
+            // The next token must be a chain assignment operator.
+            return hasUnderscore && IsChainAssignmentOperator(_lexer.PeekAheadByN(lookahead + 1).Type);
+        }
+
+        /// <summary>
+        /// Converts a multi-target compound assignment TokenType into its corresponding arithmetic InstructionCode.
+        /// </summary>
+        private static InstructionCode GetInstructionCodeForMultiCompoundAssignment(TokenType type) => type switch
+        {
+            TokenType.DOT_STAR_EQUAL => InstructionCode.Multiply,
+            TokenType.DOT_SLASH_EQUAL => InstructionCode.Divide,
+            TokenType.DOT_PLUS_EQUAL => InstructionCode.Add,
+            TokenType.DOT_MINUS_EQUAL => InstructionCode.Subtract,
+        };
+
+        /// <summary>
+        /// Checks if the token type is a unary operator: '++' or '--' or '-'.
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        private static bool IsUnaryOperator(TokenType type) => type switch
+        {
+            TokenType.DECREMENT or
+            TokenType.INCREMENT or
+            TokenType.MINUS => true,
+            _ => false,
+        };
+
+        /// <summary>
+        /// Checks whether the operator is not a simple comparison operator, rather a complex one like collective comparison.
+        /// </summary>
+        /// <param name="type">The type of the token.</param>
+        private static bool IsNotAStandardComparison(TokenType type)
+        {
+            return !IsStandardComparisonOperator(type) && type != TokenType.EQUAL_EQUAL && type != TokenType.BANG_EQUAL;
+        }
+
+        /// <summary>
+        /// Checks if the operator is a collective OR operator.
+        /// </summary>
+        /// <param name="type">The type of the token.</param>
+        /// <returns>True if it is.</returns>
+        private static bool IsOrCollectiveOperator(TokenType type) => type switch
+        {
+            TokenType.COLLECTIVE_OR_EQUAL => true,
+            TokenType.COLLECTIVE_OR_NOT_EQUAL => true,
+            TokenType.COLLECTIVE_OR_LESS => true,
+            TokenType.COLLECTIVE_OR_LESS_EQUAL => true,
+            TokenType.COLLECTIVE_OR_GREATER => true,
+            TokenType.COLLECTIVE_OR_GREATER_EQUAL => true,
+            _ => false
+        };
+
+        /// <summary>
+        /// Checks if the token is a postfix operator, such as '!!', '++', '--'.
+        /// </summary>
+        /// <param name="type">The type of the token.</param>
+        private static bool IsPostFixToken(TokenType type) =>
+            type == TokenType.INCREMENT ||
+            type == TokenType.DECREMENT ||
+            type == TokenType.BOOLEAN_FLIP;
+
+        /// <summary>
+        /// Converts a collective comparison TokenType into its corresponding base comparison InstructionCode.
+        /// </summary>
+        /// <param name="type">The TokenType of the collective comparison operator.</param>
+        /// <returns>The corresponding base InstructionCode.</returns>
+        private static InstructionCode GetInstructionCodeForCollectiveOp(TokenType type) => type switch
+        {
+            TokenType.COLLECTIVE_EQUAL => InstructionCode.Equal,
+            TokenType.COLLECTIVE_NOT_EQUAL => InstructionCode.NotEqual,
+            TokenType.COLLECTIVE_GREATER => InstructionCode.GreaterThan,
+            TokenType.COLLECTIVE_GREATER_EQUAL => InstructionCode.GreaterEqual,
+            TokenType.COLLECTIVE_LESS => InstructionCode.LessThan,
+            TokenType.COLLECTIVE_LESS_EQUAL => InstructionCode.LessEqual,
+            TokenType.COLLECTIVE_OR_EQUAL => InstructionCode.Equal,
+            TokenType.COLLECTIVE_OR_NOT_EQUAL => InstructionCode.NotEqual,
+            TokenType.COLLECTIVE_OR_LESS => InstructionCode.LessEqual,
+            TokenType.COLLECTIVE_OR_LESS_EQUAL => InstructionCode.LessEqual,
+            TokenType.COLLECTIVE_OR_GREATER => InstructionCode.GreaterThan,
+            TokenType.COLLECTIVE_OR_GREATER_EQUAL => InstructionCode.GreaterEqual,
+        };
     }
 }

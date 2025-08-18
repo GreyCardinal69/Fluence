@@ -17,7 +17,7 @@ namespace Fluence.ParserTests
             {
                 new(InstructionCode.Goto, new NumberValue(2)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Assign, new VariableValue("DoNothing"), new FunctionValue("DoNothing", 0, 2, "0002")),
+                new(InstructionCode.Assign, new VariableValue("DoNothing"), new FunctionValue("DoNothing", 0, 2)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null)
             };
@@ -550,8 +550,8 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushParam, new TempValue(24)),
                 new(InstructionCode.CallFunction, new TempValue(27), new VariableValue("print"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Assign, new VariableValue("input_int"), new FunctionValue("input_int", 0, 2, "0002")),
-                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 7, "0007")),
+                new(InstructionCode.Assign, new VariableValue("input_int"), new FunctionValue("input_int", 0, 2)),
+                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 7)),
                 new(InstructionCode.CallFunction, new TempValue(28), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null)
             };

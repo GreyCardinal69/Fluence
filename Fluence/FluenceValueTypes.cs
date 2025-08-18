@@ -220,13 +220,6 @@ namespace Fluence
             StartAddress = startAddress;
         }
 
-        internal FunctionValue(string name, int arity, int startAddress, string fullAddress)
-        {
-            Name = name;
-            Arity = arity;
-            StartAddress = startAddress;
-        }
-
         public FunctionValue(string name, int arity, IntrinsicMethod body)
         {
             Name = name;

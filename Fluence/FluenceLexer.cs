@@ -257,7 +257,7 @@ namespace Fluence
         /// </summary>
         internal Token PeekAheadByN(int n) => _tokenBuffer.Peek(n);
 
-        internal TokenType PeekTokenTypeAheadByN( int n ) => _tokenBuffer.PeekTokenTypeAheadByN( n );
+        internal TokenType PeekTokenTypeAheadByN(int n) => _tokenBuffer.PeekTokenTypeAheadByN(n);
 
         /// <summary>
         /// Consumes and returns the next token from the stream.

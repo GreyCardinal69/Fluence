@@ -20,6 +20,9 @@
         /// </summary>
         private readonly FluenceScope _parentScope;
 
+        internal bool Contains(string name) => TryResolve(name, out _);
+        internal bool ContainsLocal(string name) => TryGetLocalSymbol(name, out _);
+
         internal FluenceScope()
         {
             _parentScope = null;

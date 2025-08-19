@@ -8,6 +8,115 @@ namespace Fluence.ParserTests
     {
         public FullParserSuite(ITestOutputHelper output) : base(output) { }
 
+        private FluenceParser CreateParser(string source)
+        {
+            var lexer = new FluenceLexer(source);
+            var parser = new FluenceParser(lexer);
+            return parser;
+        }
+
+        private FluenceParser.ParseState GetSymbolTree(FluenceParser parser)
+        {
+            return parser.CurrentParseState;
+        }
+
+        [Fact]
+        public void PrePassCorrectlyBuildsHierarchicalSymbolTableForMultipleScopes()
+        {
+            string source = @"
+                space MyMath_1 {
+                    struct Vector3_1 { x=0; y=0; z=0; func init(x,y,z) => {} }
+                }
+                enum A_1 { b, c, }
+                struct Globuloid_1 { Name = ""globuloid""; }
+                space MyProgram_1 {
+                    use MyMath_1;
+                    use FluenceMath;
+                    struct Number_1 { func init(num, numType) => {} }
+                    enum Number_1Type { Int, Float, Integer, }
+                    func Main_1() => {}
+                    func Helper_1() => {}
+                }
+                space MyMath_2 {
+                    struct Vector3_2 { x=0; y=0; z=0; func init(x,y,z) => {} }
+                }
+                enum A_2 { b, c, }
+                struct Globuloid_2 { Name = ""globuloid""; }
+                space MyProgram_2 {
+                    use MyMath_2;
+                    use FluenceMath;
+                    struct Number_2 { func init(num, numType) => {} }
+                    enum Number_2Type { Int, Float, Integer, }
+                    func Main_2() => {}
+                    func Helper_2() => {}
+                }
+                space MyMath_3 {
+                    struct Vector3_3 { x=0; y=0; z=0; func init(x,y,z) => {} }
+                }
+                enum A_3 { b, c, }
+                struct Globuloid_3 { Name = ""globuloid""; }
+                space MyProgram_3 {
+                    use MyMath_3;
+                    use FluenceMath;
+                    struct Number_3 { func init(num, numType) => {} }
+                    enum Number_3Type { Int, Float, Integer, }
+                    func Main_3() => {}
+                    func Helper_3() => {}
+                }
+            ";
+
+            var parser = CreateParser(source);
+            FluenceIntrinsics fluenceIntrinsics = new FluenceIntrinsics(parser);
+            fluenceIntrinsics.Register();
+            parser.Parse();
+            var symbolTree = GetSymbolTree(parser);
+
+            // --- Assertions for Global Scope ---
+            Assert.True(symbolTree.GlobalScope.Contains("print")); // Intrinsic
+            Assert.True(symbolTree.GlobalScope.Contains("A_1"));
+            Assert.True(symbolTree.GlobalScope.Contains("Globuloid_1"));
+            Assert.True(symbolTree.GlobalScope.Contains("A_2"));
+            Assert.True(symbolTree.GlobalScope.Contains("Globuloid_2"));
+            Assert.True(symbolTree.GlobalScope.Contains("A_3"));
+            Assert.True(symbolTree.GlobalScope.Contains("Globuloid_3"));
+            Assert.False(symbolTree.GlobalScope.Contains("MyProgram_1")); // Namespace is not a symbol in the scope
+
+            // --- Assertions for Namespaces ---
+            Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_1"));
+            Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_1"));
+            Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_2"));
+            Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_2"));
+            Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_3"));
+            Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_3"));
+            Assert.True(symbolTree.NameSpaces.ContainsKey("FluenceMath")); // Intrinsic namespace
+
+            // --- Assertions for MyProgram_1 Scope ---
+            var myProgram1Scope = symbolTree.NameSpaces["MyProgram_1"];
+            Assert.True(myProgram1Scope.ContainsLocal("Number_1"));
+            Assert.True(myProgram1Scope.ContainsLocal("Number_1Type"));
+            Assert.True(myProgram1Scope.ContainsLocal("Main_1"));
+            Assert.True(myProgram1Scope.ContainsLocal("Helper_1"));
+            Assert.True(myProgram1Scope.ContainsLocal("Vector3_1")); // Imported via `use`
+            Assert.True(myProgram1Scope.ContainsLocal("cos"));       // Imported via `use`
+            Assert.False(myProgram1Scope.ContainsLocal("Globuloid_1")); // Should be in global
+
+            // --- Assertions for MyMath_2 Scope ---
+            var myMath2Scope = symbolTree.NameSpaces["MyMath_2"];
+            Assert.True(myMath2Scope.ContainsLocal("Vector3_2"));
+            Assert.False(myMath2Scope.ContainsLocal("Number_2"));
+
+            // --- Assertions for MyProgram_3 Scope ---
+            var myProgram3Scope = symbolTree.NameSpaces["MyProgram_3"];
+            Assert.True(myProgram3Scope.ContainsLocal("Number_3"));
+            Assert.True(myProgram3Scope.ContainsLocal("Main_3"));
+            Assert.True(myProgram3Scope.ContainsLocal("Vector3_3")); // Imported
+
+            // Check symbol types for a specific case to be thorough
+            Assert.IsType<StructSymbol>(myProgram1Scope.Symbols["Vector3_1"]);
+            Assert.IsType<EnumSymbol>(myProgram1Scope.Symbols["Number_1Type"]);
+            Assert.IsType<FunctionSymbol>(myProgram1Scope.Symbols["Main_1"]);
+        }
+
         [Fact]
         public void ParsesFunctionDeclarationAndJumpsOverBody()
         {

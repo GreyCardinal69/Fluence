@@ -279,7 +279,7 @@ namespace Fluence
                 ParseStatement();
             }
         }
-
+     
         /// <summary>
         /// The main entry point for the first-pass. It initiates a recursive scan of the token stream
         /// to build the entire symbol and namespace hierarchy.
@@ -741,7 +741,7 @@ namespace Fluence
 
             // Temporarily enter the namespace scope.
             FluenceScope parentScope = _currentParseState.CurrentScope;
-            _currentParseState.CurrentScope = namespaceScope;
+            _currentParseState.CurrentScope = namespaceScope!;
 
             // Parse all statements inside the block.
             while (!_lexer.TokenTypeMatches(TokenType.R_BRACE) && !_lexer.HasReachedEnd)
@@ -1631,7 +1631,7 @@ namespace Fluence
             TempValue list = new TempValue(_currentParseState.NextTempNumber++);
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewList, list));
 
-            if (!_lexer.TokenTypeMatches(TokenType.R_BRACE))
+            if (!_lexer.TokenTypeMatches(TokenType.R_BRACKET))
             {
                 // Non empty array.
                 List<Value> elements = ParseCommaSeparatedArguments();
@@ -1757,7 +1757,7 @@ namespace Fluence
             }
             else
             {
-                // In Fluence the statement variable; is valid, but it would be ignored.
+                // In Fluence the statement 'variable;' is valid, but it would be ignored.
                 // We should generate bytecode regardless. That would return StatementCompleteValue.
                 // It represents nothing so we just skip here.
                 if ((firstLhs is StatementCompleteValue) || (firstLhs is ElementAccessValue))

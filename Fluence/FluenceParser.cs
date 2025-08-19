@@ -261,7 +261,7 @@ namespace Fluence
                 if (type == TokenType.ENUM)
                 {
                     int declarationStartIndex = currentIndex;
-                    int declarationEndIndex = FindEnumStructDeclarationEnd(declarationStartIndex);
+                    int declarationEndIndex = FindMatchingBrace(declarationStartIndex + 1);
 
                     ParseEnumDeclaration(declarationStartIndex, declarationEndIndex);
 
@@ -284,7 +284,7 @@ namespace Fluence
                 else if (type == TokenType.STRUCT)
                 {
                     int declarationStartIndex = currentIndex;
-                    int declarationEndIndex = FindStructDeclarationEnd(declarationStartIndex);
+                    int declarationEndIndex = FindMatchingBrace(declarationStartIndex + 1);
                     ParseStructDeclaration(declarationStartIndex, declarationEndIndex);
                     currentIndex = declarationEndIndex;
                     continue;
@@ -341,10 +341,30 @@ namespace Fluence
             throw new Exception($"Internal Parser Error: Failed to find matching brace starting from index {startIndex}.");
         }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /// <summary>
+        /// Finds the index of the '=>' arrow token that signifies the end of a function's header.
+        /// </summary>
+        /// <param name="startIndex">The index of the token before the 'func' keyword.</param>
+        /// <returns>The index of the '=>' token.</returns>
         private int FindFunctionHeaderDeclarationEnd(int startIndex)
         {
             int currentIndex = startIndex + 1;
-            while (true)
+            while (currentIndex < _lexer.TokenCount)
             {
                 TokenType tokenType = _lexer.PeekTokenTypeAheadByN(currentIndex + 1);
 
@@ -355,97 +375,22 @@ namespace Fluence
 
                 if (tokenType == TokenType.EOF)
                 {
-                    throw new Exception("Syntax Error: Unclosed enum or function declaration.");
+                    Token errorToken = _lexer.PeekAheadByN(startIndex + 1);
+                    ConstructAndThrowParserException("Unterminated function header. Reached end of file before finding '=>'.", errorToken);
                 }
 
                 currentIndex++;
             }
+
+            Token lastToken = _lexer.PeekAheadByN(_lexer.TokenCount);
+            ConstructAndThrowParserException("Unterminated function header. Could not find '=>'.", lastToken);
+            return -1;
         }
 
-        private int FindEnumStructDeclarationEnd(int startIndex)
-        {
-            int currentIndex = startIndex + 1;
-            while (true)
-            {
-                TokenType tokenType = _lexer.PeekTokenTypeAheadByN(currentIndex + 1);
-
-                if (tokenType == TokenType.R_BRACE)
-                {
-                    return currentIndex;
-                }
-
-                if (tokenType == TokenType.EOF)
-                {
-                    throw new Exception("Syntax Error: Unclosed enum or struct declaration.");
-                }
-
-                currentIndex++;
-            }
-        }
-
-        private int FindStructDeclarationEnd(int startIndex)
-        {
-            int currentIndex = startIndex + 1;
-            TokenType bodyStartTokenType = _lexer.PeekTokenTypeAheadByN(currentIndex + 2); // Skip struct + Name.
-            currentIndex += 2;
-
-            if (bodyStartTokenType == TokenType.L_BRACE)
-            {
-                int braceDepth = 1;
-                currentIndex++; // Move past the opening '{'
-
-                while (braceDepth > 0)
-                {
-                    TokenType currentTokenType = _lexer.PeekTokenTypeAheadByN(currentIndex);
-
-                    if (currentTokenType == TokenType.L_BRACE)
-                    {
-                        braceDepth++;
-                    }
-                    else if (currentTokenType == TokenType.R_BRACE)
-                    {
-                        braceDepth--;
-                    }
-                    else if (currentTokenType == TokenType.EOF)
-                    {
-                        // This is a syntax error.
-                        throw new Exception($"Syntax Error: Unclosed Struct body. Reached end of file while looking for matching '}}'.");
-                    }
-
-                    // If we've found the final closing brace, we're done.
-                    if (braceDepth == 0)
-                    {
-                        return currentIndex;
-                    }
-
-                    currentIndex++;
-                }
-            }
-
-            return currentIndex;
-        }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        /// <summary>
+        /// Finds the index of the last token in a function's body.
+        /// </summary>
+        /// <returns>The index of the last token in the function body.</returns>
         private int FindFunctionBodyEnd(int startIndex)
         {
             int currentIndex = startIndex + 1;
@@ -453,40 +398,19 @@ namespace Fluence
 
             if (bodyStartTokenType == TokenType.L_BRACE)
             {
-                int braceDepth = 1;
-                currentIndex++; // Move past the opening '{'
-
-                while (braceDepth > 0)
-                {
-                    TokenType currentTokenType = _lexer.PeekTokenTypeAheadByN(currentIndex + 1);
-
-                    if (currentTokenType == TokenType.L_BRACE)
-                    {
-                        braceDepth++;
-                    }
-                    else if (currentTokenType == TokenType.R_BRACE)
-                    {
-                        braceDepth--;
-                    }
-                    else if (currentTokenType == TokenType.EOF)
-                    {
-                        // This is a syntax error.
-                        throw new Exception($"Syntax Error: Unclosed function body. Reached end of file while looking for matching '}}'.");
-                    }
-
-                    // If we've found the final closing brace, we're done.
-                    if (braceDepth == 0)
-                    {
-                        return currentIndex;
-                    }
-
-                    currentIndex++;
-                }
+                return FindMatchingBrace(startIndex + 1);
             }
 
             int parenDepth = 0;
             while (true)
             {
+                // Sanity check to prevent infinite loops on malformed code.
+                if (currentIndex >= _lexer.TokenCount - 1)
+                {
+                    // Reached the end of the file, which can be a valid end for the last function.
+                    return currentIndex;
+                }
+
                 TokenType currentTokenType = _lexer.PeekTokenTypeAheadByN(currentIndex + 1);
 
                 if (currentTokenType == TokenType.L_PAREN) parenDepth++;
@@ -496,11 +420,6 @@ namespace Fluence
                 if (currentTokenType == TokenType.EOL && parenDepth == 0)
                 {
                     return currentIndex;
-                }
-
-                if (currentTokenType == TokenType.EOF)
-                {
-                    throw new Exception("Syntax Error: Unterminated expression body for function. Reached end of file.");
                 }
 
                 currentIndex++;

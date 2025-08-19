@@ -811,6 +811,31 @@ namespace Fluence
             }
         }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /// <summary>
+        /// Parses the body of a struct during the second (bytecode generation) pass.
+        /// Its primary responsibility is to find all `func` declarations within the struct
+        /// and dispatch to `ParseFunction` to generate their bytecode.
+        /// </summary>
         private void ParseStructStatement()
         {
             // This is basically a second pass of structs.
@@ -820,21 +845,25 @@ namespace Fluence
             // Patch start addresses.
 
             // TO DO, currently can't have functions with the same name, even if different arity.
-
             _lexer.Advance(); // Consume struct.
-            string structName = _lexer.ConsumeToken().Text; // Consume name;
-            _lexer.Advance(); // Consume {
+            Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a name for the struct.");
 
-            StructSymbol structSymbol;
-            _currentParseState.CurrentScope.TryResolve(structName, out Symbol symbol);
-            structSymbol = (StructSymbol)symbol;
+            string structName = nameToken.Text;
+            AdvanceAndExpect(TokenType.L_BRACE, $"Expected an opening '{{' for struct '{structName}'.");
+
+            if (!_currentParseState.CurrentScope.TryResolve(structName, out Symbol symbol) || symbol is not StructSymbol structSymbol)
+            {
+                // This should be impossible if the pre-pass is correct, but it's a critical safeguard.
+                ConstructAndThrowParserException($"Could not find the symbol for struct '{structName}'.", nameToken);
+                return; // Return to avoid further errors. `structSymbol` would be null.
+            }
 
             _currentParseState.CurrentStructContext = structSymbol;
 
             // Empty struct.
-            if (_lexer.TokenTypeMatches( TokenType.R_BRACE))
+            if (_lexer.TokenTypeMatches(TokenType.R_BRACE))
             {
-                _currentParseState.CurrentStructContext = null;
+                _currentParseState.CurrentStructContext = null!;
                 _lexer.Advance();
                 return;
             }
@@ -842,34 +871,42 @@ namespace Fluence
             int currentIndex = 1;
             while (true)
             {
-                Token currentToken = _lexer.PeekNextToken();
+                TokenType currentTokenType = _lexer.PeekNextTokenType();
 
-                if (currentToken.Type == TokenType.FUNC)
+                if (currentTokenType == TokenType.FUNC)
                 {
-                    bool isInit = _lexer.PeekAheadByN(2).Text == "init";
+                    // It's a method or constructor, so we parse it fully.
+                    // We can peek ahead to see if it's the special 'init' constructor.
+                    bool isInit = string.Equals(_lexer.PeekAheadByN(2).Text, "init", StringComparison.Ordinal);
                     ParseFunction(true, isInit, structName);
                 }
                 else
                 {
+                    // It's not a function, so it must be a field declaration.
+                    // In this second pass, we don't need to do anything with fields,
+                    // so we just consume tokens until we find the end of the line.
                     _lexer.Advance();
                     currentIndex++;
                 }
 
                 // End of struct body.
-                if (currentToken.Type == TokenType.R_BRACE)
+                if (currentTokenType == TokenType.R_BRACE)
                 {
                     break;
                 }
             }
 
-            _currentParseState.CurrentStructContext = null;
+            _currentParseState.CurrentStructContext = null!;
         }
 
+        /// <summary>
+        /// Parses a `for` statement, dispatching to the correct helper based on whether
+        /// it is a for-in loop or a C-style for loop.
+        /// </summary>
         private void ParseForStatement()
         {
             _lexer.Advance(); // Consume for.
 
-            // For x in ... statement.
             if (_lexer.PeekTokenTypeAheadByN(2) == TokenType.IN)
             {
                 ParseForInStatement();
@@ -880,13 +917,16 @@ namespace Fluence
             }
         }
 
+        /// <summary>
+        /// Parses a C-style for loop.
+        /// </summary>
         private void ParseForCStyleStatement()
         {
             ParseStatement();
 
-            Value condition = ParseExpression();
+            Value condition = ResolveValue(ParseExpression());
             int conditionCheckIndex = _currentParseState.CodeInstructions.Count;
-            _lexer.Advance(); // Consume the ;
+            AdvanceAndExpect(TokenType.EOL, "Expected a ';' after the for-loop condition.");
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
             int loopExitPatchIndex = _currentParseState.CodeInstructions.Count - 1;
@@ -895,16 +935,16 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
             int loopBodyJumpPatchIndex = _currentParseState.CodeInstructions.Count - 1;
 
-            // Part 3: Incrementer (e.g., "i += 1")
+            // Incrementer (e.g., "i += 1").
             // This is where 'continue' statements will jump to.
             int incrementerStartIndex = _currentParseState.CodeInstructions.Count;
             ParseAssignment();
-            _lexer.Advance(); // Consume the ;
+            AdvanceAndExpect(TokenType.EOL, "Expected a ';' after the for-loop incrementer.");
 
             // After the incrementer runs, add a jump back to the condition check.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(conditionCheckIndex - 1, NumberValue.NumberType.Integer)));
 
-            var loopContext = new LoopContext();
+            LoopContext loopContext = new LoopContext();
             _currentParseState.ActiveLoopContexts.Push(loopContext);
 
             int bodyStartIndex = _currentParseState.CodeInstructions.Count;
@@ -914,7 +954,7 @@ namespace Fluence
             }
             else
             {
-                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line for loop statement");
+                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected an '->' for a single-line for loop body.");
                 ParseStatement();
             }
 
@@ -944,14 +984,17 @@ namespace Fluence
             _currentParseState.ActiveLoopContexts.Pop();
         }
 
+        /// <summary>
+        /// Parses a for-in loop.
+        /// </summary>
         private void ParseForInStatement()
         {
-            Token itemToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected loop variable name after 'for'.");
+            Token itemToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a loop variable name after 'for'.");
             VariableValue loopVariable = new VariableValue(itemToken.Text);
 
-            AdvanceAndExpect(TokenType.IN, "Expected 'in' keyword in for-loop.");
+            AdvanceAndExpect(TokenType.IN, "Expected the 'in' keyword a for-in loop.");
 
-            Value collectionExpr = ParseExpression();
+            Value collectionExpr = ResolveValue(ParseExpression());
 
             // Create hidden variables for the index and the collection copy.
             TempValue indexVar = new TempValue(_currentParseState.NextTempNumber++, "ForInIndex");
@@ -973,19 +1016,19 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, conditionVar));
             int loopExitPatchIndex = _currentParseState.CodeInstructions.Count - 1;
 
-            // Assign the loop variable: `item = collection[index]`
+            // Assign the loop variable: `item = collection[index]`.
             TempValue currentElementVar = new TempValue(_currentParseState.NextTempNumber++);
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetElement, currentElementVar, collectionVar, indexVar));
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, loopVariable, currentElementVar));
 
             // ForIn has two forms, block {...} or ForIn cond -> ...;
-            if (_lexer.TokenTypeMatches( TokenType.L_BRACE))
+            if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
             {
                 ParseBlockStatement();
             }
             else
             {
-                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
+                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected an '->' for a single-line for-in loop body.");
                 ParseStatement();
             }
 
@@ -1014,29 +1057,32 @@ namespace Fluence
             _currentParseState.ActiveLoopContexts.Pop();
         }
 
+        /// <summary>
+        /// Parses a while loop.
+        /// </summary>
         private void ParseWhileStatement()
         {
             _lexer.Advance(); // Consume while.
 
-            Value condition = ParseExpression();
+            Value condition = ResolveValue(ParseExpression());
 
             int loopStartIndex = _currentParseState.CodeInstructions.Count;
             LoopContext whileContext = new LoopContext();
             _currentParseState.ActiveLoopContexts.Push(whileContext);
 
-            // the condition of the while, we must jump back here if loop reaches end ( not terminated by break ).
+            // the condition of the while, we must jump back here if loop reaches the end ( not terminated by break ).
             // We'll patch this later.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
             int loopExitPatch = _currentParseState.CodeInstructions.Count - 1;
 
             // While has two forms, block {...} or while cond -> ...;
-            if (_lexer.TokenTypeMatches( TokenType.L_BRACE))
+            if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
             {
                 ParseBlockStatement();
             }
             else
             {
-                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
+                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected an '->' for a single-line while loop body.");
                 ParseStatement();
             }
 
@@ -1063,9 +1109,13 @@ namespace Fluence
             _currentParseState.ActiveLoopContexts.Pop();
         }
 
+        /// <summary>
+        /// Parses an infinite `loop { ... }` statement.
+        /// Control can only exit this loop via a `break` statement.
+        /// </summary>
         private void ParseLoopStatement()
         {
-            _lexer.Advance(); // Consume loop
+            _lexer.Advance(); // Consume loop.
 
             int loopStartIndex = _currentParseState.CodeInstructions.Count;
             LoopContext loopContext = new LoopContext();
@@ -1073,6 +1123,7 @@ namespace Fluence
 
             ParseBlockStatement();
 
+            // After the body executes, unconditionally jump back to the start.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex, NumberValue.NumberType.Integer)));
 
             int loopEndIndex = _currentParseState.CodeInstructions.Count;
@@ -1088,10 +1139,13 @@ namespace Fluence
             _currentParseState.ActiveLoopContexts.Pop();
         }
 
+        /// <summary>
+        /// Parses an `if-else if-else` conditional statement chain.
+        /// </summary>
         private void ParseIfStatement()
         {
             _lexer.Advance(); // Consume the if.
-            var condition = ParseTernary();
+            Value condition = ResolveValue(ParseTernary());
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
 
@@ -1103,9 +1157,9 @@ namespace Fluence
             {
                 ParseBlockStatement();
             }
-            else  // Single line if, expects ; instead.
+            else  // Single line if statement expects ; instead.
             {
-                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
+                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected '->' token for a single-line if statement body.");
                 ParseStatement();
             }
 
@@ -1113,7 +1167,7 @@ namespace Fluence
             while (_lexer.TokenTypeMatches(TokenType.EOL) && !_lexer.HasReachedEnd) _lexer.Advance();
 
             // else, also handles else if, we just consume the else part, call parse with the rest.
-            if (_lexer.TokenTypeMatches( TokenType.ELSE))
+            if (_lexer.TokenTypeMatches(TokenType.ELSE))
             {
                 int elseIfJumpOverIndex = _currentParseState.CodeInstructions.Count;
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
@@ -1147,30 +1201,6 @@ namespace Fluence
                 _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(endAddress, NumberValue.NumberType.Integer);
             }
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         /// <summary>
         /// Parses a `return` statement. This can be a return with a value
@@ -1245,7 +1275,7 @@ namespace Fluence
                         )
                     );
                 }
-                structSymbol.Constructor.SetStartAddress(functionStartAddress);
+                structSymbol.Constructor!.SetStartAddress(functionStartAddress);
                 _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{structSymbol.Constructor.Name}"), structSymbol.Constructor));
             }
             // Standalone function.

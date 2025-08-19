@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text;
+﻿using System.Text;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.Token;
@@ -7,7 +6,6 @@ using static Fluence.Token;
 namespace Fluence
 {
     // No REPL for demo.
-    // Needs exception handling.
     internal sealed class FluenceParser
     {
         private FluenceLexer _lexer;
@@ -80,7 +78,7 @@ namespace Fluence
             DumpScope(sb, _currentParseState.GlobalScope, "Global Scope", 0);
 
             // If there are any namespaces, dump them as separate top-level scopes
-            if (_currentParseState.NameSpaces.Any())
+            if (_currentParseState.NameSpaces.Count != 0)
             {
                 sb.AppendLine(); // Add a separator
                 foreach (var ns in _currentParseState.NameSpaces)
@@ -100,13 +98,13 @@ namespace Fluence
         /// <param name="scope">The scope to dump.</param>
         /// <param name="scopeName">The display name for this scope.</param>
         /// <param name="indentationLevel">The current level of indentation.</param>
-        private void DumpScope(StringBuilder sb, FluenceScope scope, string scopeName, int indentationLevel)
+        private static void DumpScope(StringBuilder sb, FluenceScope scope, string scopeName, int indentationLevel)
         {
             string indent = new string(' ', indentationLevel * 4);
 
             sb.Append(indent).Append(scopeName).AppendLine(" {");
 
-            if (!scope.Symbols.Any())
+            if (scope.Symbols.Count == 0)
             {
                 sb.Append(indent).AppendLine("    (empty)");
             }
@@ -125,7 +123,7 @@ namespace Fluence
         /// <summary>
         /// Helper to dump a single symbol's details with proper indentation.
         /// </summary>
-        private void DumpSymbol(StringBuilder sb, string symbolName, Symbol symbol, int indentationLevel)
+        private static void DumpSymbol(StringBuilder sb, string symbolName, Symbol symbol, int indentationLevel)
         {
             string indent = new string(' ', indentationLevel * 4);
             string innerIndent = new string(' ', (indentationLevel + 1) * 4);
@@ -149,7 +147,7 @@ namespace Fluence
                     sb.Append(indent).Append($"Symbol: {symbolName}, type Struct {{").AppendLine();
                     sb.Append(innerIndent).Append("Fields: ").Append(string.Join(", ", structSymbol.Fields)).AppendLine(".");
 
-                    if (structSymbol.Functions.Any())
+                    if (structSymbol.Functions.Count != 0)
                     {
                         sb.Append(innerIndent).AppendLine("Functions: {");
                         foreach (var function in structSymbol.Functions)
@@ -218,8 +216,6 @@ namespace Fluence
 
             while (!_lexer.HasReachedEnd)
             {
-                if (_lexer.HasReachedEnd) break;
-
                 // We reached end of file, so we just quit.
                 if (_lexer.TokenTypeMatches(TokenType.EOF))
                 {
@@ -231,6 +227,10 @@ namespace Fluence
             }
         }
 
+        /// <summary>
+        /// The main entry point for the first-pass. It initiates a recursive scan of the token stream
+        /// to build the entire symbol and namespace hierarchy.
+        /// </summary>
         private void ParseDeclarations(int start, int end)
         {
             int currentIndex = start;
@@ -243,17 +243,13 @@ namespace Fluence
                 {
                     int namespaceNameIndex = currentIndex + 1;
                     int namespaceEndIndex = FindMatchingBrace(namespaceNameIndex);
-
                     string namespaceName = _lexer.PeekAheadByN(namespaceNameIndex + 1).Text;
                     FluenceScope parentScope = _currentParseState.CurrentScope;
                     FluenceScope namespaceScope = new FluenceScope(parentScope, namespaceName);
                     _currentParseState.NameSpaces.TryAdd(namespaceName, namespaceScope);
                     _currentParseState.CurrentScope = namespaceScope;
-
                     ParseDeclarations(namespaceNameIndex + 2, namespaceEndIndex + 1);
-
                     _currentParseState.CurrentScope = parentScope;
-
                     currentIndex = namespaceEndIndex + 1;
                     continue;
                 }
@@ -262,11 +258,8 @@ namespace Fluence
                 {
                     int declarationStartIndex = currentIndex;
                     int declarationEndIndex = FindMatchingBrace(declarationStartIndex + 1);
-
                     ParseEnumDeclaration(declarationStartIndex, declarationEndIndex);
-
                     int count = declarationEndIndex - declarationStartIndex + 1;
-
                     _lexer.RemoveTokenRange(declarationStartIndex, count);
                     continue;
                 }
@@ -274,9 +267,7 @@ namespace Fluence
                 {
                     int declarationStartIndex = currentIndex;
                     int declarationEndIndex = FindFunctionHeaderDeclarationEnd(declarationStartIndex);
-
                     ParseFunctionHeaderDeclaration(declarationStartIndex, declarationEndIndex);
-
                     int functionEndIndex = FindFunctionBodyEnd(declarationEndIndex);
                     currentIndex = functionEndIndex + 1;
                     continue;
@@ -293,6 +284,12 @@ namespace Fluence
             }
         }
 
+        /// <summary>
+        /// Finds the index of the matching closing brace '}' for an opening brace '{',
+        /// starting its scan from a given index. This method correctly handles nested braces.
+        /// </summary>
+        /// <param name="startIndex">The index of a token *before* the block we want to find the end of.</param>
+        /// <returns>The index of the matching closing '}' token.</returns>
         private int FindMatchingBrace(int startIndex)
         {
             int currentIndex = startIndex;
@@ -301,7 +298,8 @@ namespace Fluence
             {
                 if (_lexer.PeekTokenTypeAheadByN(currentIndex + 1) == TokenType.EOF)
                 {
-                    throw new Exception($"Syntax Error: Could not find opening brace '{{' to start block after index {startIndex}.");
+                    Token errorToken = _lexer.PeekAheadByN(startIndex + 1);
+                    ConstructAndThrowParserException("Could not find an opening '{' to start the block scan of an Enum or Struct or Function body.", errorToken);
                 }
                 currentIndex++;
             }
@@ -313,7 +311,8 @@ namespace Fluence
             {
                 if (currentIndex >= _lexer.TokenCount)
                 {
-                    throw new Exception("Syntax Error: Unclosed block. Reached end of file while looking for matching '}'.");
+                    Token eofToken = _lexer.PeekAheadByN(_lexer.TokenCount);
+                    ConstructAndThrowParserException("Unclosed block. Reached end of file while looking for matching '}' for Enum or Struct or Function body.", eofToken);
                 }
 
                 TokenType currentTokenType = _lexer.PeekTokenTypeAheadByN(currentIndex + 1);
@@ -326,8 +325,6 @@ namespace Fluence
                     case TokenType.R_BRACE:
                         braceDepth--;
                         break;
-                    case TokenType.EOF:
-                        throw new Exception("Syntax Error: Unclosed block. Reached end of file while looking for matching '}'.");
                 }
 
                 if (braceDepth == 0)
@@ -338,23 +335,8 @@ namespace Fluence
                 currentIndex++;
             }
 
-            throw new Exception($"Internal Parser Error: Failed to find matching brace starting from index {startIndex}.");
+            return currentIndex;
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         /// <summary>
         /// Finds the index of the '=>' arrow token that signifies the end of a function's header.
@@ -3028,7 +3010,7 @@ namespace Fluence
 
             // Create a descriptor for the access. This will be resolved into a GetElement
             // or SetElement instruction by a higher-level parsing method.
-            return new ElementAccessValue(left, index, _currentParseState.NextTempNumber++);
+            return new ElementAccessValue(left, index);
         }
 
         /// <summary>

@@ -38,7 +38,7 @@
         internal Value Index { get; }
         internal object Value;
 
-        internal ElementAccessValue(Value target, Value index, int num)
+        internal ElementAccessValue(Value target, Value index)
         {
             Target = target;
             Index = index;
@@ -78,8 +78,7 @@
         public override string ToString()
         {
             string str = Text ?? "__Null";
-            str = str == "" ? "__EmptyString" : str;
-
+            str = string.IsNullOrEmpty(str) ? "__EmptyString" : str;
             return $"StringValue: \"{str}\"";
         }
     }
@@ -107,10 +106,10 @@
             string lexeme = token.Text;
 
             // Check for float suffix
-            if (lexeme.EndsWith("f", StringComparison.OrdinalIgnoreCase))
+            if (lexeme.EndsWith('f'))
             {
                 // It's a float. Parse it as such.
-                string floatStr = lexeme.Substring(0, lexeme.Length - 1);
+                string floatStr = lexeme[..^1];
                 if (float.TryParse(floatStr, out float floatVal))
                 {
                     return new NumberValue(floatVal, NumberType.Float);

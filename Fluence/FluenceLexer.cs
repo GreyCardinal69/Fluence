@@ -193,6 +193,18 @@ namespace Fluence
                 }
             }
 
+            internal TokenType PeekNextTokenType()
+            {
+                EnsureFilled(1);
+
+                if (_head >= _buffer.Count)
+                {
+                    return _buffer[^1].Type;
+                }
+
+                return _buffer[_head].Type;
+            }
+
             private void EnsureFilled(int requiredCount)
             {
                 // If the lexer is already known to be finished, we cannot generate more tokens.
@@ -241,6 +253,8 @@ namespace Fluence
         }
 
         internal bool TokenTypeMatches(TokenType type) => _tokenBuffer.TokenTypeMatches(type);
+
+        internal TokenType PeekNextTokenType() => _tokenBuffer.PeekNextTokenType();
 
         /// <summary>
         /// Removes all <see cref="TokenType.EOL_LEXER"/> tokens from the buffer. Called by the parser before its first pass.

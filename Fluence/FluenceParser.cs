@@ -221,7 +221,7 @@ namespace Fluence
                 if (_lexer.HasReachedEnd) break;
 
                 // We reached end of file, so we just quit.
-                if (_lexer.PeekNextToken().Type == TokenType.EOF)
+                if (_lexer.TokenTypeMatches(TokenType.EOF))
                 {
                     _lexer.Advance();
                     break;
@@ -677,7 +677,7 @@ namespace Fluence
 
         private void ParseStatement()
         {
-            if (_lexer.PeekNextToken().Type == TokenType.EOL)
+            if (_lexer.TokenTypeMatches(TokenType.EOL))
             {
                 // It's a blank line. This is a valid, empty statement.
                 // Consume the EOL token and simply return. We are done with this statement.
@@ -693,8 +693,6 @@ namespace Fluence
                 token.Type != TokenType.TRUE &&
                 token.Type != TokenType.FALSE &&
                 token.Type != TokenType.NIL;
-
-            Token next;
 
             // Primary keywords like func, if, else, return, loops, and few others.
             if (FluenceKeywords.TokenTypeIsAKeywordType(token.Type) && isNotAPrimaryKeyword)
@@ -718,10 +716,7 @@ namespace Fluence
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
                         currentLoop.BreakPatchAddresses.Add(_currentParseState.CodeInstructions.Count - 1);
 
-                        next = _lexer.PeekNextToken();
-
-
-                        if (next.Type == TokenType.EOF)
+                        if (_lexer.TokenTypeMatches( TokenType.EOF))
                         {
                             return;
                         }
@@ -740,10 +735,7 @@ namespace Fluence
 
                         currentLoop2.ContinuePatchAddresses.Add(_currentParseState.CodeInstructions.Count - 1);
 
-                        next = _lexer.PeekNextToken();
-
-
-                        if (next.Type == TokenType.EOF)
+                        if (_lexer.TokenTypeMatches(TokenType.EOF))
                         {
                             return;
                         }
@@ -791,7 +783,7 @@ namespace Fluence
                         _currentParseState.CurrentScope = namespaceScope;
 
                         // Parse all statements inside the block
-                        while (_lexer.PeekNextToken().Type != TokenType.R_BRACE && !_lexer.HasReachedEnd)
+                        while (!_lexer.TokenTypeMatches( TokenType.R_BRACE ) && !_lexer.HasReachedEnd)
                         {
                             ParseStatement();
                         }
@@ -810,10 +802,7 @@ namespace Fluence
             {
                 ParseAssignment();
 
-                next = _lexer.PeekNextToken();
-
-
-                if (next.Type == TokenType.EOF)
+                if (_lexer.TokenTypeMatches(TokenType.EOF))
                 {
                     return;
                 }
@@ -845,7 +834,7 @@ namespace Fluence
             _currentParseState.CurrentStructContext = structSymbol;
 
             // Empty struct.
-            if (_lexer.PeekNextToken().Type == TokenType.R_BRACE)
+            if (_lexer.TokenTypeMatches( TokenType.R_BRACE))
             {
                 _currentParseState.CurrentStructContext = null;
                 _lexer.Advance();
@@ -921,7 +910,7 @@ namespace Fluence
             _currentParseState.ActiveLoopContexts.Push(loopContext);
 
             int bodyStartIndex = _currentParseState.CodeInstructions.Count;
-            if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
+            if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
             {
                 ParseBlockStatement();
             }
@@ -992,7 +981,7 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, loopVariable, currentElementVar));
 
             // ForIn has two forms, block {...} or ForIn cond -> ...;
-            if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
+            if (_lexer.TokenTypeMatches( TokenType.L_BRACE))
             {
                 ParseBlockStatement();
             }
@@ -1043,7 +1032,7 @@ namespace Fluence
             int loopExitPatch = _currentParseState.CodeInstructions.Count - 1;
 
             // While has two forms, block {...} or while cond -> ...;
-            if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
+            if (_lexer.TokenTypeMatches( TokenType.L_BRACE))
             {
                 ParseBlockStatement();
             }
@@ -1112,7 +1101,7 @@ namespace Fluence
 
             // ifs come into ways, a block body if ... { ... }
             // or one line expressions, if ... -> .... ;
-            if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
+            if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
             {
                 ParseBlockStatement();
             }
@@ -1123,10 +1112,10 @@ namespace Fluence
             }
 
             // Skips EOLS in between.
-            while (_lexer.PeekNextToken().Type == TokenType.EOL && !_lexer.HasReachedEnd) _lexer.Advance();
+            while (_lexer.TokenTypeMatches(TokenType.EOL) && !_lexer.HasReachedEnd) _lexer.Advance();
 
             // else, also handles else if, we just consume the else part, call parse with the rest.
-            if (_lexer.PeekNextToken().Type == TokenType.ELSE)
+            if (_lexer.TokenTypeMatches( TokenType.ELSE))
             {
                 int elseIfJumpOverIndex = _currentParseState.CodeInstructions.Count;
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
@@ -1137,11 +1126,11 @@ namespace Fluence
                 _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(elseAddress, NumberValue.NumberType.Integer);
 
                 // This is an else-if, we just call ParseIf again.
-                if (_lexer.PeekNextToken().Type == TokenType.IF)
+                if (_lexer.TokenTypeMatches(TokenType.IF))
                 {
                     ParseStatement();
                 }
-                else if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
+                else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
                 {
                     ParseBlockStatement();
                 }
@@ -1193,7 +1182,7 @@ namespace Fluence
         {
             _lexer.Advance(); // Consume return.
 
-            Value result = _lexer.PeekNextToken().Type == TokenType.EOL
+            Value result = _lexer.TokenTypeMatches(TokenType.EOL)
                 ? new NilValue() // Empty 'return';
                 : ParseExpression();
 
@@ -1296,7 +1285,7 @@ namespace Fluence
             UpdateFunctionSymbolsAndGenerateDeclaration(func, nameToken, inStruct, isInit, structName);
 
             // Either => for one line, or => {...} for a block.
-            if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
+            if (_lexer.TokenTypeMatches( TokenType.L_BRACE))
             {
                 ParseBlockStatement();
                 if (_currentParseState.CodeInstructions[^1].Instruction != InstructionCode.Return)
@@ -1326,7 +1315,7 @@ namespace Fluence
             AdvanceAndExpect(TokenType.L_PAREN, $"Expected an opening '(' for function '{nameToken.Text}' parameters.");
 
             var parameters = new List<string>();
-            if (_lexer.PeekNextToken().Type != TokenType.R_PAREN)
+            if (!_lexer.TokenTypeMatches( TokenType.R_PAREN))
             {
                 do
                 {
@@ -1352,7 +1341,7 @@ namespace Fluence
         /// </returns>
         private Value ParseMatchStatement()
         {
-            if (_lexer.PeekNextToken().Type == TokenType.MATCH)
+            if (_lexer.TokenTypeMatches( TokenType.MATCH))
             {
                 // If we have lhs = match x
                 // Then match falls to ParsePrimary(), which consumes it.
@@ -1365,7 +1354,7 @@ namespace Fluence
             AdvanceAndExpect(TokenType.L_BRACE, "Expected an opening '{' to begin the match block.");
 
             // Check for match x { } empty match.
-            if (_lexer.PeekNextToken().Type == TokenType.R_BRACE)
+            if (_lexer.TokenTypeMatches( TokenType.R_BRACE))
             {
                 _lexer.Advance(); // Consume '}'
                 return new NilValue(); // An empty match does nothing and returns nil.
@@ -1394,9 +1383,9 @@ namespace Fluence
             bool fallThrough = false;
             int fallThroughSkipIndex = -1;
 
-            while (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
+            while (!_lexer.TokenTypeMatches(TokenType.R_BRACE))
             {
-                TokenType nextType = _lexer.PeekNextToken().Type;
+                TokenType nextType = _lexer.PeekNextTokenType();
 
                 if (nextType == TokenType.EOL)
                 {
@@ -1437,9 +1426,9 @@ namespace Fluence
                 AdvanceAndExpect(TokenType.COLON, "Expected a ':' after the match case pattern.");
 
                 // Parse the body after the colon.
-                while (_lexer.PeekNextToken().Type is not TokenType.R_BRACKET and not TokenType.REST)
+                while (!_lexer.TokenTypeMatches( TokenType.R_BRACKET) && !_lexer.TokenTypeMatches( TokenType.REST))
                 {
-                    if (_lexer.PeekNextToken().Type == TokenType.BREAK)
+                    if (_lexer.TokenTypeMatches(TokenType.BREAK))
                     {
                         _lexer.Advance();
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
@@ -1492,17 +1481,15 @@ namespace Fluence
             List<int> endJumpPatches = new List<int>();
             bool hasRestCase = false;
 
-            while (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
+            while (!_lexer.TokenTypeMatches(TokenType.R_BRACE))
             {
-                Token caseToken = _lexer.PeekNextToken();
-
                 if (hasRestCase)
                 {
-                    ConstructAndThrowParserException("The 'rest' case must be the final case in a match expression.", caseToken);
+                    ConstructAndThrowParserException("The 'rest' case must be the final case in a match expression.", _lexer.PeekNextToken());
                 }
 
                 int nextCasePatchIndex;
-                if (_lexer.PeekNextToken().Type == TokenType.REST)
+                if (_lexer.TokenTypeMatches(TokenType.REST))
                 {
                     hasRestCase = true;
                     _lexer.Advance(); // Consume the rest.
@@ -1520,7 +1507,7 @@ namespace Fluence
                     nextCasePatchIndex = _currentParseState.CodeInstructions.Count - 1;
                 }
 
-                if (_lexer.PeekNextToken().Type == TokenType.THIN_ARROW)
+                if (_lexer.TokenTypeMatches( TokenType.THIN_ARROW))
                 {
                     AdvanceAndExpect(TokenType.THIN_ARROW, "Expected a '->' for the match case expression.");
 
@@ -1693,7 +1680,7 @@ namespace Fluence
             TempValue list = new TempValue(_currentParseState.NextTempNumber++);
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewList, list));
 
-            if (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
+            if (!_lexer.TokenTypeMatches(TokenType.R_BRACE))
             {
                 // Non empty array.
                 List<Value> elements = ParseCommaSeparatedArguments();
@@ -1746,7 +1733,7 @@ namespace Fluence
         private void ParseBlockStatement()
         {
             AdvanceAndExpect(TokenType.L_BRACE, "Expected an opening '{' to start a block of code.");
-            while (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
+            while (!_lexer.TokenTypeMatches(TokenType.R_BRACE))
             {
                 ParseStatement();
             }
@@ -1762,13 +1749,12 @@ namespace Fluence
         {
             List<Value> lhsList = ParseLhs();
             Value firstLhs = lhsList[0];
-
-            Token token = _lexer.PeekNextToken();
-            TokenType opType = token.Type;
+            
+            TokenType opType = _lexer.PeekNextTokenType();
 
             if ((IsSimpleAssignmentOperator(opType) || opType == TokenType.SWAP) && lhsList.Count > 1)
             {
-                ConstructAndThrowParserException("Simple assignment operators (=, +=, ><) cannot be used with a multi-variable list.", token);
+                ConstructAndThrowParserException("Simple assignment operators (=, +=, ><) cannot be used with a multi-variable list.", _lexer.PeekNextToken());
             }
 
             // Multi-Assign operators like .+=, .-= and so on.
@@ -1916,7 +1902,7 @@ namespace Fluence
 
             do
             {
-                if (_lexer.PeekNextToken().Type == TokenType.UNDERSCORE)
+                if (_lexer.TokenTypeMatches(TokenType.UNDERSCORE))
                 {
                     Token token = _lexer.ConsumeToken();
                     if (underscoreIndex != -1)
@@ -2005,7 +1991,7 @@ namespace Fluence
         private void ParseStandardChainAssignment(List<Value> lhsExpressions)
         {
             int lhsIndex = 0;
-            while (IsChainAssignmentOperator(_lexer.PeekNextToken().Type))
+            while (IsChainAssignmentOperator(_lexer.PeekNextTokenType()))
             {
                 if (lhsIndex >= lhsExpressions.Count)
                 {
@@ -2067,7 +2053,7 @@ namespace Fluence
         {
             // Although weird, there are cases when you could pipe multiple broadcast calls.
             // For example when you want to print some values, but print only those that are not nil.
-            while (IsChainAssignmentOperator(_lexer.PeekNextToken().Type))
+            while (IsChainAssignmentOperator(_lexer.PeekNextTokenType()))
             {
                 Token op = _lexer.ConsumeToken(); // Consume <| or <?|.
 
@@ -2126,7 +2112,7 @@ namespace Fluence
             // If Ternary, this becomes the condition.
             Value left = ParsePipe();
 
-            TokenType type = _lexer.PeekNextToken().Type;
+            TokenType type = _lexer.PeekNextTokenType();
 
             if (type != TokenType.QUESTION && type != TokenType.TERNARY_JOINT)
             {
@@ -2204,9 +2190,9 @@ namespace Fluence
 
             List<Value> args = new List<Value>();
 
-            while (ConsumeTokenIfMatch(TokenType.COMMA) || _lexer.PeekNextToken().Type != TokenType.R_PAREN)
+            while (ConsumeTokenIfMatch(TokenType.COMMA) || !_lexer.TokenTypeMatches(TokenType.R_PAREN))
             {
-                if (_lexer.PeekNextToken().Type == TokenType.UNDERSCORE)
+                if (_lexer.TokenTypeMatches(TokenType.UNDERSCORE))
                 {
                     _lexer.Advance();
                     args.Add(leftSidePipedValue);
@@ -2287,7 +2273,7 @@ namespace Fluence
         {
             Value left = ParseLogicalAnd();
 
-            while (_lexer.PeekNextToken().Type == TokenType.OR)
+            while (_lexer.TokenTypeMatches(TokenType.OR))
             {
                 _lexer.Advance();
                 Value right = ParseLogicalAnd();
@@ -2309,7 +2295,7 @@ namespace Fluence
         {
             Value left = ParseBitwiseOr();
 
-            while (_lexer.PeekNextToken().Type == TokenType.AND)
+            while (_lexer.TokenTypeMatches(TokenType.AND))
             {
                 _lexer.Advance();
                 Value right = ParseBitwiseOr();
@@ -2332,7 +2318,7 @@ namespace Fluence
             Value left = ParseBitwiseXor();
 
             // | is called PIPE_CHAR.
-            while (_lexer.PeekNextToken().Type == TokenType.PIPE_CHAR)
+            while (_lexer.TokenTypeMatches(TokenType.PIPE_CHAR))
             {
                 _lexer.Advance();
                 Value right = ParseBitwiseXor();
@@ -2354,7 +2340,7 @@ namespace Fluence
         {
             Value left = ParseBitwiseAnd();
 
-            while (_lexer.PeekNextToken().Type == TokenType.CARET)
+            while (_lexer.TokenTypeMatches(TokenType.CARET))
             {
                 _lexer.Advance();
                 Value right = ParseBitwiseAnd();
@@ -2376,7 +2362,7 @@ namespace Fluence
         {
             Value left = ParseEquality();
 
-            while (_lexer.PeekNextToken().Type == TokenType.AMPERSAND)
+            while (_lexer.TokenTypeMatches(TokenType.AMPERSAND))
             {
                 _lexer.Advance();
                 Value right = ParseBitwiseAnd();
@@ -2398,7 +2384,7 @@ namespace Fluence
         {
             Value left = ParseBitwiseShift();
 
-            while (_lexer.PeekNextToken().Type == TokenType.EQUAL_EQUAL || _lexer.PeekNextToken().Type == TokenType.BANG_EQUAL)
+            while (_lexer.TokenTypeMatches(TokenType.EQUAL_EQUAL) || _lexer.TokenTypeMatches(TokenType.BANG_EQUAL))
             {
                 Token op = _lexer.ConsumeToken();
                 Value right = ParseBitwiseShift();
@@ -2423,7 +2409,7 @@ namespace Fluence
         {
             Value left = ParseComparison();
 
-            while (_lexer.PeekNextToken().Type == TokenType.BITWISE_LEFT_SHIFT || _lexer.PeekNextToken().Type == TokenType.BITWISE_RIGHT_SHIFT)
+            while (_lexer.TokenTypeMatches(TokenType.BITWISE_LEFT_SHIFT) || _lexer.TokenTypeMatches(TokenType.BITWISE_RIGHT_SHIFT))
             {
                 Token op = _lexer.ConsumeToken();
                 Value right = ParseComparison();
@@ -2449,7 +2435,7 @@ namespace Fluence
         /// </summary>
         private Value ParseComparison()
         {
-            TokenType opType = _lexer.PeekNextToken().Type;
+            TokenType opType = _lexer.PeekNextTokenType();
 
             // The .and()/.or() syntax must be checked first, as it doesn't follow the infix `left op right` pattern.
             if (opType == TokenType.DOT_AND_CHECK || opType == TokenType.DOT_OR_CHECK)
@@ -2460,7 +2446,7 @@ namespace Fluence
             Value left = ParseRange();
 
             // Potential collective comparison.
-            if (_lexer.PeekNextToken().Type == TokenType.COMMA && IsCollectiveComparisonAhead())
+            if (_lexer.TokenTypeMatches(TokenType.COMMA) && IsCollectiveComparisonAhead())
             {
                 List<Value> args = new List<Value>() { left };
                 _lexer.Advance();
@@ -2469,12 +2455,12 @@ namespace Fluence
                 do
                 {
                     args.Add(ParseRange());
-                } while (ConsumeTokenIfMatch(TokenType.COMMA) && IsNotAStandardComparison(_lexer.PeekNextToken().Type));
+                } while (ConsumeTokenIfMatch(TokenType.COMMA) && IsNotAStandardComparison(_lexer.PeekNextTokenType()));
 
                 return GenerateCollectiveComparisonByteCode(args, _lexer.ConsumeToken(), ParseRange());
             }
 
-            while (IsStandardComparisonOperator(_lexer.PeekNextToken().Type))
+            while (IsStandardComparisonOperator(_lexer.PeekNextTokenType()))
             {
                 Token op = _lexer.ConsumeToken();
                 Value right = ParseRange();
@@ -2502,7 +2488,7 @@ namespace Fluence
             InstructionCode logicalOp = opToken.Type == TokenType.DOT_AND_CHECK ? InstructionCode.And : InstructionCode.Or;
 
             // Handle empty call case.
-            if (_lexer.PeekNextToken().Type == TokenType.R_PAREN)
+            if (_lexer.TokenTypeMatches(TokenType.R_PAREN))
             {
                 ConstructAndThrowParserException("Argument list for .and()/.or() cannot be empty. Expected at least one boolean expression.", opToken);
             }
@@ -2587,7 +2573,7 @@ namespace Fluence
         {
             Value left = ParseAdditionSubtraction(); // Parse the start of the range
 
-            if (_lexer.PeekNextToken().Type == TokenType.DOT_DOT)
+            if (_lexer.TokenTypeMatches(TokenType.DOT_DOT))
             {
                 _lexer.Advance(); // Consume the '..'.
 
@@ -2616,7 +2602,7 @@ namespace Fluence
         {
             Value left = ParseMulDivModulo();
 
-            while (_lexer.PeekNextToken().Type == TokenType.PLUS || _lexer.PeekNextToken().Type == TokenType.MINUS)
+            while (_lexer.TokenTypeMatches(TokenType.PLUS) || _lexer.TokenTypeMatches(TokenType.MINUS))
             {
                 Token op = _lexer.ConsumeToken();
                 Value right = ParseMulDivModulo();
@@ -2641,7 +2627,7 @@ namespace Fluence
         {
             Value left = ParseExponentiation();
 
-            while (IsMultiplicativeOperator(_lexer.PeekNextToken().Type))
+            while (IsMultiplicativeOperator(_lexer.PeekNextTokenType()))
             {
                 Token op = _lexer.ConsumeToken();
                 Value right = ParseExponentiation();
@@ -2664,7 +2650,7 @@ namespace Fluence
         {
             Value left = ParseUnary();
 
-            while (_lexer.PeekNextToken().Type == TokenType.EXPONENT)
+            while (_lexer.TokenTypeMatches(TokenType.EXPONENT))
             {
                 _lexer.Advance();
                 // For right-associativity, the right-hand side recursively calls the *same* precedence level.
@@ -2690,7 +2676,7 @@ namespace Fluence
         {
             Value left = ParsePostFix();
 
-            while (IsUnaryOperator(_lexer.PeekNextToken().Type))
+            while (IsUnaryOperator(_lexer.PeekNextTokenType()))
             {
                 Token op = _lexer.ConsumeToken();
                 Value operand = ParseUnary();
@@ -2712,7 +2698,7 @@ namespace Fluence
         private Value ParsePostFix()
         {
             // Handle multi-target operators first as they are a complete statement.
-            if (_lexer.PeekNextToken().Type == TokenType.DOT_DECREMENT || _lexer.PeekNextToken().Type == TokenType.DOT_INCREMENT)
+            if (_lexer.TokenTypeMatches(TokenType.DOT_DECREMENT) || _lexer.TokenTypeMatches(TokenType.DOT_INCREMENT))
             {
                 ParseMultiIncrementDecrementOperators();
                 // This operation does not return a value.
@@ -2722,7 +2708,7 @@ namespace Fluence
             Value left = ParseAccess();
 
             // Check for a postfix operator.
-            if (_lexer.PeekNextToken().Type is TokenType.INCREMENT or TokenType.DECREMENT or TokenType.BOOLEAN_FLIP)
+            if (_lexer.TokenTypeMatches(TokenType.INCREMENT) || _lexer.TokenTypeMatches(TokenType.DECREMENT) || _lexer.TokenTypeMatches(TokenType.BOOLEAN_FLIP))
             {
                 Token op = _lexer.ConsumeToken();
                 Value originalValue = ResolveValue(left);
@@ -2948,7 +2934,7 @@ namespace Fluence
             TempValue instance = CreateNewInstance(structSymbol);
             HashSet<string> initializedFields = new HashSet<string>();
 
-            if (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
+            if (!_lexer.TokenTypeMatches(TokenType.R_BRACE))
             {
                 do
                 {
@@ -3000,7 +2986,7 @@ namespace Fluence
             // Then, loop to handle any number of chained postfix operators.
             while (true)
             {
-                TokenType type = _lexer.PeekNextToken().Type;
+                TokenType type = _lexer.PeekNextTokenType();
 
                 // Access get/set.
                 if (type == TokenType.L_BRACKET)
@@ -3095,7 +3081,7 @@ namespace Fluence
         private List<Value> ParseArgumentList()
         {
             List<Value> arguments = new List<Value>();
-            if (_lexer.PeekNextToken().Type != TokenType.R_PAREN)
+            if (!_lexer.TokenTypeMatches(TokenType.R_PAREN))
             {
                 do
                 {
@@ -3177,11 +3163,11 @@ namespace Fluence
                     {
                         // It's a struct, check if it's a constructor call Vec2(2,3).
                         // or a direct initializer Vec2{ x: 2, y: 3 }.
-                        if (_lexer.PeekNextToken().Type == TokenType.L_PAREN)
+                        if (_lexer.TokenTypeMatches(TokenType.L_PAREN))
                         {
                             return ParseConstructorCall(structSymbol);
                         }
-                        else if (_lexer.PeekNextToken().Type == TokenType.L_BRACE)
+                        else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
                         {
                             return ParseDirectInitializer(structSymbol);
                         }
@@ -3233,7 +3219,7 @@ namespace Fluence
         /// </summary>
         private bool ConsumeTokenIfMatch(TokenType expectedType)
         {
-            if (_lexer.PeekNextToken().Type == expectedType)
+            if (_lexer.TokenTypeMatches(expectedType))
             {
                 _lexer.Advance(); // It's a match, so we consume it.
                 return true;
@@ -3401,7 +3387,7 @@ namespace Fluence
         private bool IsBroadCastPipeFunctionCall()
         {
             // A broadcast call must start with `identifier (`
-            if (_lexer.PeekNextToken().Type != TokenType.IDENTIFIER && _lexer.PeekAheadByN(2).Type != TokenType.L_PAREN)
+            if (_lexer.TokenTypeMatches(TokenType.IDENTIFIER) && _lexer.PeekAheadByN(2).Type != TokenType.L_PAREN)
             {
                 return false;
             }

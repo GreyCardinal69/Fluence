@@ -193,6 +193,7 @@ namespace Fluence
                 }
             }
 
+
             internal TokenType PeekNextTokenType()
             {
                 EnsureFilled(1);
@@ -203,6 +204,20 @@ namespace Fluence
                 }
 
                 return _buffer[_head].Type;
+            }
+
+            internal TokenType PeekTokenTypeAheadByN(int n)
+            {
+                EnsureFilled(n);
+
+                int index = _head + n - 1;
+
+                if (index >= _buffer.Count)
+                {
+                    return _buffer[^1].Type;
+                }
+
+                return _buffer[index].Type;
             }
 
             private void EnsureFilled(int requiredCount)
@@ -241,6 +256,8 @@ namespace Fluence
         /// Peeks N tokens ahead in the stream without consuming them.
         /// </summary>
         internal Token PeekAheadByN(int n) => _tokenBuffer.Peek(n);
+
+        internal TokenType PeekTokenTypeAheadByN( int n ) => _tokenBuffer.PeekTokenTypeAheadByN( n );
 
         /// <summary>
         /// Consumes and returns the next token from the stream.

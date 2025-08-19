@@ -223,7 +223,7 @@ namespace Fluence
                 // We reached end of file, so we just quit.
                 if (_lexer.PeekNextToken().Type == TokenType.EOF)
                 {
-                    _lexer.ConsumeToken();
+                    _lexer.Advance();
                     break;
                 }
 
@@ -681,7 +681,7 @@ namespace Fluence
             {
                 // It's a blank line. This is a valid, empty statement.
                 // Consume the EOL token and simply return. We are done with this statement.
-                _lexer.ConsumeToken();
+                _lexer.Advance();
                 return;
             }
 
@@ -710,7 +710,7 @@ namespace Fluence
                     case TokenType.EOF:
                         return;
                     case TokenType.BREAK:
-                        _lexer.ConsumeToken(); // Consume break;
+                        _lexer.Advance(); // Consume break;
 
                         if (_currentParseState.ActiveLoopContexts.Count == 0) { /* throw error: 'break' outside loop */ }
                         LoopContext currentLoop = _currentParseState.ActiveLoopContexts.Peek();
@@ -728,10 +728,10 @@ namespace Fluence
 
                         // If we reach here, then we lack a semicolon, most likely at the end of an expression,
                         // not within if/loops/etc. Or we have a bug.
-                        ConsumeAndExpect(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
+                        AdvanceAndExpect(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
                         break;
                     case TokenType.CONTINUE:
-                        _lexer.ConsumeToken(); // Consume 'continue'
+                        _lexer.Advance(); // Consume 'continue'
                         if (_currentParseState.ActiveLoopContexts.Count == 0) { /* throw error */ }
 
                         LoopContext currentLoop2 = _currentParseState.ActiveLoopContexts.Peek();
@@ -750,7 +750,7 @@ namespace Fluence
 
                         // If we reach here, then we lack a semicolon, most likely at the end of an expression,
                         // not within if/loops/etc. Or we have a bug.
-                        ConsumeAndExpect(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
+                        AdvanceAndExpect(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
                         break;
                     case TokenType.WHILE:
                         ParseWhileStatement();
@@ -774,10 +774,10 @@ namespace Fluence
                         ParseAssignment(); // Self is really just a variable.
                         break;
                     case TokenType.SPACE:  // In the second pass, we don't create a new namespace. We just enter it.
-                        ConsumeAndExpect(TokenType.SPACE, "Expected 'space'.");
+                        AdvanceAndExpect(TokenType.SPACE, "Expected 'space'.");
                         Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected namespace name.");
                         string namespaceName = nameToken.Text;
-                        ConsumeAndExpect(TokenType.L_BRACE, "Expected '{'.");
+                        AdvanceAndExpect(TokenType.L_BRACE, "Expected '{'.");
 
                         // --- THE FIX ---
                         // Get the PRE-EXISTING scope that was created during ParseDeclarations.
@@ -795,7 +795,7 @@ namespace Fluence
                         {
                             ParseStatement();
                         }
-                        ConsumeAndExpect(TokenType.R_BRACE, "Expected '}'.");
+                        AdvanceAndExpect(TokenType.R_BRACE, "Expected '}'.");
 
                         // Restore the parent scope
                         _currentParseState.CurrentScope = parentScope;
@@ -820,7 +820,7 @@ namespace Fluence
 
                 // If we reach here, then we lack a semicolon, most likely at the end of an expression,
                 // not within if/loops/etc. Or we have a bug.
-                ConsumeAndExpect(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
+                AdvanceAndExpect(TokenType.EOL, $"Syntax Error: Missing newline or ';' to terminate the statement. Line {_lexer.CurrentLine}");
             }
         }
 
@@ -834,9 +834,9 @@ namespace Fluence
 
             // TO DO, currently can't have functions with the same name, even if different arity.
 
-            _lexer.ConsumeToken(); // Consume struct.
+            _lexer.Advance(); // Consume struct.
             string structName = _lexer.ConsumeToken().Text; // Consume name;
-            _lexer.ConsumeToken(); // Consume {
+            _lexer.Advance(); // Consume {
 
             StructSymbol structSymbol;
             _currentParseState.CurrentScope.TryResolve(structName, out Symbol symbol);
@@ -848,7 +848,7 @@ namespace Fluence
             if (_lexer.PeekNextToken().Type == TokenType.R_BRACE)
             {
                 _currentParseState.CurrentStructContext = null;
-                _lexer.ConsumeToken();
+                _lexer.Advance();
                 return;
             }
 
@@ -864,7 +864,7 @@ namespace Fluence
                 }
                 else
                 {
-                    _lexer.ConsumeToken();
+                    _lexer.Advance();
                     currentIndex++;
                 }
 
@@ -880,7 +880,7 @@ namespace Fluence
 
         private void ParseForStatement()
         {
-            _lexer.ConsumeToken(); // Consume for.
+            _lexer.Advance(); // Consume for.
 
             // For x in ... statement.
             if (_lexer.PeekAheadByN(2).Type == TokenType.IN)
@@ -899,7 +899,7 @@ namespace Fluence
 
             Value condition = ParseExpression();
             int conditionCheckIndex = _currentParseState.CodeInstructions.Count;
-            _lexer.ConsumeToken(); // Consume the ;
+            _lexer.Advance(); // Consume the ;
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
             int loopExitPatchIndex = _currentParseState.CodeInstructions.Count - 1;
@@ -912,7 +912,7 @@ namespace Fluence
             // This is where 'continue' statements will jump to.
             int incrementerStartIndex = _currentParseState.CodeInstructions.Count;
             ParseAssignment();
-            _lexer.ConsumeToken(); // Consume the ;
+            _lexer.Advance(); // Consume the ;
 
             // After the incrementer runs, add a jump back to the condition check.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(conditionCheckIndex - 1, NumberValue.NumberType.Integer)));
@@ -927,7 +927,7 @@ namespace Fluence
             }
             else
             {
-                ConsumeAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line for loop statement");
+                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line for loop statement");
                 ParseStatement();
             }
 
@@ -962,7 +962,7 @@ namespace Fluence
             Token itemToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected loop variable name after 'for'.");
             VariableValue loopVariable = new VariableValue(itemToken.Text);
 
-            ConsumeAndExpect(TokenType.IN, "Expected 'in' keyword in for-loop.");
+            AdvanceAndExpect(TokenType.IN, "Expected 'in' keyword in for-loop.");
 
             Value collectionExpr = ParseExpression();
 
@@ -998,7 +998,7 @@ namespace Fluence
             }
             else
             {
-                ConsumeAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
+                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
                 ParseStatement();
             }
 
@@ -1029,7 +1029,7 @@ namespace Fluence
 
         private void ParseWhileStatement()
         {
-            _lexer.ConsumeToken(); // Consume while.
+            _lexer.Advance(); // Consume while.
 
             Value condition = ParseExpression();
 
@@ -1049,7 +1049,7 @@ namespace Fluence
             }
             else
             {
-                ConsumeAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
+                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
                 ParseStatement();
             }
 
@@ -1078,7 +1078,7 @@ namespace Fluence
 
         private void ParseLoopStatement()
         {
-            _lexer.ConsumeToken(); // Consume loop
+            _lexer.Advance(); // Consume loop
 
             int loopStartIndex = _currentParseState.CodeInstructions.Count;
             LoopContext loopContext = new LoopContext();
@@ -1103,7 +1103,7 @@ namespace Fluence
 
         private void ParseIfStatement()
         {
-            _lexer.ConsumeToken(); // Consume the if.
+            _lexer.Advance(); // Consume the if.
             var condition = ParseTernary();
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
@@ -1118,12 +1118,12 @@ namespace Fluence
             }
             else  // Single line if, expects ; instead.
             {
-                ConsumeAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
+                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
                 ParseStatement();
             }
 
             // Skips EOLS in between.
-            while (_lexer.PeekNextToken().Type == TokenType.EOL && !_lexer.HasReachedEnd) _lexer.ConsumeToken();
+            while (_lexer.PeekNextToken().Type == TokenType.EOL && !_lexer.HasReachedEnd) _lexer.Advance();
 
             // else, also handles else if, we just consume the else part, call parse with the rest.
             if (_lexer.PeekNextToken().Type == TokenType.ELSE)
@@ -1131,7 +1131,7 @@ namespace Fluence
                 int elseIfJumpOverIndex = _currentParseState.CodeInstructions.Count;
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
 
-                _lexer.ConsumeToken();
+                _lexer.Advance();
 
                 int elseAddress = _currentParseState.CodeInstructions.Count;
                 _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(elseAddress, NumberValue.NumberType.Integer);
@@ -1147,7 +1147,7 @@ namespace Fluence
                 }
                 else // single line else.
                 {
-                    ConsumeAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
+                    AdvanceAndExpect(TokenType.THIN_ARROW, "Expected '->' token for single line if/else/else-if statement");
                     ParseStatement();
                 }
 
@@ -1191,7 +1191,7 @@ namespace Fluence
         /// </summary>
         private void ParseReturnStatement()
         {
-            _lexer.ConsumeToken(); // Consume return.
+            _lexer.Advance(); // Consume return.
 
             Value result = _lexer.PeekNextToken().Type == TokenType.EOL
                 ? new NilValue() // Empty 'return';
@@ -1321,9 +1321,9 @@ namespace Fluence
         /// <returns>A tuple containing the function's name token and a list of its parameter names.</returns>
         private (Token nameToken, List<string> parameters) ParseFunctionHeader()
         {
-            ConsumeAndExpect(TokenType.FUNC, "Expected the 'func' keyword.");
+            AdvanceAndExpect(TokenType.FUNC, "Expected the 'func' keyword.");
             Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a function name after 'func'.");
-            ConsumeAndExpect(TokenType.L_PAREN, $"Expected an opening '(' for function '{nameToken.Text}' parameters.");
+            AdvanceAndExpect(TokenType.L_PAREN, $"Expected an opening '(' for function '{nameToken.Text}' parameters.");
 
             var parameters = new List<string>();
             if (_lexer.PeekNextToken().Type != TokenType.R_PAREN)
@@ -1336,8 +1336,8 @@ namespace Fluence
                 } while (ConsumeTokenIfMatch(TokenType.COMMA));
             }
 
-            ConsumeAndExpect(TokenType.R_PAREN, $"Expected a closing ')' after parameters for function '{nameToken.Text}'.");
-            ConsumeAndExpect(TokenType.ARROW, $"Expected an '=>' to define the body of function '{nameToken.Text}'.");
+            AdvanceAndExpect(TokenType.R_PAREN, $"Expected a closing ')' after parameters for function '{nameToken.Text}'.");
+            AdvanceAndExpect(TokenType.ARROW, $"Expected an '=>' to define the body of function '{nameToken.Text}'.");
 
             return (nameToken, parameters);
         }
@@ -1357,17 +1357,17 @@ namespace Fluence
                 // If we have lhs = match x
                 // Then match falls to ParsePrimary(), which consumes it.
                 // If it is just match x {...}, match token remains, so we consume it.
-                _lexer.ConsumeToken();
+                _lexer.Advance();
             }
 
             Value matchOn = ResolveValue(ParseTernary());
 
-            ConsumeAndExpect(TokenType.L_BRACE, "Expected an opening '{' to begin the match block.");
+            AdvanceAndExpect(TokenType.L_BRACE, "Expected an opening '{' to begin the match block.");
 
             // Check for match x { } empty match.
             if (_lexer.PeekNextToken().Type == TokenType.R_BRACE)
             {
-                _lexer.ConsumeToken(); // Consume '}'
+                _lexer.Advance(); // Consume '}'
                 return new NilValue(); // An empty match does nothing and returns nil.
             }
 
@@ -1400,7 +1400,7 @@ namespace Fluence
 
                 if (nextType == TokenType.EOL)
                 {
-                    _lexer.ConsumeToken();
+                    _lexer.Advance();
                     continue;
                 }
 
@@ -1414,7 +1414,7 @@ namespace Fluence
 
                 if (nextType == TokenType.REST)
                 {
-                    _lexer.ConsumeToken();
+                    _lexer.Advance();
                 }
                 else
                 {
@@ -1434,14 +1434,14 @@ namespace Fluence
                     nextCasePatches.Add(_currentParseState.CodeInstructions.Count - 1);
                 }
 
-                ConsumeAndExpect(TokenType.COLON, "Expected a ':' after the match case pattern.");
+                AdvanceAndExpect(TokenType.COLON, "Expected a ':' after the match case pattern.");
 
                 // Parse the body after the colon.
                 while (_lexer.PeekNextToken().Type is not TokenType.R_BRACKET and not TokenType.REST)
                 {
                     if (_lexer.PeekNextToken().Type == TokenType.BREAK)
                     {
-                        _lexer.ConsumeToken();
+                        _lexer.Advance();
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
                         context.BreakPatches.Add(_currentParseState.CodeInstructions.Count - 1);
                         break;
@@ -1461,7 +1461,7 @@ namespace Fluence
                 nextCasePatches.Add(_currentParseState.CodeInstructions.Count - 1);
             }
 
-            ConsumeAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end the match statement.");
+            AdvanceAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end the match statement.");
 
             _currentParseState.ActiveMatchContexts.Pop();
 
@@ -1501,12 +1501,11 @@ namespace Fluence
                     ConstructAndThrowParserException("The 'rest' case must be the final case in a match expression.", caseToken);
                 }
 
-                int nextCasePatchIndex = -1;
-
+                int nextCasePatchIndex;
                 if (_lexer.PeekNextToken().Type == TokenType.REST)
                 {
                     hasRestCase = true;
-                    _lexer.ConsumeToken(); // Consume the rest.
+                    _lexer.Advance(); // Consume the rest.
                     nextCasePatchIndex = -1;
                 }
                 else
@@ -1523,14 +1522,14 @@ namespace Fluence
 
                 if (_lexer.PeekNextToken().Type == TokenType.THIN_ARROW)
                 {
-                    ConsumeAndExpect(TokenType.THIN_ARROW, "Expected a '->' for the match case expression.");
+                    AdvanceAndExpect(TokenType.THIN_ARROW, "Expected a '->' for the match case expression.");
 
                     Value caseResult = ResolveValue(ParseTernary());
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, result, caseResult));
                 }
                 else
                 {
-                    ConsumeAndExpect(TokenType.ARROW, "Expected a '=>' for the match case block.");
+                    AdvanceAndExpect(TokenType.ARROW, "Expected a '=>' for the match case block.");
                     int instructionCountBeforeBlock = _currentParseState.CodeInstructions.Count;
                     ParseBlockStatement();
 
@@ -1557,10 +1556,10 @@ namespace Fluence
                     _currentParseState.CodeInstructions[nextCasePatchIndex].Lhs = new NumberValue(nextCaseAddress);
                 }
 
-                ConsumeAndExpect(TokenType.EOL, "Expected a ';' or after each match case.");
+                AdvanceAndExpect(TokenType.EOL, "Expected a ';' or after each match case.");
             }
 
-            ConsumeAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end the match expression.");
+            AdvanceAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end the match expression.");
 
             if (!hasRestCase)
             {
@@ -1709,7 +1708,7 @@ namespace Fluence
                 }
             }
 
-            ConsumeAndExpect(TokenType.R_BRACKET, "Expected a closing ']' to end the list literal.");
+            AdvanceAndExpect(TokenType.R_BRACKET, "Expected a closing ']' to end the list literal.");
             return list;
         }
 
@@ -1718,7 +1717,7 @@ namespace Fluence
         /// into the current scop
         private void ParseUseStatement()
         {
-            ConsumeAndExpect(TokenType.USE, "Expected the 'use' keyword.");
+            AdvanceAndExpect(TokenType.USE, "Expected the 'use' keyword.");
 
             do
             {
@@ -1738,7 +1737,7 @@ namespace Fluence
                 }
             } while (ConsumeTokenIfMatch(TokenType.COMMA));
 
-            ConsumeAndExpect(TokenType.EOL, "Expected a ';' to end the 'use' statement.");
+            AdvanceAndExpect(TokenType.EOL, "Expected a ';' to end the 'use' statement.");
         }
 
         /// <summary>
@@ -1746,12 +1745,12 @@ namespace Fluence
         /// </summary>
         private void ParseBlockStatement()
         {
-            ConsumeAndExpect(TokenType.L_BRACE, "Expected an opening '{' to start a block of code.");
+            AdvanceAndExpect(TokenType.L_BRACE, "Expected an opening '{' to start a block of code.");
             while (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
             {
                 ParseStatement();
             }
-            ConsumeAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end a block of code.");
+            AdvanceAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end a block of code.");
         }
 
         /// <summary>
@@ -1933,7 +1932,7 @@ namespace Fluence
                 }
             } while (ConsumeTokenIfMatch(TokenType.COMMA));
 
-            ConsumeAndExpect(TokenType.R_PAREN, "Expected a closing ')' for the broadcast call template.");
+            AdvanceAndExpect(TokenType.R_PAREN, "Expected a closing ')' for the broadcast call template.");
 
             // Semantic check: A broadcast template MUST contain a placeholder.
             if (underscoreIndex == -1)
@@ -2137,7 +2136,7 @@ namespace Fluence
             // Two formats, normal: cond ? a : b
             // Joint: cond ?: a, b
 
-            _lexer.ConsumeToken(); // Consume '?' or '?:'
+            _lexer.Advance(); // Consume '?' or '?:'
 
             // Immediately generate the conditional jump. We will back-patch its target.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, left));
@@ -2157,11 +2156,11 @@ namespace Fluence
             // 7. Consume the ':' or ',' delimiter.
             if (type == TokenType.QUESTION)
             {
-                ConsumeAndExpect(TokenType.COLON, "Expected a ':' in the ternary expression.");
+                AdvanceAndExpect(TokenType.COLON, "Expected a ':' in the ternary expression.");
             }
             else
             {
-                ConsumeAndExpect(TokenType.COMMA, "Expected ',' in a Fluid-style ternary.");
+                AdvanceAndExpect(TokenType.COMMA, "Expected ',' in a Fluid-style ternary.");
             }
 
             // Recursively parse the "false" path expression.
@@ -2201,7 +2200,7 @@ namespace Fluence
         private TempValue ParsePipedFunctionCall(Value leftSidePipedValue)
         {
             Value targetFunction = ParsePrimary();
-            ConsumeAndExpect(TokenType.L_PAREN, "Expected a function call with `(` after a pipe `|>` operator.");
+            AdvanceAndExpect(TokenType.L_PAREN, "Expected a function call with `(` after a pipe `|>` operator.");
 
             List<Value> args = new List<Value>();
 
@@ -2209,7 +2208,7 @@ namespace Fluence
             {
                 if (_lexer.PeekNextToken().Type == TokenType.UNDERSCORE)
                 {
-                    _lexer.ConsumeToken();
+                    _lexer.Advance();
                     args.Add(leftSidePipedValue);
                 }
                 else
@@ -2218,7 +2217,7 @@ namespace Fluence
                 }
             }
 
-            ConsumeAndExpect(TokenType.R_PAREN, "Expected a closing ')' for the function call in a pipe.");
+            AdvanceAndExpect(TokenType.R_PAREN, "Expected a closing ')' for the function call in a pipe.");
 
             foreach (var arg in args)
             {
@@ -2290,7 +2289,7 @@ namespace Fluence
 
             while (_lexer.PeekNextToken().Type == TokenType.OR)
             {
-                Token op = _lexer.ConsumeToken();
+                _lexer.Advance();
                 Value right = ParseLogicalAnd();
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
@@ -2312,7 +2311,7 @@ namespace Fluence
 
             while (_lexer.PeekNextToken().Type == TokenType.AND)
             {
-                Token op = _lexer.ConsumeToken();
+                _lexer.Advance();
                 Value right = ParseBitwiseOr();
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
@@ -2335,7 +2334,7 @@ namespace Fluence
             // | is called PIPE_CHAR.
             while (_lexer.PeekNextToken().Type == TokenType.PIPE_CHAR)
             {
-                Token op = _lexer.ConsumeToken();
+                _lexer.Advance();
                 Value right = ParseBitwiseXor();
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
@@ -2357,7 +2356,7 @@ namespace Fluence
 
             while (_lexer.PeekNextToken().Type == TokenType.CARET)
             {
-                Token op = _lexer.ConsumeToken();
+                _lexer.Advance();
                 Value right = ParseBitwiseAnd();
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
@@ -2379,7 +2378,7 @@ namespace Fluence
 
             while (_lexer.PeekNextToken().Type == TokenType.AMPERSAND)
             {
-                Token op = _lexer.ConsumeToken();
+                _lexer.Advance();
                 Value right = ParseBitwiseAnd();
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
@@ -2464,7 +2463,7 @@ namespace Fluence
             if (_lexer.PeekNextToken().Type == TokenType.COMMA && IsCollectiveComparisonAhead())
             {
                 List<Value> args = new List<Value>() { left };
-                _lexer.ConsumeToken();
+                _lexer.Advance();
 
                 // We collect all comma separated arguments on the left.
                 do
@@ -2498,7 +2497,7 @@ namespace Fluence
         {
             Token opToken = _lexer.ConsumeToken(); // Consume .and or .or
 
-            ConsumeAndExpect(TokenType.L_PAREN, $"Expected an opening '(' after '{opToken.ToDisplayString()}'.");
+            AdvanceAndExpect(TokenType.L_PAREN, $"Expected an opening '(' after '{opToken.ToDisplayString()}'.");
 
             InstructionCode logicalOp = opToken.Type == TokenType.DOT_AND_CHECK ? InstructionCode.And : InstructionCode.Or;
 
@@ -2525,7 +2524,7 @@ namespace Fluence
                 result = combinedResult;
             }
 
-            ConsumeAndExpect(TokenType.R_PAREN, $"Expected a closing ')' after '{opToken.ToDisplayString()}' arguments.");
+            AdvanceAndExpect(TokenType.R_PAREN, $"Expected a closing ')' after '{opToken.ToDisplayString()}' arguments.");
 
             return result;
         }
@@ -2590,7 +2589,7 @@ namespace Fluence
 
             if (_lexer.PeekNextToken().Type == TokenType.DOT_DOT)
             {
-                _lexer.ConsumeToken(); // Consume the '..'.
+                _lexer.Advance(); // Consume the '..'.
 
                 // The end of the range.
                 Value right = ParseAdditionSubtraction();
@@ -2667,7 +2666,7 @@ namespace Fluence
 
             while (_lexer.PeekNextToken().Type == TokenType.EXPONENT)
             {
-                Token op = _lexer.ConsumeToken();
+                _lexer.Advance();
                 // For right-associativity, the right-hand side recursively calls the *same* precedence level.
                 Value right = ParseExponentiation();
 
@@ -2759,7 +2758,7 @@ namespace Fluence
         {
             Token opToken = _lexer.ConsumeToken(); // Consume .++ or .--
 
-            ConsumeAndExpect(TokenType.L_PAREN, $"Expected an opening '(' after the '{opToken.ToDisplayString()}' operator.");
+            AdvanceAndExpect(TokenType.L_PAREN, $"Expected an opening '(' after the '{opToken.ToDisplayString()}' operator.");
 
             InstructionCode operation = (opToken.Type == TokenType.DOT_DECREMENT)
                 ? InstructionCode.Decrement
@@ -2781,7 +2780,7 @@ namespace Fluence
             } while (ConsumeTokenIfMatch(TokenType.COMMA));
 
 
-            ConsumeAndExpect(TokenType.R_PAREN, $"a closing ')' after the '{opToken.ToDisplayString()}' operator's arguments.");
+            AdvanceAndExpect(TokenType.R_PAREN, $"a closing ')' after the '{opToken.ToDisplayString()}' operator's arguments.");
         }
 
         /// <summary>
@@ -2887,13 +2886,13 @@ namespace Fluence
         /// <returns>A TempValue that will hold the new struct instance at runtime.</returns>
         private TempValue ParseConstructorCall(StructSymbol structSymbol)
         {
-            ConsumeAndExpect(TokenType.L_PAREN, $"Expected an opening '(' for the constructor call to '{structSymbol.Name}'.");
+            AdvanceAndExpect(TokenType.L_PAREN, $"Expected an opening '(' for the constructor call to '{structSymbol.Name}'.");
 
             TempValue instance = CreateNewInstance(structSymbol);
 
             List<Value> arguments = ParseArgumentList();
 
-            ConsumeAndExpect(TokenType.R_PAREN, $"Expected closing ')' for the constructor call to '{structSymbol.Name}'.");
+            AdvanceAndExpect(TokenType.R_PAREN, $"Expected closing ')' for the constructor call to '{structSymbol.Name}'.");
 
             // Check if an `init` method should be called.
             if (structSymbol.Constructor != null)
@@ -2943,7 +2942,7 @@ namespace Fluence
         /// <returns>A TempValue that will hold the new struct instance at runtime.</returns>
         private TempValue ParseDirectInitializer(StructSymbol structSymbol)
         {
-            ConsumeAndExpect(TokenType.L_BRACE, $"an opening '{{' for the direct initializer of '{structSymbol.Name}'.");
+            AdvanceAndExpect(TokenType.L_BRACE, $"an opening '{{' for the direct initializer of '{structSymbol.Name}'.");
 
             // Create the new instance. Default field values are set here.
             TempValue instance = CreateNewInstance(structSymbol);
@@ -2965,7 +2964,7 @@ namespace Fluence
                         ConstructAndThrowParserException($"Duplicate field '{fieldName}'. Each field can only be initialized only once.", fieldToken);
                     }
 
-                    ConsumeAndExpect(TokenType.COLON, $"Expected a ':' after the field name '{fieldName}'.");
+                    AdvanceAndExpect(TokenType.COLON, $"Expected a ':' after the field name '{fieldName}'.");
                     Value fieldValue = ParseExpression();
 
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, instance, new StringValue(fieldName), ResolveValue(fieldValue)));
@@ -2973,7 +2972,7 @@ namespace Fluence
                 } while (ConsumeTokenIfMatch(TokenType.COMMA));
             }
 
-            ConsumeAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end the struct initializer.");
+            AdvanceAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end the struct initializer.");
 
             return instance;
         }
@@ -3011,7 +3010,7 @@ namespace Fluence
                 // Property access.
                 else if (type == TokenType.DOT)
                 {
-                    _lexer.ConsumeToken(); // Consume the dot.
+                    _lexer.Advance(); // Consume the dot.
 
                     Token memberToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a member name after '.' .");
 
@@ -3053,10 +3052,10 @@ namespace Fluence
         /// </summary>
         private TempValue ParseFunctionCall(Value callable)
         {
-            _lexer.ConsumeToken(); // Consume (.
+            _lexer.Advance(); // Consume (.
             List<Value> arguments = ParseArgumentList();
 
-            ConsumeAndExpect(TokenType.R_PAREN, "Expected a closing ')' for function call after function arguments.");
+            AdvanceAndExpect(TokenType.R_PAREN, "Expected a closing ')' for function call after function arguments.");
 
             foreach (Value arg in arguments)
             {
@@ -3112,11 +3111,11 @@ namespace Fluence
         /// </summary>
         private ElementAccessValue ParseIndexAccess(Value left)
         {
-            _lexer.ConsumeToken(); // Consume [.
+            _lexer.Advance(); // Consume [.
 
             Value index = ParseExpression();
 
-            ConsumeAndExpect(TokenType.R_BRACKET, "Expected a closing ']' for the index accessor.");
+            AdvanceAndExpect(TokenType.R_BRACKET, "Expected a closing ']' for the index accessor.");
 
             // Create a descriptor for the access. This will be resolved into a GetElement
             // or SetElement instruction by a higher-level parsing method.
@@ -3218,13 +3217,13 @@ namespace Fluence
                     // Go back to the lowest precedence to parse the inner expression.
                     Value expr = ParseTernary();
                     // Unclosed parentheses.
-                    ConsumeAndExpect(TokenType.R_PAREN, "Expected: a closing ')' to match the opening parenthesis.");
+                    AdvanceAndExpect(TokenType.R_PAREN, "Expected: a closing ')' to match the opening parenthesis.");
                     return expr;
             }
 
             // If we've fallen through the entire switch, we have an invalid token.
             ConstructAndThrowParserException($"Unexpected token '{token.ToDisplayString()}' when expecting an expression. Expected a literal (e.g., number, string), variable, or '('.", token);
-            return null;
+            return null!;
         }
 
         /// <summary>
@@ -3236,7 +3235,7 @@ namespace Fluence
         {
             if (_lexer.PeekNextToken().Type == expectedType)
             {
-                _lexer.ConsumeToken(); // It's a match, so we consume it.
+                _lexer.Advance(); // It's a match, so we consume it.
                 return true;
             }
 
@@ -3258,6 +3257,22 @@ namespace Fluence
                 ConstructAndThrowParserException(errorMessage, token);
             }
             return token;
+        }
+
+        /// <summary>
+        /// Verifies that the next token in the stream is of the expected type and advances the stream.
+        /// </summary>
+        /// <param name="expectedType">The TokenType that is grammatically required.</param>
+        /// <param name="expectedDescription">A user-friendly description of what was expected, for error reporting.</param>
+        /// <exception cref="FluenceParserException">Thrown if the next token's type does not match.</exception>
+        private void AdvanceAndExpect(TokenType expectedType, string errorMessage)
+        {
+            if (!_lexer.TokenTypeMatches(expectedType))
+            {
+                // Since this is an error, it doesnt matter if its slightly less performant than it could be.
+                ConstructAndThrowParserException(errorMessage, _lexer.PeekNextToken());
+            }
+            _lexer.Advance();
         }
 
         private void ConstructAndThrowParserException(string errorMessage, Token token)

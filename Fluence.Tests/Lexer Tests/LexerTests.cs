@@ -158,7 +158,7 @@ namespace Fluence.LexerTests
             string source = "<5?| code after";
             var token = LexFirstToken(source);
             Assert.Equal(TokenType.OPTIONAL_ASSIGN_N, token.Type);
-            Assert.Equal("5", token.Text);
+            Assert.Equal("5", token.Literal);
         }
 
         [Fact]

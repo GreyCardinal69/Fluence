@@ -15,13 +15,7 @@ namespace Fluence
         private int _currentColumn;
         private readonly TokenBuffer _tokenBuffer;
 
-        private bool _hasReachedEndInternal
-        {
-            get
-            {
-                return _currentPosition >= _sourceLength;
-            }
-        }
+        private bool _hasReachedEndInternal => _currentPosition >= _sourceLength;
 
         internal int CurrentLine => _currentLine;
         internal bool HasReachedEnd => _currentPosition >= _sourceLength & _tokenBuffer.HasReachedEnd;
@@ -103,6 +97,12 @@ namespace Fluence
                 return token;
             }
 
+            internal bool TokenTypeMatches(TokenType type)
+            {
+                EnsureFilled(1);
+                return _buffer[_head].Type == type;
+            }
+
             /// <summary>
             /// Surgically removes a range of tokens from the buffer.
             /// This is an advanced operation used by a multi-pass parser to
@@ -170,6 +170,29 @@ namespace Fluence
                 return _buffer[index];
             }
 
+            /// <summary>
+            /// Advances the buffer's head by a specified number of tokens without returning them.
+            /// This is more efficient than calling Consume() when the token's value is not needed.
+            /// </summary>
+            internal void Advance()
+            {
+                EnsureFilled(1);
+
+                if (_head + 1 <= _buffer.Count)
+                {
+                    _head += 1;
+                }
+                else
+                {
+                    _head = _buffer.Count;
+                }
+
+                if (_head >= _trimThreshold)
+                {
+                    Compact();
+                }
+            }
+
             private void EnsureFilled(int requiredCount)
             {
                 // If the lexer is already known to be finished, we cannot generate more tokens.
@@ -198,6 +221,11 @@ namespace Fluence
         internal Token PeekNextToken() => _tokenBuffer.Peek();
 
         /// <summary>
+        /// Advances the token stream by one position without returning the consumed token.
+        /// </summary>
+        internal void Advance() => _tokenBuffer.Advance();
+
+        /// <summary>
         /// Peeks N tokens ahead in the stream without consuming them.
         /// </summary>
         internal Token PeekAheadByN(int n) => _tokenBuffer.Peek(n);
@@ -211,6 +239,8 @@ namespace Fluence
         {
             _tokenBuffer.RemoveRange(startIndex, count);
         }
+
+        internal bool TokenTypeMatches(TokenType type) => _tokenBuffer.TokenTypeMatches(type);
 
         /// <summary>
         /// Removes all <see cref="TokenType.EOL_LEXER"/> tokens from the buffer. Called by the parser before its first pass.
@@ -823,11 +853,11 @@ namespace Fluence
                 {
                     // We matched <n?|
                     // Only assign the number as text/literal, the rest of the operator is in the TokenType.
-                    return new Token(TokenType.OPTIONAL_ASSIGN_N, n, n);
+                    return new Token(TokenType.OPTIONAL_ASSIGN_N, null!, n, (short)_currentLine, (short)_currentColumn);
                 }
                 if (Match("|"))
                 {
-                    return new Token(TokenType.CHAIN_ASSIGN_N, n, n);
+                    return new Token(TokenType.CHAIN_ASSIGN_N, null!, n, (short)_currentLine, (short)_currentColumn);
                 }
 
                 // If we get here then we have an error.

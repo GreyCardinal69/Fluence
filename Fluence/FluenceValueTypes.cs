@@ -38,7 +38,7 @@
         internal Value Index { get; }
         internal object Value;
 
-        internal ElementAccessValue(Value target, Value index, int num, string name)
+        internal ElementAccessValue(Value target, Value index, int num)
         {
             Target = target;
             Index = index;

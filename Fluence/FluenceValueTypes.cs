@@ -1,88 +1,37 @@
 ﻿namespace Fluence
 {
-    internal abstract record class Value
-    {
-        public override string ToString()
-        {
-            return "";
-        }
+    /// <summary>
+    /// The abstract base type for all values that can exist in the Fluence runtime or be represented in bytecode.
+    /// All value types are immutable records.
+    /// </summary>
+    internal abstract record class Value;
 
-        internal virtual object GetValue() { return null; }
+    /// <summary>Represents a single character literal.</summary>
+    internal sealed record class CharValue(char Value) : Value
+    {
+        public override string ToString() => $"Char: '{Value}'";
     }
 
-    internal sealed record class CharValue : Value
+    /// <summary>Represents a string literal.</summary>
+    internal sealed record class StringValue(string Value) : Value
     {
-        internal char Value;
-
-        internal CharValue(char value)
-        {
-            Value = value;
-        }
-
-        public override string ToString()
-        {
-            return $"CharValue: '{Value}'";
-        }
+        public override string ToString() => $"String: \"{Value ?? "null"}\"";
     }
 
-    internal sealed record class StatementCompleteValue : Value
+    /// <summary>Represents the two boolean states, true and false.</summary>
+    internal sealed record class BooleanValue(bool Value) : Value
     {
-        // It has no data. Its existence is its meaning.
-        public override string ToString() => "StatementComplete";
-        internal override object GetValue() => null!;
+        public override string ToString() => $"Boolean: {Value}";
     }
 
-    internal sealed record class ElementAccessValue : Value
+    /// <summary>Represents the nil value.</summary>
+    internal sealed record class NilValue : Value
     {
-        internal Value Target { get; }
-        internal Value Index { get; }
-        internal object Value;
-
-        internal ElementAccessValue(Value target, Value index)
-        {
-            Target = target;
-            Index = index;
-        }
-
-        public override string ToString()
-        {
-            return $"ElementAccessValue";
-        }
+        public override string ToString() => "NilValue";
     }
 
-    internal sealed record class BroadcastCallTemplate : Value
-    {
-        // The function to be called.
-        internal Value Callable { get; }
-        internal List<Value> Arguments { get; }
-        // The underscore used in pipes.
-        internal int PlaceholderIndex { get; }
 
-        public BroadcastCallTemplate(Value callable, List<Value> args, int placeholderIndex)
-        {
-            Callable = callable;
-            Arguments = args;
-            PlaceholderIndex = placeholderIndex;
-        }
-    }
-
-    internal sealed record class StringValue : Value
-    {
-        internal string Text;
-
-        internal StringValue(string text)
-        {
-            Text = text;
-        }
-
-        public override string ToString()
-        {
-            string str = Text ?? "__Null";
-            str = string.IsNullOrEmpty(str) ? "__EmptyString" : str;
-            return $"StringValue: \"{str}\"";
-        }
-    }
-
+    /// <summary>Represents a numerical value, which can be an Integer, Float, or Double.</summary>
     internal sealed record class NumberValue : Value
     {
         internal enum NumberType
@@ -116,7 +65,7 @@
                 }
             }
             // Check for decimal point (but not float) -> double
-            else if (lexeme.Contains('.'))
+            else if (lexeme.Contains('.', StringComparison.Ordinal))
             {
                 if (double.TryParse(lexeme, out double doubleVal))
                 {
@@ -145,40 +94,53 @@
         {
             return $"NumberValue ({Type}): {Value}";
         }
-
-        internal override object GetValue()
-        {
-            return Value;
-        }
     }
 
-    internal sealed record class NilValue : Value
+    /// <summary>A special value indicating that a statement has completed but produced no value. Used for postfix ops.</summary>
+    internal sealed record class StatementCompleteValue : Value
     {
-        public override string ToString()
-        {
-            return $"NilValue: Nil";
-        }
+        public override string ToString() => "StatementComplete";
     }
 
-    internal sealed record class BooleanValue : Value
+    /// <summary>A descriptor representing an element access operation.</summary>
+    internal sealed record class ElementAccessValue : Value
     {
-        internal bool Value;
+        internal Value Target { get; }
+        internal Value Index { get; }
 
-        internal BooleanValue(bool val)
+        internal ElementAccessValue(Value target, Value index)
         {
-            Value = val;
+            Target = target;
+            Index = index;
         }
 
         public override string ToString()
         {
-            return $"BooleanValue: {Value}";
+            return $"ElementAccessValue";
         }
     }
 
+    /// <summary>A descriptor for a broadcast call template.</summary>
+    internal sealed record class BroadcastCallTemplate : Value
+    {
+        // The function to be called.
+        internal Value Callable { get; }
+        internal List<Value> Arguments { get; }
+        // The underscore used in pipes.
+        internal int PlaceholderIndex { get; }
+
+        public BroadcastCallTemplate(Value callable, List<Value> args, int placeholderIndex)
+        {
+            Callable = callable;
+            Arguments = args;
+            PlaceholderIndex = placeholderIndex;
+        }
+    }
+
+    /// <summary>A descriptor representing a temporary variable generated by the parser.</summary>
     internal sealed record class TempValue : Value
     {
         internal string TempName;
-        internal object Value;
 
         internal TempValue(int num)
         {
@@ -196,6 +158,7 @@
         }
     }
 
+    /// <summary>Represents a function or method. Can be a user-defined function with a bytecode address or a native intrinsic.</summary>
     internal sealed record class FunctionValue : Value
     {
         // The name of the function (for debugging/stack traces).
@@ -235,6 +198,7 @@
         }
     }
 
+    /// <summary>A descriptor representing a property access operation.</summary>
     internal sealed record class PropertyAccessValue : Value
     {
         internal Value Target;
@@ -252,6 +216,7 @@
         }
     }
 
+    /// <summary>Represents a variable by its name. The VM resolves this to a value in a scope.</summary>
     internal sealed record class VariableValue : Value
     {
         internal string IdentifierValue;
@@ -266,23 +231,8 @@
             return $"VariableValue: {IdentifierValue}";
         }
     }
-
-    internal sealed record class InstanceValue : Value
-    {
-        internal StructSymbol Type { get; }
-        internal Dictionary<string, Value> Fields { get; } = new();
-
-        internal InstanceValue(StructSymbol type)
-        {
-            Type = type;
-        }
-
-        public override string ToString()
-        {
-            return $"InstanceValue<{Type.Name}>";
-        }
-    }
-
+ 
+     /// <summary>Represents a specific member of an enum.</summary>
     internal sealed record class EnumValue : Value
     {
         internal string EnumTypeName { get; }
@@ -299,11 +249,6 @@
         public override string ToString()
         {
             return $"EnumValue: {EnumTypeName}.{MemberName}";
-        }
-
-        internal override object GetValue()
-        {
-            return Value;
         }
     }
 }

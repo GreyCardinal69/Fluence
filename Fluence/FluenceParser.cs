@@ -1494,7 +1494,7 @@ namespace Fluence
                     _currentParseState.CodeInstructions[nextCasePatchIndex].Lhs = new NumberValue(nextCaseAddress);
                 }
 
-                AdvanceAndExpect(TokenType.EOL, "Expected a ';' or after each match case.");
+                AdvanceAndExpect(TokenType.EOL, "Expected a ';' after each match case.");
             }
 
             AdvanceAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end the match expression.");
@@ -1607,7 +1607,6 @@ namespace Fluence
             try
             {
                 _lexer = new FluenceLexer(source);
-                _lexer.RemoveLexerEOLS(); // Ensure the sub-stream is clean
                 return ResolveValue(ParseTernary());
             }
             catch (FluenceException)

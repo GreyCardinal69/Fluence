@@ -114,7 +114,7 @@
             /// <summary>Gets the second source operand.</summary>
             internal readonly Value Rhs2;
 
-            internal InstructionLine(InstructionCode instruction, Value lhs, Value rhs = null, Value rhs2 = null)
+            internal InstructionLine(InstructionCode instruction, Value lhs, Value rhs = null!, Value rhs2 = null!)
             {
                 Instruction = instruction;
                 Lhs = lhs;

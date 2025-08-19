@@ -141,7 +141,6 @@
             Arity = arity;
             StartAddress = startAddress;
             IsIntrinsic = false;
-            IntrinsicBody = null;
         }
     }
 }

@@ -268,7 +268,7 @@
         /// <param name="type">The type of the token.</param>
         /// <param name="text">The raw text of the token.</param>
         /// <param name="literal">The literal value, if any.</param>
-        internal Token(TokenType type = TokenType.UNKNOWN, string text = "", object literal = null, short line = -1, short column = -1)
+        internal Token(TokenType type = TokenType.UNKNOWN, string text = "", object literal = null!, short line = -1, short column = -1)
         {
             Type = type;
             Text = text;
@@ -279,7 +279,7 @@
 
         public override string ToString()
         {
-            if (Literal != null) return $"{Type}: {Text} [{Literal}]";
+            if (Literal != null) return $"{Type}: {Text} [{Literal}]"; 
             return string.IsNullOrEmpty(Text) ? Type.ToString() : $"{Type}: {Text}";
         }
     }

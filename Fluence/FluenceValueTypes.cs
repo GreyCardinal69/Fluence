@@ -29,7 +29,7 @@
     {
         // It has no data. Its existence is its meaning.
         public override string ToString() => "StatementComplete";
-        internal override object GetValue() => null;
+        internal override object GetValue() => null!;
     }
 
     internal sealed record class ElementAccessValue : Value

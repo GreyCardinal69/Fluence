@@ -36,19 +36,17 @@
     {
         internal Value Target { get; }
         internal Value Index { get; }
-        internal string TempName;
         internal object Value;
 
         internal ElementAccessValue(Value target, Value index, int num, string name)
         {
-            TempName = $"{name}{num}";
             Target = target;
             Index = index;
         }
 
         public override string ToString()
         {
-            return $"ElementAccessValue: {TempName}";
+            return $"ElementAccessValue";
         }
     }
 

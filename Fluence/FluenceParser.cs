@@ -2295,7 +2295,7 @@ namespace Fluence
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Or, result, ResolveValue(left), ResolveValue(right), op));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Or, result, ResolveValue(left), ResolveValue(right)));
 
                 left = result; // The result becomes the new left-hand side for the next loop.
             }
@@ -2317,7 +2317,7 @@ namespace Fluence
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.And, result, ResolveValue(left), ResolveValue(right), op));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.And, result, ResolveValue(left), ResolveValue(right)));
 
                 left = result; // The result becomes the new left-hand side for the next loop.
             }
@@ -2340,7 +2340,7 @@ namespace Fluence
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseOr, result, ResolveValue(left), ResolveValue(right), op));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseOr, result, ResolveValue(left), ResolveValue(right)));
 
                 left = result; // The result becomes the new left-hand side for the next loop.
             }
@@ -2362,7 +2362,7 @@ namespace Fluence
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseXor, result, ResolveValue(left), ResolveValue(right), op));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseXor, result, ResolveValue(left), ResolveValue(right)));
 
                 left = result; // The result becomes the new left-hand side for the next loop.
             }
@@ -2384,7 +2384,7 @@ namespace Fluence
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseAnd, result, ResolveValue(left), ResolveValue(right), op));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseAnd, result, ResolveValue(left), ResolveValue(right)));
 
                 left = result; // The result becomes the new left-hand side for the next loop.
             }
@@ -2409,7 +2409,7 @@ namespace Fluence
                     ? InstructionCode.Equal
                     : InstructionCode.NotEqual;
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, result, ResolveValue(left), ResolveValue(right), op));
+                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, result, ResolveValue(left), ResolveValue(right)));
 
                 left = result; // The result becomes the new left-hand side for the next loop.
             }
@@ -2434,7 +2434,7 @@ namespace Fluence
                     ? InstructionCode.BitwiseLShift
                     : InstructionCode.BitwiseRShift;
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, result, ResolveValue(left), ResolveValue(right), op));
+                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, result, ResolveValue(left), ResolveValue(right)));
 
                 left = result; // The result becomes the new left-hand side for the next loop.
             }
@@ -2482,7 +2482,7 @@ namespace Fluence
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCodeForBinaryOperator(op.Type), result, ResolveValue(left), ResolveValue(right), op));
+                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCodeForBinaryOperator(op.Type), result, ResolveValue(left), ResolveValue(right)));
 
                 left = result; // The result becomes the new left-hand side for the next loop.
             }
@@ -2627,7 +2627,7 @@ namespace Fluence
                     ? InstructionCode.Add
                     : InstructionCode.Subtract;
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, result, ResolveValue(left), ResolveValue(right), op));
+                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, result, ResolveValue(left), ResolveValue(right)));
 
                 left = result;
             }
@@ -2649,7 +2649,7 @@ namespace Fluence
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCodeForBinaryOperator(op.Type), result, ResolveValue(left), ResolveValue(right), op));
+                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCodeForBinaryOperator(op.Type), result, ResolveValue(left), ResolveValue(right)));
 
                 left = result;
             }
@@ -2676,8 +2676,7 @@ namespace Fluence
                     InstructionCode.Power,
                     result,
                     ResolveValue(left),
-                    ResolveValue(right),
-                    op
+                    ResolveValue(right)
                 ));
                 return result;
             }
@@ -2699,7 +2698,7 @@ namespace Fluence
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCodeForBinaryOperator(op.Type), result, left, ResolveValue(operand), op));
+                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCodeForBinaryOperator(op.Type), result, left, ResolveValue(operand)));
 
                 left = result;
             }
@@ -2776,7 +2775,7 @@ namespace Fluence
 
                 TempValue result = new TempValue(_currentParseState.NextTempNumber++);
                 var one = new NumberValue(1);
-                _currentParseState.AddCodeInstruction(new InstructionLine(operation, result, currentValue, one, opToken));
+                _currentParseState.AddCodeInstruction(new InstructionLine(operation, result, currentValue, one));
 
                 GenerateWriteBackInstruction(targetDescriptor, result);
             } while (ConsumeTokenIfMatch(TokenType.COMMA));
@@ -2927,7 +2926,7 @@ namespace Fluence
             else if (arguments.Count > 0)
             {
                 // No user-defined constructor, but arguments were provided. This is an error.
-                Token errorToken = _lexer.PeekAheadByN(1);
+                Token errorToken = _lexer.PeekNextToken();
                 ConstructAndThrowParserException(
                     $"Invalid constructor call for '{structSymbol.Name}'. Struct '{structSymbol.Name}' has no 'init' constructor and cannot be called with arguments.",
                     errorToken
@@ -2948,7 +2947,7 @@ namespace Fluence
 
             // Create the new instance. Default field values are set here.
             TempValue instance = CreateNewInstance(structSymbol);
-            var initializedFields = new HashSet<string>();
+            HashSet<string> initializedFields = new HashSet<string>();
 
             if (_lexer.PeekNextToken().Type != TokenType.R_BRACE)
             {
@@ -3121,7 +3120,7 @@ namespace Fluence
 
             // Create a descriptor for the access. This will be resolved into a GetElement
             // or SetElement instruction by a higher-level parsing method.
-            return new ElementAccessValue(left, index, _currentParseState.NextTempNumber++, "Access");
+            return new ElementAccessValue(left, index, _currentParseState.NextTempNumber++);
         }
 
         /// <summary>

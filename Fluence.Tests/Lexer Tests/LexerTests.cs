@@ -38,7 +38,6 @@ namespace Fluence.LexerTests
             var lexer = new FluenceLexer(source);
 
             lexer.SkipWhiteSpaceAndComments();
-            _output.WriteLine(lexer.CharAtCurrentPosition.ToString());
 
             // Should end on 'a'.
             Assert.Equal(37, lexer.CurrentPosition);
@@ -63,7 +62,6 @@ namespace Fluence.LexerTests
             var lexer = new FluenceLexer(source);
 
             lexer.SkipWhiteSpaceAndComments();
-            _output.WriteLine(lexer.CharAtCurrentPosition.ToString());
 
             // Should end on func.
             Assert.Equal(14, lexer.CurrentPosition);

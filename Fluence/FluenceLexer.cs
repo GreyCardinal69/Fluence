@@ -24,13 +24,10 @@ namespace Fluence
         }
 
         internal int CurrentLine => _currentLine;
-        internal int CurrentColumn => _currentColumn;
         internal bool HasReachedEnd => _currentPosition >= _sourceLength & _tokenBuffer.HasReachedEnd;
         internal int TokenCount => _tokenBuffer.TokenCount;
-        internal int CurrentPosition => _currentPosition;
-        internal int SourceLength => _sourceLength;
         internal string SourceCode => _sourceCode;
-        internal char CharAtCurrentPosition => _sourceCode[_currentPosition];
+        internal int CurrentPosition => _currentPosition;
 
         internal FluenceLexer(string source)
         {
@@ -194,7 +191,6 @@ namespace Fluence
                 }
             }
         }
-
 
         /// <summary>
         /// Peeks at the next token in the stream without consuming it.
@@ -428,7 +424,9 @@ namespace Fluence
 
             // Other cases done individually.
 
-            if (currChar == '.' || IsNumeric(currChar))
+            bool currentIsADot = currChar is '.';
+
+            if (currentIsADot && !IsNumeric(PeekNext()))
             {
                 if (CanLookAheadStartInclusive(4))
                 {
@@ -468,6 +466,11 @@ namespace Fluence
                     }
                 }
 
+                return MakeTokenAndTryAdvance(TokenType.DOT, 1);
+            }
+
+            if (currentIsADot || IsNumeric(currChar))
+            {
                 // Several cases here.
                 // Just '.' -> Token.Dot
                 // 1.000 Decimal
@@ -475,7 +478,7 @@ namespace Fluence
                 startPos = _currentPosition;
 
                 // Can be 0.5 or just .5 
-                bool dotOnlyFraction = currChar == '.' && IsNumeric(PeekNext());
+                bool dotOnlyFraction = currentIsADot && IsNumeric(PeekNext());
 
                 if (IsNumeric(Peek()) || dotOnlyFraction)
                 {
@@ -569,7 +572,7 @@ namespace Fluence
                     else break;
                 }
 
-                var identifierSpan = _sourceCode.AsSpan(startPos, _currentPosition - startPos);
+                ReadOnlySpan<char> identifierSpan = _sourceCode.AsSpan(startPos, _currentPosition - startPos);
 
                 TokenType type = FluenceKeywords.GetKeywordType(identifierSpan);
 

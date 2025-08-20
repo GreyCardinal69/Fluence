@@ -1,5 +1,8 @@
 ﻿namespace Fluence
 {
+    /// <summary>
+    /// Provides various debug functions.
+    /// </summary>
     internal static class FluenceDebug
     {
         /// <summary>
@@ -14,6 +17,15 @@
             if (startAddress < 1000) return $"0{startAddress}";
             if (startAddress < 1000) return $"{startAddress}";
             return "-1";
+        }
+
+        internal static string TruncateLine(string line, int maxLength = 75)
+        {
+            if (string.IsNullOrEmpty(line) || line.Length <= maxLength)
+            {
+                return line;
+            }
+            return string.Concat(line.AsSpan(0, maxLength - 3), "...");
         }
     }
 }

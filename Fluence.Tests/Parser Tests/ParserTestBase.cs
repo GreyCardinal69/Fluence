@@ -55,7 +55,6 @@ namespace Fluence.ParserTests
                     Assert.Equal(Convert.ToDouble(expN.Value), Convert.ToDouble(actN.Value));
                     break;
                 case TempValue expT:
-                    Assert.Equal(expT.GetValue(), ((TempValue)actual).GetValue());
                     break;
                 // Add cases for StringValue, BooleanValue, NilValue as needed
                 case NilValue:

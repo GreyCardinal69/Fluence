@@ -3086,7 +3086,7 @@ namespace Fluence
                             case NumberValue.NumberType.Integer:
                                 return new NumberValue(-Convert.ToInt32(numVal.Value), numVal.Type);
                             case NumberValue.NumberType.Float:
-                                return new NumberValue(-float.Parse(numVal.Value.ToString()), numVal.Type);
+                                return new NumberValue(-float.Parse(numVal.Value.ToString()!), numVal.Type);
                             case NumberValue.NumberType.Double:
                                 return new NumberValue(-Convert.ToDouble(numVal.Value), numVal.Type);
                         }
@@ -3216,7 +3216,7 @@ namespace Fluence
             ParserExceptionContext context = new ParserExceptionContext()
             {
                 Column = token.ColumnInSourceCode,
-                FaultyLine = FluenceLexer.TruncateLine(FluenceLexer.GetCodeLineFromSource(_lexer.SourceCode, token.LineInSourceCode)),
+                FaultyLine = FluenceDebug.TruncateLine(FluenceLexer.GetCodeLineFromSource(_lexer.SourceCode, token.LineInSourceCode)),
                 LineNum = token.LineInSourceCode,
                 UnexpectedToken = token,
             };

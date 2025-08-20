@@ -47,7 +47,7 @@ namespace Fluence
             private bool _lexerFinished;
 
             // A reasonable threshold for trimming the buffer.
-            private const int _trimThreshold = 128;
+            private const int _trimThreshold = 32;
 
             internal int TokenCount => _buffer.Count;
 
@@ -707,30 +707,18 @@ namespace Fluence
             if (_hasReachedEndInternal)
             {
                 string initialLineContent = GetCodeLineFromSource(_sourceCode, stringInitialLine).TrimStart();
-                string truncatedLine = TruncateLine(initialLineContent);
+                string truncatedLine = FluenceDebug.TruncateLine(initialLineContent);
 
                 ConstructAndThrowLexerException(stringInitialLine, stringOpenColumn, "Unclosed string literal. The file ended before a closing '\"' was found.", truncatedLine, PeekNextToken());
             }
 
             AdvancePosition(); // Consume the closing quote "
 
-            // Extract the full text (including quotes) and the inner value.
-            string lexeme = _sourceCode[startPos.._currentPosition];
-
             string literalValue = _sourceCode.Substring(startPos + (isFString ? 2 : 1), _currentPosition - startPos - (isFString ? 3 : 2));
 
             TokenType type = isFString ? TokenType.F_STRING : TokenType.STRING;
 
-            return MakeTokenAndTryAdvance(type, 0, lexeme, literalValue);
-        }
-
-        internal static string TruncateLine(string line, int maxLength = 75)
-        {
-            if (string.IsNullOrEmpty(line) || line.Length <= maxLength)
-            {
-                return line;
-            }
-            return string.Concat(line.AsSpan(0, maxLength - 3), "...");
+            return MakeTokenAndTryAdvance(type, 0, null!, literalValue);
         }
 
         internal static string GetCodeLineFromSource(string source, int lineNumber)
@@ -895,7 +883,7 @@ namespace Fluence
                 // incomplete chain assignment.
 
                 string initialLineContent = GetCodeLineFromSource(_sourceCode, _currentLine).TrimStart();
-                string truncatedLine = TruncateLine(initialLineContent);
+                string truncatedLine = FluenceDebug.TruncateLine(initialLineContent);
 
                 ConstructAndThrowLexerException(_currentLine, _currentColumn - 2, "Faulty chain assignment pipe operator detected, expected '<n|' or '<n?|' or '<|' format.", truncatedLine, PeekNextToken());
             }
@@ -1015,7 +1003,7 @@ namespace Fluence
                         if (didntEndMultiLineComment)
                         {
                             string initialLineContent = GetCodeLineFromSource(_sourceCode, commentStartLine).TrimStart();
-                            string truncatedLine = TruncateLine(initialLineContent);
+                            string truncatedLine = FluenceDebug.TruncateLine(initialLineContent);
 
                             ConstructAndThrowLexerException(commentStartLine, commentStartCol, "Unterminated multi-line comment. The file ended before a closing '*#' was found.", truncatedLine, PeekNextToken());
                         }

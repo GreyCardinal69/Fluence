@@ -86,7 +86,6 @@
                 return new NumberValue(fallbackVal, NumberType.Double);
             }
 
-            // SHOULD BE A PARSER ERROR, this for now.
             throw new FormatException($"Invalid number format: '{lexeme}'");
         }
 
@@ -210,7 +209,7 @@
             FieldName = fieldName;
         }
 
-        public override string ToString()
+        public override string ToString() 
         {
             return $"FieldAccess<{Target}:{FieldName}>";
         }
@@ -219,7 +218,7 @@
     /// <summary>Represents a variable by its name. The VM resolves this to a value in a scope.</summary>
     internal sealed record class VariableValue : Value
     {
-        internal string IdentifierValue;
+         internal string IdentifierValue;
 
         internal VariableValue(string identifierValue)
         {

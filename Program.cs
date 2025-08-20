@@ -1,15 +1,15 @@
 ﻿namespace Fluence
 {
-    public class Program
+    internal class Program
     {
-        public static void Main(string[] args)
+        internal static void Main(string[] args)
         {
             string source = File.ReadAllText($@"{Directory.GetCurrentDirectory()}\Full Lexer Test.fl");
 
             FluenceLexer lexer = new(source);
             FluenceParser parser = new FluenceParser(lexer);
             FluenceIntrinsics intrinsics = new FluenceIntrinsics(parser);
-            intrinsics.RegisterIntrinsics();
+            intrinsics.Register();
 
             try
             {

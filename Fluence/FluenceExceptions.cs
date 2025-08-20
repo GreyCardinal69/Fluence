@@ -14,6 +14,14 @@ namespace Fluence
         internal abstract string Format();
     }
 
+    internal sealed record RuntimeExceptionContext : ExceptionContext
+    {
+        internal override string Format()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     /// <summary>
     /// Provides context for an error that occurred during the lexing phase.
     /// </summary>

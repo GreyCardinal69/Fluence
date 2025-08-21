@@ -2697,8 +2697,8 @@ namespace Fluence
             AdvanceAndExpect(TokenType.L_PAREN, $"Expected an opening '(' after the '{opToken.ToDisplayString()}' operator.");
 
             InstructionCode operation = (opToken.Type == TokenType.DOT_DECREMENT)
-                ? InstructionCode.Decrement
-                : InstructionCode.Increment;
+                ? InstructionCode.Subtract
+                : InstructionCode.Add;
 
             do
             {

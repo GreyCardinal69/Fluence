@@ -643,15 +643,15 @@ namespace Fluence
                 switch ((numLeft.Type, numRight.Type))
                 {
                     case (NumberValue.NumberType.Integer, NumberValue.NumberType.Integer):
-                        result = Convert.ToInt32(numLeft.Value) + Convert.ToInt32(numRight.Value);
+                        result = Convert.ToInt32(numLeft.Value) - Convert.ToInt32(numRight.Value);
                         _registers[destination.TempName] = new NumberValue(result, NumberValue.NumberType.Integer);
                         break;
                     case (NumberValue.NumberType.Double, NumberValue.NumberType.Double):
-                        result = Convert.ToDouble(numLeft.Value) + Convert.ToDouble(numRight.Value);
+                        result = Convert.ToDouble(numLeft.Value) - Convert.ToDouble(numRight.Value);
                         _registers[destination.TempName] = new NumberValue(result, NumberValue.NumberType.Double);
                         break;
                     case (NumberValue.NumberType.Float, NumberValue.NumberType.Float):
-                        result = Convert.ToSingle(numLeft.Value) + Convert.ToSingle(numRight.Value);
+                        result = Convert.ToSingle(numLeft.Value) - Convert.ToSingle(numRight.Value);
                         _registers[destination.TempName] = new NumberValue(result, NumberValue.NumberType.Float);
                         break;
                     case (NumberValue.NumberType.Integer, NumberValue.NumberType.Double):
@@ -659,13 +659,13 @@ namespace Fluence
                     case (NumberValue.NumberType.Float, NumberValue.NumberType.Double):
                     case (NumberValue.NumberType.Double, NumberValue.NumberType.Float):
                         // If either operand is a Double, the result is a Double.
-                        result = Convert.ToDouble(numLeft.Value) + Convert.ToDouble(numRight.Value);
+                        result = Convert.ToDouble(numLeft.Value) - Convert.ToDouble(numRight.Value);
                         _registers[destination.TempName] = new NumberValue(result, NumberValue.NumberType.Float);
                         break;
                     case (NumberValue.NumberType.Integer, NumberValue.NumberType.Float):
                     case (NumberValue.NumberType.Float, NumberValue.NumberType.Integer):
                         // If either operand is a float, the result is a float.
-                        result = Convert.ToSingle(numLeft.Value) + Convert.ToSingle(numRight.Value);
+                        result = Convert.ToSingle(numLeft.Value) - Convert.ToSingle(numRight.Value);
                         _registers[destination.TempName] = new NumberValue(result, NumberValue.NumberType.Float);
                         break;
                 }

@@ -57,8 +57,6 @@
                 Modulo,
                 Power,
                 Negate,         // Unary negation, e.g., -(x).
-                Increment,      // Postfix ++.
-                Decrement,      // Postfix --.
 
                 // == Logical & Comparison Operations ==
                 Equal,

@@ -38,7 +38,6 @@
             /// </summary>
             internal enum InstructionCode
             {
-
                 // == Control Flow ==
                 Skip,           // No operation. Placeholder.
                 Goto,           // Unconditional jump to address in Lhs.

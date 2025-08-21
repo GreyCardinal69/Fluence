@@ -466,7 +466,7 @@ namespace Fluence
                 case ':': return MakeTokenAndTryAdvance(TokenType.COLON, 1);
                 case '\'':
                     _currentPosition++;
-                    return MakeTokenAndTryAdvance(TokenType.CHARACTER, 2, _sourceCode[_currentPosition].ToString(), _sourceCode[_currentPosition]);
+                    return MakeTokenAndTryAdvance(TokenType.CHARACTER, 2, null!, _sourceCode[_currentPosition]);
                 case '\r':
                 case '\n':
                     // If it's a newline, we need to update our position trackers.

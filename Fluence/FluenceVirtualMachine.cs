@@ -118,6 +118,12 @@ namespace Fluence
                     case InstructionCode.NotEqual:
                         ExecuteEqualityComparison(instruction);
                         break;
+                    case InstructionCode.GreaterThan:
+                    case InstructionCode.GreaterEqual:
+                    case InstructionCode.LessEqual:
+                    case InstructionCode.LessThan:
+                        ExecuteIndirectComparison(instruction);
+                        break;
                     case InstructionCode.Terminate:
                         // End of code, we simply quit.
                         return;
@@ -145,6 +151,55 @@ namespace Fluence
             }
 
             return val;
+        }
+
+        private void ExecuteIndirectComparison(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not TempValue destination)
+            {
+                throw new FluenceRuntimeException("Internal VM Error: Destination of 'Equal' must be a temporary register.");
+            }
+
+            Value left = GetValue(instruction.Rhs);
+            Value right = GetValue(instruction.Rhs2);
+
+            Func<double, double, bool> doubleComparer = instruction.Instruction switch
+            {
+                InstructionCode.GreaterThan => (a, b) => a > b,
+                InstructionCode.GreaterEqual => (a, b) => a >= b,
+                InstructionCode.LessThan => (a, b) => a < b,
+                InstructionCode.LessEqual => (a, b) => a <= b,
+            };
+
+            Func<int, bool> stringCharComparer = instruction.Instruction switch
+            {
+                InstructionCode.GreaterThan => result => result > 0,
+                InstructionCode.GreaterEqual => result => result >= 0,
+                InstructionCode.LessThan => result => result < 0,
+                InstructionCode.LessEqual => result => result <= 0,
+            };
+
+            bool result = (left, right) switch
+            {
+                (NumberValue numLeft, NumberValue numRight) =>
+                    doubleComparer(Convert.ToDouble(numLeft.Value), Convert.ToDouble(numRight.Value)),
+
+                (StringValue strLeft, StringValue strRight) =>
+                    stringCharComparer(string.Compare(strLeft.Value, strRight.Value, StringComparison.Ordinal)),
+
+                (CharValue charLeft, CharValue charRight) =>
+                    stringCharComparer(charLeft.Value.CompareTo(charRight.Value)),
+
+                (StringValue str, CharValue c) =>
+                    stringCharComparer(string.Compare(str.Value, c.Value.ToString(), StringComparison.Ordinal)),
+
+                (CharValue c, StringValue str) =>
+                    stringCharComparer(string.Compare(c.Value.ToString(), str.Value, StringComparison.Ordinal)),
+
+                _ => throw new FluenceRuntimeException($"Cannot apply operator '{instruction.Instruction}' to types {left.GetType().Name} and {right.GetType().Name}.")
+            };
+
+            _registers[destination.TempName] = new BooleanValue(result);
         }
 
         private void ExecuteEqualityComparison(InstructionLine instruction)
@@ -548,16 +603,12 @@ namespace Fluence
 
         private void ExecuteAssign(InstructionLine instruction)
         {
-            // 1. The destination must be a variable.
             if (instruction.Lhs is not VariableValue destination)
             {
                 throw new FluenceRuntimeException("Internal VM Error: Destination of 'Assign' must be a variable.");
             }
 
-            // 2. READ the value of the source operand.
             Value sourceValue = GetValue(instruction.Rhs);
-
-            // 3. WRITE the value to the variable storage.
             _globals[destination.Name] = sourceValue;
         }
 

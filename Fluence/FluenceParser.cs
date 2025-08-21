@@ -269,6 +269,13 @@ namespace Fluence
 
             while (!_lexer.HasReachedEnd)
             {
+                // We reached end of file, so we just quit.
+                if (_lexer.TokenTypeMatches(TokenType.EOF))
+                {
+                    _lexer.Advance();
+                    break;
+                }
+
                 ParseStatement();
             }
         }
@@ -912,10 +919,21 @@ namespace Fluence
 
             // Create hidden variables for the index and the collection copy.
             TempValue indexVar = new TempValue(_currentParseState.NextTempNumber++, "ForInIndex");
+
             TempValue collectionVar = new TempValue(_currentParseState.NextTempNumber++, "ForInCollectionCopy");
 
+            if (collectionExpr is RangeValue range)
+            {
+                TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewList, temp));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushElement, temp, range));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, collectionVar, temp));
+            }
+            else
+            {
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, collectionVar, collectionExpr));
+            }
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, new NumberValue(0)));
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, collectionVar, collectionExpr));
 
             int loopTopAddress = _currentParseState.CodeInstructions.Count;
 

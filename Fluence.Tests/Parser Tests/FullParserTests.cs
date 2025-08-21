@@ -305,21 +305,6 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
-        public void ParsesRangeAsExpression()
-        {
-            string source = "my_list = 0..3;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
-            {
-                new(InstructionCode.NewRangeList, new TempValue(0), new NumberValue(0), new NumberValue(3)),
-                new(InstructionCode.Assign, new VariableValue("my_list"), new TempValue(0)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main"), new NumberValue(0)),
-                new(InstructionCode.Terminate, null)
-            };
-            AssertBytecodeEqual(expectedCode, compiledCode);
-        }
-
-        [Fact]
         public void ParsesSimpleStandardTernaryCorrectly()
         {
             string source = "a=1; c = a < 2 ? 10 : -10;";
@@ -524,30 +509,6 @@ namespace Fluence.ParserTests
                 new(InstructionCode.GetElement, new TempValue(1), new TempValue(0), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("x"), new TempValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(0)),
-                new(InstructionCode.Terminate, null)
-            };
-            AssertBytecodeEqual(expectedCode, compiledCode);
-        }
-
-        [Fact]
-        public void ParsesParenthesizedForInLoopCollection()
-        {
-            string source = "for i in (1..3) {}";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
-            {
-                new(InstructionCode.NewRangeList, new TempValue(0), new NumberValue(1), new NumberValue(3)),
-                new(InstructionCode.Assign, new TempValue(1), new NumberValue(0)),
-                new(InstructionCode.Assign, new TempValue(2), new TempValue(0)),
-                new(InstructionCode.GetLength, new TempValue(3), new TempValue(2)),
-                new(InstructionCode.LessThan, new TempValue(4), new TempValue(1), new TempValue(3)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(11), new TempValue(4)),
-                new(InstructionCode.GetElement, new TempValue(5), new TempValue(2), new TempValue(1)),
-                new(InstructionCode.Assign, new VariableValue("i"), new TempValue(5)),
-                new(InstructionCode.Add, new TempValue(6), new TempValue(1), new NumberValue(1)),
-                new(InstructionCode.Assign, new TempValue(1), new TempValue(6)),
-                new(InstructionCode.Goto, new NumberValue(3)),
-                new(InstructionCode.CallFunction, new TempValue(7), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1019,22 +980,6 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushParam, new TempValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main"), new NumberValue(0)),
-                new(InstructionCode.Terminate, null)
-            };
-            AssertBytecodeEqual(expectedCode, compiledCode);
-        }
-
-        [Fact]
-        public void ParsesRangeAsFunctionArgument()
-        {
-            string source = "print(1..3);";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
-            {
-                new(InstructionCode.NewRangeList, new TempValue(0), new NumberValue(1), new NumberValue(3)),
-                new(InstructionCode.PushParam, new TempValue(0)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1602,23 +1547,6 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
-        public void ParsesRangeInsideListLiteralCorrectly()
-        {
-            string source = "list = [1..2];";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
-            {
-                new(InstructionCode.NewList, new TempValue(1)),
-                new(InstructionCode.NewRangeList, new TempValue(2), new NumberValue(1), new NumberValue(2)),
-                new(InstructionCode.PushElement, new TempValue(1), new TempValue(2)),
-                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
-                new(InstructionCode.Terminate, null)
-            };
-            AssertBytecodeEqual(expectedCode, compiledCode);
-        }
-
-        [Fact]
         public void ParsesNestedListAssignmentCorrectly()
         {
             string source = @"
@@ -1756,36 +1684,116 @@ namespace Fluence.ParserTests
         }
 
         [Fact]
-        public void ParsesFullTestSuiteCorrectly()
+        public void CompilesMultiIncrementAndDecrement()
         {
             string source = @"
-                x = MyFunc()[230];
-                list = [1..2];
-                y = list[2];
-                a,b,c, list[0] <2?| input() <| input_int();
+                a = 0;
+                b = 0;
+                list = [1..20];
+                list[1] = 5;
+                .++(a,b, list[0]);
+                .--(a,b);
+
+                c = true;
+                if c -> .++(a,b);
             ";
+
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("MyFunc"), new NumberValue(0)),
-                new(InstructionCode.GetElement, new TempValue(2), new TempValue(1), new NumberValue(230)),
-                new(InstructionCode.Assign, new VariableValue("x"), new TempValue(2)),
-                new(InstructionCode.NewList, new TempValue(3)),
-                new(InstructionCode.NewRangeList, new TempValue(4), new NumberValue(1), new NumberValue(2)),
-                new(InstructionCode.PushElement, new TempValue(3), new TempValue(4)),
-                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(3)),
-                new(InstructionCode.GetElement, new TempValue(5), new VariableValue("list"), new NumberValue(2)),
-                new(InstructionCode.Assign, new VariableValue("y"), new TempValue(5)),
-                new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("input"), new NumberValue(0)),
-                new(InstructionCode.Assign, new TempValue(7), new TempValue(6)),
-                new(InstructionCode.Equal, new TempValue(8), new TempValue(7), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(15), new TempValue(8)),
+                new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(0)),
+                new(InstructionCode.NewList, new TempValue(0)),
+                new(InstructionCode.PushElement, new TempValue(0), new RangeValue(new NumberValue(1), new NumberValue(20))),
+                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
+                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(1), new NumberValue(5)),
+                new(InstructionCode.Add, new TempValue(3), new VariableValue("a"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("a"), new TempValue(3)),
+                new(InstructionCode.Add, new TempValue(4), new VariableValue("b"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(4)),
+                new(InstructionCode.GetElement, new TempValue(5), new VariableValue("list"), new NumberValue(0)),
+                new(InstructionCode.Add, new TempValue(6), new TempValue(5), new NumberValue(1)),
+                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(0), new TempValue(6)),
+                new(InstructionCode.Subtract, new TempValue(7), new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("a"), new TempValue(7)),
-                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(7)),
-                new(InstructionCode.CallFunction, new TempValue(9), new VariableValue("input_int"), new NumberValue(0)),
-                new(InstructionCode.Assign, new TempValue(10), new TempValue(9)),
-                new(InstructionCode.Assign, new VariableValue("c"), new TempValue(10)),
-                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(0), new TempValue(10)),
+                new(InstructionCode.Subtract, new TempValue(8), new VariableValue("b"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(8)),
+                new(InstructionCode.Assign, new VariableValue("c"), new BooleanValue(true)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(23), new VariableValue("c")),
+                new(InstructionCode.Add, new TempValue(9), new VariableValue("a"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("a"), new TempValue(9)),
+                new(InstructionCode.Add, new TempValue(10), new VariableValue("b"), new NumberValue(1)),
+                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(10)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesRangeInsideListLiteralCorrectly()
+        {
+            string source = "list = [1..2];";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.NewList, new TempValue(1)),
+                new(InstructionCode.PushElement, new TempValue(1), new RangeValue(new NumberValue(1), new NumberValue(2))),
+                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesRangeAsExpression()
+        {
+            string source = "my_list = 0..3;";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.Assign, new VariableValue("my_list"), new RangeValue(new NumberValue(0), new NumberValue(3))),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesRangeAsFunctionArgument()
+        {
+            string source = "print(1..3);";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.PushParam, new RangeValue(new NumberValue(1), new NumberValue(3))),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesParenthesizedForInLoopCollection()
+        {
+            string source = "for i in (1..3) {}";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.NewList, new TempValue(2)),
+                new(InstructionCode.PushElement, new TempValue(2), new RangeValue(new NumberValue(1), new NumberValue(3))),
+                new(InstructionCode.Assign, new TempValue(1, "ForInCollectionCopy"), new TempValue(2)),
+                new(InstructionCode.Assign, new TempValue(0, "ForInIndex"), new NumberValue(0)),
+                new(InstructionCode.GetLength, new TempValue(3, "ForInCollectionLen"), new TempValue(2)),
+                new(InstructionCode.LessThan, new TempValue(4), new TempValue(1), new TempValue(3)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(12), new TempValue(4)),
+                new(InstructionCode.GetElement, new TempValue(5), new TempValue(2), new TempValue(1)),
+                new(InstructionCode.Assign, new VariableValue("i"), new TempValue(5)),
+                new(InstructionCode.Add, new TempValue(6), new TempValue(1), new NumberValue(1)),
+                new(InstructionCode.Assign, new TempValue(1), new TempValue(6)),
+                new(InstructionCode.Goto, new NumberValue(4)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null)
             };
@@ -1806,26 +1814,62 @@ namespace Fluence.ParserTests
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.NewList, new TempValue(1)),
-                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(1)),
-                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(2)),
-                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
-                new(InstructionCode.Assign, new TempValue(2, "ForInIndex"), new NumberValue(0)),
-                new(InstructionCode.Assign, new TempValue(3, "ForInCollectionCopy"), new VariableValue("list")),
-                new(InstructionCode.GetLength, new TempValue(4, "ForInCollectionLen"), new TempValue(3)),
-                new(InstructionCode.LessThan, new TempValue(5), new TempValue(2), new TempValue(4)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(20), new TempValue(5)),
-                new(InstructionCode.GetElement, new TempValue(6), new TempValue(3), new TempValue(2)),
-                new(InstructionCode.Assign, new VariableValue("num"), new TempValue(6)),
-                new(InstructionCode.Equal, new TempValue(7), new VariableValue("num"), new NumberValue(1)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(14), new TempValue(7)),
+                new(InstructionCode.NewList, new TempValue(0)),
+                new(InstructionCode.PushElement, new TempValue(0), new NumberValue(1)),
+                new(InstructionCode.PushElement, new TempValue(0), new NumberValue(2)),
+                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(0)),
+                new(InstructionCode.Assign, new TempValue(2, "ForInCollectionCopy"), new VariableValue("list")),
+                new(InstructionCode.Assign, new TempValue(1, "ForInIndex"), new NumberValue(0)),
+                new(InstructionCode.GetLength, new TempValue(3, "ForInCollectionLen"), new TempValue(2)),
+                new(InstructionCode.LessThan, new TempValue(4), new TempValue(1), new TempValue(3)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(20), new TempValue(4)),
+                new(InstructionCode.GetElement, new TempValue(5), new TempValue(2), new TempValue(1)),
+                new(InstructionCode.Assign, new VariableValue("num"), new TempValue(5)),
+                new(InstructionCode.Equal, new TempValue(6), new VariableValue("num"), new NumberValue(1)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(14), new TempValue(6)),
                 new(InstructionCode.Goto, new NumberValue(17)),
-                new(InstructionCode.Equal, new TempValue(8), new VariableValue("num"), new NumberValue(2)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(17), new TempValue(8)),
+                new(InstructionCode.Equal, new TempValue(7), new VariableValue("num"), new NumberValue(2)),
+                new(InstructionCode.GotoIfFalse, new NumberValue(17), new TempValue(7)),
                 new(InstructionCode.Goto, new NumberValue(20)),
-                new(InstructionCode.Add, new TempValue(9), new TempValue(2), new NumberValue(1)),
-                new(InstructionCode.Assign, new TempValue(2), new TempValue(9)),
+                new(InstructionCode.Add, new TempValue(8), new TempValue(1), new NumberValue(1)),
+                new(InstructionCode.Assign, new TempValue(1), new TempValue(8)),
                 new(InstructionCode.Goto, new NumberValue(6)),
+                new(InstructionCode.CallFunction, new TempValue(9), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Terminate, null)
+            };
+            AssertBytecodeEqual(expectedCode, compiledCode);
+        }
+
+        [Fact]
+        public void ParsesFullTestSuiteCorrectly()
+        {
+            string source = @"
+                x = MyFunc()[230];
+                list = [1..2];
+                y = list[2];
+                a,b,c, list[0] <2?| input() <| input_int();
+            ";
+            var compiledCode = Compile(source);
+            var expectedCode = new List<InstructionLine>
+            {
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("MyFunc"), new NumberValue(0)),
+                new(InstructionCode.GetElement, new TempValue(2), new TempValue(1), new NumberValue(230)),
+                new(InstructionCode.Assign, new VariableValue("x"), new TempValue(2)),
+                new(InstructionCode.NewList, new TempValue(3)),
+                new(InstructionCode.PushElement, new TempValue(3), new RangeValue(new NumberValue(1), new NumberValue(2))),
+                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(3)),
+                new(InstructionCode.GetElement, new TempValue(4), new VariableValue("list"), new NumberValue(2)),
+                new(InstructionCode.Assign, new VariableValue("y"), new TempValue(4)),
+                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("input"), new NumberValue(0)),
+                new(InstructionCode.Assign, new TempValue(6), new TempValue(5)),
+                new(InstructionCode.Equal, new TempValue(7), new TempValue(6), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(14), new TempValue(7)),
+                new(InstructionCode.Assign, new VariableValue("a"), new TempValue(6)),
+                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(6)),
+                new(InstructionCode.CallFunction, new TempValue(8), new VariableValue("input_int"), new NumberValue(0)),
+                new(InstructionCode.Assign, new TempValue(9), new TempValue(8)),
+                new(InstructionCode.Assign, new VariableValue("c"), new TempValue(9)),
+                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(0), new TempValue(9)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null)
             };
@@ -1959,54 +2003,6 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("c"), new TempValue(3)),
                 new(InstructionCode.Assign, new TempValue(4), new BooleanValue(true)),
                 new(InstructionCode.Assign, new VariableValue("booly"), new TempValue(4)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
-                new(InstructionCode.Terminate, null)
-            };
-            AssertBytecodeEqual(expectedCode, compiledCode);
-        }
-
-        [Fact]
-        public void CompilesMultiIncrementAndDecrement()
-        {
-            string source = @"
-                a = 0;
-                b = 0;
-                list = [1..20];
-                list[1] = 5;
-                .++(a,b, list[0]);
-                .--(a,b);
-
-                c = true;
-                if c -> .++(a,b);
-            ";
-
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
-            {
-                new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(0)),
-                new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(0)),
-                new(InstructionCode.NewList, new TempValue(0)),
-                new(InstructionCode.NewRangeList, new TempValue(1), new NumberValue(1), new NumberValue(20)),
-                new(InstructionCode.PushElement, new TempValue(2), new TempValue(1)),
-                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(2)),
-                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(1), new NumberValue(5)),
-                new(InstructionCode.Add, new TempValue(3), new VariableValue("a"), new NumberValue(1)),
-                new(InstructionCode.Assign, new VariableValue("a"), new TempValue(3)),
-                new(InstructionCode.Add, new TempValue(4), new VariableValue("b"), new NumberValue(1)),
-                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(4)),
-                new(InstructionCode.GetElement, new TempValue(5), new VariableValue("list"), new NumberValue(0)),
-                new(InstructionCode.Add, new TempValue(6), new TempValue(5), new NumberValue(1)),
-                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(0), new TempValue(6)),
-                new(InstructionCode.Subtract, new TempValue(7), new VariableValue("a"), new NumberValue(1)),
-                new(InstructionCode.Assign, new VariableValue("a"), new TempValue(7)),
-                new(InstructionCode.Subtract, new TempValue(8), new VariableValue("b"), new NumberValue(1)),
-                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(8)),
-                new(InstructionCode.Assign, new VariableValue("c"), new BooleanValue(true)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(24), new VariableValue("c")),
-                new(InstructionCode.Add, new TempValue(9), new VariableValue("a"), new NumberValue(1)),
-                new(InstructionCode.Assign, new VariableValue("a"), new TempValue(9)),
-                new(InstructionCode.Add, new TempValue(10), new VariableValue("b"), new NumberValue(1)),
-                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(10)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null)
             };

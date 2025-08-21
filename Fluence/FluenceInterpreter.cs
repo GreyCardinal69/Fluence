@@ -36,7 +36,7 @@ namespace Fluence
             catch (FluenceException ex)
             {
                 System.Console.WriteLine("Compilation Error:");
-                System.Console.WriteLine(ex.Message);
+                System.Console.WriteLine(ex);
                 return false;
             }
         }

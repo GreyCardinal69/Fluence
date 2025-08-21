@@ -80,10 +80,13 @@ namespace Fluence
 
         internal void Run()
         {
+            int i = 0;
             while (_ip < _byteCode.Count)
             {
+                
 #if DEBUG
-                Console.WriteLine($"Executing bytecode {FluenceDebug.FormatByteCodeAddress(_ip)}: {_byteCode[_ip]}.");
+            //    Console.WriteLine($"Executing bytecode {FluenceDebug.FormatByteCodeAddress(_ip)}: {_byteCode[_ip]}.");
+    
 #endif
                 InstructionLine instruction = _byteCode[_ip];
                 _ip++;
@@ -162,6 +165,9 @@ namespace Fluence
                     case InstructionCode.ToString:
                         ExecuteToString(instruction);
                         break;
+                    case InstructionCode.GetLength:
+                        ExecuteGetLength(instruction);
+                        break;
                     case InstructionCode.Terminate:
                         // End of code, we simply quit.
                         return;
@@ -214,6 +220,65 @@ namespace Fluence
             }
 
             _registers[destination.TempName] = new BooleanValue(result);
+        }
+
+        private void ExecuteGetLength(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not TempValue destination)
+            {
+                throw new FluenceRuntimeException("Internal VM Error: Destination of 'GetLength' must be a temporary register.");
+            }
+
+            // The collection or range is the RHS operand.
+            Value collectionOrRange = instruction.Rhs;
+
+            int length;
+
+            switch (collectionOrRange)
+            {
+                case RangeValue range:
+                    Value startValue = GetValue(range.Start);
+                    Value endValue = GetValue(range.End);
+
+                    if (startValue is not NumberValue numStart || endValue is not NumberValue numEnd)
+                    {
+                        throw new FluenceRuntimeException($"Runtime Error: Range can only be created from numbers, not {startValue.GetType().Name} and {endValue.GetType().Name}.");
+                    }
+
+                    int start = Convert.ToInt32(numStart.Value);
+                    int end = Convert.ToInt32(numEnd.Value);
+
+                    // Calculate the length. The range is inclusive.
+                    if (end < start)
+                    {
+                        length = 0; // An empty decreasing range has a length of 0.
+                    }
+                    else
+                    {
+                        length = end - start + 1;
+                    }
+                    break;
+                default:
+                    // Since it's not a RangeValue, it must be a variable/temp pointing to a List or String.
+                    // Now we resolve it to get the actual collection object.
+                    Value resolvedCollection = GetValue(collectionOrRange);
+                    switch (resolvedCollection)
+                    {
+                        case ListValue list:
+                            length = list.Elements.Count;
+                            break;
+
+                        case StringValue str:
+                            length = str.Value.Length;
+                            break;
+
+                        default:
+                            throw new FluenceRuntimeException($"Runtime Error: Cannot get the length of a value of type '{resolvedCollection.GetType().Name}'. Only Lists, Strings, and Ranges have a length.");
+                    }
+                    break;
+            }
+
+            _registers[destination.TempName] = new NumberValue(length);
         }
 
         private static bool IsTruthy(Value value)
@@ -443,6 +508,9 @@ namespace Fluence
 
             bool result = (left, right) switch
             {
+                (TempValue tempLeft, TempValue tempRight) =>
+                    doubleComparer(Convert.ToDouble(GetValue(tempLeft)), Convert.ToDouble(GetValue(tempRight))),
+
                 (NumberValue numLeft, NumberValue numRight) =>
                     doubleComparer(Convert.ToDouble(numLeft.Value), Convert.ToDouble(numRight.Value)),
 
@@ -728,8 +796,8 @@ namespace Fluence
                 switch ((numLeft.Type, numRight.Type))
                 {
                     case (NumberValue.NumberType.Integer, NumberValue.NumberType.Integer):
-                        resultValue = Convert.ToDouble(numLeft.Value) / Convert.ToDouble(numRight.Value);
-                        resultType = NumberValue.NumberType.Double;
+                        resultValue = Convert.ToInt32(numLeft.Value) / Convert.ToInt32(numRight.Value);
+                        resultType = NumberValue.NumberType.Integer;
                         break;
                     case (NumberValue.NumberType.Float, NumberValue.NumberType.Float):
                         resultValue = Convert.ToSingle(numLeft.Value) / Convert.ToSingle(numRight.Value);
@@ -976,7 +1044,7 @@ namespace Fluence
 
             if (left is NumberValue numLeft && right is NumberValue numRight)
             {
-                object result;
+                object result = null;
                 switch ((numLeft.Type, numRight.Type))
                 {
                     case (NumberValue.NumberType.Integer, NumberValue.NumberType.Integer):
@@ -1024,7 +1092,6 @@ namespace Fluence
                 _registers[destination.TempName] = new StringValue(string.Concat(left.GetValue(), rightStr2.Value));
                 return;
             }
-
             // TO DO LIST + LIST addition.
             if (left is ListValue && right is ListValue)
             {

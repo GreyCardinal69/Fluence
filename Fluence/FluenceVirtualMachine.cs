@@ -7,7 +7,7 @@ namespace Fluence
 {
     internal sealed class FluenceVirtualMachine
     {
-        private List<InstructionLine> _byteCode;
+        private readonly List<InstructionLine> _byteCode;
         private int _ip;
 
         private readonly Dictionary<string, Value> _registers = new();
@@ -110,19 +110,11 @@ namespace Fluence
                         ExecuteBitwiseNot(instruction);
                         break;
                     case InstructionCode.BitwiseAnd:
-                        ExecuteBitwiseAnd(instruction);
-                        break;
                     case InstructionCode.BitwiseLShift:
-                        ExecuteBitwiseLeftShift(instruction);
-                        break;
                     case InstructionCode.BitwiseRShift:
-                        ExecuteBitwiseRightShift(instruction);
-                        break;
                     case InstructionCode.BitwiseXor:
-                        ExecuteBitwiseXor(instruction);
-                        break;
                     case InstructionCode.BitwiseOr:
-                        ExecuteBitwiseOr(instruction);
+                        ExecuteBitwiseOperation(instruction);
                         break;
                     case InstructionCode.Terminate:
                         // End of code, we simply quit.
@@ -153,109 +145,49 @@ namespace Fluence
             return val;
         }
 
-        private void ExecuteBitwiseRightShift(InstructionLine instruction)
+        private void ExecuteBitwiseOperation(InstructionLine instruction)
         {
             Value left = GetValue(instruction.Rhs);
             Value right = GetValue(instruction.Rhs2);
 
             if (instruction.Lhs is not TempValue destination)
             {
-                throw new FluenceRuntimeException("Internal VM Error: Destination of 'Bitwise Right Shift' must be a temporary register.");
+                throw new FluenceRuntimeException($"Internal VM Error: Destination of '{instruction.Instruction}' must be a temporary register.");
             }
 
             if (left is not NumberValue leftNum || right is not NumberValue rightNum)
             {
-                throw new FluenceRuntimeException($"Can not Bitwise Right Shift an objects of type {left.GetType().Name} and {right.GetType().Name}.");
+                throw new FluenceRuntimeException($"Can not {instruction.Instruction} an objects of type {left.GetType().Name} and {right.GetType().Name}.");
             }
 
             long longLeft = Convert.ToInt64(leftNum.Value);
-            int intRight = Convert.ToInt32(rightNum.Value);
+            long longRight = 0;
+            int intRight = 0;
 
-            _registers[destination.TempName] = new NumberValue(longLeft >> intRight, NumberValue.NumberType.Integer);
-        }
-
-        private void ExecuteBitwiseLeftShift(InstructionLine instruction)
-        {
-            Value left = GetValue(instruction.Rhs);
-            Value right = GetValue(instruction.Rhs2);
-
-            if (instruction.Lhs is not TempValue destination)
+            switch (instruction.Instruction)
             {
-                throw new FluenceRuntimeException("Internal VM Error: Destination of 'Bitwise Left Shift' must be a temporary register.");
+                case InstructionCode.BitwiseOr:
+                case InstructionCode.BitwiseXor:
+                    longRight = Convert.ToInt64(rightNum.Value);
+
+                    _registers[destination.TempName] = new NumberValue(instruction.Instruction == InstructionCode.BitwiseXor 
+                        ? longLeft ^ longRight
+                        : longLeft | longRight, NumberValue.NumberType.Integer);
+                    break;
+                case InstructionCode.BitwiseRShift:
+                case InstructionCode.BitwiseLShift:
+                    intRight = Convert.ToInt32(rightNum.Value);
+
+                    _registers[destination.TempName] = new NumberValue(instruction.Instruction == InstructionCode.BitwiseLShift 
+                        ? longLeft << intRight
+                        : longLeft >> intRight, NumberValue.NumberType.Integer);
+                    break;
+                case InstructionCode.BitwiseAnd:
+                    longRight = Convert.ToInt64(rightNum.Value);
+
+                    _registers[destination.TempName] = new NumberValue(longLeft & longRight, NumberValue.NumberType.Integer);
+                    break;
             }
-
-            if (left is not NumberValue leftNum || right is not NumberValue rightNum)
-            {
-                throw new FluenceRuntimeException($"Can not Bitwise Left Shift an objects of type {left.GetType().Name} and {right.GetType().Name}.");
-            }
-
-            long longLeft = Convert.ToInt64(leftNum.Value);
-            int intRight = Convert.ToInt32(rightNum.Value);
-
-            _registers[destination.TempName] = new NumberValue(longLeft << intRight, NumberValue.NumberType.Integer);
-        }
-
-        private void ExecuteBitwiseXor(InstructionLine instruction)
-        {
-            Value left = GetValue(instruction.Rhs);
-            Value right = GetValue(instruction.Rhs2);
-
-            if (instruction.Lhs is not TempValue destination)
-            {
-                throw new FluenceRuntimeException("Internal VM Error: Destination of 'Bitwise Xor' must be a temporary register.");
-            }
-
-            if (left is not NumberValue leftNum || right is not NumberValue rightNum)
-            {
-                throw new FluenceRuntimeException($"Can not Bitwise Xor an objects of type {left.GetType().Name} and {right.GetType().Name}.");
-            }
-
-            long longLeft = Convert.ToInt64(leftNum.Value);
-            long longRight = Convert.ToInt64(rightNum.Value);
-
-            _registers[destination.TempName] = new NumberValue(longLeft ^ longRight, NumberValue.NumberType.Integer);
-        }
-
-        private void ExecuteBitwiseOr(InstructionLine instruction)
-        {
-            Value left = GetValue(instruction.Rhs);
-            Value right = GetValue(instruction.Rhs2);
-
-            if (instruction.Lhs is not TempValue destination)
-            {
-                throw new FluenceRuntimeException("Internal VM Error: Destination of 'Bitwise Or' must be a temporary register.");
-            }
-
-            if (left is not NumberValue leftNum || right is not NumberValue rightNum)
-            {
-                throw new FluenceRuntimeException($"Can not Bitwise Or an objects of type {left.GetType().Name} and {right.GetType().Name}.");
-            }
-
-            long longLeft = Convert.ToInt64(leftNum.Value);
-            long longRight = Convert.ToInt64(rightNum.Value);
-
-            _registers[destination.TempName] = new NumberValue(longLeft | longRight, NumberValue.NumberType.Integer);
-        }
-
-        private void ExecuteBitwiseAnd(InstructionLine instruction)
-        {
-            Value left = GetValue(instruction.Rhs);
-            Value right = GetValue(instruction.Rhs2);
-
-            if (instruction.Lhs is not TempValue destination)
-            {
-                throw new FluenceRuntimeException("Internal VM Error: Destination of 'Bitwise And' must be a temporary register.");
-            }
-
-            if (left is not NumberValue leftNum || right is not NumberValue rightNum)
-            {
-                throw new FluenceRuntimeException($"Can not Bitwise And an objects of type {left.GetType().Name} and {right.GetType().Name}.");
-            }
-
-            long longLeft = Convert.ToInt64(leftNum.Value);
-            long longRight = Convert.ToInt64(rightNum.Value);
-
-            _registers[destination.TempName] = new NumberValue(longLeft & longRight, NumberValue.NumberType.Integer);
         }
 
         private void ExecuteBitwiseNot(InstructionLine instruction)

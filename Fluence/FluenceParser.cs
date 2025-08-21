@@ -1611,7 +1611,7 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Parses a list literal expression, e.g., `[1, "hello", 2 + 2]`.
+        /// Parses a list literal expression.
         /// </summary>
         /// <returns>A TempValue that will hold the new list instance at runtime.</returns>
         private TempValue ParseList()
@@ -2520,17 +2520,12 @@ namespace Fluence
 
                 // The end of the range.
                 Value right = ParseAdditionSubtraction();
-                TempValue resultList = new TempValue(_currentParseState.NextTempNumber++);
 
-                // A user can do 10..0, the inverse of 0..10, should be accounted for in the Interpreter/VM.
-                _currentParseState.AddCodeInstruction(new InstructionLine(
-                    InstructionCode.NewRangeList,
-                    resultList,
-                    ResolveValue(left),
-                    ResolveValue(right)
-                ));
+                Value leftRes = ResolveValue(left);
+                Value rightRes = ResolveValue(right);
 
-                return resultList;
+                RangeValue range = new RangeValue(leftRes, rightRes);
+                return range;
             }
 
             return left;

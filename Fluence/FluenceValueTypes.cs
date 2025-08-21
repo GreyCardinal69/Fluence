@@ -56,6 +56,11 @@
         public override string ToString() => "NilValue";
     }
 
+    internal sealed record class RangeValue(Value Start, Value End) : Value
+    {
+        public override string ToString() => $"Range<{Start}..{End}>";
+    }
+
     /// <summary>Represents a numerical value, which can be an Integer, Float, or Double.</summary>
     internal sealed record class NumberValue : Value
     {

@@ -1,7 +1,8 @@
-using static Fluence.FluenceByteCode;
-using static Fluence.FluenceParser;
-using static Fluence.FluenceByteCode.InstructionLine;
+using System.Collections.Generic;
 using System.Text;
+using static Fluence.FluenceByteCode;
+using static Fluence.FluenceByteCode.InstructionLine;
+using static Fluence.FluenceParser;
 
 namespace Fluence
 {
@@ -155,6 +156,12 @@ namespace Fluence
                     case InstructionCode.Or:
                         ExecuteLogicalOp(instruction);
                         break;
+                    case InstructionCode.NewRange:
+                        ExecuteNewRange(instruction);
+                        break;
+                    case InstructionCode.ToString:
+                        ExecuteToString(instruction);
+                        break;
                     case InstructionCode.Terminate:
                         // End of code, we simply quit.
                         return;
@@ -209,7 +216,7 @@ namespace Fluence
             _registers[destination.TempName] = new BooleanValue(result);
         }
 
-        private bool IsTruthy(Value value)
+        private static bool IsTruthy(Value value)
         {
             if (value is NilValue) return false;
             if (value is BooleanValue b && b.Value == false) return false;
@@ -311,13 +318,91 @@ namespace Fluence
 
         private void ExecutePushElement(InstructionLine instruction)
         {
-            if (instruction.Lhs is not TempValue destination)
+            if (GetValue(instruction.Lhs) is not ListValue list)
             {
                 throw new FluenceRuntimeException("Internal VM Error: Destination of 'PushElement' must be a temporary register.");
             }
 
-            ListValue list = (ListValue)_registers[destination.TempName];
-            list.Elements.Add(instruction.Rhs);
+            Value elementToAdd = GetValue(instruction.Rhs);
+
+            if (elementToAdd is RangeValue range)
+            {
+                Value resolvedStartValue = GetValue(range.Start);
+                Value resolvedEndValue = GetValue(range.End);
+
+                if (resolvedStartValue is not NumberValue numStart || resolvedEndValue is not NumberValue numEnd)
+                {
+                    throw new FluenceRuntimeException($"Runtime Error: Range can only be created from numbers, not {resolvedStartValue.GetType().Name} and {resolvedEndValue.GetType().Name}.");
+                }
+
+                int start = Convert.ToInt32(numStart.Value);
+                int end = Convert.ToInt32(numEnd.Value);
+
+                if (start <= end) // Increasing range
+                {
+                    for (int i = start; i <= end; i++)
+                    {
+                        list.Elements.Add(new NumberValue(i));
+                    }
+                }
+                else // Decreasing range
+                {
+                    for (int i = start; i >= end; i--)
+                    {
+                        list.Elements.Add(new NumberValue(i));
+                    }
+                }
+            }
+            else
+            {
+                list.Elements.Add(elementToAdd);
+            }
+        }
+
+        private void ExecuteNewRange(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not TempValue destination)
+            {
+                throw new FluenceRuntimeException("Internal VM Error: Destination of 'NewRange' must be a temporary register.");
+            }
+
+            Value start = GetValue(instruction.Rhs);
+            Value end = GetValue(instruction.Rhs2);
+
+            _registers[destination.TempName] = new RangeValue(start, end);
+        }
+
+        private void ExecuteToString(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not TempValue destination)
+            {
+                throw new FluenceRuntimeException("Internal VM Error: Destination of 'ToString' must be a temporary register.");
+            }
+
+            Value valueToConvert = GetValue(instruction.Rhs);
+
+            string stringResult;
+            switch (valueToConvert)
+            {
+                case null:
+                case NilValue:
+                    stringResult = "nil";
+                    break;
+                case StringValue str:
+                    stringResult = str.Value;
+                    break;
+                case BooleanValue b:
+                    stringResult = b.Value ? "true" : "false";
+                    break;
+                default:
+                    // For all other types (NumberValue, ListValue, etc.),
+                    // we rely on their own .ToString() method.
+                    stringResult = valueToConvert.ToString();
+                    break;
+            }
+
+            // Store the final result in the destination register.
+            _registers[destination.TempName] = new StringValue(stringResult);
         }
 
         private void ExecuteNewList(InstructionLine instruction)

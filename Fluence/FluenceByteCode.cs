@@ -89,7 +89,7 @@
 
                 // == List & Collection Operations ==
                 NewList,        // Creates a new, empty list. Result stored in Lhs.
-                NewRangeList,   // Creates a new list from a range (Rhs to Rhs2). Result stored in Lhs.
+                NewRange,   // Creates a new list from a range (Rhs to Rhs2). Result stored in Lhs.
                 PushElement,    // Pushes an element (Rhs) onto a list (Lhs).
                 GetElement,     // Gets an element at an index (Rhs2) from a list (Rhs). Result stored in Lhs.
                 SetElement,     // Sets an element at an index (Rhs) on a list (Lhs) to a new value (Rhs2).

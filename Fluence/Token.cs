@@ -8,6 +8,8 @@
     {
         /// <summary>
         /// Defines all possible types of tokens in the Fluence language.
+        /// Many of the members are ordered sequentially to be able to use >= && <= range checks
+        /// Which are considerable faster to do.
         /// </summary>
         internal enum TokenType
         {
@@ -36,7 +38,7 @@
 
             // == Multi-Character Operators ==
             BANG, BANG_EQUAL,       // !, !=
-            EQUAL, EQUAL_EQUAL,     // =, ==
+            EQUAL_EQUAL,            // ==
             GREATER, GREATER_EQUAL, // >, >=
             LESS, LESS_EQUAL,       // <, <=
             DOT_DOT,                // For Ranges (a..b).
@@ -49,6 +51,7 @@
             EXPONENT,               // **
 
             // == Compound Assignment Operators ==
+            EQUAL,                  // =
             EQUAL_PLUS,             // +=
             EQUAL_MINUS,            // -=
             EQUAL_MUL,              // *=

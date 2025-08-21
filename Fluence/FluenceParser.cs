@@ -269,13 +269,6 @@ namespace Fluence
 
             while (!_lexer.HasReachedEnd)
             {
-                // We reached end of file, so we just quit.
-                if (_lexer.TokenTypeMatches(TokenType.EOF))
-                {
-                    _lexer.Advance();
-                    break;
-                }
-
                 ParseStatement();
             }
         }
@@ -687,7 +680,7 @@ namespace Fluence
 
                     if (_currentParseState.ActiveLoopContexts.Count == 0)
                     {
-                        ConstructAndThrowParserException("'continue' cannot be used outside of a loop.", _lexer.PeekNextToken());
+                        ConstructAndThrowParserException("'break' cannot be used outside of a loop.", _lexer.PeekNextToken());
                     }
 
                     LoopContext currentLoop = _currentParseState.ActiveLoopContexts.Peek();
@@ -699,18 +692,17 @@ namespace Fluence
                     break;
                 case TokenType.CONTINUE:
                     _lexer.Advance(); // Consume 'continue'.
-                    if (_currentParseState.ActiveLoopContexts.Count == 0) { /* throw error */ }
+
+                    if (_currentParseState.ActiveLoopContexts.Count == 0)
+                    {
+                        ConstructAndThrowParserException("'continue' cannot be used outside of a loop.", _lexer.PeekNextToken());
+                    }
 
                     LoopContext currentLoop2 = _currentParseState.ActiveLoopContexts.Peek();
 
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
 
                     currentLoop2.ContinuePatchAddresses.Add(_currentParseState.CodeInstructions.Count - 1);
-
-                    if (_lexer.TokenTypeMatches(TokenType.EOF))
-                    {
-                        return;
-                    }
 
                     AdvanceAndExpect(TokenType.EOL, "Expected a ';' after the 'break' statement.");
                     break;
@@ -3244,31 +3236,14 @@ namespace Fluence
         /// <summary>
         /// Checks if a token type is a simple assignment operator (=, +=, -=, etc.).
         /// </summary>
-        private static bool IsSimpleAssignmentOperator(TokenType type) => type switch
-        {
-            TokenType.EQUAL or
-            TokenType.EQUAL_DIV or
-            TokenType.EQUAL_MINUS or
-            TokenType.EQUAL_PLUS or
-            TokenType.EQUAL_MUL or
-            TokenType.EQUAL_AMPERSAND or
-            TokenType.EQUAL_PERCENT => true,
-            _ => false,
-        };
+        private static bool IsSimpleAssignmentOperator(TokenType type) =>
+            type >= TokenType.EQUAL && type <= TokenType.EQUAL_AMPERSAND;
 
         /// <summary>
         /// Checks if a token type is one of the chain-assignment operators (<|, <n|, <?|, etc.).
         /// </summary>
-        private static bool IsChainAssignmentOperator(TokenType type) => type switch
-        {
-            TokenType.CHAIN_ASSIGN_N or
-            TokenType.OPTIONAL_REST_ASSIGN or
-            TokenType.OPTIONAL_ASSIGN_N or
-            TokenType.SEQUENTIAL_REST_ASSIGN or
-            TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN or
-            TokenType.REST_ASSIGN => true,
-            _ => false
-        };
+        private static bool IsChainAssignmentOperator(TokenType type) =>
+            type >= TokenType.CHAIN_ASSIGN_N && type <= TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN;
 
         /// <summary>
         /// Checks if a token type is a multi-target compound assignment operator (.+=, .-=, etc.).
@@ -3361,17 +3336,17 @@ namespace Fluence
             {
                 TokenType type = _lexer.PeekTokenTypeAheadByN(lookahead);
 
-                if (type == TokenType.R_PAREN) break; // End of argument list
+                if (type == TokenType.R_PAREN) break; // End of argument list.
                 if (type == TokenType.EOL)
                 {
                     return false;
                 }
 
-                if (type == TokenType.EOF) return false; // End of file, not a valid call
+                if (type == TokenType.EOF) return false; // End of file, not a valid call.
 
                 if (type == TokenType.UNDERSCORE) hasUnderscore = true;
 
-                // Skip the argument and a potential comma
+                // Skip the argument and a potential comma.
                 lookahead++;
                 if (_lexer.PeekTokenTypeAheadByN(lookahead) == TokenType.COMMA)
                 {
@@ -3422,16 +3397,8 @@ namespace Fluence
         /// </summary>
         /// <param name="type">The type of the token.</param>
         /// <returns>True if it is.</returns>
-        private static bool IsOrCollectiveOperator(TokenType type) => type switch
-        {
-            TokenType.COLLECTIVE_OR_EQUAL => true,
-            TokenType.COLLECTIVE_OR_NOT_EQUAL => true,
-            TokenType.COLLECTIVE_OR_LESS => true,
-            TokenType.COLLECTIVE_OR_LESS_EQUAL => true,
-            TokenType.COLLECTIVE_OR_GREATER => true,
-            TokenType.COLLECTIVE_OR_GREATER_EQUAL => true,
-            _ => false
-        };
+        private static bool IsOrCollectiveOperator(TokenType type) =>
+            type >= TokenType.COLLECTIVE_OR_EQUAL && type <= TokenType.COLLECTIVE_OR_GREATER_EQUAL;
 
         /// <summary>
         /// Converts a collective comparison TokenType into its corresponding base comparison InstructionCode.

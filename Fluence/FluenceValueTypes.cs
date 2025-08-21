@@ -4,32 +4,57 @@
     /// The abstract base type for all values that can exist in the Fluence runtime or be represented in bytecode.
     /// All value types are immutable records.
     /// </summary>
-    internal abstract record class Value;
+    internal abstract record class Value
+    {
+        internal virtual object GetValue()
+        {
+            return null;
+        }
+    }
 
     /// <summary>Represents a single character literal.</summary>
     internal sealed record class CharValue(char Value) : Value
     {
+        internal override object GetValue()
+        {
+            return Value;
+        }
+
         public override string ToString() => $"Char: '{Value}'";
     }
 
     /// <summary>Represents a string literal.</summary>
     internal sealed record class StringValue(string Value) : Value
     {
+        internal override object GetValue()
+        {
+            return Value;
+        }
+
         public override string ToString() => $"String: \"{Value ?? "null"}\"";
     }
 
     /// <summary>Represents the two boolean states, true and false.</summary>
     internal sealed record class BooleanValue(bool Value) : Value
     {
+        internal override object GetValue()
+        {
+            return Value;
+        }
+
         public override string ToString() => $"Boolean: {Value}";
     }
 
     /// <summary>Represents the nil value.</summary>
     internal sealed record class NilValue : Value
     {
+        internal override object GetValue()
+        {
+            return null!;
+        }
+
         public override string ToString() => "NilValue";
     }
-
 
     /// <summary>Represents a numerical value, which can be an Integer, Float, or Double.</summary>
     internal sealed record class NumberValue : Value
@@ -48,6 +73,11 @@
         {
             Value = literal;
             Type = type;
+        }
+
+        internal override object GetValue()
+        {
+            return Value;
         }
 
         public static NumberValue FromToken(Token token)
@@ -218,16 +248,16 @@
     /// <summary>Represents a variable by its name. The VM resolves this to a value in a scope.</summary>
     internal sealed record class VariableValue : Value
     {
-         internal string IdentifierValue;
+        internal string Name;
 
         internal VariableValue(string identifierValue)
         {
-            IdentifierValue = identifierValue;
+            Name = identifierValue;
         }
 
         public override string ToString()
         {
-            return $"VariableValue: {IdentifierValue}";
+            return $"VariableValue: {Name}";
         }
     }
  
@@ -237,6 +267,11 @@
         internal string EnumTypeName { get; }
         internal string MemberName;
         internal int Value;
+
+        internal override object GetValue()
+        {
+            return Value;
+        }
 
         internal EnumValue(string enumTypeName, string memberName, int value)
         {

@@ -2952,7 +2952,7 @@ namespace Fluence
 
                     if (left is VariableValue variable)
                     {
-                        if (_currentParseState.CurrentScope.TryResolve(variable.IdentifierValue, out Symbol symbol) && symbol is EnumSymbol enumSymbol)
+                        if (_currentParseState.CurrentScope.TryResolve(variable.Name, out Symbol symbol) && symbol is EnumSymbol enumSymbol)
                         {
                             if (enumSymbol.Members.TryGetValue(memberToken.Text, out EnumValue enumValue))
                             {
@@ -3129,7 +3129,7 @@ namespace Fluence
                     }
                     break;
                 case TokenType.NUMBER: return NumberValue.FromToken(token);
-                case TokenType.STRING: return new StringValue(token.Text);
+                case TokenType.STRING: return new StringValue(token.Literal.ToString());
                 case TokenType.TRUE: return new BooleanValue(true);
                 case TokenType.FALSE: return new BooleanValue(false);
                 case TokenType.F_STRING: return ParseFString(token.Literal);

@@ -22,7 +22,12 @@ namespace Fluence
                 FluenceParser parser = new FluenceParser(lexer);
                 FluenceIntrinsics intrinsics = new FluenceIntrinsics(parser);
                 intrinsics.Register();
+
+#if DEBUG
                 parser.Parse();
+                parser.DumpSymbolTables();
+                DumpByteCodeInstructions(parser.CompiledCode);
+#endif
 
                 _byteCode = parser.CompiledCode;
                 _parseState = parser.CurrentParseState;
@@ -47,6 +52,7 @@ namespace Fluence
             {
                 var vm = new FluenceVirtualMachine(_byteCode, _parseState);
                 vm.Run();
+                vm.DumpVariables();
             }
             catch(FluenceRuntimeException ex)
             {

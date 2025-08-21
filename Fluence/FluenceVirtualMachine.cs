@@ -81,7 +81,9 @@ namespace Fluence
         {
             while (_ip < _byteCode.Count)
             {
-                Console.WriteLine($"Executing bytecod: {_byteCode[_ip]}.");
+#if DEBUG
+                Console.WriteLine($"Executing bytecode {FluenceDebug.FormatByteCodeAddress(_ip)}: {_byteCode[_ip]}.");
+#endif
                 InstructionLine instruction = _byteCode[_ip];
                 _ip++;
 
@@ -143,6 +145,12 @@ namespace Fluence
                     case InstructionCode.GotoIfTrue:
                         ExecuteGoTo(instruction);
                         break;
+                    case InstructionCode.GetElement:
+                        ExecuteGetElement(instruction);
+                        break;
+                    case InstructionCode.SetElement:
+                        ExecuteSetElement(instruction);
+                        break;
                     case InstructionCode.Terminate:
                         // End of code, we simply quit.
                         return;
@@ -170,6 +178,59 @@ namespace Fluence
             }
 
             return val;
+        }
+
+        private void ExecuteGetElement(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not TempValue destination)
+            {
+                throw new FluenceRuntimeException("Internal VM Error: Destination of 'GetElement' must be a temporary register.");
+            }
+
+            Value collectionValue = GetValue(instruction.Rhs);
+            if (collectionValue is not ListValue list)
+            {
+                throw new FluenceRuntimeException($"Runtime Error: Cannot perform index access '[]' on a value of type '{collectionValue?.GetType().Name ?? "nil"}'.");
+            }
+
+            Value indexValue = GetValue(instruction.Rhs2);
+            if (indexValue is not NumberValue numIndex)
+            {
+                throw new FluenceRuntimeException($"Runtime Error: List index must be an integer, not '{indexValue?.GetType().Name ?? "nil"}'.");
+            }
+
+            int index = Convert.ToInt32(numIndex.Value);
+
+            if (index < 0 || index >= list.Elements.Count)
+            {
+                throw new FluenceRuntimeException($"Runtime Error: Index out of range. Index was {index}, but list size is {list.Elements.Count}.");
+            }
+
+            _registers[destination.TempName] = list.Elements[index];
+        }
+
+        private void ExecuteSetElement(InstructionLine instruction)
+        {
+            Value collectionValue = GetValue(instruction.Lhs); // The list is the LHS
+            if (collectionValue is not ListValue list)
+            {
+                throw new FluenceRuntimeException($"Runtime Error: Cannot perform index assignment '[] =' on a value of type '{collectionValue?.GetType().Name ?? "nil"}'.");
+            }
+
+            Value indexValue = GetValue(instruction.Rhs); // The index is the RHS
+            if (indexValue is not NumberValue numIndex)
+            {
+                throw new FluenceRuntimeException($"Runtime Error: List index must be an integer, not '{indexValue?.GetType().Name ?? "nil"}'.");
+            }
+
+            Value valueToSet = GetValue(instruction.Rhs2); // The value is the RHS2
+            int index = Convert.ToInt32(numIndex.Value);
+            if (index < 0 || index >= list.Elements.Count)
+            {
+                throw new FluenceRuntimeException($"Runtime Error: Index out of range. Cannot set element at index {index}, list size is {list.Elements.Count}.");
+            }
+
+            list.Elements[index] = valueToSet;
         }
 
         private void ExecuteGoTo(InstructionLine instruction)
@@ -334,7 +395,7 @@ namespace Fluence
                 case InstructionCode.BitwiseXor:
                     longRight = Convert.ToInt64(rightNum.Value);
 
-                    _registers[destination.TempName] = new NumberValue(instruction.Instruction == InstructionCode.BitwiseXor 
+                    _registers[destination.TempName] = new NumberValue(instruction.Instruction == InstructionCode.BitwiseXor
                         ? longLeft ^ longRight
                         : longLeft | longRight, NumberValue.NumberType.Integer);
                     break;
@@ -342,7 +403,7 @@ namespace Fluence
                 case InstructionCode.BitwiseLShift:
                     int intRight = Convert.ToInt32(rightNum.Value);
 
-                    _registers[destination.TempName] = new NumberValue(instruction.Instruction == InstructionCode.BitwiseLShift 
+                    _registers[destination.TempName] = new NumberValue(instruction.Instruction == InstructionCode.BitwiseLShift
                         ? longLeft << intRight
                         : longLeft >> intRight, NumberValue.NumberType.Integer);
                     break;

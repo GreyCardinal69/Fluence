@@ -463,7 +463,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Equal, new TempValue(3), new VariableValue("x"), new NumberValue(10)),
                 new(InstructionCode.Equal, new TempValue(4), new VariableValue("y"), new NumberValue(-10)),
                 new(InstructionCode.And, new TempValue(5), new TempValue(3), new TempValue(4)),
-                new(InstructionCode.Negate, new TempValue(6), new VariableValue("booly")),
+                new(InstructionCode.Not, new TempValue(6), new VariableValue("booly")),
                 new(InstructionCode.And, new TempValue(7), new TempValue(5), new TempValue(6)),
                 new(InstructionCode.And, new TempValue(8), new TempValue(2), new TempValue(7)),
                 new(InstructionCode.GreaterThan, new TempValue(9), new VariableValue("x"), new NumberValue(0)),

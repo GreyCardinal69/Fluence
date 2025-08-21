@@ -47,7 +47,7 @@ namespace Fluence.ParserTests
             switch (expected)
             {
                 case VariableValue expV:
-                    Assert.Equal(expV.IdentifierValue, ((VariableValue)actual).IdentifierValue);
+                    Assert.Equal(expV.Name, ((VariableValue)actual).Name);
                     break;
                 case NumberValue expN:
                     var actN = (NumberValue)actual;

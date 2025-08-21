@@ -104,10 +104,10 @@ namespace Fluence
                         ExecuteNegate(instruction);
                         break;
                     case InstructionCode.Not:
-                        ExecuteNot();
+                        ExecuteNot(instruction);
                         break;
                     case InstructionCode.BitwiseNot:
-                        ExecuteBitwiseNot();
+                        ExecuteBitwiseNot(instruction);
                         break;
                     case InstructionCode.Terminate:
                         // End of code, we simply quit.
@@ -136,6 +136,26 @@ namespace Fluence
             }
 
             return val;
+        }
+
+        private void ExecuteBitwiseNot(InstructionLine instruction)
+        {
+            Value left = GetValue(instruction.Rhs);
+
+            if (instruction.Lhs is not TempValue destination)
+            {
+                throw new FluenceRuntimeException("Internal VM Error: Destination of 'Bitwise Not' must be a temporary register.");
+            }
+
+            if (left is not NumberValue leftNum)
+            {
+                throw new FluenceRuntimeException($"Can not Bitwise not an object of type {left.GetType().Name}.");
+            }
+
+            long integerLong = Convert.ToInt64(leftNum.Value);
+
+            _registers[destination.TempName] = new NumberValue(~integerLong, NumberValue.NumberType.Integer);
+
         }
 
         private void ExecuteNot(InstructionLine instruction)

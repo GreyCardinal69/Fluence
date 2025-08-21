@@ -3099,6 +3099,18 @@ namespace Fluence
 
                 Value temp = new TempValue(_currentParseState.NextTempNumber++);
 
+                if (token.Type == TokenType.TILDE)
+                {
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseNot, temp, operand));
+                    return temp;
+                }
+
+                if (token.Type == TokenType.BANG)
+                {
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Not, temp, operand));
+                    return temp;
+                }
+
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Negate, temp, operand));
                 return temp;
             }

@@ -1782,19 +1782,13 @@ namespace Fluence.ParserTests
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.NewList, new TempValue(2)),
-                new(InstructionCode.PushElement, new TempValue(2), new RangeValue(new NumberValue(1), new NumberValue(3))),
-                new(InstructionCode.Assign, new TempValue(1, "ForInCollectionCopy"), new TempValue(2)),
-                new(InstructionCode.Assign, new TempValue(0, "ForInIndex"), new NumberValue(0)),
-                new(InstructionCode.GetLength, new TempValue(3, "ForInCollectionLen"), new TempValue(2)),
-                new(InstructionCode.LessThan, new TempValue(4), new TempValue(1), new TempValue(3)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(12), new TempValue(4)),
-                new(InstructionCode.GetElement, new TempValue(5), new TempValue(2), new TempValue(1)),
-                new(InstructionCode.Assign, new VariableValue("i"), new TempValue(5)),
-                new(InstructionCode.Add, new TempValue(6), new TempValue(1), new NumberValue(1)),
-                new(InstructionCode.Assign, new TempValue(1), new TempValue(6)),
+                new(InstructionCode.NewRange, new TempValue(0), new RangeValue(new NumberValue(0), new NumberValue(3))),
+                new(InstructionCode.NewIterator, new TempValue(1), new TempValue(0)),
                 new(InstructionCode.Goto, new NumberValue(4)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("i"), new TempValue(2)),
+                new(InstructionCode.IterNext, new TempValue(1), new TempValue(2), new TempValue(3)),
+                new(InstructionCode.GotoIfTrue, new NumberValue(3), new TempValue(3)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);

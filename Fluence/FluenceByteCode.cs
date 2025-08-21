@@ -77,6 +77,9 @@
                 BitwiseLShift,
                 BitwiseRShift,
 
+                NewIterator,
+                IterNext,
+
                 // == Function & Method Calls ==
                 PushParam,      // Pushes a value (Lhs) onto the argument stack for a subsequent call.
                 CallFunction,   // Calls a function (Rhs) with a specified number of arguments (Rhs2). Result stored in Lhs.

@@ -911,49 +911,91 @@ namespace Fluence
         private void ParseForInStatement()
         {
             Token itemToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a loop variable name after 'for'.");
-            VariableValue loopVariable = new VariableValue(itemToken.Text);
+            var loopVariable = new VariableValue(itemToken.Text);
 
-            AdvanceAndExpect(TokenType.IN, "Expected the 'in' keyword a for-in loop.");
+            AdvanceAndExpect(TokenType.IN, "Expected the 'in' keyword in a for-in loop.");
 
             Value collectionExpr = ResolveValue(ParseExpression());
-
-            // Create hidden variables for the index and the collection copy.
-            TempValue indexVar = new TempValue(_currentParseState.NextTempNumber++, "ForInIndex");
-
-            TempValue collectionVar = new TempValue(_currentParseState.NextTempNumber++, "ForInCollectionCopy");
-
-            if (collectionExpr is RangeValue range)
-            {
-                TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewList, temp));
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushElement, temp, range));
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, collectionVar, temp));
-            }
-            else
-            {
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, collectionVar, collectionExpr));
-            }
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, new NumberValue(0)));
-
-            int loopTopAddress = _currentParseState.CodeInstructions.Count;
 
             var loopContext = new LoopContext();
             _currentParseState.ActiveLoopContexts.Push(loopContext);
 
-            TempValue lengthVar = new TempValue(_currentParseState.NextTempNumber++, "ForInCollectionLen");
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetLength, lengthVar, collectionVar));
-            TempValue conditionVar = new TempValue(_currentParseState.NextTempNumber++);
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.LessThan, conditionVar, indexVar, lengthVar));
+            // Unless we use for in loop with a list, allocating a new list for a range, even if the range is 
+            // slightly large is very inefficient, so we create an iterator instead.
+            if (collectionExpr is RangeValue range)
+            {
+                var tempRangeReg = new TempValue(_currentParseState.NextTempNumber++);
+                var iteratorReg = new TempValue(_currentParseState.NextTempNumber++);
+                var valueReg = new TempValue(_currentParseState.NextTempNumber++); // Will hold the loop variable's value
+                var continueReg = new TempValue(_currentParseState.NextTempNumber++);
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, conditionVar));
-            int loopExitPatchIndex = _currentParseState.CodeInstructions.Count - 1;
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewRange, tempRangeReg, range));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewIterator, iteratorReg, tempRangeReg));
 
-            // Assign the loop variable: `item = collection[index]`.
-            TempValue currentElementVar = new TempValue(_currentParseState.NextTempNumber++);
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetElement, currentElementVar, collectionVar, indexVar));
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, loopVariable, currentElementVar));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
+                int jumpToConditionPatchIndex = _currentParseState.CodeInstructions.Count - 1;
 
-            // ForIn has two forms, block {...} or ForIn cond -> ...;
+                int loopBodyAddress = _currentParseState.CodeInstructions.Count;
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, loopVariable, valueReg));
+
+                ParseLoopBody();
+
+                int loopCheckAddress = _currentParseState.CodeInstructions.Count;
+                _currentParseState.CodeInstructions[jumpToConditionPatchIndex].Lhs = new NumberValue(loopCheckAddress);
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.IterNext, iteratorReg, valueReg, continueReg));
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, new NumberValue(loopBodyAddress), continueReg));
+
+                int loopEndAddress = _currentParseState.CodeInstructions.Count;
+                PatchLoopExits(loopContext, loopEndAddress, loopCheckAddress);
+            }
+            else
+            {
+                var indexVar = new TempValue(_currentParseState.NextTempNumber++, "ForInIndex");
+                var collectionVar = new TempValue(_currentParseState.NextTempNumber++, "ForInCollectionCopy");
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, collectionVar, collectionExpr));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, new NumberValue(0)));
+
+                int loopTopAddress = _currentParseState.CodeInstructions.Count;
+
+                var lengthVar = new TempValue(_currentParseState.NextTempNumber++, "ForInCollectionLen");
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetLength, lengthVar, collectionVar));
+
+                var conditionVar = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.LessThan, conditionVar, indexVar, lengthVar));
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, conditionVar));
+                int loopExitPatchIndex = _currentParseState.CodeInstructions.Count - 1;
+
+                var currentElementVar = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetElement, currentElementVar, collectionVar, indexVar));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, loopVariable, currentElementVar));
+
+                ParseLoopBody();
+
+                int continueAddress = _currentParseState.CodeInstructions.Count;
+                var incrementedIndex = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Add, incrementedIndex, indexVar, new NumberValue(1)));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, incrementedIndex));
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopTopAddress)));
+
+                int loopEndAddress = _currentParseState.CodeInstructions.Count;
+                _currentParseState.CodeInstructions[loopExitPatchIndex].Lhs = new NumberValue(loopEndAddress);
+                PatchLoopExits(loopContext, loopEndAddress, continueAddress);
+            }
+
+            _currentParseState.ActiveLoopContexts.Pop();
+        }
+
+        /// <summary>
+        /// Helper method to avoid duplicating the body parsing logic.
+        /// </summary>
+        private void ParseLoopBody()
+        {
             if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
             {
                 ParseBlockStatement();
@@ -963,30 +1005,22 @@ namespace Fluence
                 AdvanceAndExpect(TokenType.THIN_ARROW, "Expected an '->' for a single-line for-in loop body.");
                 ParseStatement();
             }
+        }
 
-            // Increment the index: `index = index + 1`.
-            TempValue incrementedIndex = new TempValue(_currentParseState.NextTempNumber++);
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Add, incrementedIndex, indexVar, new NumberValue(1)));
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, incrementedIndex));
-
-            // Unconditional jump back to the top to re-check the condition.
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopTopAddress)));
-
-            int loopEndAddress = _currentParseState.CodeInstructions.Count;
-            _currentParseState.CodeInstructions[loopExitPatchIndex].Lhs = new NumberValue(loopEndAddress);
-
+        /// <summary>
+        /// Helper method to handle patching 'break' and 'continue'
+        /// </summary>
+        private void PatchLoopExits(LoopContext loopContext, int breakAddress, int continueAddress)
+        {
             foreach (var patchIndex in loopContext.BreakPatchAddresses)
             {
-                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(loopEndAddress);
+                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(breakAddress);
             }
 
-            int continueAddress = loopEndAddress - 3;
             foreach (var patchIndex in loopContext.ContinuePatchAddresses)
             {
                 _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(continueAddress);
             }
-
-            _currentParseState.ActiveLoopContexts.Pop();
         }
 
         /// <summary>

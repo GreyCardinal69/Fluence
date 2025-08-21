@@ -151,6 +151,10 @@ namespace Fluence
                     case InstructionCode.SetElement:
                         ExecuteSetElement(instruction);
                         break;
+                    case InstructionCode.And:
+                    case InstructionCode.Or:
+                        ExecuteLogicalOp(instruction);
+                        break;
                     case InstructionCode.Terminate:
                         // End of code, we simply quit.
                         return;
@@ -178,6 +182,38 @@ namespace Fluence
             }
 
             return val;
+        }
+
+        private void ExecuteLogicalOp(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not TempValue destination)
+            {
+                throw new FluenceRuntimeException("Internal VM Error: Destination of 'And' must be a temporary register.");
+            }
+
+            Value right = GetValue(instruction.Rhs2);
+            Value left = GetValue(instruction.Rhs);
+
+            bool result = false;
+
+            switch (instruction.Instruction)
+            {
+                case InstructionCode.And:
+                    result = IsTruthy(right) && IsTruthy(left);
+                    break;
+                case InstructionCode.Or:
+                    result = IsTruthy(left) || IsTruthy(right);
+                    break;
+            }
+
+            _registers[destination.TempName] = new BooleanValue(result);
+        }
+
+        private bool IsTruthy(Value value)
+        {
+            if (value is NilValue) return false;
+            if (value is BooleanValue b && b.Value == false) return false;
+            return true;
         }
 
         private void ExecuteGetElement(InstructionLine instruction)

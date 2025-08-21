@@ -9,7 +9,7 @@
         /// <summary>
         /// Defines all possible types of tokens in the Fluence language.
         /// Many of the members are ordered sequentially to be able to use >= && <= range checks
-        /// Which are considerable faster to do.
+        /// Which are considerably faster to do.
         /// </summary>
         internal enum TokenType
         {

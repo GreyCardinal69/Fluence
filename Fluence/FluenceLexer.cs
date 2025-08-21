@@ -992,7 +992,7 @@ namespace Fluence
                                 else
                                 {
                                     didntEndMultiLineComment = false;
-                                    AdvancePosition(2); // Consume '*#'
+                                    AdvancePosition(2); // Consume the '*#'.
                                     break;
                                 }
                             }
@@ -1025,7 +1025,7 @@ namespace Fluence
             }
         }
 
-        private Token MakeTokenAndTryAdvance(TokenType type, int len = 0, string text = null, object lieteral = null)
+        private Token MakeTokenAndTryAdvance(TokenType type, int len = 0, string text = null!, object lieteral = null!)
         {
             int line = _currentLine;
             int column = _currentColumn;

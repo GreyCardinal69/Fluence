@@ -127,10 +127,10 @@ namespace Fluence
         {
             StringBuilder sb = new StringBuilder("------------------------------------\n\nGenerated Symbol Hierarchy:\n\n");
 
-            // Dump the global scope first
+            // Dump the global scope first.
             DumpScope(sb, _currentParseState.GlobalScope, "Global Scope", 0);
 
-            // If there are any namespaces, dump them as separate top-level scopes
+            // If there are any namespaces, dump them as separate top-level scopes.
             if (_currentParseState.NameSpaces.Count != 0)
             {
                 sb.AppendLine(); // Add a separator
@@ -163,7 +163,7 @@ namespace Fluence
             }
             else
             {
-                // Dump all symbols within the current scope
+                // Dump all symbols within the current scope.
                 foreach (var item in scope.Symbols)
                 {
                     DumpSymbol(sb, item.Key, item.Value, indentationLevel + 1);
@@ -272,7 +272,7 @@ namespace Fluence
                 ParseStatement();
             }
         }
-     
+
         /// <summary>
         /// The main entry point for the first-pass. It initiates a recursive scan of the token stream
         /// to build the entire symbol and namespace hierarchy.
@@ -723,7 +723,6 @@ namespace Fluence
             // In the second pass, we don't create a new namespace. We just enter it.
             AdvanceAndExpect(TokenType.SPACE, "Expected a 'space' keyword.");
             Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a namespace name.");
-            string namespaceName = nameToken.Text;
             AdvanceAndExpect(TokenType.L_BRACE, "Expected an opening '{' for the namespace body.");
 
             if (!_currentParseState.NameSpaces.TryGetValue(nameToken.Text, out var namespaceScope))
@@ -947,11 +946,11 @@ namespace Fluence
                 ParseStatement();
             }
 
-            // Increment the index: `index = index + 1`
+            // Increment the index: `index = index + 1`.
             TempValue incrementedIndex = new TempValue(_currentParseState.NextTempNumber++);
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Add, incrementedIndex, indexVar, new NumberValue(1)));
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, incrementedIndex));
-            
+
             // Unconditional jump back to the top to re-check the condition.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopTopAddress)));
 
@@ -2105,7 +2104,7 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Parses a chain of pipe operators..
+        /// Parses a chain of pipe operators.
         /// </summary>
         private Value ParsePipe()
         {

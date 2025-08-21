@@ -114,6 +114,10 @@ namespace Fluence
                     case InstructionCode.BitwiseOr:
                         ExecuteBitwiseOperation(instruction);
                         break;
+                    case InstructionCode.Equal:
+                    case InstructionCode.NotEqual:
+                        ExecuteEqualityComparison(instruction);
+                        break;
                     case InstructionCode.Terminate:
                         // End of code, we simply quit.
                         return;
@@ -141,6 +145,21 @@ namespace Fluence
             }
 
             return val;
+        }
+
+        private void ExecuteEqualityComparison(InstructionLine instruction)
+        {
+            Value left = GetValue(instruction.Rhs);
+            Value right = GetValue(instruction.Rhs2);
+
+            if (instruction.Lhs is not TempValue destination)
+            {
+                throw new FluenceRuntimeException("Internal VM Error: Destination of 'Equal' must be a temporary register.");
+            }
+
+            bool result = instruction.Instruction == InstructionCode.Equal ? left.Equals(right) : !left.Equals(right);
+
+            _registers[destination.TempName] = new BooleanValue(result);
         }
 
         private void ExecuteBitwiseOperation(InstructionLine instruction)

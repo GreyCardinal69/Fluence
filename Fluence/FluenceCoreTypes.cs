@@ -11,8 +11,20 @@
     /// This class wraps a standard C# List to provide list functionality within the VM.
     /// </summary>
     /// <param name="Elements">The mutable list of <see cref="Value"/> objects that this list contains.</param>
-    internal sealed record class ListValue(List<Value> Elements) : ObjectValue
+    internal sealed record class ListValue : ObjectValue
     {
+        internal readonly List<Value> Elements;
+
+        internal ListValue()
+        {
+            Elements = new List<Value>();
+        }
+
+        internal ListValue(List<Value> elements)
+        {
+            Elements = elements;
+        }
+
         /// <summary>
         /// Provides a user-friendly string representation of the list, suitable for the `print` function.
         /// </summary>

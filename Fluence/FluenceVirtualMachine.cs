@@ -22,7 +22,14 @@ namespace Fluence
 
         internal void DumpVariables()
         {
+            Console.WriteLine("---GLOBALS---");
             foreach (var item in _globals)
+            {
+                Console.WriteLine(item);
+            }
+            Console.WriteLine();
+            Console.WriteLine("---REGISTERS---");
+            foreach (var item in _registers)
             {
                 Console.WriteLine(item);
             }
@@ -74,6 +81,7 @@ namespace Fluence
         {
             while (_ip < _byteCode.Count)
             {
+                Console.WriteLine($"Executing bytecod: {_byteCode[_ip]}.");
                 InstructionLine instruction = _byteCode[_ip];
                 _ip++;
 
@@ -124,6 +132,17 @@ namespace Fluence
                     case InstructionCode.LessThan:
                         ExecuteIndirectComparison(instruction);
                         break;
+                    case InstructionCode.NewList:
+                        ExecuteNewList(instruction);
+                        break;
+                    case InstructionCode.PushElement:
+                        ExecutePushElement(instruction);
+                        break;
+                    case InstructionCode.Goto:
+                    case InstructionCode.GotoIfFalse:
+                    case InstructionCode.GotoIfTrue:
+                        ExecuteGoTo(instruction);
+                        break;
                     case InstructionCode.Terminate:
                         // End of code, we simply quit.
                         return;
@@ -153,11 +172,72 @@ namespace Fluence
             return val;
         }
 
+        private void ExecuteGoTo(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not NumberValue target)
+            {
+                throw new FluenceRuntimeException("Internal VM Error: Operand for Goto must be a NumberValue address.");
+            }
+
+            int targetAddress = Convert.ToInt32(target.Value);
+
+            if (targetAddress < 0 || targetAddress >= _byteCode.Count)
+            {
+                throw new FluenceRuntimeException($"Internal VM Error: Invalid jump address '{targetAddress}'.");
+            }
+
+            if (instruction.Instruction == InstructionCode.Goto)
+            {
+                _ip = targetAddress;
+                return;
+            }
+
+            Value condition = GetValue(instruction.Rhs);
+
+            if (condition is not BooleanValue booleanCondition)
+            {
+                throw new FluenceRuntimeException($"Runtime Error: Conditional jump expects a boolean value, but got {condition.GetType().Name}.");
+            }
+
+            if (instruction.Instruction == InstructionCode.GotoIfFalse && booleanCondition.Value == false)
+            {
+                _ip = Convert.ToInt32(targetAddress);
+                return;
+            }
+
+            if (booleanCondition.Value && instruction.Instruction == InstructionCode.GotoIfTrue)
+            {
+                _ip = Convert.ToInt32(targetAddress);
+                return;
+            }
+        }
+
+        private void ExecutePushElement(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not TempValue destination)
+            {
+                throw new FluenceRuntimeException("Internal VM Error: Destination of 'PushElement' must be a temporary register.");
+            }
+
+            ListValue list = (ListValue)_registers[destination.TempName];
+            list.Elements.Add(instruction.Rhs);
+        }
+
+        private void ExecuteNewList(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not TempValue destination)
+            {
+                throw new FluenceRuntimeException("Internal VM Error: Destination of 'NewList' must be a temporary register.");
+            }
+
+            _registers[destination.TempName] = new ListValue();
+        }
+
         private void ExecuteIndirectComparison(InstructionLine instruction)
         {
             if (instruction.Lhs is not TempValue destination)
             {
-                throw new FluenceRuntimeException("Internal VM Error: Destination of 'Equal' must be a temporary register.");
+                throw new FluenceRuntimeException($"Internal VM Error: Destination of '{instruction.Instruction}' must be a temporary register.");
             }
 
             Value left = GetValue(instruction.Rhs);
@@ -603,13 +683,21 @@ namespace Fluence
 
         private void ExecuteAssign(InstructionLine instruction)
         {
-            if (instruction.Lhs is not VariableValue destination)
+            if (instruction.Lhs is not VariableValue && instruction.Lhs is not TempValue)
             {
-                throw new FluenceRuntimeException("Internal VM Error: Destination of 'Assign' must be a variable.");
+                throw new FluenceRuntimeException("Internal VM Error: Destination of 'Assign' must be a variable or a TempValue.");
             }
 
-            Value sourceValue = GetValue(instruction.Rhs);
-            _globals[destination.Name] = sourceValue;
+            if (instruction.Lhs is VariableValue destination)
+            {
+                Value sourceValue = GetValue(instruction.Rhs);
+                _globals[destination.Name] = sourceValue;
+            }
+            else if (instruction.Lhs is TempValue tempDestination)
+            {
+                Value sourceValue = GetValue(instruction.Rhs);
+                _registers[tempDestination.TempName] = sourceValue;
+            }
         }
 
         private void ExecuteSubtraction(InstructionLine instruction)

@@ -35,11 +35,23 @@
     }
 
     /// <summary>Represents the two boolean states, true and false.</summary>
-    internal sealed record class BooleanValue(bool Value) : Value
+    internal sealed record class BooleanValue : Value
     {
+        internal bool Value;
+
+        internal BooleanValue(bool value)
+        {
+            Value = value;
+        }
+
         internal override object GetValue()
         {
             return Value;
+        }
+
+        public void Reinitialize(bool value)
+        {
+            Value = value;
         }
 
         public override string ToString() => $"Boolean: {Value}";
@@ -71,8 +83,8 @@
             Double
         }
 
-        internal object Value { get; }
-        internal NumberType Type { get; }
+        internal object Value { get; private set; }
+        internal NumberType Type { get; private set; }
 
         internal NumberValue(object literal, NumberType type = NumberType.Integer)
         {
@@ -83,6 +95,12 @@
         internal override object GetValue()
         {
             return Value;
+        }
+
+        public void Reinitialize(object value, NumberValue.NumberType type)
+        {
+            Value = value;
+            Type = type;
         }
 
         public static NumberValue FromToken(Token token)
@@ -244,7 +262,7 @@
             FieldName = fieldName;
         }
 
-        public override string ToString() 
+        public override string ToString()
         {
             return $"FieldAccess<{Target}:{FieldName}>";
         }
@@ -265,8 +283,8 @@
             return $"VariableValue: {Name}";
         }
     }
- 
-     /// <summary>Represents a specific member of an enum.</summary>
+
+    /// <summary>Represents a specific member of an enum.</summary>
     internal sealed record class EnumValue : Value
     {
         internal string EnumTypeName { get; }

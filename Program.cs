@@ -6,9 +6,10 @@
         {
             string source = File.ReadAllText($@"{Directory.GetCurrentDirectory()}\Full Lexer Test.fl");
 
-            FluenceInterpreter fluenceInterpreter= new FluenceInterpreter();
+            FluenceInterpreter fluenceInterpreter = new FluenceInterpreter();
 
-            if (fluenceInterpreter.Compile(source)){
+            if (fluenceInterpreter.Compile(source))
+            {
                 fluenceInterpreter.Run();
             }
         }

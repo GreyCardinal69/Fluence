@@ -55,7 +55,7 @@ namespace Fluence
                 vm.DumpVariables();
 #endif
             }
-            catch(FluenceRuntimeException ex)
+            catch (FluenceRuntimeException ex)
             {
                 Console.WriteLine("Runtime Error:");
                 Console.WriteLine(ex.Message);

@@ -1273,7 +1273,7 @@ namespace Fluence
             string functionName = nameToken.Text;
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
-            int functionStartAddress = _currentParseState.CodeInstructions.Count - 1;
+            int functionStartAddress = _currentParseState.CodeInstructions.Count;
             FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress);
 
             UpdateFunctionSymbolsAndGenerateDeclaration(func, nameToken, inStruct, isInit, structName);
@@ -1295,7 +1295,7 @@ namespace Fluence
             }
 
             int afterBodyAddress = _currentParseState.CodeInstructions.Count;
-            _currentParseState.CodeInstructions[functionStartAddress].Lhs = new NumberValue(afterBodyAddress);
+            _currentParseState.CodeInstructions[functionStartAddress - 1].Lhs = new NumberValue(afterBodyAddress);
         }
 
         /// <summary>

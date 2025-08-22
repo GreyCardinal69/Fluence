@@ -282,7 +282,7 @@
 
         public override string ToString()
         {
-            if (Literal != null) return $"{Type}: {Text} [{Literal}]"; 
+            if (Literal != null) return $"{Type}: {Text} [{Literal}]";
             return string.IsNullOrEmpty(Text) ? Type.ToString() : $"{Type}: {Text}";
         }
     }

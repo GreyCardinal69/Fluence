@@ -51,30 +51,9 @@
                 return new NilValue();
             }));
 
-            global.Declare("input", new FunctionSymbol("input", 0, (args) =>
+            global.Declare("str", new FunctionSymbol("str", 1, (args) =>
             {
-                return new StringValue(Console.ReadLine() ?? string.Empty);
-            }));
-
-            global.Declare("random", new FunctionSymbol("random", 1, (args) =>
-            {
-                int value = Convert.ToInt32(((NumberValue)args[0]).Value);
-                return new NumberValue(new Random().Next(value));
-            }));
-
-            global.Declare("to_int", new FunctionSymbol("to_int", 1, (args) =>
-            {
-                return new NumberValue(Convert.ToInt32(args[0].ToString()), NumberValue.NumberType.Integer);
-            }));
-
-            global.Declare("length", new FunctionSymbol("length", 0, (args) =>
-            {
-                return new NumberValue(Convert.ToInt32(((ListValue)args[0]).Elements.Count), NumberValue.NumberType.Integer);
-            }));
-
-            global.Declare("input_int", new FunctionSymbol("input_int", 0, (args) =>
-            {
-                return new NumberValue(Convert.ToInt32(Console.ReadLine() ?? string.Empty));
+                return new StringValue(args[0].ToFluenceString());
             }));
         }
 

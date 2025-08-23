@@ -201,7 +201,7 @@ namespace Fluence
                     method = ListLengthIntrinsic;
                     return true;
                 default:
-                    method = null;
+                    method = null!;
                     return false;
             }
         }
@@ -210,11 +210,32 @@ namespace Fluence
     /// <summary>
     /// Represents a heap-allocated string object in the Fluence VM.
     /// </summary>
-    internal readonly record struct StringObject
+    internal record class StringObject : IFluenceObject
     {
         internal readonly string Value;
 
         internal StringObject(string value) => Value = value;
+
+        /// <summary>Implements the native length property for strings.</summary>
+        private static RuntimeValue StringLengthIntrinsic(IReadOnlyList<RuntimeValue> args)
+        {
+            var self = (StringObject)args[0].ObjectReference;
+            return new RuntimeValue(new NumberValue(self.Value.Length));
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method)
+        {
+            switch (name)
+            {
+                case "length":
+                    method = StringLengthIntrinsic;
+                    return true;
+                default:
+                    method = null!;
+                    return false;
+            }
+        }
 
         public override string ToString() => Value;
     }
@@ -365,7 +386,7 @@ namespace Fluence
                 value = t;
                 return true;
             }
-            value = default(T);
+            value = default;
             return false;
         }
 
@@ -373,7 +394,7 @@ namespace Fluence
         {
             if (ObjectReference is T)
             {
-                value = default(T);
+                value = default;
                 return false;
             }
 

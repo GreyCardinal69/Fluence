@@ -3191,7 +3191,7 @@ namespace Fluence
                     }
                     break;
                 case TokenType.NUMBER: return NumberValue.FromToken(token);
-                case TokenType.STRING: return new StringValue(token.Literal.ToString());
+                case TokenType.STRING: return new StringValue(token.Literal.ToString()!);
                 case TokenType.TRUE: return new BooleanValue(true);
                 case TokenType.FALSE: return new BooleanValue(false);
                 case TokenType.F_STRING: return ParseFString(token.Literal);

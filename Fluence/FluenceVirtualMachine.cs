@@ -263,7 +263,7 @@ namespace Fluence
             {
                 if (!instance!.Class.Functions.TryGetValue(methodName, out methodBlueprint))
                 {
-                    throw new FluenceRuntimeException($"Internal VM Error:Undefined method '{methodName}' on struct '{instance.Class.Name}'.");
+                    throw new FluenceRuntimeException($"Internal VM Error: Undefined method '{methodName}' on struct '{instance.Class.Name}'.");
                 }
             }
 
@@ -279,7 +279,7 @@ namespace Fluence
             int argCountOnStack = _operandStack.Count;
             if (functionToExecute.Arity != argCountOnStack)
             {
-                throw new FluenceRuntimeException($"Internal VM Error:Mismatched arity for method '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
+                throw new FluenceRuntimeException($"Internal VM Error: Mismatched arity for method '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
             }
 
             var newFrame = new CallFrame(functionToExecute, _ip, (TempValue)instruction.Lhs);
@@ -1209,7 +1209,8 @@ namespace Fluence
 
             int argCount = GetRuntimeValue(instruction.Rhs2).IntValue;
 
-            if (function.Arity != argCount)
+            // Intrinsic functions that have arity of -100 accept a dynamic amount of arguments.
+            if (function.Arity != argCount && function.Arity != -100)
             {
                 throw new FluenceRuntimeException($"Internal VM Error: Mismatched arguments for function '{function.Name}'. Expected {function.Arity}, but got {argCount}.");
             }

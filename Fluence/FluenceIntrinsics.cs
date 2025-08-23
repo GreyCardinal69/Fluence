@@ -38,7 +38,9 @@
         {
             var global = _parser.CurrentParserStateGlobalScope;
 
-            global.Declare("print", new FunctionSymbol("print", 1, (args) =>
+            /// !! -100 is a placeholder value, it tell that this method, can accept a dynamic amount of arguments.
+
+            global.Declare("printl", new FunctionSymbol("printl", -100, (args) =>
             {
                 if (args.Count < 1)
                 {

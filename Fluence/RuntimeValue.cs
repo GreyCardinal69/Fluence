@@ -186,7 +186,7 @@ namespace Fluence
         {
             var self = args[0].As<ListObject>();
             self!.Elements.Add(args[1]);
-            return new RuntimeValue(new NilValue());
+            return new RuntimeValue(null);
         }
 
         /// <inheritdoc/>
@@ -220,7 +220,7 @@ namespace Fluence
         private static RuntimeValue StringLengthIntrinsic(IReadOnlyList<RuntimeValue> args)
         {
             var self = (StringObject)args[0].ObjectReference;
-            return new RuntimeValue(new NumberValue(self.Value.Length));
+            return new RuntimeValue(self.Value.Length);
         }
 
         /// <inheritdoc/>

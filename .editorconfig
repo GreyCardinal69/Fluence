@@ -12,6 +12,9 @@ dotnet_diagnostic.CA1303.severity = none
 # CA1303: Do not pass literals as localized parameters
 dotnet_diagnostic.CA1303.severity = none
 
+# CS8600: Converting null literal or possible null value to non-nullable type.
+dotnet_diagnostic.CS8600.severity = none
+
 [*.{cs,vb}]
 dotnet_diagnostic.IDE0090.severity = none
 [*.{cs,vb}]

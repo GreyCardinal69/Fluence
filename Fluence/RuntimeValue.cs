@@ -177,14 +177,14 @@ namespace Fluence
         private static RuntimeValue ListLengthIntrinsic(IReadOnlyList<RuntimeValue> args)
         {
             // For a method call, 'self' is always passed as the first argument.
-            var self = args[0].ObjectReference as ListObject;
+            var self = args[0].As<ListObject>();
             return new RuntimeValue(self!.Elements.Count);
         }
 
         /// <summary>Implements the native 'push(element)' method for lists.</summary>
         private static RuntimeValue ListPushElementIntrinsic(IReadOnlyList<RuntimeValue> args)
         {
-            var self = args[0].ObjectReference as ListObject;
+            var self = args[0].As<ListObject>();
             self!.Elements.Add(args[1]);
             return new RuntimeValue(new NilValue());
         }
@@ -355,16 +355,51 @@ namespace Fluence
             ObjectReference = obj;
         }
 
+        internal bool Is<T>() => ObjectReference is T;
+        internal bool INot<T>() => ObjectReference is not T;
+
+        internal bool Is<T>(out T? value)
+        {
+            if (ObjectReference is T t)
+            {
+                value = t;
+                return true;
+            }
+            value = default(T);
+            return false;
+        }
+
+        internal bool IsNot<T>(out T? value) where T : class
+        {
+            if (ObjectReference is T)
+            {
+                value = default(T);
+                return false;
+            }
+
+            value = ObjectReference as T;
+            return true;
+        }
+
+        /// <summary>
+        /// Safely casts the internal <see cref="ObjectReference"/> to the specified type.
+        /// </summary>
+        internal T? As<T>() where T : class
+        {
+            return ObjectReference as T;
+        }
+
+        internal bool As<T>(out T? value) where T : class
+        {
+            value = ObjectReference as T;
+            return value != null;
+        }
+
         /// <summary>
         /// Gets a value indicating whether the <see cref="RuntimeValue"/> is "truthy".
         /// In Fluence, only 'nil' and 'false' are considered falsy.
         /// </summary>
         internal bool IsTruthy => !(Type == RuntimeValueType.Nil || (Type == RuntimeValueType.Boolean && IntValue == 0));
-
-        /// <summary>
-        /// A convenient way to get the heap-allocated object reference.
-        /// </summary>
-        internal object AsObject => Type == RuntimeValueType.Object ? ObjectReference : null!;
 
         /// <inheritdoc/>
         public override string ToString()

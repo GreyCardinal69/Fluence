@@ -25,7 +25,7 @@
 
         internal FluenceScope()
         {
-            _parentScope = null;
+            _parentScope = null!;
         }
 
         internal FluenceScope(FluenceScope parentScope, string name)
@@ -69,7 +69,7 @@
             return $"Scope: {Name}";
         }
 
-        // This scope
+        // This scope.
         internal bool TryGetLocalSymbol(string name, out Symbol symbol) => Symbols.TryGetValue(name, out symbol);
     }
 }

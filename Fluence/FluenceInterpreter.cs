@@ -51,9 +51,6 @@ namespace Fluence
             {
                 var vm = new FluenceVirtualMachine(_byteCode, _parseState);
                 vm.Run();
-#if DEBUG
-                vm.DumpVariables();
-#endif
             }
             catch (FluenceRuntimeException ex)
             {

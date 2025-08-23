@@ -1,4 +1,5 @@
-﻿using static Fluence.Token;
+﻿using System.Text;
+using static Fluence.Token;
 
 namespace Fluence
 {
@@ -692,16 +693,40 @@ namespace Fluence
             int stringOpenColumn = _currentColumn;
             int stringInitialLine = _currentLine;
 
+            StringBuilder sb = new StringBuilder();
+
             while (Peek() != '"' && !_hasReachedEndInternal)
             {
-                char peek = Peek();
-                if (peek == '\n') AdvanceCurrentLine();
+                char currentChar = AdvanceAndGet();
 
-                if (peek == '\\')
+                if (currentChar == '\n')
                 {
-                    AdvancePosition(); // Consume the '\'.
+                    AdvanceCurrentLine();
                 }
-                AdvancePosition();
+
+                if (currentChar == '\\')
+                {
+                    if (_hasReachedEndInternal) break;
+
+                    char escapedChar = AdvanceAndGet();
+                    switch (escapedChar)
+                    {
+                        case 'n': sb.Append('\n'); break;
+                        case 't': sb.Append('\t'); break;
+                        case 'r': sb.Append('\r'); break;
+                        case '"': sb.Append('\"'); break;
+                        case '\\': sb.Append('\\'); break;
+                        default:
+                            sb.Append('\\');
+                            sb.Append(escapedChar);
+                            break;
+                    }
+                }
+                else
+                {
+                    // It's a regular character.
+                    sb.Append(currentChar);
+                }
             }
 
             if (_hasReachedEndInternal)
@@ -714,11 +739,16 @@ namespace Fluence
 
             AdvancePosition(); // Consume the closing quote "
 
-            string literalValue = _sourceCode.Substring(startPos + (isFString ? 2 : 1), _currentPosition - startPos - (isFString ? 3 : 2));
-
             TokenType type = isFString ? TokenType.F_STRING : TokenType.STRING;
 
-            return MakeTokenAndTryAdvance(type, 0, null!, literalValue);
+            return MakeTokenAndTryAdvance(type, 0, null!, sb.ToString());
+        }
+
+        private char AdvanceAndGet()
+        {
+            char c = _sourceCode[_currentPosition];
+            AdvancePosition();
+            return c;
         }
 
         internal static string GetCodeLineFromSource(string source, int lineNumber)

@@ -1,7 +1,8 @@
 ﻿namespace Fluence
 {
     /// <summary>
-    /// The abstract base type for all values that can exist in the Fluence runtime or be represented in bytecode.
+    /// The abstract base type for all values that can be represented in bytecode.
+    /// These objects are used by the parser to build an abstract representation of the code.
     /// All value types are immutable records.
     /// </summary>
     internal abstract record class Value
@@ -10,70 +11,74 @@
         {
             return null!;
         }
+
+        /// <summary>
+        /// Provides a user-facing string representation of the value, as it would appear
+        /// when printed within the Fluence language itself.
+        /// </summary>
+        internal abstract string ToFluenceString();
     }
 
     /// <summary>Represents a single character literal.</summary>
     internal sealed record class CharValue(char Value) : Value
     {
-        internal override object GetValue()
-        {
-            return Value;
-        }
+        internal override object GetValue() => Value;
+        internal override string ToFluenceString() => Value.ToString();
 
-        public override string ToString() => $"Char: '{Value}'";
+        public override string ToString()
+        {
+            return $"CharValue: {Value}";
+        }
     }
 
     /// <summary>Represents a string literal.</summary>
     internal sealed record class StringValue(string Value) : Value
     {
-        internal override object GetValue()
-        {
-            return Value;
-        }
+        internal override object GetValue() => Value;
+        internal override string ToFluenceString() => Value;
 
-        public override string ToString() => $"String: \"{Value ?? "null"}\"";
+        public override string ToString()
+        {
+            return $"StringValue: {Value}";
+        }
     }
 
-    /// <summary>Represents the two boolean states, true and false.</summary>
-    internal sealed record class BooleanValue : Value
+    /// <summary>Represents a boolean literal (true or false).</summary>
+    internal sealed record class BooleanValue(bool Value) : Value
     {
-        internal bool Value;
+        internal override object GetValue() => Value;
+        internal override string ToFluenceString() => Value ? "true" : "false";
 
-        internal BooleanValue(bool value)
+        public override string ToString()
         {
-            Value = value;
+            return $"BooleanValue: {Value}";
         }
-
-        internal override object GetValue()
-        {
-            return Value;
-        }
-
-        public void Reinitialize(bool value)
-        {
-            Value = value;
-        }
-
-        public override string ToString() => $"Boolean: {Value}";
     }
 
     /// <summary>Represents the nil value.</summary>
     internal sealed record class NilValue : Value
     {
-        internal override object GetValue()
-        {
-            return null!;
-        }
+        internal override object GetValue() => null!;
+        internal override string ToFluenceString() => "nil";
 
-        public override string ToString() => "NilValue";
+        public override string ToString()
+        {
+            return $"NilValue";
+        }
     }
 
+    /// <summary>Represents a range literal, e.g., `1..10`.</summary>
     internal sealed record class RangeValue(Value Start, Value End) : Value
     {
-        public override string ToString() => $"Range<{Start}..{End}>";
+        internal override string ToFluenceString() => $"{Start.ToFluenceString()}..{End.ToFluenceString()}";
+
+        public override string ToString()
+        {
+            return $"RangeValue: {Start}:{End}";
+        }
     }
 
-    /// <summary>Represents a numerical value, which can be an Integer, Float, or Double.</summary>
+    /// <summary>Represents a numerical literal, which can be an Integer, Float, or Double.</summary>
     internal sealed record class NumberValue : Value
     {
         internal enum NumberType
@@ -83,8 +88,8 @@
             Double
         }
 
-        internal object Value { get; private set; }
-        internal NumberType Type { get; private set; }
+        internal object Value { get; init; }
+        internal NumberType Type { get; init; }
 
         internal NumberValue(object literal, NumberType type = NumberType.Integer)
         {
@@ -92,53 +97,28 @@
             Type = type;
         }
 
-        internal override object GetValue()
-        {
-            return Value;
-        }
-
-        public void Reinitialize(object value, NumberValue.NumberType type)
-        {
-            Value = value;
-            Type = type;
-        }
+        internal override object GetValue() => Value;
+        internal override string ToFluenceString() => Value.ToString()!;
 
         public static NumberValue FromToken(Token token)
         {
             string lexeme = token.Text;
-
-            // Check for float suffix
-            if (lexeme.EndsWith('f'))
+            if (lexeme.EndsWith('f') && float.TryParse(lexeme[..^1], out var floatVal))
             {
-                // It's a float. Parse it as such.
-                string floatStr = lexeme[..^1];
-                if (float.TryParse(floatStr, out float floatVal))
-                {
-                    return new NumberValue(floatVal, NumberType.Float);
-                }
+                return new NumberValue(floatVal, NumberType.Float);
             }
-            // Check for decimal point (but not float) -> double
-            else if (lexeme.Contains('.', StringComparison.Ordinal))
+            if (lexeme.Contains('.', StringComparison.OrdinalIgnoreCase) && double.TryParse(lexeme, out var doubleVal))
             {
-                if (double.TryParse(lexeme, out double doubleVal))
-                {
-                    return new NumberValue(doubleVal, NumberType.Double);
-                }
+                return new NumberValue(doubleVal, NumberType.Double);
             }
-            // Otherwise, it's an integer.
-            else
+            if (int.TryParse(lexeme, out var intVal))
             {
-                if (int.TryParse(lexeme, out int intVal))
-                {
-                    return new NumberValue(intVal, NumberType.Integer);
-                }
+                return new NumberValue(intVal, NumberType.Integer);
             }
-
-            if (double.TryParse(lexeme, out double fallbackVal))
+            if (double.TryParse(lexeme, out var fallbackVal))
             {
                 return new NumberValue(fallbackVal, NumberType.Double);
             }
-
             throw new FormatException($"Invalid number format: '{lexeme}'");
         }
 
@@ -148,13 +128,20 @@
         }
     }
 
-    /// <summary>A special value indicating that a statement has completed but produced no value. Used for postfix ops.</summary>
+    /// <summary>A special value indicating a statement completed but produced no result.</summary>
     internal sealed record class StatementCompleteValue : Value
     {
-        public override string ToString() => "StatementComplete";
+        internal override string ToFluenceString() => "<internal: statement_complete>";
+        public override string ToString()
+        {
+            return $"StatementCompleteValue";
+        }
     }
 
-    /// <summary>A descriptor representing an element access operation.</summary>
+    /// <summary>
+    /// A descriptor representing an element access operation.
+    /// The parser resolves this into GetElement or SetElement bytecode.
+    /// </summary>
     internal sealed record class ElementAccessValue : Value
     {
         internal Value Target { get; }
@@ -166,20 +153,28 @@
             Index = index;
         }
 
+        internal override string ToFluenceString() => "<internal: element_access>";
+
         public override string ToString()
         {
             return $"ElementAccessValue";
         }
     }
 
-    /// <summary>A descriptor for a broadcast call template.</summary>
+    /// <summary>A descriptor for a broadcast call template, used in chain assignments.</summary>
     internal sealed record class BroadcastCallTemplate : Value
     {
-        // The function to be called.
-        internal Value Callable { get; }
-        internal List<Value> Arguments { get; }
-        // The underscore used in pipes.
-        internal int PlaceholderIndex { get; }
+        /// <summary>
+        /// The function to be called.
+        /// </summary>
+        internal Value Callable { get; init; }
+
+        internal List<Value> Arguments { get; init; }
+
+        /// <summary>
+        /// The underscore used in pipes.
+        /// </summary>
+        internal int PlaceholderIndex { get; init; }
 
         public BroadcastCallTemplate(Value callable, List<Value> args, int placeholderIndex)
         {
@@ -187,22 +182,22 @@
             Arguments = args;
             PlaceholderIndex = placeholderIndex;
         }
+
+        internal override string ToFluenceString() => "<internal: broadcast_template>";
     }
 
-    /// <summary>A descriptor representing a temporary variable generated by the parser.</summary>
+    /// <summary>
+    /// A descriptor representing a temporary variable generated by the parser.
+    /// This should be resolved by the VM and never seen by the user.
+    /// </summary>
     internal sealed record class TempValue : Value
     {
         internal readonly string TempName;
 
-        internal TempValue(int num)
-        {
-            TempName = $"__Temp{num}";
-        }
+        internal TempValue(int num) => TempName = $"__Temp{num}";
+        internal TempValue(int num, string name) => TempName = $"{name}{num}";
 
-        internal TempValue(int num, string name)
-        {
-            TempName = $"{name}{num}";
-        }
+        internal override string ToFluenceString() => "<internal: temp>";
 
         public override string ToString()
         {
@@ -210,24 +205,50 @@
         }
     }
 
-    /// <summary>Represents a function or method. Can be a user-defined function with a bytecode address or a native intrinsic.</summary>
+    /// <summary>Represents a function's compile-time blueprint, including its bytecode address or native implementation.</summary>
     internal sealed record class FunctionValue : Value
     {
-        // The name of the function (for debugging/stack traces).
-        internal string Name { get; }
-        // The number of parameters the function expects.
-        internal int Arity { get; }
-        // The address of the first instruction of the function's body in the bytecode.
+        /// <summary>
+        /// The name of the function (for debugging/stack traces).
+        /// </summary>
+        internal string Name { get; init; }
+
+        /// <summary>
+        /// The number of parameters the function expects.
+        /// </summary>
+        internal int Arity { get; init; }
+
+        /// <summary>
+        /// The address of the first instruction of the function's body in the bytecode.
+        /// </summary>
         internal int StartAddress { get; private set; }
 
+        /// <summary>
+        /// The arguments of the function by name.
+        /// </summary>
+        internal List<string> Arguments { get; init; }
+
+        /// <summary>
+        /// The C# intrinsic body of the function, if it is intrinsic.
+        /// </summary>
         internal readonly IntrinsicMethod IntrinsicBody;
+
+        /// <summary>
+        /// Is the function intrinsic?
+        /// </summary>
         internal readonly bool IsIntrinsic;
 
-        internal FunctionValue(string name, int arity, int startAddress)
+        /// <summary>
+        /// The scope (namespace) the function belongs to.
+        /// </summary>
+        internal FluenceScope FunctionScope { get; private set; }
+
+        internal FunctionValue(string name, int arity, int startAddress, List<string> arguments = null)
         {
             Name = name;
             Arity = arity;
             StartAddress = startAddress;
+            Arguments = arguments;
         }
 
         public FunctionValue(string name, int arity, IntrinsicMethod body)
@@ -239,18 +260,28 @@
             IntrinsicBody = body;
         }
 
+        internal void SetScope(FluenceScope scope)
+        {
+            FunctionScope = scope;
+        }
+
         internal void SetStartAddress(int adr)
         {
             StartAddress = adr;
         }
 
+        internal override string ToFluenceString() => $"<function {Name}/{Arity}>";
+
         public override string ToString()
         {
-            return $"FunctionValue: {Name} {FluenceDebug.FormatByteCodeAddress(StartAddress)}, {Arity} args.";
+            return $"FunctionValue: {Name} {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} arg count. Args: {(Arguments != null ? string.Join(",", Arguments) : "None")}.";
         }
     }
 
-    /// <summary>A descriptor representing a property access operation.</summary>
+    /// <summary>
+    /// A descriptor representing a property access operation.
+    /// The parser resolves this into GetField or SetField bytecode.
+    /// </summary>
     internal sealed record class PropertyAccessValue : Value
     {
         internal readonly Value Target;
@@ -262,21 +293,28 @@
             FieldName = fieldName;
         }
 
+        internal override string ToFluenceString() => "<internal: property_access>";
+
         public override string ToString()
         {
             return $"FieldAccess<{Target}:{FieldName}>";
         }
     }
 
-    /// <summary>Represents a variable by its name. The VM resolves this to a value in a scope.</summary>
+    /// <summary>
+    /// Represents a variable by its name. The VM resolves this to a value in the current scope.
+    /// This is a descriptor and should never be seen directly by the user.
+    /// </summary>
     internal sealed record class VariableValue : Value
     {
-        internal string Name;
+        internal readonly string Name;
 
         internal VariableValue(string identifierValue)
         {
             Name = identifierValue;
         }
+
+        internal override string ToFluenceString() => "<internal: variable>";
 
         public override string ToString()
         {
@@ -284,17 +322,15 @@
         }
     }
 
-    /// <summary>Represents a specific member of an enum.</summary>
+    /// <summary>Represents a specific member of an enum, holding both its name and integer value.</summary>
     internal sealed record class EnumValue : Value
     {
-        internal string EnumTypeName { get; }
-        internal string MemberName;
-        internal int Value;
+        internal string EnumTypeName { get; init; }
+        internal readonly string MemberName;
+        internal readonly int Value;
 
-        internal override object GetValue()
-        {
-            return Value;
-        }
+        internal override object GetValue() => Value;
+        internal override string ToFluenceString() => $"{EnumTypeName}.{MemberName}";
 
         internal EnumValue(string enumTypeName, string memberName, int value)
         {

@@ -389,8 +389,6 @@ namespace Fluence
             Func<float, float, RuntimeValue> floatOp,
             Func<double, double, RuntimeValue> doubleOp)
         {
-            TempValue desination = (TempValue)instruction.Lhs;
-
             if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
             {
                 throw new FluenceRuntimeException($"Internal VM Error: ExecuteNumericBinaryOperation called with non-numeric types.");
@@ -1401,9 +1399,10 @@ namespace Fluence
                     _ => NumberValue.NumberType.Double,
                 }),
                 RuntimeValueType.Object when rtValue.ObjectReference is StringObject str => new StringValue(str.Value),
-                RuntimeValueType.Object when rtValue.ObjectReference is ListObject list => new ListValue(list.Elements.Select(ToValue).ToList()),
+                RuntimeValueType.Object when rtValue.ObjectReference is ListObject list => new ListValue([.. list.Elements.Select(ToValue)]),
                 RuntimeValueType.Object when rtValue.ObjectReference is InstanceObject instance => new StructValue(instance.Class, instance._fields),
-                _ => throw new FluenceRuntimeException($"Internal VM Error: Cannot convert runtime type '{rtValue.Type}' back to a bytecode value.")
+                RuntimeValueType.Object when rtValue.ObjectReference is Value val => val,
+                _ => throw new FluenceRuntimeException($"Internal VM Error: Cannot convert runtime object '{rtValue}' back to a bytecode value.")
             };
         }
     }

@@ -193,7 +193,7 @@ namespace Fluence
                     break;
 
                 case FunctionSymbol functionSymbol:
-                    sb.Append(indent).Append($"Symbol: {symbolName}, type Function Header {{ Arity: {functionSymbol.Arity}, StartAddress: {FluenceDebug.FormatByteCodeAddress(functionSymbol.StartAddress)} }}").AppendLine();
+                    sb.Append(indent).Append($"Symbol: {symbolName}, type Function Header {{ Arity: {functionSymbol.Arity}, StartAddress: {FluenceDebug.FormatByteCodeAddress(functionSymbol.StartAddress)}, Args: {string.Join(",", functionSymbol.Arguments ?? new List<string>())} }}").AppendLine();
                     break;
 
                 case StructSymbol structSymbol:
@@ -476,6 +476,7 @@ namespace Fluence
             // Start scanning for members after the opening '('.
             // `func` `Name` `(`
             int currentIndex = startTokenIndex + 3;
+            List<string> paramaters = new List<string>();
 
             while (currentIndex < endTokenIndex)
             {
@@ -483,6 +484,7 @@ namespace Fluence
 
                 if (currentTokenType == TokenType.IDENTIFIER)
                 {
+                    paramaters.Add(_lexer.PeekAheadByN(currentIndex + 1).Text);
                     arity++;
                     currentIndex++;
                 }
@@ -494,7 +496,7 @@ namespace Fluence
                 currentIndex++;
             }
 
-            FunctionSymbol functionSymbol = new FunctionSymbol(funcName, arity, -1);
+            FunctionSymbol functionSymbol = new FunctionSymbol(funcName, arity, -1, paramaters);
 
             _currentParseState.CurrentScope.Declare(funcName, functionSymbol);
         }
@@ -550,6 +552,7 @@ namespace Fluence
                     Token funcToken = _lexer.PeekAheadByN(i + 2);
                     currentIndex++;
                     string funcName = funcToken.Text;
+                    List<string> args = new List<string>();
 
                     int arity = 0;
                     while (_lexer.PeekAheadByN(currentIndex).Type != TokenType.R_PAREN)
@@ -558,6 +561,7 @@ namespace Fluence
 
                         if (currentToken.Type == TokenType.IDENTIFIER)
                         {
+                            args.Add(_lexer.PeekAheadByN(currentIndex).Text);
                             arity++;
                             currentIndex++;
                         }
@@ -573,7 +577,7 @@ namespace Fluence
                         currentIndex++;
                     }
 
-                    FunctionValue functionValue = new FunctionValue(funcName, arity, -1);
+                    FunctionValue functionValue = new FunctionValue(funcName, arity, -1, args);
 
                     i = FindFunctionBodyEnd(currentIndex);
 
@@ -1209,6 +1213,7 @@ namespace Fluence
                     {
                         ConstructAndThrowParserException($"Internal error: Method '{funcValue.Name}' not found in the symbol table for struct '{structName}'.", nameToken);
                     }
+                    functionValue!.SetScope(_currentParseState.CurrentScope);
                     functionValue!.SetStartAddress(functionStartAddress);
                     _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{functionValue.Name}"), functionValue));
                     return;
@@ -1242,6 +1247,7 @@ namespace Fluence
                     );
                 }
                 structSymbol.Constructor!.SetStartAddress(functionStartAddress);
+                structSymbol.Constructor!.SetScope(_currentParseState.CurrentScope);
                 _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{structSymbol.Constructor.Name}"), structSymbol.Constructor));
             }
             // Standalone function.
@@ -1274,7 +1280,8 @@ namespace Fluence
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
             int functionStartAddress = _currentParseState.CodeInstructions.Count;
-            FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress);
+
+            FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress, parameters);
 
             UpdateFunctionSymbolsAndGenerateDeclaration(func, nameToken, inStruct, isInit, structName);
 
@@ -3006,6 +3013,11 @@ namespace Fluence
                             left = new PropertyAccessValue(left, memberToken.Text);
                         }
                     }
+                    else
+                    {
+                        // For everything else (variables, index results, function results), create a PropertyAccessValue.
+                        left = new PropertyAccessValue(left, memberToken.Text);
+                    }
                 }
                 // Function call.
                 else if (type == TokenType.L_PAREN)
@@ -3037,7 +3049,7 @@ namespace Fluence
             }
 
             TempValue result = new TempValue(_currentParseState.NextTempNumber++);
-
+      
             if (callable is PropertyAccessValue propAccess)
             {
                 // This is a method call: instance.Method().

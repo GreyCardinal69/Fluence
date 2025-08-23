@@ -205,6 +205,48 @@
         }
     }
 
+    /// <summary>
+    /// Represents a simple list.
+    /// </summary>
+    internal sealed record class ListValue : Value
+    {
+        internal readonly List<Value> Elements;
+
+        internal ListValue()
+        {
+            Elements = new List<Value>();
+        }
+
+        internal ListValue(List<Value> elements)
+        {
+            Elements = elements;
+        }
+
+        /// <summary>
+        /// Provides a user-friendly string representation of the list, suitable for the `print` function.
+        /// </summary>
+        /// <returns>A string in the format "[element1, element2, ...]".</returns>
+        public override string ToString()
+        {
+            // Limit the number of elements shown for very large lists to avoid flooding the console.
+            const int maxElementsToShow = 20;
+            var elementsToShow = Elements.Take(maxElementsToShow);
+            string formattedElements = string.Join(", ", elementsToShow);
+
+            if (Elements.Count > maxElementsToShow)
+            {
+                formattedElements += $", ... ({Elements.Count - maxElementsToShow} more)";
+            }
+
+            return $"[{formattedElements}]";
+        }
+
+        internal override string ToFluenceString()
+        {
+            return $"{string.Join(",", Elements)}";
+        }
+    }
+
     /// <summary>Represents a function's compile-time blueprint, including its bytecode address or native implementation.</summary>
     internal sealed record class FunctionValue : Value
     {
@@ -342,6 +384,31 @@
         public override string ToString()
         {
             return $"EnumValue: {EnumTypeName}.{MemberName}";
+        }
+    }
+
+    /// <summary>
+    /// Represents a struct instance.
+    /// </summary>
+    internal sealed record class StructValue : Value
+    {
+        internal readonly StructSymbol Struct;
+        internal readonly Dictionary<string, RuntimeValue> Fields;
+
+        internal StructValue(StructSymbol structSym, Dictionary<string, RuntimeValue> fields)
+        {
+            Struct = structSym;
+            Fields = fields;
+        }
+
+        public override string ToString()
+        {
+            return $"{Struct} + {Fields}";
+        }
+
+        internal override string ToFluenceString()
+        {
+            return $"<internal: struct_value>";
         }
     }
 }

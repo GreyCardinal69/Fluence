@@ -27,8 +27,8 @@
             // Fluence namespace oriented around something specific.
             RegisterMathNamespace();
 
-            // Core Fluence types like string, list and their methods.
-            RegisterCoreTypes();
+            // For built in objects like list, their intrinsics like Length(), or Push() are inside their
+            // Definition inside RuntimeValue.cs
         }
 
         /// <summary>
@@ -54,6 +54,27 @@
             global.Declare("input", new FunctionSymbol("input", 0, (args) =>
             {
                 return new StringValue(Console.ReadLine() ?? string.Empty);
+            }));
+
+            global.Declare("random", new FunctionSymbol("random", 1, (args) =>
+            {
+                int value = Convert.ToInt32(((NumberValue)args[0]).Value);
+                return new NumberValue(new Random().Next(value));
+            }));
+
+            global.Declare("to_int", new FunctionSymbol("to_int", 1, (args) =>
+            {
+                return new NumberValue(Convert.ToInt32(args[0].ToString()), NumberValue.NumberType.Integer);
+            }));
+
+            global.Declare("length", new FunctionSymbol("length", 0, (args) =>
+            {
+                return new NumberValue(Convert.ToInt32(((ListValue)args[0]).Elements.Count), NumberValue.NumberType.Integer);
+            }));
+
+            global.Declare("input_int", new FunctionSymbol("input_int", 0, (args) =>
+            {
+                return new NumberValue(Convert.ToInt32(Console.ReadLine() ?? string.Empty));
             }));
         }
 
@@ -85,25 +106,6 @@
 
                 double radians = Convert.ToDouble(num.Value);
                 return new NumberValue(Math.Sin(radians));
-            }));
-        }
-
-        /// <summary>
-        /// Creates and registers intrinsic struct types such as list, string and their intrinsic methods.
-        /// </summary>
-        private void RegisterCoreTypes()
-        {
-            var global = _parser.CurrentParserStateGlobalScope;
-
-            var listSymbol = new StructSymbol("List");
-
-            listSymbol.Functions.Add("length", new FunctionValue("length", 0, (args) =>
-            {
-                if (args[0] is ListValue list)
-                {
-                    return new NumberValue(list.Elements.Count);
-                }
-                return new NumberValue(0);
             }));
         }
     }

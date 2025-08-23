@@ -3049,7 +3049,7 @@ namespace Fluence
             }
 
             TempValue result = new TempValue(_currentParseState.NextTempNumber++);
-      
+
             if (callable is PropertyAccessValue propAccess)
             {
                 // This is a method call: instance.Method().

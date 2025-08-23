@@ -1,41 +1,233 @@
-﻿namespace Fluence
+﻿using System.Globalization;
+using System.Runtime.InteropServices;
+using static Fluence.FluenceVirtualMachine;
+
+namespace Fluence
 {
-    internal sealed class ListObject
+    /// <summary>
+    /// Represents a "closure" that binds an instance of an object (the receiver).
+    /// </summary>
+    internal sealed class BoundMethodObject
     {
-        public readonly List<RuntimeValue> Elements = new();
+        /// <summary>
+        /// The instance of the object that the method belongs to. This will be passed as 'self'.
+        /// </summary>
+        internal InstanceObject Receiver { get; }
+
+        /// <summary>
+        /// The compile-time blueprint of the function to be called.
+        /// </summary>
+        internal FunctionValue Method { get; }
+
+        public BoundMethodObject(InstanceObject receiver, FunctionValue method)
+        {
+            Receiver = receiver;
+            Method = method;
+        }
 
         public override string ToString()
         {
-            return $"[{string.Join(", ", Elements)}]";
+            return $"<bound method {Method.Name} of {Receiver}>";
+        }
+    }
+
+    /// <summary>
+    /// Represents the runtime instance of a function, containing all information needed
+    /// to execute it, including its bytecode address and lexical scope.
+    /// </summary>
+    internal sealed class FunctionObject
+    {
+        /// <summary>The name of the function.</summary>
+        internal string Name { get; }
+
+        /// <summary>The number of parameters the function expects.</summary>
+        internal int Arity { get; }
+
+        /// <summary>The instruction pointer address where the function's bytecode begins.</summary>
+        internal int StartAddress { get; }
+
+        /// <summary>The names of the function's parameters.</summary>
+        internal List<string> Parameters { get; }
+
+        /// <summary>The lexical scope in which the function was defined, used for resolving non-local variables.</summary>
+        internal FluenceScope DefiningScope { get; }
+
+        /// <summary>Indicates whether this function is implemented in C# or Fluence bytecode.</summary>
+        internal bool IsIntrinsic { get; }
+
+        /// <summary>The C# delegate that implements the body of an intrinsic function.</summary>
+        internal IntrinsicMethod IntrinsicBody { get; }
+
+        public FunctionObject(string name, int arity, List<string> parameters, int startAddress, FluenceScope definingScope)
+        {
+            Name = name;
+            Arity = arity;
+            Parameters = parameters;
+            StartAddress = startAddress;
+            DefiningScope = definingScope;
+            IsIntrinsic = false;
+        }
+
+        // Constructor for C# intrinsic functions.
+        public FunctionObject(string name, int arity, IntrinsicMethod body, FluenceScope definingScope)
+        {
+            Name = name;
+            Arity = arity;
+            StartAddress = -1; // No bytecode address.
+            Parameters = new List<string>();
+            DefiningScope = definingScope;
+            IsIntrinsic = true;
+            IntrinsicBody = body;
+        }
+
+        public override string ToString() => $"<function {Name}/{Arity}>";
+    }
+
+    /// <summary>
+    /// Defines an interface for native C# objects that can expose their own methods
+    /// directly to the Fluence VM, bypassing the standard bytecode call mechanism for performance.
+    /// </summary>
+    internal interface IFluenceObject
+    {
+        /// <summary>
+        /// Attempts to retrieve a native C# method implementation by its name.
+        /// </summary>
+        /// <param name="name">The name of the method being called in the script.</param>
+        /// <param name="method">When this method returns, contains the C# delegate for the method if found; otherwise, null.</param>
+        /// <returns><c>true</c> if an intrinsic method with the specified name was found; otherwise, <c>false</c>.</returns>
+        bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method);
+    }
+
+    /// <summary>
+    /// Represents a runtime instance of a user-defined 'struct'. It holds a reference
+    /// to its class blueprint (the StructSymbol) and its own set of instance fields.
+    /// </summary>
+    internal sealed class InstanceObject
+    {
+        /// <summary>
+        /// The compile-time "class" or blueprint that defines the structure and methods for this instance.
+        /// </summary>
+        internal StructSymbol Class { get; }
+
+        /// <summary>
+        /// A dictionary storing the state of this specific instance. Each instance gets its own fields.
+        /// </summary>
+        internal readonly Dictionary<string, RuntimeValue> _fields = new();
+
+        internal InstanceObject(StructSymbol @class)
+        {
+            Class = @class;
+        }
+
+        /// <summary>
+        /// Gets the value of a field or method from the instance.
+        /// The lookup order is: 1. Instance Fields, 2. Class Methods.
+        /// </summary>
+        /// <param name="fieldName">The name of the property or method to access.</param>
+        /// <returns>The <see cref="RuntimeValue"/> of the field or a <see cref="BoundMethodObject"/> for a method.</returns>
+        /// <exception cref="FluenceRuntimeException">Thrown if the property or method is not defined.</exception>
+        internal RuntimeValue GetField(string fieldName)
+        {
+            if (_fields.TryGetValue(fieldName, out var value))
+            {
+                return value;
+            }
+
+            if (Class.Functions.TryGetValue(fieldName, out var method))
+            {
+                // Create a new BoundMethodObject that pairs this instance ('self') with the method blueprint.
+                var boundMethod = new BoundMethodObject(this, method);
+                return new RuntimeValue(boundMethod);
+            }
+
+            throw new FluenceRuntimeException($"Undefined property or method '{fieldName}' on struct '{Class.Name}'.");
+        }
+
+        /// <summary>
+        /// Sets the value of a field on the instance.
+        /// </summary>
+        /// <param name="fieldName">The name of the field to set.</param>
+        /// <param name="value">The new value for the field.</param>
+        internal void SetField(string fieldName, RuntimeValue value)
+        {
+            _fields[fieldName] = value;
+        }
+
+        public override string ToString()
+        {
+            return $"<instance of {Class.Name}>";
+        }
+    }
+
+    /// <summary>
+    /// Represents the runtime instance of a list, which can contain any <see cref="RuntimeValue"/>.
+    /// Implements <see cref="IFluenceObject"/> to provide fast, native C# methods.
+    /// </summary>
+    internal sealed class ListObject : IFluenceObject
+    {
+        internal readonly List<RuntimeValue> Elements = new();
+
+        public override string ToString()
+        {
+            return $"ListObject [{string.Join(", ", Elements)}]";
+        }
+
+        /// <summary>Implements the native 'length()' method for lists.</summary>
+        /// <remarks>The calling convention for intrinsics is that args[0] is always 'self'.</remarks>
+        private static RuntimeValue ListLengthIntrinsic(IReadOnlyList<RuntimeValue> args)
+        {
+            // For a method call, 'self' is always passed as the first argument.
+            var self = args[0].ObjectReference as ListObject;
+            return new RuntimeValue(self!.Elements.Count);
+        }
+
+        /// <summary>Implements the native 'push(element)' method for lists.</summary>
+        private static RuntimeValue ListPushElementIntrinsic(IReadOnlyList<RuntimeValue> args)
+        {
+            var self = args[0].ObjectReference as ListObject;
+            self!.Elements.Add(args[1]);
+            return new RuntimeValue(new NilValue());
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method)
+        {
+            switch (name)
+            {
+                case "push":
+                    method = ListPushElementIntrinsic;
+                    return true;
+                case "length":
+                    method = ListLengthIntrinsic;
+                    return true;
+                default:
+                    method = null;
+                    return false;
+            }
         }
     }
 
     /// <summary>
     /// Represents a heap-allocated string object in the Fluence VM.
     /// </summary>
-    internal sealed class StringObject
+    internal readonly record struct StringObject
     {
-        public readonly string Value;
+        internal readonly string Value;
 
-        public StringObject(string value)
-        {
-            Value = value;
-        }
+        internal StringObject(string value) => Value = value;
 
         public override string ToString() => Value;
-        public override int GetHashCode() => Value.GetHashCode();
-        public override bool Equals(object obj) => obj is StringObject other && Value.Equals(other.Value);
     }
 
     /// <summary>
-    /// Represents a heap-allocated range object.
+    /// Represents a heap-allocated range object, typically used in for-in loops.
     /// </summary>
     internal sealed class RangeObject
     {
-        public RuntimeValue Start { get; }
-        public RuntimeValue End { get; }
+        internal RuntimeValue Start { get; }
+        internal RuntimeValue End { get; }
 
-        public RangeObject(RuntimeValue start, RuntimeValue end)
+        internal RangeObject(RuntimeValue start, RuntimeValue end)
         {
             Start = start;
             End = end;
@@ -45,14 +237,17 @@
     }
 
     /// <summary>
-    /// Represents the state of an ongoing iteration over an iterable object ( a range in a for in loop ).
+    /// Represents the state of an ongoing iteration over an iterable object (like a list or range).
     /// </summary>
     internal sealed class IteratorObject
     {
-        public object Iterable { get; }
-        public int CurrentIndex { get; set; }
+        /// <summary>The object being iterated over.</summary>
+        internal object Iterable { get; }
 
-        public IteratorObject(object iterable)
+        /// <summary>The current position within the iteration./summary>
+        internal int CurrentIndex { get; set; }
+
+        internal IteratorObject(object iterable)
         {
             Iterable = iterable;
             CurrentIndex = 0;
@@ -60,7 +255,7 @@
     }
 
     /// <summary>
-    /// An enum that acts as a discriminator to identify the type of data stored in a RuntimeValue.
+    /// A discriminator to identify the fundamental type of data stored in a <see cref="RuntimeValue"/>.
     /// </summary>
     internal enum RuntimeValueType : byte
     {
@@ -71,90 +266,123 @@
     }
 
     /// <summary>
-    /// Represents any value that can exist in the Fluence VM at runtime.
+    /// A sub-discriminator used when <see cref="RuntimeValueType"/> is <see cref="RuntimeValueType.Number"/>.
     /// </summary>
+    internal enum RuntimeNumberType
+    {
+        Int,
+        Double,
+        Float,
+        Long,
+    }
+
+    /// <summary>
+    /// Represents any value that can exist in the Fluence VM at runtime.
+    /// This is a high-performance, 24-byte struct that acts as a tagged union.
+    /// </summary>
+    [StructLayout(LayoutKind.Explicit)]
     internal readonly record struct RuntimeValue
     {
-        public readonly double NumberValue; // For all numbers (int, float, double) and booleans (0 or 1).
-        public readonly object ObjectReference; // A reference to a heap object (String, ListObject, InstanceObject, etc.).
-        public readonly RuntimeValueType Type;
+        [FieldOffset(0)]
+        internal readonly long LongValue;
+        [FieldOffset(0)]
+        internal readonly double DoubleValue;
+        [FieldOffset(0)]
+        internal readonly int IntValue;
+        [FieldOffset(0)]
+        internal readonly float FloatValue;
 
-        public static readonly RuntimeValue Nil = new(RuntimeValueType.Nil);
+        [FieldOffset(8)]
+        internal readonly object ObjectReference; // A reference to a heap object (String, ListObject, InstanceObject, etc.).
+        [FieldOffset(16)]
+        internal readonly RuntimeValueType Type;
+        [FieldOffset(17)]
+        internal readonly RuntimeNumberType NumberType;
+
+        internal static readonly RuntimeValue Nil = new(RuntimeValueType.Nil);
 
         private RuntimeValue(RuntimeValueType type)
         {
-            ObjectReference = null!;
-            NumberValue = 0;
+            this = default;
             Type = type;
         }
 
-        public RuntimeValue(bool value)
+        internal RuntimeValue(bool value)
         {
-            ObjectReference = null!;
-            NumberValue = value ? 1 : 0;
+            this = default;
             Type = RuntimeValueType.Boolean;
+            // Booleans can be stored in the IntValue field.
+            IntValue = value ? 1 : 0;
         }
 
-        public RuntimeValue(double value)
+        internal RuntimeValue(double value)
         {
-            ObjectReference = null!;
-            NumberValue = value;
+            this = default;
             Type = RuntimeValueType.Number;
+            NumberType = RuntimeNumberType.Double;
+            DoubleValue = value;
         }
 
-        public RuntimeValue(int value)
+        internal RuntimeValue(int value)
         {
-            ObjectReference = null!;
-            NumberValue = value;
+            this = default;
             Type = RuntimeValueType.Number;
+            NumberType = RuntimeNumberType.Int;
+            IntValue = value;
         }
 
-        public RuntimeValue(float value)
+        internal RuntimeValue(float value)
         {
-            ObjectReference = null!;
-            NumberValue = value;
+            this = default;
             Type = RuntimeValueType.Number;
+            NumberType = RuntimeNumberType.Float;
+            FloatValue = value;
+        }
+
+        internal RuntimeValue(long value)
+        {
+            this = default;
+            Type = RuntimeValueType.Number;
+            NumberType = RuntimeNumberType.Long;
+            LongValue = value;
         }
 
         // This constructor is for all heap-allocated types.
-        public RuntimeValue(object obj)
+        internal RuntimeValue(object obj)
         {
-            NumberValue = 0;
-            ObjectReference = obj;
+            this = default;
             Type = RuntimeValueType.Object;
+            ObjectReference = obj;
         }
 
         /// <summary>
-        /// Checks the "truthiness" of the value.
-        /// Only nil and false are falsy.
+        /// Gets a value indicating whether the <see cref="RuntimeValue"/> is "truthy".
+        /// In Fluence, only 'nil' and 'false' are considered falsy.
         /// </summary>
-        public bool IsTruthy => !(Type == RuntimeValueType.Nil || (Type == RuntimeValueType.Boolean && NumberValue == 0));
+        internal bool IsTruthy => !(Type == RuntimeValueType.Nil || (Type == RuntimeValueType.Boolean && IntValue == 0));
 
         /// <summary>
-        /// A convenient way to get the value as a boolean.
+        /// A convenient way to get the heap-allocated object reference.
         /// </summary>
-        public bool AsBoolean => Type == RuntimeValueType.Boolean && NumberValue != 0;
+        internal object AsObject => Type == RuntimeValueType.Object ? ObjectReference : null!;
 
-        public object AsObject => Type == RuntimeValueType.Object ? ObjectReference : null;
-
-        public override string ToString() => Type switch
-        {
-            RuntimeValueType.Nil => "nil",
-            RuntimeValueType.Boolean => NumberValue != 0 ? "true" : "false",
-            RuntimeValueType.Number => NumberValue.ToString(),
-            RuntimeValueType.Object => ObjectReference?.ToString() ?? "nil",
-            _ => "??? (Undefined Value)"
-        };
-
-        public override int GetHashCode()
+        /// <inheritdoc/>
+        public override string ToString()
         {
             return Type switch
             {
-                RuntimeValueType.Nil => (int)Type,
-                RuntimeValueType.Boolean => NumberValue.GetHashCode() ^ Type.GetHashCode(),
-                RuntimeValueType.Number => NumberValue.GetHashCode() ^ Type.GetHashCode(),
-                RuntimeValueType.Object => ObjectReference?.GetHashCode() ?? 0 ^ Type.GetHashCode(),
-                _ => 0
+                RuntimeValueType.Nil => "nil",
+                RuntimeValueType.Boolean => (IntValue != 0).ToString().ToLower(CultureInfo.InvariantCulture),
+                RuntimeValueType.Number => NumberType switch
+                {
+                    RuntimeNumberType.Int => IntValue.ToString(),
+                    RuntimeNumberType.Long => LongValue.ToString(),
+                    RuntimeNumberType.Float => FloatValue.ToString(CultureInfo.InvariantCulture),
+                    RuntimeNumberType.Double => DoubleValue.ToString(CultureInfo.InvariantCulture),
+                    _ => "??? (Invalid NumberType)"
+                },
+                RuntimeValueType.Object => ObjectReference?.ToString() ?? "nil",
+                _ => "??? (Undefined Value)",
             };
         }
     }

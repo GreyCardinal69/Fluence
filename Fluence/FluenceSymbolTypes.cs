@@ -26,6 +26,11 @@
         {
             Name = name;
         }
+
+        internal override string ToFluenceString()
+        {
+            return $"<internal: enum_symbol>";
+        }
     }
 
     /// <summary>
@@ -36,23 +41,23 @@
         /// <summary>
         /// The name of the struct.
         /// </summary>
-        internal string Name { get; }
+        internal string Name { get; init; }
 
         /// <summary>
         /// The list of declared field names.
         /// </summary>
-        internal List<string> Fields { get; } = new();
+        internal List<string> Fields { get; init; } = new();
 
         /// <summary>
         /// Gets a dictionary of methods defined within the struct, mapping method names to their <see cref="FunctionValue"/>s.
         /// </summary>
-        internal Dictionary<string, FunctionValue> Functions { get; } = new();
+        internal Dictionary<string, FunctionValue> Functions { get; init; } = new();
 
         /// <summary>
         /// Gets a dictionary mapping field names to the sequence of tokens representing their default value expression.
         /// This is populated during the pre-pass and used during the main pass to generate constructor bytecode.
         /// </summary>
-        internal Dictionary<string, List<Token>> DefaultFieldValuesAsTokens { get; } = new();
+        internal Dictionary<string, List<Token>> DefaultFieldValuesAsTokens { get; init; } = new();
 
         /// <summary>
         /// Gets or sets the constructor function (`init`) for this struct.
@@ -68,6 +73,11 @@
         public override string ToString()
         {
             return $"StructSymbol<{Name}>";
+        }
+
+        internal override string ToFluenceString()
+        {
+            return $"<internal: struct_symbol>";
         }
     }
 
@@ -87,12 +97,12 @@
         /// <summary>
         /// The name of the function.
         /// </summary>
-        internal string Name { get; }
+        internal string Name { get; init; }
 
         /// <summary>
         /// The number of parameters the function is declared to accept (excluding the implicit 'self' for methods).
         /// </summary>
-        internal int Arity { get; }
+        internal int Arity { get; init; }
 
         /// <summary>
         /// The starting address of the function's bytecode. For intrinsics, this is -1.
@@ -102,12 +112,14 @@
         /// <summary>
         /// Gets a value indicating whether this function is a native C# intrinsic.
         /// </summary>
-        internal bool IsIntrinsic { get; }
+        internal bool IsIntrinsic { get; init; }
 
         /// <summary>
         /// If this is an intrinsic function, gets the C# delegate that implements its logic.
         /// </summary>
-        internal IntrinsicMethod IntrinsicBody { get; }
+        internal IntrinsicMethod IntrinsicBody { get; init; }
+
+        internal List<string> Arguments { get; init; }
 
         /// <summary>
         /// Sets the bytecode start address for this function. Called by the parser during the second pass.
@@ -120,13 +132,14 @@
         /// <param name="name">The name of the intrinsic function.</param>
         /// <param name="arity">The number of arguments the function expects.</param>
         /// <param name="body">The C# delegate that executes the function's logic.</param>
-        internal FunctionSymbol(string name, int arity, IntrinsicMethod body)
+        internal FunctionSymbol(string name, int arity, IntrinsicMethod body, List<string> arguments = null!)
         {
             Name = name;
             Arity = arity;
             StartAddress = -1; // Special address for intrinsics
             IsIntrinsic = true;
             IntrinsicBody = body;
+            Arguments = arguments;
         }
 
         /// <summary>
@@ -135,12 +148,18 @@
         /// <param name="name">The name of the function.</param>
         /// <param name="arity">The number of arguments the function expects.</param>
         /// <param name="startAddress">The initial start address (usually -1, resolved later).</param>
-        internal FunctionSymbol(string name, int arity, int startAddress)
+        internal FunctionSymbol(string name, int arity, int startAddress, List<string> arguments = null!)
         {
             Name = name;
             Arity = arity;
             StartAddress = startAddress;
             IsIntrinsic = false;
+            Arguments = arguments;
+        }
+
+        internal override string ToFluenceString()
+        {
+            return $"<internal: function_symbol>";
         }
     }
 }

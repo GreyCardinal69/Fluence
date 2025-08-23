@@ -46,7 +46,7 @@
                 }
                 else
                 {
-                    Console.WriteLine(args[0]?.ToString() ?? "nil");
+                    Console.WriteLine(args[0]?.ToFluenceString() ?? "nil");
                 }
                 return new NilValue();
             }));

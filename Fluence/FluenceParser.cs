@@ -231,6 +231,16 @@ namespace Fluence
         {
             ParseTokens();
 
+            FunctionSymbol mainFunctionSymbol = FindEntryPoint();
+
+            if (mainFunctionSymbol == null)
+            {
+                ConstructAndThrowParserException("Could not find a 'Main' function entry point.", new Token(TokenType.UNKNOWN));
+                return;
+            }
+
+            _currentParseState.GlobalScope.Declare("Main", mainFunctionSymbol);
+
             _currentParseState.AddCodeInstruction(
                 new InstructionLine(
                     InstructionCode.CallFunction,
@@ -278,6 +288,38 @@ namespace Fluence
 
                 ParseStatement();
             }
+        }
+
+        /// <summary>
+        /// Searches for the main entry point function ("Main") for the program.
+        /// The search order is: 1. Inside a "Program" namespace. 2. In the global scope. 3. Namespaces.
+        /// </summary>
+        /// <returns>The FunctionSymbol for the entry point, or null if not found.</returns>
+        private FunctionSymbol FindEntryPoint()
+        {
+            if (_currentParseState.NameSpaces.TryGetValue("Program", out var programScope))
+            {
+                if (programScope.TryResolve("Main", out var mainSymbol) && mainSymbol is FunctionSymbol mainFunc)
+                {
+                    return mainFunc;
+                }
+            }
+
+            if (_currentParseState.GlobalScope.TryResolve("Main", out var globalMainSymbol) )
+            {
+                return (FunctionSymbol)globalMainSymbol;
+            }
+
+            foreach (var pair in _currentParseState.NameSpaces)
+            {
+                var scope = pair.Value;
+                if (scope.TryResolve("Main", out Symbol mainFunc))
+                {
+                    return (FunctionSymbol)mainFunc;
+                }
+            }
+
+            return null!; // No entry point found.
         }
 
         /// <summary>
@@ -496,7 +538,7 @@ namespace Fluence
                 currentIndex++;
             }
 
-            FunctionSymbol functionSymbol = new FunctionSymbol(funcName, arity, -1, paramaters);
+            FunctionSymbol functionSymbol = new FunctionSymbol(funcName, arity, -1, paramaters, _currentParseState.CurrentScope);
 
             _currentParseState.CurrentScope.Declare(funcName, functionSymbol);
         }
@@ -513,73 +555,59 @@ namespace Fluence
             string structName = nameToken.Text;
             StructSymbol structSymbol = new StructSymbol(structName);
 
-            for (int i = startTokenIndex + 3; i < endTokenIndex; i++)
-            {
-                Token token = _lexer.PeekAheadByN(i + 1);
+            int currentIndex = startTokenIndex + 3;
 
-                if (token.Type == TokenType.IDENTIFIER && _lexer.PeekTokenTypeAheadByN(i + 2) == TokenType.EQUAL)
+            while (currentIndex < endTokenIndex)
+            {
+                Token token = _lexer.PeekAheadByN(currentIndex + 1);
+
+                if (token.Type == TokenType.IDENTIFIER && _lexer.PeekTokenTypeAheadByN(currentIndex + 2) == TokenType.EQUAL)
                 {
                     structSymbol.Fields.Add(token.Text);
 
-                    int statementEndIndex = i + 2;
-                    while (statementEndIndex < endTokenIndex && _lexer.PeekAheadByN(statementEndIndex + 1).Type != TokenType.EOL)
+                    int statementEndIndex = currentIndex + 1;
+                    while (statementEndIndex < endTokenIndex && _lexer.PeekTokenTypeAheadByN(statementEndIndex + 1) != TokenType.EOL)
                     {
                         statementEndIndex++;
                     }
 
-                    // We store the tokens that represent the default value of the field.
-                    // These are converted into actual bytecode in the second pass of the parser
-                    // When we generate bytecode for the init constructor function.
                     List<Token> defaultValueTokens = new List<Token>();
-                    for (int z = i + 3; z < statementEndIndex + 1; z++)
+
+                    for (int z = currentIndex + 3; z <= statementEndIndex; z++)
                     {
                         defaultValueTokens.Add(_lexer.PeekAheadByN(z));
                     }
-                    i = statementEndIndex;
 
                     structSymbol.DefaultFieldValuesAsTokens.TryAdd(token.Text, defaultValueTokens);
-                }
-                else if (token.Type == TokenType.FUNC)
-                {
-                    int currentIndex = i + 3;
-                    Token next = _lexer.PeekAheadByN(currentIndex);
 
-                    if (next.Type != TokenType.L_PAREN)
+                    currentIndex = statementEndIndex + 1;
+                    continue;
+                }
+
+                if (token.Type == TokenType.FUNC)
+                {
+                    Token funcToken = _lexer.PeekAheadByN(currentIndex + 2);
+                    string funcName = funcToken.Text;
+
+                    int headerEndIndex = currentIndex + 1;
+                    while (headerEndIndex < endTokenIndex && _lexer.PeekTokenTypeAheadByN(headerEndIndex + 1) != TokenType.ARROW)
                     {
-                        continue;
+                        headerEndIndex++;
                     }
 
-                    Token funcToken = _lexer.PeekAheadByN(i + 2);
-                    currentIndex++;
-                    string funcName = funcToken.Text;
                     List<string> args = new List<string>();
-
                     int arity = 0;
-                    while (_lexer.PeekAheadByN(currentIndex).Type != TokenType.R_PAREN)
+                    for (int argScanIndex = currentIndex + 3; argScanIndex < headerEndIndex; argScanIndex++)
                     {
-                        Token currentToken = _lexer.PeekAheadByN(currentIndex);
-
-                        if (currentToken.Type == TokenType.IDENTIFIER)
+                        if (_lexer.PeekTokenTypeAheadByN(argScanIndex + 1) == TokenType.IDENTIFIER)
                         {
-                            args.Add(_lexer.PeekAheadByN(currentIndex).Text);
+                            args.Add(_lexer.PeekAheadByN(argScanIndex + 1).Text);
                             arity++;
-                            currentIndex++;
                         }
-                        else if (currentToken.Type == TokenType.COMMA)
-                        {
-                            currentIndex++;
-                        }
-                        else if (currentToken.Type == TokenType.ARROW)
-                        {
-                            break;
-                        }
-
-                        currentIndex++;
                     }
 
                     FunctionValue functionValue = new FunctionValue(funcName, arity, -1, args);
-
-                    i = FindFunctionBodyEnd(currentIndex);
+                    functionValue.SetScope(_currentParseState.CurrentScope);
 
                     if (funcName == "init")
                     {
@@ -588,14 +616,20 @@ namespace Fluence
                             ConstructAndThrowParserException($"Struct '{structName}' can only have one 'init' constructor.", funcToken);
                         }
                         structSymbol.Constructor = functionValue;
-                        continue;
+                       
                     }
 
                     if (!structSymbol.Functions.TryAdd(funcName, functionValue))
                     {
                         ConstructAndThrowParserException($"Method '{funcName}' is already defined in struct '{structName}'.", funcToken);
                     }
+
+                    int functionBodyEndIndex = FindFunctionBodyEnd(headerEndIndex);
+                    currentIndex = functionBodyEndIndex + 1;
+                    continue;
                 }
+
+                currentIndex++;
             }
 
             if (!_currentParseState.CurrentScope.Declare(structName, structSymbol))
@@ -1717,7 +1751,7 @@ namespace Fluence
                 }
                 foreach (var entry in namespaceToUse!.Symbols)
                 {
-                    if (!_currentParseState.CurrentScope.Declare(entry.Key, entry.Value))
+                    if (!_currentParseState.CurrentScope.Declare(entry.Key, entry.Value) && !(_currentParseState.CurrentScope.UsedScopes.Contains(entry.Key)))
                     {
                         ConstructAndThrowParserException($"Symbol '{entry.Key}' from namespace '{namespaceName}' conflicts with a symbol already defined in this scope.", nameToken);
                     }

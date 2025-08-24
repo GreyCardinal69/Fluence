@@ -199,6 +199,7 @@ namespace Fluence
                 BooleanValue boolean => new RuntimeValue(boolean.Value),
                 NilValue => RuntimeValue.Nil,
                 StringValue str => new RuntimeValue(new StringObject(str.Value)),
+                CharValue ch => new RuntimeValue(new CharObject(ch.Value)),
                 RangeValue range => new RuntimeValue(new RangeObject(GetRuntimeValue(range.Start), GetRuntimeValue(range.End))),
                 FunctionValue func => new RuntimeValue(func),
                 _ => throw new FluenceRuntimeException($"Internal VM Error: Unrecognized Value type '{val.GetType().Name}' during conversion.")
@@ -216,7 +217,6 @@ namespace Fluence
             }
 
             string methodName = methodNameVal.Value;
-
             var instanceVal = GetRuntimeValue(instruction.Rhs);
 
             // Check if the object is a native type (like List) that exposes fast C# methods.
@@ -242,7 +242,7 @@ namespace Fluence
                 }
             }
 
-            if (instanceVal.IsNot(out InstanceObject instance))
+            if (instanceVal.ObjectReference is not InstanceObject instance)
             {
                 throw new FluenceRuntimeException($"Internal VM Error: Cannot call method '{methodName}' on a non-instance object.");
             }
@@ -331,7 +331,7 @@ namespace Fluence
                                 funcSymbol.Name,
                                 funcSymbol.Arity,
                                 funcSymbol.IntrinsicBody,
-                                CurrentFrame.Function.DefiningScope
+                                null!
                             )
                             // Create a user-defined (bytecode) function object.
                             : new FunctionObject(
@@ -339,7 +339,7 @@ namespace Fluence
                                 funcSymbol.Arity,
                                 funcSymbol.Arguments,
                                 funcSymbol.StartAddress,
-                                CurrentFrame.Function.DefiningScope
+                                funcSymbol.DefiningScope
                             )
                     ),
                     // In the future, other symbol types like global constants could be handled here.
@@ -1402,6 +1402,7 @@ namespace Fluence
                 RuntimeValueType.Object when rtValue.ObjectReference is StringObject str => new StringValue(str.Value),
                 RuntimeValueType.Object when rtValue.ObjectReference is ListObject list => new ListValue([.. list.Elements.Select(ToValue)]),
                 RuntimeValueType.Object when rtValue.ObjectReference is InstanceObject instance => new StructValue(instance.Class, instance._fields),
+                RuntimeValueType.Object when rtValue.ObjectReference is CharObject ch => new CharValue(ch.Value),
                 RuntimeValueType.Object when rtValue.ObjectReference is Value val => val,
                 _ => throw new FluenceRuntimeException($"Internal VM Error: Cannot convert runtime object '{rtValue}' back to a bytecode value.")
             };

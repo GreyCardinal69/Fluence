@@ -4,6 +4,12 @@ using static Fluence.FluenceVirtualMachine;
 
 namespace Fluence
 {
+    //
+    //      ==!!==
+    //      Built-in types, if they have intrinsics, must return RuntimeValue and not Value
+    //      unlike normal namespace or global intrinsic functions.
+
+
     /// <summary>
     /// Represents a "closure" that binds an instance of an object (the receiver).
     /// </summary>
@@ -250,7 +256,7 @@ namespace Fluence
         private static RuntimeValue StringToUpperIntrinsic(IReadOnlyList<RuntimeValue> args)
         {
             var self = (StringObject)args[0].ObjectReference;
-            return new RuntimeValue(self.Value.ToUpperInvariant());
+            return new RuntimeValue(new StringObject(self.Value.ToUpperInvariant()));
         }
 
         /// <summary>Implements the native IndexOf function for strings.</summary>

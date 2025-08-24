@@ -40,7 +40,7 @@
         public override string ToString()
         {
             // First 15 chars are enough.
-            return $"StringValue: \"{Value[Math.Min(15, Value.Length)..]}...\"";
+            return $"StringValue: \"{Value.Substring(0,Math.Min(15, Value.Length))}...\"";
         }
     }
 

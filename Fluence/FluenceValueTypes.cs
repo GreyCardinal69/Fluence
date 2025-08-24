@@ -318,7 +318,7 @@
 
         public override string ToString()
         {
-            string args = (Arguments == null || Arguments.Count == 0 ) ? "None" : string.Join(",", Arguments);
+            string args = (Arguments == null || Arguments.Count == 0) ? "None" : string.Join(",", Arguments);
             return $"FunctionValue: {Name} {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} args: {args}.";
         }
     }

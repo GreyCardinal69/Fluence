@@ -186,6 +186,23 @@ namespace Fluence
                 return ResolveVariable(variable.Name);
             }
 
+            if (val is FunctionValue func)
+            { 
+                    // A FunctionValue from the bytecode is just a blueprint.
+                    // We must convert it into a live, runtime FunctionObject.
+                    if (func.IsIntrinsic)
+                    {
+                        // This handles global intrinsics like 'printl'.
+                        return new RuntimeValue(new FunctionObject(func.Name, func.Arity, func.IntrinsicBody, func.FunctionScope));
+                    }
+                    else
+                    {
+                        // This handles user-defined functions like 'double' and 'Main'.
+                        return new RuntimeValue(new FunctionObject(func.Name, func.Arity, func.Arguments, func.StartAddress, func.FunctionScope));
+                    }
+               
+            }
+
             return val switch
             {
                 CharValue ch => new RuntimeValue(new CharObject(ch.Value)),
@@ -201,7 +218,6 @@ namespace Fluence
                 NilValue => RuntimeValue.Nil,
                 StringValue str => new RuntimeValue(new StringObject(str.Value)),
                 RangeValue range => new RuntimeValue(new RangeObject(GetRuntimeValue(range.Start), GetRuntimeValue(range.End))),
-                FunctionValue func => new RuntimeValue(func),
                 _ => throw new FluenceRuntimeException($"Internal VM Error: Unrecognized Value type '{val.GetType().Name}' during conversion.")
             };
         }
@@ -316,7 +332,7 @@ namespace Fluence
             {
                 return localValue;
             }
-
+             
             // Check the current function's lexical scope and its parents.
             var lexicalScope = CurrentFrame.Function.DefiningScope;
             if (lexicalScope.TryResolve(internedName, out var symbol))
@@ -342,6 +358,7 @@ namespace Fluence
                                 funcSymbol.DefiningScope
                             )
                     ),
+                    VariableSymbol variableSymbol => new RuntimeValue(variableSymbol.Value),
                     // In the future, other symbol types like global constants could be handled here.
                     _ => throw new FluenceRuntimeException($"Internal VM Error: Don't know how to create a runtime value for symbol of type '{symbol.GetType().Name}'.")
                 };
@@ -1096,6 +1113,23 @@ namespace Fluence
                         }
 
                         char charAsString = str.Value[index];
+                        var resultStringObject = new CharObject(charAsString);
+                        SetRegister((TempValue)instruction.Lhs, new RuntimeValue(resultStringObject));
+                        break;
+                    }
+                case StringValue str2:
+                    {
+                        if (indexVal.Type != RuntimeValueType.Number)
+                        {
+                            throw new FluenceRuntimeException($"Runtime Error: String index must be a number, not '{GetDetailedTypeName(indexVal)}'.");
+                        }
+                        int index = indexVal.IntValue;
+                        if (index < 0 || index >= str2.Value.Length)
+                        {
+                            throw new FluenceRuntimeException($"Runtime Error: Index out of range. Index was {index}, but string length is {str2.Value.Length}.");
+                        }
+
+                        char charAsString = str2.Value[index];
                         var resultStringObject = new CharObject(charAsString);
                         SetRegister((TempValue)instruction.Lhs, new RuntimeValue(resultStringObject));
                         break;

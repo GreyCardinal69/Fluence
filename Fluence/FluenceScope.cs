@@ -1,4 +1,4 @@
-﻿using System.Xml.Linq;
+﻿using static Fluence.FluenceByteCode;
 
 namespace Fluence
 {
@@ -22,19 +22,25 @@ namespace Fluence
         /// <summary>
         /// Gets the parent scope in the hierarchy. This is null for the global scope.
         /// </summary>
-        private readonly FluenceScope _parentScope;
+        internal FluenceScope ParentScope { get; init; }
+
+        /// <summary>
+        /// The runtime storage for this scope's global variables.
+        /// This is used by the VM to store the actual RuntimeValues.
+        /// </summary>
+        internal readonly Dictionary<string, RuntimeValue> RuntimeStorage = new Dictionary<string, RuntimeValue>();
 
         internal bool Contains(string name) => TryResolve(name, out _);
         internal bool ContainsLocal(string name) => TryGetLocalSymbol(name, out _);
 
         internal FluenceScope()
         {
-            _parentScope = null!;
+            ParentScope = null!;
         }
 
         internal FluenceScope(FluenceScope parentScope, string name)
         {
-            _parentScope = parentScope;
+            ParentScope = parentScope;
             Name = name;
         }
 
@@ -46,7 +52,7 @@ namespace Fluence
         /// <returns>True if the symbol was declared successfully; false if a symbol with the same name already exists in this scope.</returns>
         internal bool Declare(string name, Symbol symbol)
         {
-            if (DeclareInternal(name,symbol))
+            if (DeclareInternal(name, symbol))
             {
                 UsedScopes.Add(name);
                 return true;
@@ -73,12 +79,12 @@ namespace Fluence
                 return true;
             }
 
-            if (_parentScope != null)
+            if (ParentScope != null)
             {
-                return _parentScope.TryResolve(name, out symbol);
+                return ParentScope.TryResolve(name, out symbol);
             }
 
-            symbol = null;
+            symbol = null!;
             return false;
         }
 

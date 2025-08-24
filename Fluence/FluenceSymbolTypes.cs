@@ -122,6 +122,11 @@
         internal List<string> Arguments { get; init; }
 
         /// <summary>
+        /// Keeps track in which namespace the function is defined in.
+        /// </summary>
+        internal FluenceScope DefiningScope { get; init; }
+
+        /// <summary>
         /// Sets the bytecode start address for this function. Called by the parser during the second pass.
         /// </summary>
         internal void SetStartAddress(int addr) => StartAddress = addr;
@@ -132,7 +137,7 @@
         /// <param name="name">The name of the intrinsic function.</param>
         /// <param name="arity">The number of arguments the function expects.</param>
         /// <param name="body">The C# delegate that executes the function's logic.</param>
-        internal FunctionSymbol(string name, int arity, IntrinsicMethod body, List<string> arguments = null!)
+        internal FunctionSymbol(string name, int arity, IntrinsicMethod body, List<string> arguments = null!, FluenceScope definingScope = null!)
         {
             Name = name;
             Arity = arity;
@@ -140,6 +145,7 @@
             IsIntrinsic = true;
             IntrinsicBody = body;
             Arguments = arguments;
+            DefiningScope = definingScope;
         }
 
         /// <summary>
@@ -148,13 +154,14 @@
         /// <param name="name">The name of the function.</param>
         /// <param name="arity">The number of arguments the function expects.</param>
         /// <param name="startAddress">The initial start address (usually -1, resolved later).</param>
-        internal FunctionSymbol(string name, int arity, int startAddress, List<string> arguments = null!)
+        internal FunctionSymbol(string name, int arity, int startAddress, List<string> arguments = null!, FluenceScope definingScope = null!)
         {
             Name = name;
             Arity = arity;
             StartAddress = startAddress;
             IsIntrinsic = false;
             Arguments = arguments;
+            DefiningScope = definingScope;
         }
 
         internal override string ToFluenceString()

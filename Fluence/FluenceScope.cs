@@ -1,4 +1,6 @@
-﻿namespace Fluence
+﻿using System.Xml.Linq;
+
+namespace Fluence
 {
     /// <summary>
     /// Manages a lexical scope, holding a table of symbols and a reference to its parent scope.
@@ -14,6 +16,8 @@
         /// Gets the name of this scope, primarily used for debugging and error messages.
         /// </summary>
         internal string Name { get; private set; }
+
+        internal readonly List<string> UsedScopes = new List<string>();
 
         /// <summary>
         /// Gets the parent scope in the hierarchy. This is null for the global scope.
@@ -40,7 +44,21 @@
         /// <param name="name">The name of the symbol.</param>
         /// <param name="symbol">The symbol to declare.</param>
         /// <returns>True if the symbol was declared successfully; false if a symbol with the same name already exists in this scope.</returns>
-        internal bool Declare(string name, Symbol symbol) => Symbols.TryAdd(name, symbol);
+        internal bool Declare(string name, Symbol symbol)
+        {
+            if (DeclareInternal(name,symbol))
+            {
+                UsedScopes.Add(name);
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool DeclareInternal(string name, Symbol symbol)
+        {
+            return Symbols.TryAdd(name, symbol);
+        }
 
         /// <summary>
         /// Tries to resolve a symbol by searching this scope and, if not found, recursively searching all parent scopes.

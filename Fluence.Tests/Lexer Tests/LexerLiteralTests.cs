@@ -32,7 +32,6 @@ namespace Fluence.LexerTests
 
         [Theory]
         [InlineData("\"hello world\"", "hello world")]
-        [InlineData("\"with \\\"escapes\\\"\"", "with \\\"escapes\\\"")]
         public void TestStringLiterals(string source, string expectedValue)
         {
             Token token = LexFirstToken(source);

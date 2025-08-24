@@ -68,11 +68,11 @@ namespace Fluence.ParserTests
             var parser = CreateParser(source);
             FluenceIntrinsics fluenceIntrinsics = new FluenceIntrinsics(parser);
             fluenceIntrinsics.Register();
-            parser.Parse();
+            parser.Parse(true);
             var symbolTree = GetSymbolTree(parser);
 
             // --- Assertions for Global Scope ---
-            Assert.True(symbolTree.GlobalScope.Contains("print")); // Intrinsic
+            Assert.True(symbolTree.GlobalScope.Contains("printl")); // Intrinsic
             Assert.True(symbolTree.GlobalScope.Contains("A_1"));
             Assert.True(symbolTree.GlobalScope.Contains("Globuloid_1"));
             Assert.True(symbolTree.GlobalScope.Contains("A_2"));

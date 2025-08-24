@@ -106,9 +106,15 @@ namespace Fluence
                 FunctionVariableDeclarations.Add(instructionLine);
             }
 
+            /// <summary>
+            /// Indicates that we are working with test code, usually test units, which use incomplete code,
+            /// simple statements or expressions. In this case we add all instructions into <see cref="CodeInstructions"/> regardless of state.
+            /// </summary>
+            internal bool AllowTestCode { get; set; }
+
             internal void AddCodeInstruction(InstructionLine instructionLine)
             {
-                if (!IsParsingFunctionBody)
+                if (!IsParsingFunctionBody && !AllowTestCode)
                 {
 
                     ScriptInitializerCode.Add(instructionLine);
@@ -255,6 +261,8 @@ namespace Fluence
         /// <param name="allowTestCode"></param>
         internal void Parse(bool allowTestCode = false)
         {
+            _currentParseState.AllowTestCode = allowTestCode;
+
             ParseTokens();
 
             if (!allowTestCode)
@@ -275,7 +283,10 @@ namespace Fluence
             // Finally we call Main.
             _currentParseState.InsertFunctionVariableDeclarations();
 
-            _currentParseState.CodeInstructions.InsertRange(_currentParseState.CodeInstructions.Count, _currentParseState.ScriptInitializerCode);
+            if (_currentParseState.ScriptInitializerCode.Count > 0)
+            {
+                _currentParseState.CodeInstructions.InsertRange(_currentParseState.CodeInstructions.Count, _currentParseState.ScriptInitializerCode);
+            }
 
             _currentParseState.IsParsingFunctionBody = true;
             _currentParseState.AddCodeInstruction(

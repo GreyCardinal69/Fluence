@@ -227,19 +227,28 @@ namespace Fluence
             }
         }
 
-        internal void Parse()
+        /// <summary>
+        /// Parses the entire source code. If allowTestCode is true, parses partial code
+        /// ( Only used in tests to test small snippets, this omits the Main function declaration
+        /// and Main function call bytecode checks. )
+        /// </summary>
+        /// <param name="allowTestCode"></param>
+        internal void Parse(bool allowTestCode = false)
         {
             ParseTokens();
 
-            FunctionSymbol mainFunctionSymbol = FindEntryPoint();
-
-            if (mainFunctionSymbol == null)
+            if (!allowTestCode)
             {
-                ConstructAndThrowParserException("Could not find a 'Main' function entry point.", new Token(TokenType.UNKNOWN));
-                return;
-            }
+                FunctionSymbol mainFunctionSymbol = FindEntryPoint();
 
-            _currentParseState.GlobalScope.Declare("Main", mainFunctionSymbol);
+                if (mainFunctionSymbol == null)
+                {
+                    ConstructAndThrowParserException("Could not find a 'Main' function entry point.", new Token(TokenType.UNKNOWN));
+                    return;
+                }
+
+                _currentParseState.GlobalScope.Declare("Main", mainFunctionSymbol);
+            }
 
             _currentParseState.AddCodeInstruction(
                 new InstructionLine(

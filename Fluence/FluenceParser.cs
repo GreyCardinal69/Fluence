@@ -75,7 +75,15 @@ namespace Fluence
             /// <summary>A temporary list that collects all function/method `Assign` instructions during parsing.</summary>
             internal readonly List<InstructionLine> FunctionVariableDeclarations = new List<InstructionLine>();
 
+            /// <summary>
+            /// A temporary list that collects bytecode instructions for the initialization of scope global variables.
+            /// Those bytecodes are placed before call to main, but after functions have been assigned.
+            /// </summary>
             internal readonly List<InstructionLine> ScriptInitializerCode = new List<InstructionLine>();
+
+            /// <summary>
+            /// Indicates whether the current expression, statement is inside a function, or within a raw scope.
+            /// </summary>
             internal bool IsParsingFunctionBody { get; set; }
 
             /// <summary>The struct symbol currently being parsed, or null.</summary>
@@ -102,6 +110,7 @@ namespace Fluence
             {
                 if (!IsParsingFunctionBody)
                 {
+
                     ScriptInitializerCode.Add(instructionLine);
                     return;
                 }
@@ -202,7 +211,7 @@ namespace Fluence
                     break;
 
                 case FunctionSymbol functionSymbol:
-                    sb.Append(indent).Append($"Symbol: {symbolName}, type Function Header {{ Arity: {functionSymbol.Arity}, StartAddress: {FluenceDebug.FormatByteCodeAddress(functionSymbol.StartAddress)}, Args: {string.Join(",", functionSymbol.Arguments ?? new List<string>())} }}").AppendLine();
+                    sb.Append(indent).Append($"Symbol: {symbolName}, type Function Header {{ Arity: {functionSymbol.Arity}, Scope: {functionSymbol.DefiningScope}, StartAddress: {FluenceDebug.FormatByteCodeAddress(functionSymbol.StartAddress)}, Args: {string.Join(",", functionSymbol.Arguments ?? new List<string>())} }}").AppendLine();
                     break;
                 case VariableSymbol variableSymbol:
                     sb.Append(indent).Append($"Symbol: {symbolName}, type VariableSymbol: {variableSymbol}.").AppendLine();
@@ -261,6 +270,9 @@ namespace Fluence
                 _currentParseState.GlobalScope.Declare("Main", mainFunctionSymbol);
             }
 
+            // We first insert the function declarations.
+            // Then we insert the all the scopes' global variables' intialization bytecodes.
+            // Finally we call Main.
             _currentParseState.InsertFunctionVariableDeclarations();
 
             _currentParseState.CodeInstructions.InsertRange(_currentParseState.CodeInstructions.Count, _currentParseState.ScriptInitializerCode);
@@ -320,22 +332,14 @@ namespace Fluence
         /// <returns>The FunctionSymbol for the entry point, or null if not found.</returns>
         private FunctionSymbol FindEntryPoint()
         {
-            if (_currentParseState.NameSpaces.TryGetValue("Program", out var programScope))
-            {
-                if (programScope.TryResolve("Main", out var mainSymbol) && mainSymbol is FunctionSymbol mainFunc)
-                {
-                    return mainFunc;
-                }
-            }
 
             if (_currentParseState.GlobalScope.TryResolve("Main", out var globalMainSymbol))
             {
                 return (FunctionSymbol)globalMainSymbol;
             }
 
-            foreach (var pair in _currentParseState.NameSpaces)
+            foreach (var scope in _currentParseState.NameSpaces.Values)
             {
-                var scope = pair.Value;
                 if (scope.TryResolve("Main", out Symbol mainFunc))
                 {
                     return (FunctionSymbol)mainFunc;
@@ -1681,10 +1685,29 @@ namespace Fluence
                     stringParts.Add(new StringValue(literalPart));
                 }
 
-                int exprEnd = fstringContent.IndexOf('}', exprStart);
-                if (exprEnd == -1)
+                int braceDepth = 1;
+                int scanIndex = exprStart + 1;
+
+                while (braceDepth > 0 && scanIndex < fstringContent.Length)
                 {
-                    ConstructAndThrowParserException("Unclosed expression in f-string.", _lexer.PeekNextToken());
+                    char c = fstringContent[scanIndex];
+                    if (c == '{') braceDepth++;
+                    else if (c == '}') braceDepth--;
+                    scanIndex++;
+                }
+
+                int exprEnd;
+                if (braceDepth == 0)
+                {
+                    // We found the matching brace. Its index is one before the final scanIndex.
+                    exprEnd = scanIndex - 1;
+                }
+                else
+                {
+                    // If the loop finished without finding a match, the brace is unclosed.
+                    Token errorToken = _lexer.PeekAheadByN(0);
+                    ConstructAndThrowParserException("Unclosed expression in f-string.", errorToken);
+                    return new NilValue();
                 }
 
                 // Parse the expression inside the braces.
@@ -1727,7 +1750,10 @@ namespace Fluence
             FluenceLexer savedLexer = _lexer;
             try
             {
+                Console.WriteLine(source);
                 _lexer = new FluenceLexer(source);
+                _lexer.LexFullSource();
+                _lexer.RemoveLexerEOLS();
                 return ResolveValue(ParseTernary());
             }
             catch (FluenceException)
@@ -1953,7 +1979,7 @@ namespace Fluence
             List<Value> lhs = new List<Value>();
             do
             {
-                lhs.Add(ParseTernary());
+                lhs.Add((ParseTernary()));
             } while (ConsumeTokenIfMatch(TokenType.COMMA));
 
             return lhs;
@@ -2020,7 +2046,8 @@ namespace Fluence
             do
             {
                 TempValue valueToAssign = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, valueToAssign, rhsExpressions[lhsIndex]));
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, valueToAssign, ResolveValue(rhsExpressions[lhsIndex])));
 
                 int skipOptionalAssign = -1;
                 if (isOptional)
@@ -2077,6 +2104,7 @@ namespace Fluence
                 Value rhs = ParseTernary();
 
                 TempValue valueToAssign = new TempValue(_currentParseState.NextTempNumber++);
+
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, valueToAssign, rhs));
 
                 int skipOptionalAssign = -1;
@@ -2846,11 +2874,7 @@ namespace Fluence
             switch (descriptor)
             {
                 case VariableValue variable:
-                    // Global scope variable.
-                    if (!_currentParseState.IsParsingFunctionBody)
-                    {
-                        _currentParseState.CurrentScope.Declare(variable.Name, new VariableSymbol(variable.Name, valueToAssign));
-                    }
+                    _currentParseState.CurrentScope.Declare(variable.Name, new VariableSymbol(variable.Name, valueToAssign));
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, variable, valueToAssign));
                     break;
                 case PropertyAccessValue propAccess:

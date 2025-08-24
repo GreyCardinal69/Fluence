@@ -570,7 +570,7 @@ namespace Fluence
             {
                 Token token = _lexer.PeekAheadByN(currentIndex + 1);
 
-                if (token.Type == TokenType.IDENTIFIER && _lexer.PeekTokenTypeAheadByN(currentIndex + 2) == TokenType.EQUAL)
+                if (token.Type == TokenType.IDENTIFIER)
                 {
                     structSymbol.Fields.Add(token.Text);
 
@@ -587,7 +587,7 @@ namespace Fluence
                         defaultValueTokens.Add(_lexer.PeekAheadByN(z));
                     }
 
-                    structSymbol.DefaultFieldValuesAsTokens.TryAdd(token.Text, defaultValueTokens);
+                    structSymbol.DefaultFieldValuesAsTokens.TryAdd(token.Text, defaultValueTokens.Count == 0 ? [new Token(TokenType.NIL)] : defaultValueTokens);
 
                     currentIndex = statementEndIndex + 1;
                     continue;

@@ -2933,7 +2933,7 @@ namespace Fluence
 
                 foreach (var arg in arguments)
                 {
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, arg));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, ResolveValue(arg)));
                 }
 
                 // The new instance is stored in 'instance'.

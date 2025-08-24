@@ -39,7 +39,8 @@
 
         public override string ToString()
         {
-            return $"StringValue: {Value}";
+            // First 15 chars are enough.
+            return $"StringValue: \"{Value[Math.Min(15, Value.Length)..]}...\"";
         }
     }
 
@@ -316,7 +317,8 @@
 
         public override string ToString()
         {
-            return $"FunctionValue: {Name} {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} arg count. Args: {(Arguments != null ? string.Join(",", Arguments) : "None")}.";
+            string args = (Arguments == null || Arguments.Count == 0 ) ? "None" : string.Join(",", Arguments);
+            return $"FunctionValue: {Name} {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} args: {args}.";
         }
     }
 

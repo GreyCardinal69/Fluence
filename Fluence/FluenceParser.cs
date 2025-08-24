@@ -1979,7 +1979,7 @@ namespace Fluence
             List<Value> lhs = new List<Value>();
             do
             {
-                lhs.Add((ParseTernary()));
+                lhs.Add(ParseTernary());
             } while (ConsumeTokenIfMatch(TokenType.COMMA));
 
             return lhs;

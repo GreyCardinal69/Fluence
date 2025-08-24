@@ -1,6 +1,4 @@
-﻿using static Fluence.FluenceByteCode;
-
-namespace Fluence
+﻿namespace Fluence
 {
     /// <summary>
     /// Manages a lexical scope, holding a table of symbols and a reference to its parent scope.

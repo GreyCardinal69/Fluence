@@ -42,6 +42,9 @@ namespace Fluence
         /// <summary>The stack used for passing arguments to functions and for temporary operand storage.</summary>
         private readonly Stack<RuntimeValue> _operandStack = new();
 
+        /// <summary> The list of all namespaces in the source code. </summary>
+        private readonly Dictionary<string, FluenceScope> Namespaces;
+
         /// <summary>The Instruction Pointer, which holds the address of the *next* instruction to be executed.</summary>
         private int _ip;
 
@@ -146,8 +149,10 @@ namespace Fluence
             _dispatchTable[(int)InstructionCode.GotoIfFalse] = (inst) => ExecuteGotoIf(inst, false);
             _dispatchTable[(int)InstructionCode.GotoIfTrue] = (inst) => ExecuteGotoIf(inst, true);
 
-            // Simple case for Terminate
+            // Simple case for Terminate.
             _dispatchTable[(int)InstructionCode.Terminate] = (inst) => _ip = _byteCode.Count;
+
+            Namespaces = parseState.NameSpaces;
         }
 
         /// <summary>
@@ -187,20 +192,20 @@ namespace Fluence
             }
 
             if (val is FunctionValue func)
-            { 
-                    // A FunctionValue from the bytecode is just a blueprint.
-                    // We must convert it into a live, runtime FunctionObject.
-                    if (func.IsIntrinsic)
-                    {
-                        // This handles global intrinsics like 'printl'.
-                        return new RuntimeValue(new FunctionObject(func.Name, func.Arity, func.IntrinsicBody, func.FunctionScope));
-                    }
-                    else
-                    {
-                        // This handles user-defined functions like 'double' and 'Main'.
-                        return new RuntimeValue(new FunctionObject(func.Name, func.Arity, func.Arguments, func.StartAddress, func.FunctionScope));
-                    }
-               
+            {
+                // A FunctionValue from the bytecode is just a blueprint.
+                // We must convert it into a live, runtime FunctionObject.
+                if (func.IsIntrinsic)
+                {
+                    // This handles global intrinsics like 'printl'.
+                    return new RuntimeValue(new FunctionObject(func.Name, func.Arity, func.IntrinsicBody, func.FunctionScope));
+                }
+                else
+                {
+                    // This handles user-defined functions like 'double' and 'Main'.
+                    return new RuntimeValue(new FunctionObject(func.Name, func.Arity, func.Arguments, func.StartAddress, func.FunctionScope));
+                }
+
             }
 
             return val switch
@@ -317,7 +322,6 @@ namespace Fluence
 
         /// <summary>
         /// Resolves a variable name to its runtime value by searching the current scope hierarchy.
-        /// The search order is: 1. Current function's local registers, 2. Lexical scopes (closures).
         /// </summary>
         /// <param name="name">The name of the variable to resolve.</param>
         /// <returns>The <see cref="RuntimeValue"/> associated with the variable name.</returns>
@@ -326,42 +330,82 @@ namespace Fluence
         {
             string internedName = name;
 
-            // Check the current function's local variables.
             ref var localValue = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentRegisters, internedName);
             if (!Unsafe.IsNullRef(ref localValue))
             {
                 return localValue;
             }
-             
-            // Check the current function's lexical scope and its parents.
+
             var lexicalScope = CurrentFrame.Function.DefiningScope;
             if (lexicalScope.TryResolve(internedName, out var symbol))
             {
-                // Conver the symbol into a runtime type.
-                return symbol switch
+                if (symbol is FunctionSymbol funcSymbol)
                 {
-                    FunctionSymbol funcSymbol => new RuntimeValue(
+                    return new RuntimeValue(
                         funcSymbol.IsIntrinsic
                             // Create an intrinsic (C#) function object.
-                            ? new FunctionObject(
-                                funcSymbol.Name,
-                                funcSymbol.Arity,
-                                funcSymbol.IntrinsicBody,
-                                null!
-                            )
+                            ? new FunctionObject(funcSymbol.Name, funcSymbol.Arity, funcSymbol.IntrinsicBody, null!)
                             // Create a user-defined (bytecode) function object.
-                            : new FunctionObject(
-                                funcSymbol.Name,
-                                funcSymbol.Arity,
-                                funcSymbol.Arguments,
-                                funcSymbol.StartAddress,
-                                funcSymbol.DefiningScope
+                            : new FunctionObject(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.StartAddress, funcSymbol.DefiningScope
                             )
-                    ),
-                    VariableSymbol variableSymbol => new RuntimeValue(variableSymbol.Value),
-                    // In the future, other symbol types like global constants could be handled here.
-                    _ => throw new FluenceRuntimeException($"Internal VM Error: Don't know how to create a runtime value for symbol of type '{symbol.GetType().Name}'.")
-                };
+                        );
+                }
+                else if (symbol is VariableSymbol variable)
+                {
+                    // Current scopt also contains all symbols from namespaces it uses.
+                    if (lexicalScope.RuntimeStorage.TryGetValue(variable.Name, out var result))
+                    {
+                        return result;
+                    }
+                    // Check global scope aka outside any namespace.
+                    if (_globals.TryGetValue(variable.Name, out var result2))
+                    {
+                        return result2;
+                    }
+                }
+            }
+
+            if (CurrentFrame.Function.Name == "<script>")
+            {
+                foreach (var item in Namespaces)
+                {
+                    var lexicalScope2 = item.Value;
+
+                    if (lexicalScope2.TryResolve(name, out var symb))
+                    {
+                        if (symb is FunctionSymbol funcSymbol2)
+                        {
+                            return new RuntimeValue(
+                                funcSymbol2.IsIntrinsic
+                                    ? new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.IntrinsicBody, null!)
+                                    : new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.Arguments, funcSymbol2.StartAddress, funcSymbol2.DefiningScope
+                                    )
+                                );
+                        }
+                        else if (symb is VariableSymbol variable)
+                        {
+                            // Current scopt also contains all symbols from namespaces it uses.
+                            if (lexicalScope2.RuntimeStorage.TryGetValue(variable.Name, out var result))
+                            {
+                                return result;
+                            }
+                            // Check global scope aka outside any namespace.
+                            if (_globals.TryGetValue(variable.Name, out var result2))
+                            {
+                                return result2;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Last case, check in global scope.
+            foreach (var valSymbol in _globalScope.Symbols.Values)
+            {
+                if (valSymbol is VariableSymbol varSymbol && varSymbol.Name == name)
+                {
+                    return GetRuntimeValue(varSymbol.Value);
+                }
             }
 
             throw new FluenceRuntimeException($"Runtime Error: Undefined variable '{name}'.");
@@ -388,11 +432,9 @@ namespace Fluence
                 ref var valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, name, out _);
                 valueRef = value;
             }
-            else // For globals...
-            {
-                ref var valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, name, out _);
-                valueRef = value;
-            }
+
+            ref var valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, name, out _);
+            valueRef2 = value;
         }
 
         /// <summary>
@@ -547,6 +589,18 @@ namespace Fluence
             if (left.Type == RuntimeValueType.Number && right.ObjectReference is StringObject strRight)
             {
                 SetRegister((TempValue)instruction.Lhs, HandleStringRepetition(strRight, left));
+                return;
+            }
+
+
+            if (left.ObjectReference is CharObject charLeft && right.Type == RuntimeValueType.Number)
+            {
+                SetRegister((TempValue)instruction.Lhs, HandleStringRepetition(new StringObject(charLeft.Value.ToString()), right));
+                return;
+            }
+            if (left.Type == RuntimeValueType.Number && right.ObjectReference is CharObject charRight)
+            {
+                SetRegister((TempValue)instruction.Lhs, HandleStringRepetition(new StringObject(charRight.Value.ToString()), left));
                 return;
             }
 

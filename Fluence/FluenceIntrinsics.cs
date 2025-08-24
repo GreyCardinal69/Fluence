@@ -53,6 +53,13 @@
                 return new NilValue();
             }));
 
+            global.Declare("consoleReadAndClear", new FunctionSymbol("consoleReadAndClear", 0, (args) =>
+            {
+                Console.ReadLine();
+                Console.Clear();
+                return new NilValue();
+            }));
+
             global.Declare("input", new FunctionSymbol("input", 0, (args) =>
             {
                 return new StringValue(Console.ReadLine()!);

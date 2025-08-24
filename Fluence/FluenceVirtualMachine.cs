@@ -188,6 +188,7 @@ namespace Fluence
 
             return val switch
             {
+                CharValue ch => new RuntimeValue(new CharObject(ch.Value)),
                 EnumValue enumVal => new RuntimeValue(enumVal.Value),
                 NumberValue num => num.Type switch
                 {
@@ -199,7 +200,6 @@ namespace Fluence
                 BooleanValue boolean => new RuntimeValue(boolean.Value),
                 NilValue => RuntimeValue.Nil,
                 StringValue str => new RuntimeValue(new StringObject(str.Value)),
-                CharValue ch => new RuntimeValue(new CharObject(ch.Value)),
                 RangeValue range => new RuntimeValue(new RangeObject(GetRuntimeValue(range.Start), GetRuntimeValue(range.End))),
                 FunctionValue func => new RuntimeValue(func),
                 _ => throw new FluenceRuntimeException($"Internal VM Error: Unrecognized Value type '{val.GetType().Name}' during conversion.")
@@ -1067,24 +1067,43 @@ namespace Fluence
             RuntimeValue collection = GetRuntimeValue(instruction.Rhs);
             RuntimeValue indexVal = GetRuntimeValue(instruction.Rhs2);
 
-            if (collection.As<ListObject>() is not ListObject list)
+            switch (collection.ObjectReference)
             {
-                throw new FluenceRuntimeException($"Internal VM Error: Cannot apply index operator [...] to a non-list value (got type '{GetDetailedTypeName(collection)}').");
+                case ListObject list:
+                    {
+                        if (indexVal.Type != RuntimeValueType.Number)
+                        {
+                            throw new FluenceRuntimeException($"Runtime Error: List index must be a number, not '{GetDetailedTypeName(indexVal)}'.");
+                        }
+                        int index = indexVal.IntValue;
+                        if (index < 0 || index >= list.Elements.Count)
+                        {
+                            throw new FluenceRuntimeException($"Runtime Error: Index out of range. Index was {index}, but list size is {list.Elements.Count}.");
+                        }
+                        SetRegister((TempValue)instruction.Lhs, list.Elements[index]);
+                        break;
+                    }
+                case StringObject str:
+                    {
+                        if (indexVal.Type != RuntimeValueType.Number)
+                        {
+                            throw new FluenceRuntimeException($"Runtime Error: String index must be a number, not '{GetDetailedTypeName(indexVal)}'.");
+                        }
+                        int index = indexVal.IntValue;
+                        if (index < 0 || index >= str.Value.Length)
+                        {
+                            throw new FluenceRuntimeException($"Runtime Error: Index out of range. Index was {index}, but string length is {str.Value.Length}.");
+                        }
+
+                        char charAsString = str.Value[index];
+                        var resultStringObject = new CharObject(charAsString);
+                        SetRegister((TempValue)instruction.Lhs, new RuntimeValue(resultStringObject));
+                        break;
+                    }
+                // Not an indexable type.
+                default:
+                    throw new FluenceRuntimeException($"Runtime Error: Cannot apply index operator [...] to a non-indexable type '{GetDetailedTypeName(collection)}'.");
             }
-
-            if (indexVal.Type != RuntimeValueType.Number)
-            {
-                throw new FluenceRuntimeException($"Runtime Error: List index must be a number, not '{GetDetailedTypeName(indexVal)}'.");
-            }
-
-            int index = indexVal.IntValue;
-
-            if (index < 0 || index >= list.Elements.Count)
-            {
-                throw new FluenceRuntimeException($"Runtime Error: Index out of range. Index was {index}, but list size is {list.Elements.Count}.");
-            }
-
-            SetRegister((TempValue)instruction.Lhs, list.Elements[index]);
         }
 
         /// <summary>

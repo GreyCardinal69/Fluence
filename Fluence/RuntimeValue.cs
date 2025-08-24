@@ -263,8 +263,11 @@ namespace Fluence
         private static RuntimeValue StringIntrinsicFind(IReadOnlyList<RuntimeValue> args)
         {
             var self = (StringObject)args[0].ObjectReference;
-            char ch = ((CharObject)args[1].ObjectReference).Value;
-            return new RuntimeValue(self.Value.IndexOf(ch));
+            if (args.Count < 2 || args[1].ObjectReference is not CharObject charToFind)
+            {
+                throw new FluenceRuntimeException($"Runtime Error: string.find() expects a character as an argument.");
+            }
+            return new RuntimeValue(self.Value.IndexOf(charToFind.Value));
         }
 
         /// <inheritdoc/>

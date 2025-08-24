@@ -208,6 +208,29 @@ namespace Fluence
     }
 
     /// <summary>
+    /// Represents a heap-allocated char object in the Fluence VM.
+    /// </summary>
+    internal record class CharObject : IFluenceObject
+    {
+        internal readonly char Value;
+
+        internal CharObject(char value) { Value = value; }
+
+        /// <inheritdoc/>
+        public bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method)
+        {
+            switch (name)
+            {
+                default:
+                    method = null!;
+                    return false;
+            }
+        }
+
+        public override string ToString() => Value.ToString();
+    }
+
+    /// <summary>
     /// Represents a heap-allocated string object in the Fluence VM.
     /// </summary>
     internal record class StringObject : IFluenceObject
@@ -223,6 +246,21 @@ namespace Fluence
             return new RuntimeValue(self.Value.Length);
         }
 
+        /// <summary>Implements the native ToUpper function for strings.</summary>
+        private static RuntimeValue StringToUpperIntrinsic(IReadOnlyList<RuntimeValue> args)
+        {
+            var self = (StringObject)args[0].ObjectReference;
+            return new RuntimeValue(self.Value.ToUpperInvariant());
+        }
+
+        /// <summary>Implements the native IndexOf function for strings.</summary>
+        private static RuntimeValue StringIntrinsicFind(IReadOnlyList<RuntimeValue> args)
+        {
+            var self = (StringObject)args[0].ObjectReference;
+            char ch = ((CharObject)args[1].ObjectReference).Value;
+            return new RuntimeValue(self.Value.IndexOf(ch));
+        }
+
         /// <inheritdoc/>
         public bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method)
         {
@@ -230,6 +268,12 @@ namespace Fluence
             {
                 case "length":
                     method = StringLengthIntrinsic;
+                    return true;
+                case "to_upper":
+                    method = StringToUpperIntrinsic;
+                    return true;
+                case "find":
+                    method = StringIntrinsicFind;
                     return true;
                 default:
                     method = null!;

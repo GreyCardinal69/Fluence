@@ -53,6 +53,16 @@
                 return new NilValue();
             }));
 
+            global.Declare("input", new FunctionSymbol("input", 0, (args) =>
+            {
+                return new StringValue(Console.ReadLine()!);
+            }));
+
+            global.Declare("to_int", new FunctionSymbol("to_int", 1, (args) =>
+            {
+                return new NumberValue(Convert.ToInt32(args[0].GetValue()));
+            }));
+
             global.Declare("str", new FunctionSymbol("str", 1, (args) =>
             {
                 return new StringValue(args[0].ToFluenceString());

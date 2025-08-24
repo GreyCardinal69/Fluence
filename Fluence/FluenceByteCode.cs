@@ -22,7 +22,7 @@
 
             for (int i = 0; i < instructions.Count; i++)
             {
-                Console.WriteLine($"{i:D4}: {instructions[i]}");
+                Console.WriteLine($"{i:D4}: {instructions[i].ToString().Replace("\n", "")}");
             }
             Console.WriteLine("\n--- End of Bytecode ---");
         }

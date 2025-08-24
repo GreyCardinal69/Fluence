@@ -8,6 +8,35 @@
     internal abstract record class Symbol : Value { }
 
     /// <summary>
+    /// Represents a global variable of a scope with a complex expression value.
+    /// </summary>
+    internal sealed record class VariableSymbol : Symbol
+    {
+        /// <summary>
+        /// The name of the global variable.
+        /// </summary>
+        internal string Name { get; init; }
+
+        /// <summary>
+        /// The dynamic value of the variable.
+        /// </summary>
+        internal Value Value { get; set; }
+
+        internal VariableSymbol(string name, Value value)
+        {
+            Name = name;
+            Value = value;
+        }
+
+        internal override string ToFluenceString() => $"VariableSymbol: {Name}{Value}";
+
+        public override string ToString()
+        {
+            return $"VariableSymbol: {Name}{Value}";
+        }
+    }
+
+    /// <summary>
     /// Represents an enum declaration. It contains the enum's name and a collection of its members.
     /// </summary>
     internal sealed record class EnumSymbol : Symbol

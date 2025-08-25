@@ -86,8 +86,8 @@ namespace Fluence
             _callStack = new Stack<CallFrame>();
 
             // This represents the top-level global execution context.
-            var mainScriptFunc = new FunctionObject("<script>", 0, new List<string>(), 0, _globalScope);
-            var initialFrame = new CallFrame(mainScriptFunc, _byteCode.Count, null!);
+            FunctionObject mainScriptFunc = new FunctionObject("<script>", 0, new List<string>(), 0, _globalScope);
+            CallFrame initialFrame = new CallFrame(mainScriptFunc, _byteCode.Count, null!);
             _callStack.Push(initialFrame);
 
             _cachedRegisters = initialFrame.Registers;
@@ -176,7 +176,7 @@ namespace Fluence
         {
             if (val is TempValue temp)
             {
-                ref var valueRef = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentRegisters, temp.TempName);
+                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentRegisters, temp.TempName);
 
                 if (!Unsafe.IsNullRef(ref valueRef))
                 {
@@ -238,7 +238,7 @@ namespace Fluence
             }
 
             string methodName = methodNameVal.Value;
-            var instanceVal = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue instanceVal = GetRuntimeValue(instruction.Rhs);
 
             // Check if the object is a native type (like List) that exposes fast C# methods.
             if (instanceVal.ObjectReference is IFluenceObject fluenceObject)
@@ -247,7 +247,7 @@ namespace Fluence
                 if (fluenceObject.TryGetIntrinsicMethod(methodName, out var intrinsicMethod))
                 {
                     // We found an intrinsic.
-                    var args = new List<RuntimeValue>();
+                    List<RuntimeValue> args = new List<RuntimeValue>();
                     // The first argument to an intrinsic method is always 'self'.
                     args.Add(instanceVal);
 
@@ -289,7 +289,7 @@ namespace Fluence
             }
 
             // Convert the compile-time FunctionValue into a runtime FunctionObject.
-            var functionToExecute = new FunctionObject(
+            FunctionObject functionToExecute = new FunctionObject(
                 methodBlueprint.Name,
                 methodBlueprint.Arity,
                 methodBlueprint.Arguments,
@@ -303,7 +303,7 @@ namespace Fluence
                 throw new FluenceRuntimeException($"Internal VM Error: Mismatched arity for method '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
             }
 
-            var newFrame = new CallFrame(functionToExecute, _ip, (TempValue)instruction.Lhs);
+            CallFrame newFrame = new CallFrame(functionToExecute, _ip, (TempValue)instruction.Lhs);
 
             // Implicitly pass 'self'.
             newFrame.Registers["self"] = instanceVal;
@@ -330,14 +330,14 @@ namespace Fluence
         {
             string internedName = name;
 
-            ref var localValue = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentRegisters, internedName);
+            ref RuntimeValue localValue = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentRegisters, internedName);
             if (!Unsafe.IsNullRef(ref localValue))
             {
                 return localValue;
             }
 
             var lexicalScope = CurrentFrame.Function.DefiningScope;
-            if (lexicalScope.TryResolve(internedName, out var symbol))
+            if (lexicalScope.TryResolve(internedName, out Symbol symbol))
             {
                 if (symbol is FunctionSymbol funcSymbol)
                 {
@@ -353,12 +353,12 @@ namespace Fluence
                 else if (symbol is VariableSymbol variable)
                 {
                     // Current scopt also contains all symbols from namespaces it uses.
-                    if (lexicalScope.RuntimeStorage.TryGetValue(variable.Name, out var result))
+                    if (lexicalScope.RuntimeStorage.TryGetValue(variable.Name, out RuntimeValue result))
                     {
                         return result;
                     }
                     // Check global scope aka outside any namespace.
-                    if (_globals.TryGetValue(variable.Name, out var result2))
+                    if (_globals.TryGetValue(variable.Name, out RuntimeValue result2))
                     {
                         return result2;
                     }
@@ -369,9 +369,9 @@ namespace Fluence
             {
                 foreach (var item in Namespaces)
                 {
-                    var lexicalScope2 = item.Value;
+                    FluenceScope lexicalScope2 = item.Value;
 
-                    if (lexicalScope2.TryResolve(name, out var symb))
+                    if (lexicalScope2.TryResolve(name, out Symbol symb))
                     {
                         if (symb is FunctionSymbol funcSymbol2)
                         {
@@ -385,12 +385,12 @@ namespace Fluence
                         else if (symb is VariableSymbol variable)
                         {
                             // Current scopt also contains all symbols from namespaces it uses.
-                            if (lexicalScope2.RuntimeStorage.TryGetValue(variable.Name, out var result))
+                            if (lexicalScope2.RuntimeStorage.TryGetValue(variable.Name, out RuntimeValue result))
                             {
                                 return result;
                             }
                             // Check global scope aka outside any namespace.
-                            if (_globals.TryGetValue(variable.Name, out var result2))
+                            if (_globals.TryGetValue(variable.Name, out RuntimeValue result2))
                             {
                                 return result2;
                             }
@@ -400,7 +400,7 @@ namespace Fluence
             }
 
             // Last case, check in global scope.
-            foreach (var valSymbol in _globalScope.Symbols.Values)
+            foreach (Symbol valSymbol in _globalScope.Symbols.Values)
             {
                 if (valSymbol is VariableSymbol varSymbol && varSymbol.Name == name)
                 {
@@ -417,7 +417,7 @@ namespace Fluence
         /// </summary>
         private void SetRegister(TempValue destination, RuntimeValue value)
         {
-            ref var valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, destination.TempName, out _);
+            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, destination.TempName, out _);
             valueRef = value;
         }
 
@@ -429,11 +429,11 @@ namespace Fluence
             // If we are not in the top-level script, assign to the current frame's local registers.
             if (CurrentFrame.Function.Name != "<script>")
             {
-                ref var valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, name, out _);
+                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, name, out _);
                 valueRef = value;
             }
 
-            ref var valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, name, out _);
+            ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, name, out _);
             valueRef2 = value;
         }
 
@@ -495,8 +495,8 @@ namespace Fluence
         /// <summary>Handles the ADD instruction, which performs numeric addition, string concatenation, or list concatenation.</summary>
         private void ExecuteAdd(InstructionLine instruction)
         {
-            var left = GetRuntimeValue(instruction.Rhs);
-            var right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
@@ -536,8 +536,8 @@ namespace Fluence
         /// <summary>Handles the SUBTRACT instruction for numeric subtraction or list difference.</summary>
         private void ExecuteSubtraction(InstructionLine instruction)
         {
-            var left = GetRuntimeValue(instruction.Rhs);
-            var right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
@@ -567,8 +567,8 @@ namespace Fluence
         /// <summary>Handles the MULTIPLY instruction for numeric multiplication or string/list repetition.</summary>
         private void ExecuteMultiplication(InstructionLine instruction)
         {
-            var left = GetRuntimeValue(instruction.Rhs);
-            var right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
@@ -620,8 +620,8 @@ namespace Fluence
         /// <summary>Handles the DIVIDE instruction.</summary>
         private void ExecuteDivision(InstructionLine instruction)
         {
-            var left = GetRuntimeValue(instruction.Rhs);
-            var right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
             ExecuteNumericBinaryOperation(
                 instruction, left, right,
                 (a, b) => new RuntimeValue(a / b),
@@ -634,8 +634,8 @@ namespace Fluence
         /// <summary>Handles the MODULO instruction.</summary>
         private void ExecuteModulo(InstructionLine instruction)
         {
-            var left = GetRuntimeValue(instruction.Rhs);
-            var right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
             ExecuteNumericBinaryOperation(
                 instruction, left, right,
                 (a, b) => new RuntimeValue(a % b),
@@ -648,8 +648,8 @@ namespace Fluence
         /// <summary>Handles the POWER instruction.</summary>
         private void ExecutePower(InstructionLine instruction)
         {
-            var left = GetRuntimeValue(instruction.Rhs);
-            var right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
             ExecuteNumericBinaryOperation(
                 instruction, left, right,
@@ -663,7 +663,7 @@ namespace Fluence
         /// <summary>Handles the ASSIGN instruction, which is used for variable assignment and range-to-list expansion.</summary>
         private void ExecuteAssign(InstructionLine instruction)
         {
-            var sourceValue = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue sourceValue = GetRuntimeValue(instruction.Rhs);
             if (instruction.Lhs is VariableValue destVar && sourceValue.ObjectReference is RangeObject range)
             {
                 ListObject list = new ListObject();
@@ -709,7 +709,7 @@ namespace Fluence
         /// </summary>
         private void ExecuteBitwiseOperation(InstructionLine instruction)
         {
-            var leftValue = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue leftValue = GetRuntimeValue(instruction.Rhs);
             long leftLong = ToLong(leftValue);
 
             if (instruction.Instruction == InstructionCode.BitwiseNot)
@@ -718,8 +718,8 @@ namespace Fluence
                 return;
             }
 
-            var rightValue = GetRuntimeValue(instruction.Rhs2);
-            var result = instruction.Instruction switch
+            RuntimeValue rightValue = GetRuntimeValue(instruction.Rhs2);
+            long result = instruction.Instruction switch
             {
                 InstructionCode.BitwiseAnd => leftLong & ToLong(rightValue),
                 InstructionCode.BitwiseOr => leftLong | ToLong(rightValue),
@@ -737,7 +737,7 @@ namespace Fluence
         /// </summary>
         private void ExecuteNegate(InstructionLine instruction)
         {
-            var destination = (TempValue)instruction.Lhs;
+            TempValue destination = (TempValue)instruction.Lhs;
             RuntimeValue value = GetRuntimeValue(instruction.Rhs);
 
             if (value.Type != RuntimeValueType.Number)
@@ -912,9 +912,9 @@ namespace Fluence
             Func<float, float, bool> floatOp,
             Func<double, double, bool> doubleOp)
         {
-            var destination = (TempValue)instruction.Lhs;
-            var left = GetRuntimeValue(instruction.Rhs);
-            var right = GetRuntimeValue(instruction.Rhs2);
+            TempValue destination = (TempValue)instruction.Lhs;
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
             if (left.ObjectReference is StringObject leftStr && right.ObjectReference is StringObject rightStr)
             {
@@ -934,7 +934,7 @@ namespace Fluence
                 throw new FluenceRuntimeException($"Internal VM Error: Cannot perform numeric comparison on non-number types: ({left.Type}, {right.Type}).");
             }
 
-            var result = left.NumberType switch
+            bool result = left.NumberType switch
             {
                 RuntimeNumberType.Int => right.NumberType switch
                 {
@@ -1084,7 +1084,7 @@ namespace Fluence
                 throw new FluenceRuntimeException("Internal VM Error: NewInstance requires a StructSymbol as its operand.");
             }
 
-            var instance = new InstanceObject(classSymbol);
+            InstanceObject instance = new InstanceObject(classSymbol);
             SetRegister((TempValue)instruction.Lhs, new RuntimeValue(instance));
         }
 
@@ -1098,7 +1098,7 @@ namespace Fluence
                 throw new FluenceRuntimeException("Internal VM Error: GetField requires a string literal for the field name.");
             }
 
-            var instanceValue = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue instanceValue = GetRuntimeValue(instruction.Rhs);
             if (instanceValue.ObjectReference is not InstanceObject instance)
             {
                 throw new FluenceRuntimeException($"Runtime Error: Cannot access property '{fieldName.Value}' on a non-instance value (got type '{GetDetailedTypeName(instanceValue)}').");
@@ -1167,7 +1167,7 @@ namespace Fluence
                         }
 
                         char charAsString = str.Value[index];
-                        var resultStringObject = new CharObject(charAsString);
+                        CharObject resultStringObject = new CharObject(charAsString);
                         SetRegister((TempValue)instruction.Lhs, new RuntimeValue(resultStringObject));
                         break;
                     }
@@ -1184,7 +1184,7 @@ namespace Fluence
                         }
 
                         char charAsString = str2.Value[index];
-                        var resultStringObject = new CharObject(charAsString);
+                        CharObject resultStringObject = new CharObject(charAsString);
                         SetRegister((TempValue)instruction.Lhs, new RuntimeValue(resultStringObject));
                         break;
                     }
@@ -1232,7 +1232,7 @@ namespace Fluence
 
             if (iterable.ObjectReference is ListObject || iterable.ObjectReference is RangeObject)
             {
-                var iterator = new IteratorObject(iterable.ObjectReference);
+                IteratorObject iterator = new IteratorObject(iterable.ObjectReference);
                 SetRegister((TempValue)instruction.Lhs, new RuntimeValue(iterator));
                 return;
             }
@@ -1290,8 +1290,8 @@ namespace Fluence
                     break;
             }
 
-            CurrentRegisters[valueReg.TempName] = nextValue;
-            CurrentRegisters[continueFlagReg.TempName] = new RuntimeValue(continueLoop);
+            SetRegister(valueReg, nextValue);
+            SetRegister(continueFlagReg, new RuntimeValue(continueLoop));
         }
 
         /// <summary>
@@ -1299,7 +1299,7 @@ namespace Fluence
         /// </summary>
         private void ExecutePushParam(InstructionLine instruction)
         {
-            var valueToPush = GetRuntimeValue(instruction.Lhs);
+            RuntimeValue valueToPush = GetRuntimeValue(instruction.Lhs);
             _operandStack.Push(valueToPush);
         }
 
@@ -1308,7 +1308,7 @@ namespace Fluence
         /// </summary>
         private void ExecuteCallFunction(InstructionLine instruction)
         {
-            var functionVal = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue functionVal = GetRuntimeValue(instruction.Rhs);
             if (functionVal.As<FunctionObject>() is not FunctionObject function)
             {
                 throw new FluenceRuntimeException($"Internal VM Error: Attempted to call a value that is not a function (got type '{GetDetailedTypeName(functionVal)}').");
@@ -1324,7 +1324,7 @@ namespace Fluence
 
             if (function.IsIntrinsic)
             {
-                var args = new List<Value>(argCount);
+                List<Value> args = new List<Value>(argCount);
                 for (int i = 0; i < argCount; i++)
                 {
                     // Intrinsics work with the raw `Value` types.
@@ -1337,13 +1337,14 @@ namespace Fluence
                 return;
             }
 
-            var newFrame = new CallFrame(function, _ip, (TempValue)instruction.Lhs);
+            CallFrame newFrame = new CallFrame(function, _ip, (TempValue)instruction.Lhs);
 
             for (int i = function.Parameters.Count - 1; i >= 0; i--)
             {
                 string paramName = function.Parameters[i];
                 RuntimeValue argValue = _operandStack.Pop();
-                newFrame.Registers[paramName] = argValue;
+                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
+                valueRef = argValue;
             }
 
             _callStack.Push(newFrame);
@@ -1371,14 +1372,16 @@ namespace Fluence
 
             if (finishedFrame.DestinationRegister != null)
             {
-                CurrentRegisters[finishedFrame.DestinationRegister.TempName] = returnValue;
+                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, finishedFrame.DestinationRegister.TempName, out _);
+                valueRef = returnValue;
             }
 
             _ip = finishedFrame.ReturnAddress;
 
             if (instruction.Lhs is TempValue destination)
             {
-                CurrentRegisters[destination.TempName] = returnValue;
+                ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, destination.TempName, out _);
+                valueRef2 = returnValue;
             }
         }
 
@@ -1427,7 +1430,7 @@ namespace Fluence
             }
 
             int count = Convert.ToInt32(num.IntValue);
-            var repeatedList = new ListObject();
+            ListObject repeatedList = new ListObject();
 
             if (count > 0)
             {
@@ -1461,7 +1464,7 @@ namespace Fluence
                 return new RuntimeValue(new StringObject(""));
             }
 
-            var sb = new StringBuilder(str.Value.Length * count);
+            StringBuilder sb = new StringBuilder(str.Value.Length * count);
             for (int i = 0; i < count; i++)
             {
                 sb.Append(str.Value);

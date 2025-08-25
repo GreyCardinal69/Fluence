@@ -12,7 +12,7 @@ namespace Fluence
         {
         }
 
-        public bool Compile(string source)
+        public bool Compile(string source, bool partialCode = false)
         {
             ArgumentException.ThrowIfNullOrEmpty(source);
 
@@ -22,7 +22,7 @@ namespace Fluence
                 FluenceParser parser = new FluenceParser(lexer);
                 FluenceIntrinsics intrinsics = new FluenceIntrinsics(parser);
                 intrinsics.Register();
-                parser.Parse();
+                parser.Parse(partialCode);
 #if DEBUG
                 parser.DumpSymbolTables();
                 DumpByteCodeInstructions(parser.CompiledCode);

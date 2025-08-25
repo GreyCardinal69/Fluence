@@ -161,6 +161,7 @@ namespace Fluence
                 foreach (var ns in _currentParseState.NameSpaces)
                 {
                     DumpScope(sb, ns.Value, $"Namespace: {ns.Key}", 0);
+                    Console.WriteLine();
                 }
             }
 
@@ -194,7 +195,7 @@ namespace Fluence
                 }
             }
 
-            sb.Append(indent).AppendLine("}");
+            sb.Append(indent).AppendLine("}").AppendLine();
         }
 
         /// <summary>
@@ -217,7 +218,13 @@ namespace Fluence
                     break;
 
                 case FunctionSymbol functionSymbol:
-                    sb.Append(indent).Append($"Symbol: {symbolName}, type Function Header {{ Arity: {functionSymbol.Arity}, Scope: {functionSymbol.DefiningScope}, StartAddress: {FluenceDebug.FormatByteCodeAddress(functionSymbol.StartAddress)}, Args: {string.Join(",", functionSymbol.Arguments ?? new List<string>())} }}").AppendLine();
+                    string scope = functionSymbol.DefiningScope == null || functionSymbol.Arguments.Count == 0 ? "None (Intrinsic? Or Global)" : functionSymbol.DefiningScope.Name;
+                    string args = functionSymbol.Arguments == null ? "None" : string.Join(",", functionSymbol.Arguments);
+                    if (string.IsNullOrEmpty(args)) args = "None";
+
+                    sb.Append(indent).Append($"Symbol: {symbolName}, type Function Header {{");
+                    sb.Append($" Arity: {functionSymbol.Arity}, Scope: {scope}, StartAddress: {FluenceDebug.FormatByteCodeAddress(functionSymbol.StartAddress)},");
+                    sb.Append($" Args: {args}.").AppendLine();
                     break;
                 case VariableSymbol variableSymbol:
                     sb.Append(indent).Append($"Symbol: {symbolName}, type VariableSymbol: {variableSymbol}.").AppendLine();
@@ -239,7 +246,7 @@ namespace Fluence
                     sb.Append("\tDefault Values of Fields:\n");
                     foreach (var item in structSymbol.DefaultFieldValuesAsTokens)
                     {
-                        sb.Append($"\t\t{item.Key} : {string.Join(", ", item.Value)}\n");
+                        sb.Append($"\t\t{item.Key} : {(item.Value.Count == 0 ? "None (Nil)." : string.Join(", ", item.Value))}\n");
                     }
 
                     FunctionValue constructor = structSymbol.Constructor;
@@ -1761,7 +1768,6 @@ namespace Fluence
             FluenceLexer savedLexer = _lexer;
             try
             {
-                Console.WriteLine(source);
                 _lexer = new FluenceLexer(source);
                 _lexer.LexFullSource();
                 _lexer.RemoveLexerEOLS();

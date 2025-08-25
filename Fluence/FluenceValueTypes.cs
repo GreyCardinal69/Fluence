@@ -76,7 +76,7 @@
 
         public override string ToString()
         {
-            return $"RangeValue: {Start}:{End}";
+            return $"RangeValue: From {Start.ToFluenceString()} To {End}";
         }
     }
 

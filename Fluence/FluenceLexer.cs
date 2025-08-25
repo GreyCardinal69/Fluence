@@ -310,6 +310,16 @@ namespace Fluence
                 string literalToDisplay = token.Literal?.ToString() ?? "null";
                 literalToDisplay = (literalToDisplay == "\r\n" || literalToDisplay == "\n") ? "NewLine" : literalToDisplay;
 
+                if (textToDisplay.Length > 20)
+                {
+                    textToDisplay = $"{textToDisplay[..20]}...";
+                }
+
+                if (literalToDisplay.Length > 20)
+                {
+                    literalToDisplay = $"{literalToDisplay[..20]}...".Replace("\n", "\\n");
+                }
+
                 Console.WriteLine("{0,-35} {1,-40} {2,-30} {3, -10} {4, -10}",
                     token.Type,
                     textToDisplay,

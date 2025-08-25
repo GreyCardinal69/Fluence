@@ -54,6 +54,68 @@ namespace Fluence
         /// <summary>Gets the registers for the current call frame via the cached reference.</summary>
         private Dictionary<string, RuntimeValue> CurrentRegisters => _cachedRegisters;
 
+#if DEBUG
+        //
+        //      Debug fields, useful for measuring performance, but for release builds only a waste of memory and performance.
+        //
+        private readonly Dictionary<InstructionCode, long> _instructionTimings = new();
+        private readonly Dictionary<InstructionCode, long> _instructionCounts = new();
+        private readonly System.Diagnostics.Stopwatch _stopwatch = new();
+
+        /// <summary>
+        /// Dumps a detailed performance profile to the console, showing instruction counts,
+        /// total time spent, and average time per instruction. This should be called AFTER Run() completes.
+        /// </summary>
+        public void DumpPerformanceProfile()
+        {
+            Console.WriteLine("\n--- FLUENCE VM EXECUTION PROFILE ---");
+
+            if (_instructionCounts.Count == 0)
+            {
+                Console.WriteLine("No instructions were executed or profiling was not enabled.");
+                return;
+            }
+
+            long totalInstructions = 0;
+            long totalTicks = 0;
+            var profileData = new List<(InstructionCode OpCode, long Count, long Ticks)>();
+
+            foreach (var kvp in _instructionCounts)
+            {
+                long ticks = _instructionTimings.GetValueOrDefault(kvp.Key, 0);
+                profileData.Add((kvp.Key, kvp.Value, ticks));
+                totalInstructions += kvp.Value;
+                totalTicks += ticks;
+            }
+
+            Console.WriteLine($"Total Instructions Executed: {totalInstructions:N0}");
+            Console.WriteLine($"Total Execution Time: {new TimeSpan(totalTicks).TotalMilliseconds:N3} ms\n");
+
+            Console.WriteLine($"{"OpCode",-20} | {"Count",-15} | {"% of Total",-12} | {"Total Time (ms)",-18} | {"% of Time",-12} | {"Avg. Ticks/Op",-15}");
+            Console.WriteLine(new string('-', 100));
+
+            profileData.Sort((a, b) => b.Ticks.CompareTo(a.Ticks));
+
+            foreach (var data in profileData)
+            {
+                double percentOfTotalCount = (double)data.Count / totalInstructions * 100;
+                double totalMs = new TimeSpan(data.Ticks).TotalMilliseconds;
+                double percentOfTotalTime = (double)data.Ticks / totalTicks * 100;
+                double avgTicksPerOp = (double)data.Ticks / data.Count;
+
+                string opCodeStr = data.OpCode.ToString();
+                string countStr = data.Count.ToString("N0");
+                string percentCountStr = $"{percentOfTotalCount:F2}%";
+                string totalMsStr = totalMs.ToString("N4");
+                string percentTimeStr = $"{percentOfTotalTime:F2}%";
+                string avgTicksStr = avgTicksPerOp.ToString("F2");
+
+                Console.WriteLine($"{opCodeStr,-20} | {countStr,-15} | {percentCountStr,-12} | {totalMsStr,-18} | {percentTimeStr,-12} | {avgTicksStr,-15}");
+            }
+            Console.WriteLine("--------------------------------------\n");
+        }
+#endif
+
         /// <summary>
         /// Represents the state of a single function call on the stack. It contains the function being executed,
         /// its local variables (registers), the return address, and the destination for the return value.
@@ -70,6 +132,77 @@ namespace Fluence
                 Function = function;
                 ReturnAddress = returnAddress;
                 DestinationRegister = destination;
+            }
+        }
+
+        internal readonly struct VMDebugContext
+        {
+            internal int InstructionPointer { get; }
+            internal InstructionLine CurrentInstruction { get; }
+            internal IReadOnlyDictionary<string, RuntimeValue> CurrentLocals { get; }
+            internal IReadOnlyList<RuntimeValue> OperandStackSnapshot { get; }
+            internal int CallStackDepth { get; }
+            internal string CurrentFunctionName { get; }
+
+            internal VMDebugContext(FluenceVirtualMachine vm)
+            {
+                InstructionPointer = vm._ip - 1;
+                CurrentInstruction = vm._byteCode[InstructionPointer];
+                CurrentLocals = vm.CurrentRegisters;
+                OperandStackSnapshot = [.. vm._operandStack];
+                CallStackDepth = vm._callStack.Count;
+                CurrentFunctionName = vm.CurrentFrame.Function.Name;
+            }
+
+            internal void DumpContext()
+            {
+                var sb = new StringBuilder();
+                var separator = new string('-', 50);
+
+                sb.AppendLine(separator);
+                sb.AppendLine("--- FLUENCE VM STATE SNAPSHOT ---");
+                sb.AppendLine(separator);
+
+                sb.AppendLine($"IP: {InstructionPointer:D4}   Function: {CurrentFunctionName}   Call Stack Depth: {CallStackDepth}");
+                sb.AppendLine($"Executing: {CurrentInstruction}");
+                sb.AppendLine(separator);
+                
+                sb.AppendLine("OPERAND STACK (Top to Bottom):");
+                if (OperandStackSnapshot.Count == 0)
+                {
+                    sb.AppendLine("  [Empty]");
+                }
+                else
+                {
+                    for (int i = 0; i < OperandStackSnapshot.Count; i++)
+                    {
+                        sb.AppendLine($"  [{i}]: {OperandStackSnapshot[i]}");
+                    }
+                }
+                sb.AppendLine(separator);
+
+                sb.AppendLine("CURRENT FRAME REGISTERS:");
+                if (CurrentLocals.Count == 0)
+                {
+                    sb.AppendLine("  [No locals or temporaries]");
+                }
+                else
+                {
+                    int maxKeyLength = 0;
+                    foreach (var key in CurrentLocals.Keys)
+                    {
+                        if (key.Length > maxKeyLength) maxKeyLength = key.Length;
+                    }
+
+                    var sortedLocals = CurrentLocals.OrderBy(kvp => kvp.Key);
+                    foreach (var kvp in sortedLocals)
+                    {
+                        sb.AppendLine($"  {kvp.Key.PadRight(maxKeyLength)} : {kvp.Value}");
+                    }
+                }
+                sb.AppendLine(separator);
+
+                Console.WriteLine(sb.ToString());
             }
         }
 
@@ -164,7 +297,18 @@ namespace Fluence
             {
                 InstructionLine instruction = _byteCode[_ip];
                 _ip++;
+
+#if DEBUG
+                _stopwatch.Restart();
+#endif
                 _dispatchTable[(int)instruction.Instruction](instruction);
+#if DEBUG
+                _stopwatch.Stop();
+                _instructionCounts.TryAdd(instruction.Instruction, 0);
+                _instructionCounts[instruction.Instruction]++;
+                _instructionTimings.TryAdd(instruction.Instruction, 0);
+                _instructionTimings[instruction.Instruction] += _stopwatch.ElapsedTicks;
+#endif
             }
         }
 
@@ -408,7 +552,7 @@ namespace Fluence
                 }
             }
 
-            throw new FluenceRuntimeException($"Runtime Error: Undefined variable '{name}'.");
+            return ConstructAndThrowException($"Runtime Error: Undefined variable '{name}'.");
         }
 
         /// <summary>
@@ -592,7 +736,6 @@ namespace Fluence
                 return;
             }
 
-
             if (left.ObjectReference is CharObject charLeft && right.Type == RuntimeValueType.Number)
             {
                 SetRegister((TempValue)instruction.Lhs, HandleStringRepetition(new StringObject(charLeft.Value.ToString()), right));
@@ -614,6 +757,7 @@ namespace Fluence
                 SetRegister((TempValue)instruction.Lhs, HandleListRepetition(listRight, left));
                 return;
             }
+
             throw new FluenceRuntimeException($"Runtime Error: Cannot apply operator '*' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
@@ -1516,6 +1660,13 @@ namespace Fluence
                 RuntimeValueType.Object when rtValue.ObjectReference is Value val => val,
                 _ => throw new FluenceRuntimeException($"Internal VM Error: Cannot convert runtime object '{rtValue}' back to a bytecode value.")
             };
+        }
+
+        private RuntimeValue ConstructAndThrowException(string exception)
+        {
+            VMDebugContext ctx = new VMDebugContext(this);
+            ctx.DumpContext();
+            throw new FluenceRuntimeException(exception);
         }
     }
 }

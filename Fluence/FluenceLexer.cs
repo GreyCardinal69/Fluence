@@ -664,12 +664,12 @@ namespace Fluence
             if (CanLookAheadStartInclusive(2) && isFString)
             {
                 AdvancePosition(2); // consume 'f' and '"'.
-                return ScanString(startPos, true);
+                return ScanString(true);
             }
             else if (currChar == '"')
             {
                 AdvancePosition(); // consume '"'.
-                return ScanString(startPos, false);
+                return ScanString(false);
             }
 
             int errorColumn = _currentColumn == 0 ? 2 : _currentColumn;
@@ -698,7 +698,7 @@ namespace Fluence
             throw new FluenceLexerException(errorText, context);
         }
 
-        private Token ScanString(int startPos, bool isFString = false)
+        private Token ScanString(bool isFString = false)
         {
             int stringOpenColumn = _currentColumn;
             int stringInitialLine = _currentLine;

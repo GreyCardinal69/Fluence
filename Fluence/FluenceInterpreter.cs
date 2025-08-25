@@ -34,8 +34,8 @@ namespace Fluence
             }
             catch (FluenceException ex)
             {
-                System.Console.WriteLine("Compilation Error:");
-                System.Console.WriteLine(ex);
+                Console.WriteLine("Compilation Error:");
+                Console.WriteLine(ex);
                 return false;
             }
         }
@@ -51,6 +51,9 @@ namespace Fluence
             {
                 var vm = new FluenceVirtualMachine(_byteCode, _parseState);
                 vm.Run();
+#if DEBUG
+                vm.DumpPerformanceProfile();
+#endif
             }
             catch (FluenceRuntimeException ex)
             {

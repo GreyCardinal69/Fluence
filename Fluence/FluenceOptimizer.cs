@@ -1,8 +1,6 @@
-using System;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceParser;
-using static Fluence.FluenceParser.ParseState;
 
 namespace Fluence
 {
@@ -11,14 +9,14 @@ namespace Fluence
     /// </summary>
     internal static class FluenceOptimizer
     {
-        internal static void OptimizeByteCode( ref List<InstructionLine> bytecode, ParseState parseState)
+        internal static void OptimizeByteCode(ref List<InstructionLine> bytecode, ParseState parseState)
         {
             var removedIndices = new List<int>();
 
             FuseCompoundAssignments(ref bytecode, removedIndices);
+            FuseGotoConditionals(ref bytecode, removedIndices);
+
             RealignOffsets(ref bytecode, parseState, removedIndices);
-
-
         }
 
         private static void FuseCompoundAssignments(ref List<InstructionLine> bytecode, List<int> removedIndices)
@@ -29,7 +27,7 @@ namespace Fluence
                 if (line1 == null) continue;
 
                 InstructionLine line2 = bytecode[i + 1];
- 
+
                 InstructionCode opCode = GetFusedOpcode(line1.Instruction);
 
                 // Pattern Match:
@@ -51,8 +49,42 @@ namespace Fluence
                 }
             }
 
-            bytecode.RemoveAll(item => item == null);
         }
+
+        private static void FuseGotoConditionals(ref List<InstructionLine> bytecode, List<int> removedIndices)
+        {
+            for (int i = 0; i < bytecode.Count - 1; i++)
+            {
+                InstructionLine line1 = bytecode[i];
+                InstructionLine line2 = bytecode[i + 1];
+
+                if (line1 == null) continue;
+                if (line2 == null) continue;
+
+                // Pattern Match:
+                // Not/Equal             TempN    A          B
+                // GotoIfTrue/False      JMP      TEMPN      .
+                // =>
+                // BranchIfEqual/Not     JMP      A          B   
+
+                InstructionCode op = GetFusedGotoOpCode(line1.Instruction, line2.Instruction);
+
+                if (op != InstructionCode.Skip)
+                {
+                    InstructionLine fusedInsn = new InstructionLine(op, line2.Lhs, line1.Rhs, line1.Rhs2);
+                    bytecode[i] = fusedInsn;
+                    bytecode[i + 1] = null!;
+                    removedIndices.Add(i + 1);
+                }
+            }
+        }
+
+        private static InstructionCode GetFusedGotoOpCode(InstructionCode op1, InstructionCode op2) => (op1, op2) switch
+        {
+            (InstructionCode.Equal, InstructionCode.GotoIfTrue) or (InstructionCode.NotEqual, InstructionCode.GotoIfFalse) => InstructionCode.BranchIfEqual,
+            (InstructionCode.Equal, InstructionCode.GotoIfFalse) or (InstructionCode.NotEqual, InstructionCode.GotoIfTrue) => InstructionCode.BranchIfNotEqual,
+            _ => InstructionCode.Skip,
+        };
 
         private static InstructionCode GetFusedOpcode(InstructionCode op) => op switch
         {
@@ -64,86 +96,96 @@ namespace Fluence
             _ => InstructionCode.Skip
         };
 
-        private static void RealignOffsets(ref List<InstructionLine> bytecode, ParseState parseState, List<int> removedIndices)
+        private static bool IsJumpInstruction(InstructionCode op) =>
+            op == InstructionCode.Goto
+            || op == InstructionCode.GotoIfTrue
+            || op == InstructionCode.GotoIfFalse
+            || op == InstructionCode.BranchIfEqual
+            || op == InstructionCode.BranchIfNotEqual;
+
+        private static void RealignOffsets(ref List<InstructionLine> bytecode, ParseState parseState, List<int> _)
         {
-            if (removedIndices.Count == 0) return;
+            int oldCount = bytecode.Count;
 
-            removedIndices.Sort();
+            var oldToNew = new int[oldCount];
+            Array.Fill(oldToNew, -1);
 
-            int GetNewAddress(int oldAddress)
+            int newIdx = 0;
+            for (int i = 0; i < oldCount; i++)
             {
-                int shift = 0;
-                foreach (int removedIdx in removedIndices)
+                if (bytecode[i] != null)
                 {
-                    if (removedIdx < oldAddress)
-                    {
-                        shift++;
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                return oldAddress - shift;
-            }
-
-            for (int i = 0; i < bytecode.Count; i++)
-            {
-                var instruction = bytecode[i];
-                if (instruction.Instruction is InstructionCode.Goto or InstructionCode.GotoIfTrue or InstructionCode.GotoIfFalse)
-                {
-                    if (instruction.Lhs is NumberValue targetAddr)
-                    {
-                        int oldTarget = (int)targetAddr.Value;
-                        int newTarget = GetNewAddress(oldTarget);
-                        instruction.Lhs = new NumberValue(newTarget);
-                    }
+                    oldToNew[i] = newIdx++;
                 }
             }
 
-            // Update functions in the Global Scope.
+            // Map an old address to the next valid new address (fall through if target removed).
+            int MapAddr(int oldAddr)
+            {
+                if (oldAddr < 0) return 0;
+                int i = Math.Min(oldAddr, oldCount - 1);
+                while (i < oldCount && oldToNew[i] == -1) i++;
+                if (i >= oldCount)
+                {
+                    // If the target was at/after the last removed block, clamp to the last live instruction.
+                    // (Assumes there is at least one non-null instruction.)
+                    int j = oldCount - 1;
+                    while (j >= 0 && oldToNew[j] == -1) j--;
+                    return j >= 0 ? oldToNew[j] : 0;
+                }
+                return oldToNew[i];
+            }
+
+            // Patch jump targets.
+            for (int i = 0; i < oldCount; i++)
+            {
+                var insn = bytecode[i];
+                if (insn is null) continue;
+
+                if (IsJumpInstruction(insn.Instruction) && insn.Lhs is NumberValue targetAddr)
+                {
+                    int oldTarget = (int)targetAddr.Value;
+                    int newTarget = MapAddr(oldTarget);
+                    insn.Lhs = new NumberValue(newTarget);
+                }
+            }
+
+            // Patch function/struct entry points using the same MapAddr.
+            void PatchFunctionValue(FunctionValue f)
+            {
+                f.SetStartAddress(MapAddr(f.StartAddress));
+            }
+
             foreach (var symbol in parseState.GlobalScope.Symbols.Values)
             {
-                if (symbol is FunctionSymbol func)
+                if (symbol is FunctionSymbol f)
                 {
-                    func.SetStartAddress(GetNewAddress(func.StartAddress));
+                    f.SetStartAddress(MapAddr(f.StartAddress));
                 }
-                else if (symbol is StructSymbol structSym)
+                else if (symbol is StructSymbol s)
                 {
-                    // Also need to patch methods and constructors inside structs.
-                    if (structSym.Constructor != null)
-                    {
-                        structSym.Constructor.SetStartAddress(GetNewAddress(structSym.Constructor.StartAddress));
-                    }
-                    foreach (var method in structSym.Functions.Values)
-                    {
-                        method.SetStartAddress(GetNewAddress(method.StartAddress));
-                    }
+                    if (s.Constructor != null) PatchFunctionValue(s.Constructor);
+                    foreach (var m in s.Functions.Values) PatchFunctionValue(m);
                 }
             }
 
-            // Update functions in all Namespaces.
             foreach (var scope in parseState.NameSpaces.Values)
             {
                 foreach (var symbol in scope.Symbols.Values)
                 {
-                    if (symbol is FunctionSymbol func)
+                    if (symbol is FunctionSymbol f)
                     {
-                        func.SetStartAddress(GetNewAddress(func.StartAddress));
+                        f.SetStartAddress(MapAddr(f.StartAddress));
                     }
-                    else if (symbol is StructSymbol structSym)
+                    else if (symbol is StructSymbol s)
                     {
-                        if (structSym.Constructor != null)
-                        {
-                            structSym.Constructor.SetStartAddress(GetNewAddress(structSym.Constructor.StartAddress));
-                        }
-                        foreach (var method in structSym.Functions.Values)
-                        {
-                            method.SetStartAddress(GetNewAddress(method.StartAddress));
-                        }
+                        if (s.Constructor != null) PatchFunctionValue(s.Constructor);
+                        foreach (var m in s.Functions.Values) PatchFunctionValue(m);
                     }
                 }
             }
+
+            bytecode.RemoveAll(item => item == null);
         }
     }
 }

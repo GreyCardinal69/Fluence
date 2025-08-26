@@ -12,7 +12,7 @@
         internal static void DumpByteCodeInstructions(List<InstructionLine> instructions)
         {
             Console.WriteLine("--- Compiled Bytecode ---\n");
-            Console.WriteLine(string.Format("{0,-5} {1,-15} {2,-50} {3,-45} {4,-40}", "", "TYPE", "LHS", "RHS", "RHS2"));
+            Console.WriteLine(string.Format("{0,-5} {1,-20} {2,-50} {3,-45} {4,-40} {5, -25}", "", "TYPE", "LHS", "RHS", "RHS2", "RHS3"));
             Console.WriteLine();
             if (instructions == null || instructions.Count == 0)
             {
@@ -103,13 +103,16 @@
 
                 //      ==!!==
                 //      The following are special bytecode instructions generated solely by the Optimizer class after the parsing phase.
-                
+
                 // Double compound ops, op + assign in one instruction.
                 AddAssign,
                 SubAssign,
                 MulAssign,
                 DivAssign,
                 ModAssign,
+
+                BranchIfEqual,
+                BranchIfNotEqual,
             }
 
             /// <summary>Gets the operation code for this instruction.</summary>
@@ -124,12 +127,16 @@
             /// <summary>Gets the second source operand.</summary>
             internal readonly Value Rhs2;
 
-            internal InstructionLine(InstructionCode instruction, Value lhs, Value rhs = null!, Value rhs2 = null!)
+            /// <summary>The third source operand, used only in specialized instructions and generated strictly by the optimizer.</summary>
+            internal readonly Value Rhs3;
+
+            internal InstructionLine(InstructionCode instruction, Value lhs, Value rhs = null!, Value rhs2 = null!, Value rhs3 = null!)
             {
                 Instruction = instruction;
                 Lhs = lhs;
                 Rhs = rhs;
                 Rhs2 = rhs2;
+                Rhs3 = rhs3;
             }
 
             public override string ToString()
@@ -138,7 +145,8 @@
                 string lhs = Lhs != null ? Lhs.ToString() : "Null";
                 string rhs = Rhs != null ? Rhs.ToString() : "Null";
                 string rhs2 = Rhs2 != null ? Rhs2.ToString() : "Null";
-                return string.Format("{0,-15} {1,-50} {2,-45} {3,-40}", instruction, lhs, rhs, rhs2);
+                string rhs3 = Rhs3 != null ? Rhs3.ToString() : "Null";
+                return string.Format("{0,-20} {1,-50} {2,-45} {3,-40} {4, -25}", instruction, lhs, rhs, rhs2, rhs3);
             }
         }
     }

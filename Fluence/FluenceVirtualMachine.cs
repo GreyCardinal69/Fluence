@@ -120,7 +120,7 @@ namespace Fluence
         /// Represents the state of a single function call on the stack. It contains the function being executed,
         /// its local variables (registers), the return address, and the destination for the return value.
         /// </summary>
-        private sealed class CallFrame
+        private readonly record struct CallFrame
         {
             internal Dictionary<string, RuntimeValue> Registers { get; } = new();
             internal readonly TempValue DestinationRegister;
@@ -146,7 +146,7 @@ namespace Fluence
             internal IReadOnlyList<RuntimeValue> OperandStackSnapshot { get; }
             internal int CallStackDepth { get; }
             internal string CurrentFunctionName { get; }
-             
+
             internal VMDebugContext(FluenceVirtualMachine vm)
             {
                 InstructionPointer = vm._ip - 1;
@@ -169,7 +169,7 @@ namespace Fluence
                 sb.AppendLine($"IP: {InstructionPointer:D4}   Function: {CurrentFunctionName}   Call Stack Depth: {CallStackDepth}");
                 sb.AppendLine($"Executing: {CurrentInstruction}");
                 sb.AppendLine(separator);
-                
+
                 sb.AppendLine("OPERAND STACK (Top to Bottom):");
                 if (OperandStackSnapshot.Count == 0)
                 {
@@ -302,6 +302,10 @@ namespace Fluence
             _dispatchTable[(int)InstructionCode.DivAssign] = ExecuteDivision;
             _dispatchTable[(int)InstructionCode.ModAssign] = ExecuteModulo;
             _dispatchTable[(int)InstructionCode.SubAssign] = ExecuteSubtraction;
+
+            // Goto family.
+            _dispatchTable[(int)InstructionCode.BranchIfEqual] = (inst) => ExecuteBranchIfEqual(inst, true);
+            _dispatchTable[(int)InstructionCode.BranchIfNotEqual] = (inst) => ExecuteBranchIfEqual(inst, false);
 
             // Simple case for Terminate.
             _dispatchTable[(int)InstructionCode.Terminate] = (inst) => _ip = _byteCode.Count;
@@ -973,6 +977,24 @@ namespace Fluence
             if (condition.IsTruthy == requiredCondition)
             {
                 _ip = (int)target.Value;
+            }
+        }
+
+        private void ExecuteBranchIfEqual(InstructionLine instruction, bool target)
+        {
+            if (instruction.Lhs is not NumberValue jmp)
+            {
+                ConstructAndThrowException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
+                return;
+            }
+
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
+            bool result = left.Equals(right);
+
+            if (result == target)
+            {
+                _ip = (int)jmp.Value;
             }
         }
 

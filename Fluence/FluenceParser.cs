@@ -2839,14 +2839,18 @@ namespace Fluence
                 else // ++ and --.
                 {
                     InstructionCode operation = (op.Type == TokenType.INCREMENT) ? InstructionCode.Add : InstructionCode.Subtract;
-                    TempValue incrementedValue = new TempValue(_currentParseState.NextTempNumber++);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(operation, incrementedValue, originalValue, new NumberValue(1)));
-                    modifiedValue = incrementedValue;
+
+                    _currentParseState.AddCodeInstruction(new InstructionLine(operation, originalValue, originalValue, new NumberValue(1)));
+                    modifiedValue = originalValue;
                 }
 
-                GenerateWriteBackInstruction(left, modifiedValue);
+                if (modifiedValue is not VariableValue)
+                {
+                    GenerateWriteBackInstruction(left, modifiedValue);
+                    return modifiedValue;
+                }
 
-                return modifiedValue;
+                return new StatementCompleteValue();
             }
 
             return left;

@@ -668,6 +668,13 @@ namespace Fluence
                 (right.Type == RuntimeValueType.Object && right.Is<StringObject>()))
             {
                 string resultString = string.Concat(left.ToString(), right.ToString());
+
+                if (instruction.Lhs is VariableValue var)
+                {
+                    AssignVariable(var.Name, new RuntimeValue(new StringObject(resultString)));
+                    return;
+                }
+
                 SetRegister((TempValue)instruction.Lhs, new RuntimeValue(new StringObject(resultString)));
                 return;
             }
@@ -679,6 +686,13 @@ namespace Fluence
 
                 concatenatedList.Elements.AddRange(leftList.Elements);
                 concatenatedList.Elements.AddRange(rightList.Elements);
+
+                if (instruction.Lhs is VariableValue var)
+                {
+                    AssignVariable(var.Name, new RuntimeValue(concatenatedList));
+                    return;
+                }
+
                 SetRegister((TempValue)instruction.Lhs, new RuntimeValue(concatenatedList));
                 return;
             }

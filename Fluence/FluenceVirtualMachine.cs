@@ -636,6 +636,12 @@ namespace Fluence
                 _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported left-hand number type."),
             };
 
+            if (instruction.Lhs is VariableValue var)
+            {
+                AssignVariable(var.Name, result);
+                return;
+            }
+
             SetRegister((TempValue)instruction.Lhs, result);
         }
 

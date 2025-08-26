@@ -1912,10 +1912,16 @@ namespace Fluence
                     Value resolvedLhs = ResolveValue(firstLhs);
                     InstructionCode opCode = GetInstructionCodeForBinaryOperator(type);
 
-                    TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+                    _currentParseState.AddCodeInstruction(new InstructionLine(opCode, resolvedLhs, resolvedLhs, rhs));
 
-                    _currentParseState.AddCodeInstruction(new InstructionLine(opCode, result, resolvedLhs, rhs));
-                    GenerateWriteBackInstruction(resolvedLhs, result);
+                    if (firstLhs is VariableValue variable)
+                    {
+                        _currentParseState.CurrentScope.Declare(variable.Name, new VariableSymbol(variable.Name, resolvedLhs));
+                    }
+                    else
+                    {
+                        GenerateWriteBackInstruction(firstLhs, resolvedLhs);
+                    }
                 }
             }
             else

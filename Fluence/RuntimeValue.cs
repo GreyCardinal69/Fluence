@@ -192,7 +192,7 @@ namespace Fluence
         {
             var self = args[0].As<ListObject>();
             self!.Elements.Add(args[1]);
-            return new RuntimeValue(null);
+            return new RuntimeValue(null!);
         }
 
         /// <inheritdoc/>

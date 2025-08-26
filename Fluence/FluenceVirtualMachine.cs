@@ -1,7 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Xml.Linq;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceParser;
@@ -121,7 +120,7 @@ namespace Fluence
         /// Represents the state of a single function call on the stack. It contains the function being executed,
         /// its local variables (registers), the return address, and the destination for the return value.
         /// </summary>
-        private readonly record struct CallFrame
+        private sealed class CallFrame
         {
             internal Dictionary<string, RuntimeValue> Registers { get; } = new();
             internal readonly TempValue DestinationRegister;
@@ -218,6 +217,12 @@ namespace Fluence
         internal FluenceVirtualMachine(List<InstructionLine> bytecode, ParseState parseState)
         {
             _byteCode = bytecode;
+            FluenceOptimizer.OptimizeByteCode(ref _byteCode, parseState);
+#if DEBUG
+            Console.WriteLine("\n----------OPTIMIZED BYTECODE----------\n");
+            DumpByteCodeInstructions(_byteCode);
+            Console.WriteLine("\n--------------------------------------\n");
+#endif
             _globalScope = parseState.GlobalScope;
             _globals = new Dictionary<string, RuntimeValue>();
             _callStack = new Stack<CallFrame>();
@@ -286,6 +291,17 @@ namespace Fluence
 
             _dispatchTable[(int)InstructionCode.GotoIfFalse] = (inst) => ExecuteGotoIf(inst, false);
             _dispatchTable[(int)InstructionCode.GotoIfTrue] = (inst) => ExecuteGotoIf(inst, true);
+
+            //      ==!!==
+            //      The following are unique opCodes generated only by the FluenceOptimizer.
+            //      Some of these perfectly map to existing functions.
+            //
+
+            _dispatchTable[(int)InstructionCode.AddAssign] = ExecuteAdd;
+            _dispatchTable[(int)InstructionCode.MulAssign] = ExecuteMultiplication;
+            _dispatchTable[(int)InstructionCode.DivAssign] = ExecuteDivision;
+            _dispatchTable[(int)InstructionCode.ModAssign] = ExecuteModulo;
+            _dispatchTable[(int)InstructionCode.SubAssign] = ExecuteSubtraction;
 
             // Simple case for Terminate.
             _dispatchTable[(int)InstructionCode.Terminate] = (inst) => _ip = _byteCode.Count;
@@ -1710,7 +1726,7 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Creates a <see cref="VMDebugContext"/> with the current state of the virtual machine before throwing an exception.
+        /// Creates and logs to the console a <see cref="VMDebugContext"/> with the current state of the virtual machine before throwing an exception.
         /// </summary>
         /// <param name="exception"></param>
         /// <returns></returns>

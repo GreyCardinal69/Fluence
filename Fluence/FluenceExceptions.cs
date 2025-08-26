@@ -54,7 +54,7 @@ namespace Fluence
             }
 
             string tokenText = (Token.Text == "\r" || Token.Text == "\n" || Token.Text == "\r\n" || Token.Text == ";\r\n") ? "NewLine" : Token.Text;
-            string tokenLiteral = (string)((Token.Literal == "\r" || Token.Literal == "\n" || Token.Literal == "\r\n") ? "NewLine" : Token.Literal);
+            string tokenLiteral = (string)((Token.Literal is (object)"\r" or (object)"\n" or (object)"\r\n") ? "NewLine" : Token.Literal);
 
             tokenText ??= "Null";
             tokenLiteral ??= "Null";

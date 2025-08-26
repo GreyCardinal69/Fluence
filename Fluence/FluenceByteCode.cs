@@ -100,6 +100,16 @@
 
                 // == Type Operations ==
                 ToString,       // Converts a value (Rhs) to its string representation. Result stored in Lhs.
+
+                //      ==!!==
+                //      The following are special bytecode instructions generated solely by the Optimizer class after the parsing phase.
+                
+                // Double compound ops, op + assign in one instruction.
+                AddAssign,
+                SubAssign,
+                MulAssign,
+                DivAssign,
+                ModAssign,
             }
 
             /// <summary>Gets the operation code for this instruction.</summary>

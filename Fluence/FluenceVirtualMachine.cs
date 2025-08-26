@@ -882,6 +882,12 @@ namespace Fluence
                 _ => throw new FluenceRuntimeException("Internal VM Error: Unhandled bitwise operation routed to ExecuteBitwiseOperation."),
             };
 
+            if (instruction.Lhs is VariableValue var)
+            {
+                AssignVariable(var.Name, new RuntimeValue(result));
+                return;
+            }
+
             SetRegister((TempValue)instruction.Lhs, new RuntimeValue(result));
         }
 

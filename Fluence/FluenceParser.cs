@@ -763,7 +763,7 @@ namespace Fluence
                 // Simple Statements that MUST be terminated.
                 case TokenType.RETURN:
                     ParseReturnStatement();
-                    AdvanceAndExpect(TokenType.EOL, "Expected a ';' or newline after the return statement.");
+                    if (_lexer.PeekNextTokenType() != TokenType.TRAIN_PIPE_END) AdvanceAndExpect(TokenType.EOL, "Expected a ';' or newline after the return statement.");
                     break;
                 case TokenType.BREAK:
                     _lexer.Advance(); // Consume break;
@@ -907,6 +907,9 @@ namespace Fluence
             _currentParseState.CurrentStructContext = null!;
         }
 
+        /// <summary>
+        /// Parses a train of statements until a closing train symbol is encountered.
+        /// </summary>
         private void ParseTrainPipe()
         {
             while (_lexer.PeekNextTokenType() == TokenType.TRAIN_PIPE)
@@ -915,7 +918,7 @@ namespace Fluence
                 ParseStatement();
             }
 
-            ConsumeAndExpect(TokenType.TRAIN_PIPE_END, "Expected a '<<-' train pipe end.");
+            ConsumeAndExpect(TokenType.TRAIN_PIPE_END, "Expected a '<<-' operator to end a train");
         }
 
         /// <summary>
@@ -967,7 +970,11 @@ namespace Fluence
             _currentParseState.ActiveLoopContexts.Push(loopContext);
 
             int bodyStartIndex = _currentParseState.CodeInstructions.Count;
-            if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
+            if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
+            {
+                ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
+            }
+            else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
             {
                 ParseBlockStatement();
             }
@@ -1094,7 +1101,11 @@ namespace Fluence
         /// </summary>
         private void ParseLoopBody()
         {
-            if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
+            if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
+            {
+                ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
+            }
+            else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
             {
                 ParseBlockStatement();
             }
@@ -1140,7 +1151,11 @@ namespace Fluence
             int loopExitPatch = _currentParseState.CodeInstructions.Count - 1;
 
             // While has two forms, block {...} or while cond -> ...;
-            if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
+            if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
+            {
+                ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
+            }
+            else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
             {
                 ParseBlockStatement();
             }
@@ -1620,7 +1635,11 @@ namespace Fluence
                     nextCasePatchIndex = _currentParseState.CodeInstructions.Count - 1;
                 }
 
-                if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW))
+                if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
+                {
+                    ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
+                }
+                else if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW))
                 {
                     AdvanceAndExpect(TokenType.THIN_ARROW, "Expected a '->' for the match case expression.");
 
@@ -1874,7 +1893,7 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Parses a block of statements enclosed in curly braces `{ ... }`.
+        /// Parses a block of statements enclosed in custom end and start tokens. An imitation of a block of code.
         /// </summary>
         private void ParseImitationBlockStatement(TokenType openToken, TokenType closeToken)
         {
@@ -2830,7 +2849,7 @@ namespace Fluence
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCodeForBinaryOperator(op.Type), result, left, ResolveValue(operand)));
+                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCodeForBinaryOperator(op.Type), result, ResolveValue(left), ResolveValue(operand)));
 
                 left = result;
             }

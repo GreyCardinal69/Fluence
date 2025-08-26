@@ -13,9 +13,8 @@ namespace Fluence
         {
             var removedIndices = new List<int>();
 
-            FuseCompoundAssignments(ref bytecode, removedIndices);
             FuseGotoConditionals(ref bytecode, removedIndices);
-
+            FuseCompoundAssignments(ref bytecode, removedIndices); 
             RealignOffsets(ref bytecode, parseState, removedIndices);
         }
 
@@ -75,6 +74,7 @@ namespace Fluence
                     bytecode[i] = fusedInsn;
                     bytecode[i + 1] = null!;
                     removedIndices.Add(i + 1);
+
                 }
             }
         }

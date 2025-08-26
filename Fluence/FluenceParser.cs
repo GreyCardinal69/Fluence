@@ -2062,20 +2062,18 @@ namespace Fluence
 
             do
             {
-                TempValue valueToAssign = new TempValue(_currentParseState.NextTempNumber++);
-
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, valueToAssign, ResolveValue(rhsExpressions[lhsIndex])));
+                Value rhs = ResolveValue(rhsExpressions[lhsIndex]);
 
                 int skipOptionalAssign = -1;
                 if (isOptional)
                 {
                     TempValue isNil = new TempValue(_currentParseState.NextTempNumber++);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, valueToAssign, new NilValue()));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, rhs, new NilValue()));
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null!, isNil));
                     skipOptionalAssign = _currentParseState.CodeInstructions.Count - 1;
                 }
 
-                GenerateWriteBackInstruction(lhsDescriptors[lhsIndex], valueToAssign);
+                GenerateWriteBackInstruction(lhsDescriptors[lhsIndex], rhs);
                 lhsIndex++;
                 if (skipOptionalAssign != -1)
                 {

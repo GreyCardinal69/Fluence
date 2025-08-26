@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Xml.Linq;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceParser;
@@ -120,7 +121,7 @@ namespace Fluence
         /// Represents the state of a single function call on the stack. It contains the function being executed,
         /// its local variables (registers), the return address, and the destination for the return value.
         /// </summary>
-        private sealed class CallFrame
+        private readonly record struct CallFrame
         {
             internal Dictionary<string, RuntimeValue> Registers { get; } = new();
             internal readonly TempValue DestinationRegister;
@@ -135,6 +136,9 @@ namespace Fluence
             }
         }
 
+        /// <summary>
+        /// Captures the state of the virtual machine at the point of the creation of the object.
+        /// </summary>
         internal readonly struct VMDebugContext
         {
             internal int InstructionPointer { get; }
@@ -143,7 +147,7 @@ namespace Fluence
             internal IReadOnlyList<RuntimeValue> OperandStackSnapshot { get; }
             internal int CallStackDepth { get; }
             internal string CurrentFunctionName { get; }
-
+             
             internal VMDebugContext(FluenceVirtualMachine vm)
             {
                 InstructionPointer = vm._ip - 1;
@@ -232,6 +236,7 @@ namespace Fluence
             {
                 if ((int)value > maxOpCode) maxOpCode = (int)value;
             }
+
             _dispatchTable = new OpcodeHandler[maxOpCode + 1];
 
             _dispatchTable[(int)InstructionCode.Assign] = ExecuteAssign;
@@ -416,7 +421,7 @@ namespace Fluence
 
             FunctionValue methodBlueprint;
 
-            if (methodName == "init")
+            if (string.Equals(methodName, "init", StringComparison.Ordinal))
             {
                 methodBlueprint = instance!.Class.Constructor;
                 if (methodBlueprint == null)
@@ -487,62 +492,18 @@ namespace Fluence
             var lexicalScope = CurrentFrame.Function.DefiningScope;
             if (lexicalScope.TryResolve(internedName, out Symbol symbol))
             {
-                if (symbol is FunctionSymbol funcSymbol)
-                {
-                    return new RuntimeValue(
-                        funcSymbol.IsIntrinsic
-                            // Create an intrinsic (C#) function object.
-                            ? new FunctionObject(funcSymbol.Name, funcSymbol.Arity, funcSymbol.IntrinsicBody, null!)
-                            // Create a user-defined (bytecode) function object.
-                            : new FunctionObject(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.StartAddress, funcSymbol.DefiningScope
-                            )
-                        );
-                }
-                else if (symbol is VariableSymbol variable)
-                {
-                    // Current scopt also contains all symbols from namespaces it uses.
-                    if (lexicalScope.RuntimeStorage.TryGetValue(variable.Name, out RuntimeValue result))
-                    {
-                        return result;
-                    }
-                    // Check global scope aka outside any namespace.
-                    if (_globals.TryGetValue(variable.Name, out RuntimeValue result2))
-                    {
-                        return result2;
-                    }
-                }
+                return ResolveVariableFromScopeSymbol(symbol, lexicalScope);
             }
 
-            if (CurrentFrame.Function.Name == "<script>")
+            if (string.Equals(CurrentFrame.Function.Name, "<script>", StringComparison.Ordinal))
             {
-                foreach (var item in Namespaces)
+                foreach (var item in Namespaces.Values)
                 {
-                    FluenceScope lexicalScope2 = item.Value;
+                    FluenceScope lexicalScope2 = item;
 
                     if (lexicalScope2.TryResolve(name, out Symbol symb))
                     {
-                        if (symb is FunctionSymbol funcSymbol2)
-                        {
-                            return new RuntimeValue(
-                                funcSymbol2.IsIntrinsic
-                                    ? new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.IntrinsicBody, null!)
-                                    : new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.Arguments, funcSymbol2.StartAddress, funcSymbol2.DefiningScope
-                                    )
-                                );
-                        }
-                        else if (symb is VariableSymbol variable)
-                        {
-                            // Current scopt also contains all symbols from namespaces it uses.
-                            if (lexicalScope2.RuntimeStorage.TryGetValue(variable.Name, out RuntimeValue result))
-                            {
-                                return result;
-                            }
-                            // Check global scope aka outside any namespace.
-                            if (_globals.TryGetValue(variable.Name, out RuntimeValue result2))
-                            {
-                                return result2;
-                            }
-                        }
+                        return ResolveVariableFromScopeSymbol(symb, lexicalScope2);
                     }
                 }
             }
@@ -550,13 +511,49 @@ namespace Fluence
             // Last case, check in global scope.
             foreach (Symbol valSymbol in _globalScope.Symbols.Values)
             {
-                if (valSymbol is VariableSymbol varSymbol && varSymbol.Name == name)
+                if (valSymbol is VariableSymbol varSymbol && string.Equals(varSymbol.Name, name, StringComparison.Ordinal))
                 {
                     return GetRuntimeValue(varSymbol.Value);
                 }
             }
 
             ConstructAndThrowException($"Runtime Error: Undefined variable '{name}'.");
+            return new();
+        }
+
+        /// <summary>
+        /// Resolves complex symbols into RuntimeValues.
+        /// </summary>
+        /// <param name="symbol"></param>
+        /// <param name="scope"></param>
+        /// <returns></returns>
+        private RuntimeValue ResolveVariableFromScopeSymbol(Symbol symbol, FluenceScope scope)
+        {
+            if (symbol is FunctionSymbol funcSymbol2)
+            {
+                return new RuntimeValue(
+                    funcSymbol2.IsIntrinsic
+                        ? new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.IntrinsicBody, null!)
+                        : new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.Arguments, funcSymbol2.StartAddress, funcSymbol2.DefiningScope
+                        )
+                    );
+            }
+            else if (symbol is VariableSymbol variable)
+            {
+                // Current scopt also contains all symbols from namespaces it uses.
+                ref var namespaceRuntimeValue = ref CollectionsMarshal.GetValueRefOrNullRef(scope.RuntimeStorage, variable.Name);
+                if (!Unsafe.IsNullRef(ref namespaceRuntimeValue))
+                {
+                    return namespaceRuntimeValue;
+                }
+                ref var namespaceRuntimeValue2 = ref CollectionsMarshal.GetValueRefOrNullRef(_globals, variable.Name);
+                if (!Unsafe.IsNullRef(ref namespaceRuntimeValue2))
+                {
+                    return namespaceRuntimeValue2;
+                }
+            }
+
+            // Won't reach here, but satisfies compiler.
             return new();
         }
 
@@ -576,7 +573,7 @@ namespace Fluence
         private void AssignVariable(string name, RuntimeValue value)
         {
             // If we are not in the top-level script, assign to the current frame's local registers.
-            if (CurrentFrame.Function.Name != "<script>")
+            if (!string.Equals(CurrentFrame.Function.Name, "<script>", StringComparison.Ordinal))
             {
                 ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, name, out _);
                 valueRef = value;
@@ -1686,6 +1683,12 @@ namespace Fluence
             };
         }
 
+        /// <summary>
+        /// Creates a <see cref="VMDebugContext"/> with the current state of the virtual machine before throwing an exception.
+        /// </summary>
+        /// <param name="exception"></param>
+        /// <returns></returns>
+        /// <exception cref="FluenceRuntimeException"></exception>
         private object ConstructAndThrowException(string exception)
         {
             VMDebugContext ctx = new VMDebugContext(this);

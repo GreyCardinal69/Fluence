@@ -579,7 +579,6 @@ namespace Fluence
 
         /// <summary>
         /// Writes a value to a specified temporary register in the current call frame.
-        /// This is a high-performance method using direct memory references.
         /// </summary>
         private void SetRegister(TempValue destination, RuntimeValue value)
         {
@@ -588,7 +587,7 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Assigns a value to a variable, correctly handling local vs. global scope.
+        /// Assigns a value to a variable.
         /// </summary>
         private void AssignVariable(string name, RuntimeValue value)
         {

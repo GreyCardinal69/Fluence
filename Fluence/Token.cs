@@ -144,6 +144,9 @@
             COLLECTIVE_OR_GREATER,          // <||>|
             COLLECTIVE_OR_GREATER_EQUAL,    // <||>=|
 
+            TRAIN_PIPE,         // ->>
+            TRAIN_PIPE_END,     // <<-
+
             // == Special & Control Tokens ==
             UNDERSCORE,     // _
             EOL,            // End Of Line (statement terminator, from ';')

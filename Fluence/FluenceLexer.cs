@@ -364,7 +364,7 @@ namespace Fluence
              * 1 Char: + - * / % < > = ! ^ ~ | &
              * 2 Char: == != <= => || && ** is >> << |> |? <| ~> .. ++ --
              * +=. -=. *=, /=, or
-             * 3 Char: |?? |>> |~> <<| <>| <n| <?| not, <~|
+             * 3 Char: |?? |>> |~> <<| <>| <n| <?| not, <~| ->>
              * 4 Char: |>>= <==| <!=| <<=| <>=| <??| <n|?, <~?|
              * 5 Char: <||<| <||>|
              * 6 Char: <||!=| <||==| <||??|
@@ -401,6 +401,13 @@ namespace Fluence
                     }
                     return MakeTokenAndTryAdvance(TokenType.PLUS, 1);
                 case '-':
+                    if (CanLookAheadStartInclusive(3))
+                    {
+                        if (PeekString(3).SequenceEqual("->>"))
+                        {
+                            return MakeTokenAndTryAdvance(TokenType.TRAIN_PIPE, 3);
+                        }
+                    }
                     if (CanLookAheadStartInclusive(2))
                     {
                         nextChar = PeekNext();
@@ -845,7 +852,7 @@ namespace Fluence
             // <||!=| <||==| <||??| <||<=| <||>=|
             // <||<|   <||>| 
             // <==|, <!=|, <<=|, <>=|, <??|, <n?| <~?|
-            // <<|, <>|, <n|, <?|
+            // <<|, <>|, <n|, <?| <<-
             // <=, <<, <|, <~|
             // <
 
@@ -938,6 +945,10 @@ namespace Fluence
                     case "<?|": return MakeTokenAndTryAdvance(TokenType.OPTIONAL_REST_ASSIGN, 3);
                     case "<~|": return MakeTokenAndTryAdvance(TokenType.SEQUENTIAL_REST_ASSIGN, 3);
                 }
+            }
+            else if (peek.Length >= 3 && peek[..3].SequenceEqual("<<-"))
+            {
+                return MakeTokenAndTryAdvance(TokenType.TRAIN_PIPE_END, 3);
             }
 
             // Two Char operators.

@@ -797,8 +797,12 @@ namespace Fluence
                     AdvanceAndExpect(TokenType.EOL, "Expected a ';' after the 'break' statement.");
                     break;
                 // Expression.
+                case TokenType.TRAIN_PIPE:
+                    ParseTrainPipe();
+                    break;
                 default:
                     ParseAssignment();
+                    if (_lexer.PeekNextTokenType() == TokenType.TRAIN_PIPE || _lexer.PeekNextTokenType() == TokenType.TRAIN_PIPE_END) return;
                     // All expression statements must be terminated by a semicolon or newline.
                     AdvanceAndExpect(TokenType.EOL, "Expected a ';' to terminate the statement.");
                     break;
@@ -901,6 +905,17 @@ namespace Fluence
             }
 
             _currentParseState.CurrentStructContext = null!;
+        }
+
+        private void ParseTrainPipe()
+        {
+            while (_lexer.PeekNextTokenType() == TokenType.TRAIN_PIPE)
+            {
+                _lexer.ConsumeToken();
+                ParseStatement();
+            }
+
+            ConsumeAndExpect(TokenType.TRAIN_PIPE_END, "Expected a '<<-' train pipe end.");
         }
 
         /// <summary>
@@ -1202,7 +1217,11 @@ namespace Fluence
 
             // ifs come into ways, a block body if ... { ... }
             // or one line expressions, if ... -> .... ;
-            if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
+            if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
+            {
+                ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
+            }
+            else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
             {
                 ParseBlockStatement();
             }
@@ -1263,7 +1282,7 @@ namespace Fluence
                 ? new NilValue() // Empty 'return';
                 : ParseExpression();
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, result));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, ResolveValue(result)));
         }
 
         /// <summary>
@@ -1852,6 +1871,19 @@ namespace Fluence
                 ParseStatement();
             }
             AdvanceAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end a block of code.");
+        }
+
+        /// <summary>
+        /// Parses a block of statements enclosed in curly braces `{ ... }`.
+        /// </summary>
+        private void ParseImitationBlockStatement(TokenType openToken, TokenType closeToken)
+        {
+            AdvanceAndExpect(openToken, $"Expected an opening '{openToken}' to start an imitation block of code.");
+            while (!_lexer.TokenTypeMatches(closeToken))
+            {
+                ParseStatement();
+            }
+            AdvanceAndExpect(closeToken, $"Expected a closing '{closeToken}' to end an imitation block of code.");
         }
 
         /// <summary>

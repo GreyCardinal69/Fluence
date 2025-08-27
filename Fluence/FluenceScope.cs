@@ -1,4 +1,7 @@
-﻿namespace Fluence
+﻿using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
+namespace Fluence
 {
     /// <summary>
     /// Manages a lexical scope, holding a table of symbols and a reference to its parent scope.
@@ -72,8 +75,11 @@
         /// <returns>True if the symbol was found in this scope or any parent scope; otherwise, false.</returns>
         internal bool TryResolve(string name, out Symbol symbol)
         {
-            if (Symbols.TryGetValue(name, out symbol))
+            ref Symbol localSymbol = ref CollectionsMarshal.GetValueRefOrNullRef(Symbols, name);
+
+            if (!Unsafe.IsNullRef(ref localSymbol))
             {
+                symbol = localSymbol;
                 return true;
             }
 

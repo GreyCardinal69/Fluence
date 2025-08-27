@@ -217,12 +217,6 @@ namespace Fluence
         internal FluenceVirtualMachine(List<InstructionLine> bytecode, ParseState parseState)
         {
             _byteCode = bytecode;
-            FluenceOptimizer.OptimizeByteCode(ref _byteCode, parseState);
-#if DEBUG
-            Console.WriteLine("\n----------OPTIMIZED BYTECODE----------\n");
-            DumpByteCodeInstructions(_byteCode);
-            Console.WriteLine("\n--------------------------------------\n");
-#endif
             _globalScope = parseState.GlobalScope;
             _globals = new Dictionary<string, RuntimeValue>();
             _callStack = new Stack<CallFrame>();

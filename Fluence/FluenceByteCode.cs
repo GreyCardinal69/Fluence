@@ -22,7 +22,8 @@
 
             for (int i = 0; i < instructions.Count; i++)
             {
-                Console.WriteLine($"{i:D4}: {instructions[i].ToString().Replace("\n", "")}");
+                if (instructions[i] == null) Console.WriteLine($"{i:D4}: NULL");
+                else Console.WriteLine($"{i:D4}: {instructions[i].ToString().Replace("\n", "")}");
             }
             Console.WriteLine("\n--- End of Bytecode ---");
         }
@@ -116,19 +117,19 @@
             }
 
             /// <summary>Gets the operation code for this instruction.</summary>
-            internal readonly InstructionCode Instruction;
+            internal InstructionCode Instruction;
 
             /// <summary>Gets the primary operand, often the destination or target of the operation.</summary>
             internal Value Lhs; // Mutable for back-patching jumps.
 
             /// <summary>Gets the first source operand.</summary>
-            internal readonly Value Rhs;
+            internal Value Rhs;
 
             /// <summary>Gets the second source operand.</summary>
-            internal readonly Value Rhs2;
+            internal Value Rhs2;
 
             /// <summary>The third source operand, used only in specialized instructions and generated strictly by the optimizer.</summary>
-            internal readonly Value Rhs3;
+            internal Value Rhs3;
 
             internal InstructionLine(InstructionCode instruction, Value lhs, Value rhs = null!, Value rhs2 = null!, Value rhs3 = null!)
             {

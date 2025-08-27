@@ -19,6 +19,12 @@ namespace Fluence
         private readonly ParseState _currentParseState;
 
         /// <summary>
+        /// Marks the index of the last bytecode instruction, up to which the bytecode has already been passed through
+        /// the <see cref="FluenceOptimizer"/>.
+        /// </summary>
+        private int _lastOptimizationIndex;
+
+        /// <summary>
         /// Exposes the global scope of the current parsing state, primarily for the intrinsic registrar.
         /// </summary>
         internal FluenceScope CurrentParserStateGlobalScope => _currentParseState.GlobalScope;
@@ -1400,8 +1406,8 @@ namespace Fluence
         /// <param name="structName">The name of the struct, if `inStruct` is true.</param>
         private void ParseFunction(bool inStruct = false, bool isInit = false, string structName = null!)
         {
-            // The optimization of goto-s is very tricky for the optimizer, hence we optimize them here, just before we patch function start addresses.
-            FluenceOptimizer.OptimizeGotoInstructions(ref _currentParseState.CodeInstructions, _currentParseState);
+            // We optimize all the bytecode up to this point.
+            FluenceOptimizer.OptimizeChunk(ref _currentParseState.CodeInstructions, _currentParseState, _lastOptimizationIndex);
 
             _currentParseState.IsParsingFunctionBody = true;
             (Token nameToken, List<string> parameters) = ParseFunctionHeader();
@@ -1433,6 +1439,9 @@ namespace Fluence
             int afterBodyAddress = _currentParseState.CodeInstructions.Count;
             _currentParseState.CodeInstructions[functionStartAddress - 1].Lhs = new NumberValue(afterBodyAddress);
             _currentParseState.IsParsingFunctionBody = false;
+
+            // Next time we call OptimizeChunk, all the bytecode before here will be skipped, to avoid repetitive, useless optimization passes.
+            _lastOptimizationIndex = functionStartAddress;
         }
 
         /// <summary>

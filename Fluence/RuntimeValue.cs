@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Text;
 using static Fluence.FluenceVirtualMachine;
 
 namespace Fluence
@@ -161,7 +162,12 @@ namespace Fluence
 
         public override string ToString()
         {
-            return $"<instance of {Class.Name}>";
+            StringBuilder stringBuilder = new StringBuilder($"<instance of {Class.Name}>.");
+            foreach (var item in _fields)
+            {
+                stringBuilder.Append($"\n\t{item}");
+            }
+            return stringBuilder.ToString();
         }
     }
 

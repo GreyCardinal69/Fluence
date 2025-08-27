@@ -11,14 +11,18 @@ namespace Fluence
     {
         internal static void OptimizeByteCode(ref List<InstructionLine> bytecode, ParseState parseState)
         {
-            var removedIndices = new List<int>();
-
-            FuseGotoConditionals(ref bytecode, removedIndices);
-            FuseCompoundAssignments(ref bytecode, removedIndices); 
-            RealignOffsets(ref bytecode, parseState, removedIndices);
+            FuseGotoConditionals(ref bytecode);
+            FuseCompoundAssignments(ref bytecode);
+            RealignOffsets(ref bytecode, parseState);
         }
 
-        private static void FuseCompoundAssignments(ref List<InstructionLine> bytecode, List<int> removedIndices)
+        internal static void OptimizeGotoInstructions(ref List<InstructionLine> bytecode, ParseState state)
+        {
+            FuseGotoConditionals(ref bytecode);
+            RealignOffsets(ref bytecode, state);
+        }
+
+        private static void FuseCompoundAssignments(ref List<InstructionLine> bytecode)
         {
             for (int i = 0; i < bytecode.Count - 1; i++)
             {
@@ -44,13 +48,11 @@ namespace Fluence
                     InstructionLine fusedInsn = new InstructionLine(opCode, line2Lhs, line1Rhs, line1.Rhs2);
                     bytecode[i] = fusedInsn;
                     bytecode[i + 1] = null!;
-                    removedIndices.Add(i + 1);
                 }
             }
-
         }
 
-        private static void FuseGotoConditionals(ref List<InstructionLine> bytecode, List<int> removedIndices)
+        private static void FuseGotoConditionals(ref List<InstructionLine> bytecode)
         {
             for (int i = 0; i < bytecode.Count - 1; i++)
             {
@@ -73,7 +75,6 @@ namespace Fluence
                     InstructionLine fusedInsn = new InstructionLine(op, line2.Lhs, line1.Rhs, line1.Rhs2);
                     bytecode[i] = fusedInsn;
                     bytecode[i + 1] = null!;
-                    removedIndices.Add(i + 1);
 
                 }
             }
@@ -103,13 +104,11 @@ namespace Fluence
             || op == InstructionCode.BranchIfEqual
             || op == InstructionCode.BranchIfNotEqual;
 
-        private static void RealignOffsets(ref List<InstructionLine> bytecode, ParseState parseState, List<int> _)
+        private static void RealignOffsets(ref List<InstructionLine> bytecode, ParseState parseState)
         {
             int oldCount = bytecode.Count;
 
             var oldToNew = new int[oldCount];
-            Array.Fill(oldToNew, -1);
-
             int newIdx = 0;
             for (int i = 0; i < oldCount; i++)
             {
@@ -117,26 +116,53 @@ namespace Fluence
                 {
                     oldToNew[i] = newIdx++;
                 }
+                else
+                {
+                    oldToNew[i] = -1;
+                }
             }
+            int newCount = newIdx;
 
-            // Map an old address to the next valid new address (fall through if target removed).
             int MapAddr(int oldAddr)
             {
-                if (oldAddr < 0) return 0;
-                int i = Math.Min(oldAddr, oldCount - 1);
-                while (i < oldCount && oldToNew[i] == -1) i++;
-                if (i >= oldCount)
+                if (oldAddr == oldCount)
                 {
-                    // If the target was at/after the last removed block, clamp to the last live instruction.
-                    // (Assumes there is at least one non-null instruction.)
-                    int j = oldCount - 1;
-                    while (j >= 0 && oldToNew[j] == -1) j--;
-                    return j >= 0 ? oldToNew[j] : 0;
+                    return newCount;
                 }
-                return oldToNew[i];
+
+                if (oldAddr < 0)
+                {
+                    return oldAddr;
+                }
+                if (oldAddr >= oldCount)
+                {
+                    // For addresses beyond the end, also map to the new end.
+                    return newCount;
+                }
+
+                if (oldToNew[oldAddr] == -1)
+                {
+                    int searchIndex = oldAddr + 1;
+                    while (searchIndex < oldCount && oldToNew[searchIndex] == -1)
+                    {
+                        searchIndex++;
+                    }
+
+                    if (searchIndex >= oldCount)
+                    {
+                        return newCount;
+                    }
+                    return oldToNew[searchIndex];
+                }
+
+                return oldToNew[oldAddr];
             }
 
-            // Patch jump targets.
+            void PatchFunctionValue(FunctionValue f)
+            {
+                f?.SetStartAddress(MapAddr(f.StartAddress));
+            }
+
             for (int i = 0; i < oldCount; i++)
             {
                 var insn = bytecode[i];
@@ -144,27 +170,19 @@ namespace Fluence
 
                 if (IsJumpInstruction(insn.Instruction) && insn.Lhs is NumberValue targetAddr)
                 {
-                    int oldTarget = (int)targetAddr.Value;
-                    int newTarget = MapAddr(oldTarget);
-                    insn.Lhs = new NumberValue(newTarget);
+                    insn.Lhs = new NumberValue(MapAddr((int)targetAddr.Value));
                 }
-            }
 
-            // Patch function/struct entry points using the same MapAddr.
-            void PatchFunctionValue(FunctionValue f)
-            {
-                f.SetStartAddress(MapAddr(f.StartAddress));
+                if (insn.Rhs is FunctionValue fvRhs) PatchFunctionValue(fvRhs);
+                if (insn.Rhs2 is FunctionValue fvRhs2) PatchFunctionValue(fvRhs2);
             }
 
             foreach (var symbol in parseState.GlobalScope.Symbols.Values)
             {
-                if (symbol is FunctionSymbol f)
-                {
-                    f.SetStartAddress(MapAddr(f.StartAddress));
-                }
+                if (symbol is FunctionSymbol f) f.SetStartAddress(MapAddr(f.StartAddress));
                 else if (symbol is StructSymbol s)
                 {
-                    if (s.Constructor != null) PatchFunctionValue(s.Constructor);
+                    PatchFunctionValue(s.Constructor);
                     foreach (var m in s.Functions.Values) PatchFunctionValue(m);
                 }
             }
@@ -173,13 +191,10 @@ namespace Fluence
             {
                 foreach (var symbol in scope.Symbols.Values)
                 {
-                    if (symbol is FunctionSymbol f)
-                    {
-                        f.SetStartAddress(MapAddr(f.StartAddress));
-                    }
+                    if (symbol is FunctionSymbol f) f.SetStartAddress(MapAddr(f.StartAddress));
                     else if (symbol is StructSymbol s)
                     {
-                        if (s.Constructor != null) PatchFunctionValue(s.Constructor);
+                        PatchFunctionValue(s.Constructor);
                         foreach (var m in s.Functions.Values) PatchFunctionValue(m);
                     }
                 }

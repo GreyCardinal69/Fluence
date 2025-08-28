@@ -351,8 +351,8 @@ namespace Fluence
     internal enum RuntimeNumberType
     {
         Int,
-        Double,
         Float,
+        Double,
         Long,
         Unknown,
     }

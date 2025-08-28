@@ -1314,17 +1314,109 @@ namespace Fluence
             return null;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool AreEqual(RuntimeValue left, RuntimeValue right)
+        {
+            if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
+            {
+                return left.DoubleValue == right.DoubleValue;
+            }
 
+            return left.Equals(right);
+        }
 
+        internal static SpecializedOpcodeHandler? CreateSpecializedBranchHandler(InstructionLine insn, RuntimeValue left, RuntimeValue right, bool target)
+        {
+            var lhsOperand = insn.Rhs;
+            var rhsOperand = insn.Rhs2;
+            var jumpTarget = (int)((NumberValue)insn.Lhs).Value;
 
+            // Variable vs Constant (e.g., term == 1).
+            if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
+            {
+                string varName = varOp.Name;
+                var constValue = right;
 
+                return (instruction, vm) =>
+                {
+                    ref var register = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
+                    if (!Unsafe.IsNullRef(ref register))
+                    {
+                        if (AreEqual(register, constValue) == target)
+                        {
+                            vm.SetInstructionPointer(jumpTarget);
+                        }
+                    }
+                    else
+                    {
+                        instruction.SpecializedHandler = null;
+                        vm.ExecuteBranchIfEqual(instruction, target);
+                    }
+                };
+            }
 
+            // Temp vs Constant (e.g., temp  == 1).
+            if (lhsOperand is TempValue temp && rhsOperand is NumberValue)
+            {
+                string varName = temp.TempName;
+                var constValue = right;
 
+                return (instruction, vm) =>
+                {
+                    ref var register = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
+                    if (!Unsafe.IsNullRef(ref register))
+                    {
+                        if (AreEqual(register, constValue) == target)
+                        {
+                            vm.SetInstructionPointer(jumpTarget);
+                        }
+                    }
+                    else
+                    {
+                        instruction.SpecializedHandler = null;
+                        vm.ExecuteBranchIfEqual(instruction, target);
+                    }
+                };
+            }
 
+            // Variable vs Variable (e.g., x == y).
+            if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
+            {
+                string leftName = varLeft.Name;
+                string rightName = varRight.Name;
 
+                return (instruction, vm) =>
+                {
+                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
+                    if (!Unsafe.IsNullRef(ref val1) && !Unsafe.IsNullRef(ref val2))
+                    {
+                        if (AreEqual(val1, val2) == target)
+                        {
+                            vm.SetInstructionPointer(jumpTarget);
+                        }
+                    }
+                    else
+                    {
+                        instruction.SpecializedHandler = null;
+                        vm.ExecuteBranchIfEqual(instruction, target);
+                    }
+                };
+            }
 
+            return null;
+        }
     }
+
+
+
+
+
+
+
+
+     
 }

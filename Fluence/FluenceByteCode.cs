@@ -131,24 +131,6 @@
             /// <summary>The third source operand, used only in specialized instructions and generated strictly by the optimizer.</summary>
             internal Value Rhs3;
 
-            // Defines the signature for a specialized, high-performance handler for binary numeric operations.
-            internal delegate RuntimeValue BinaryOpHandler(RuntimeValue left, RuntimeValue right);
-
-            /// <summary>
-            /// Gets or sets the cached 'fast path' handler for this instruction, used by the inline caching system.
-            /// </summary>
-            internal BinaryOpHandler? Handler { get; set; } = null!;
-
-            /// <summary>
-            /// Gets or sets the cached <see cref="RuntimeNumberType"/> of the left-hand side (Rhs) operand.
-            /// </summary>
-            internal RuntimeNumberType CachedLhsType { get; set; } = RuntimeNumberType.Unknown;
-
-            /// <summary>
-            /// Gets or sets the cached <see cref="RuntimeNumberType"/> of the left-hand side (Rhs) operand.
-            /// </summary>
-            internal RuntimeNumberType CachedRhsType { get; set; } = RuntimeNumberType.Unknown;
-
             /// <summary>
             /// Defines the signature for a fully specialized opcode handler that bypasses
             /// the generic logic for maximum performance. It is responsible for all its

@@ -320,7 +320,14 @@ namespace Fluence
 #if DEBUG
                 _stopwatch.Restart();
 #endif
-                _dispatchTable[(int)instruction.Instruction](instruction);
+                if (instruction.SpecializedHandler != null)
+                {
+                    instruction.SpecializedHandler(instruction, this);
+                }
+                else
+                {
+                    _dispatchTable[(int)instruction.Instruction](instruction);
+                }
 #if DEBUG
                 _stopwatch.Stop();
                 _instructionCounts.TryAdd(instruction.Instruction, 0);
@@ -330,6 +337,8 @@ namespace Fluence
 #endif
             }
         }
+
+        internal void SetInstructionPointer(int id) => _ip = id;
 
         /// <summary>Handles the ADD instruction, which performs numeric addition, string concatenation, or list concatenation.</summary>
         private void ExecuteAdd(InstructionLine instruction)
@@ -703,8 +712,14 @@ namespace Fluence
             }
         }
 
-        private void ExecuteBranchIfEqual(InstructionLine instruction, bool target)
+        internal void ExecuteBranchIfEqual(InstructionLine instruction, bool target)
         {
+            if (instruction.SpecializedHandler != null)
+            {
+                instruction.SpecializedHandler(instruction, this);
+                return;
+            }
+
             if (instruction.Lhs is not NumberValue jmp)
             {
                 ConstructAndThrowException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
@@ -713,6 +728,8 @@ namespace Fluence
 
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
+
+            instruction.SpecializedHandler =  InlineCacheManager.CreateSpecializedBranchHandler(instruction, left, right, target);
             bool result = left.Equals(right);
 
             if (result == target)

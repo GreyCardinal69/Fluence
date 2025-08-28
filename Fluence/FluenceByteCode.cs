@@ -150,16 +150,18 @@
             internal RuntimeNumberType CachedRhsType { get; set; } = RuntimeNumberType.Unknown;
 
             /// <summary>
-            /// Defines the signature for a specialized, high-performance handler for branch instructions.
+            /// Defines the signature for a fully specialized opcode handler that bypasses
+            /// the generic logic for maximum performance. It is responsible for all its
+            /// own work, including operand resolution and assignment.
             /// </summary>
-            /// <param name="instruction">The instruction being executed.</param>
-            /// <param name="vm">The VM instance, used to access state like the instruction pointer.</param>
-            public delegate void BranchHandler(InstructionLine instruction, FluenceVirtualMachine vm);
+            public delegate void SpecializedOpcodeHandler(InstructionLine instruction, FluenceVirtualMachine vm);
 
             /// <summary>
-            /// Gets or sets the cached 'fast path' handler for a branch instruction.
+            /// The cached, hyper-optimized "fast path" for this instruction.
+            /// If this is not null, it is executed by the generic opcode handler
+            /// instead of its default logic.
             /// </summary>
-            public BranchHandler? BranchingHandler { get; set; } = null!;
+            public SpecializedOpcodeHandler? SpecializedHandler { get; set; } = null!;
 
             internal InstructionLine(InstructionCode instruction, Value lhs, Value rhs = null!, Value rhs2 = null!, Value rhs3 = null!)
             {

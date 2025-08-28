@@ -52,7 +52,7 @@ namespace Fluence
         private CallFrame CurrentFrame => _callStack.Peek();
 
         /// <summary>Gets the registers for the current call frame via the cached reference.</summary>
-        private Dictionary<string, RuntimeValue> CurrentRegisters => _cachedRegisters;
+        internal Dictionary<string, RuntimeValue> CurrentRegisters => _cachedRegisters;
 
 #if DEBUG
         //
@@ -330,35 +330,34 @@ namespace Fluence
 #endif
             }
         }
- 
+
         /// <summary>Handles the ADD instruction, which performs numeric addition, string concatenation, or list concatenation.</summary>
         private void ExecuteAdd(InstructionLine instruction)
+        {
+            if (instruction.SpecializedHandler != null)
+            {
+                instruction.SpecializedHandler(instruction, this);
+                return;
+            }
+
+            ExecuteGenericAdd(instruction);
+        }
+
+        /// <summary>Handles the ADD instruction, which performs numeric addition, string concatenation, or list concatenation.</summary>
+        internal void ExecuteGenericAdd(InstructionLine instruction)
         {
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                RuntimeValue result;
-
-                if (instruction.Handler != null && left.NumberType == instruction.CachedLhsType && right.NumberType == instruction.CachedRhsType)
+                var handler = InlineCacheManager.CreateSpecializedAddHandler(instruction, left, right);
+                if (handler != null)
                 {
-                    result = instruction.Handler(left, right);
-
-                    SetVariableOrRegister(instruction.Lhs, result);
+                    instruction.SpecializedHandler = handler;
+                    handler(instruction, this);
                     return;
                 }
-
-                BinaryOpHandler handler = InlineCacheManager.GetSpecializedAddHandler(left, right) ?? throw new FluenceRuntimeException("Unsupported numeric combination for Addition.");
-
-                instruction.Handler = handler;
-                instruction.CachedLhsType = left.NumberType;
-                instruction.CachedRhsType = right.NumberType;
-
-                result = handler(left, right);
-
-                SetVariableOrRegister(instruction.Lhs, result);
-                return;
             }
 
             // String concatenation.
@@ -389,31 +388,30 @@ namespace Fluence
         /// <summary>Handles the SUBTRACT instruction for numeric subtraction or list difference.</summary>
         private void ExecuteSubtraction(InstructionLine instruction)
         {
+            if (instruction.SpecializedHandler != null)
+            {
+                instruction.SpecializedHandler(instruction, this);
+                return;
+            }
+
+            ExecuteGenericSubtraction(instruction);
+        }
+
+        /// <summary>Handles the SUBTRACT instruction for numeric subtraction or list difference.</summary>
+        internal void ExecuteGenericSubtraction(InstructionLine instruction)
+        {
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                RuntimeValue result;
-
-                if (instruction.Handler != null && left.NumberType == instruction.CachedLhsType && right.NumberType == instruction.CachedRhsType)
+                var handler = InlineCacheManager.CreateSpecializedSubtractionHandler(instruction, left, right);
+                if (handler != null)
                 {
-                    result = instruction.Handler(left, right);
-
-                    SetVariableOrRegister(instruction.Lhs, result);
+                    instruction.SpecializedHandler = handler;
+                    handler(instruction, this);
                     return;
                 }
-
-                BinaryOpHandler handler = InlineCacheManager.GetSpecializedSubtractionHandler(left, right) ?? throw new FluenceRuntimeException("Unsupported numeric combination for Subtraction.");
-
-                instruction.Handler = handler;
-                instruction.CachedLhsType = left.NumberType;
-                instruction.CachedRhsType = right.NumberType;
-
-                result = handler(left, right);
-
-                SetVariableOrRegister(instruction.Lhs, result);
-                return;
             }
 
             if (left.Type == RuntimeValueType.Object && left.ObjectReference is ListObject leftList &&
@@ -429,35 +427,33 @@ namespace Fluence
             ConstructAndThrowException($"Runtime Error: Cannot apply operator '-' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
-        /// <summary>Handles the MULTIPLY instruction for numeric multiplication or string/list repetition.</summary>
+        /// <summary>Handles the MULTIPLY instruction for numeric subtraction or list difference.</summary>
         private void ExecuteMultiplication(InstructionLine instruction)
+        {
+            if (instruction.SpecializedHandler != null)
+            {
+                instruction.SpecializedHandler(instruction, this);
+                return;
+            }
+
+            ExecuteGenericMultiplication(instruction);
+        }
+
+        /// <summary>Handles the MULTIPLY instruction for numeric multiplication or string/list repetition.</summary>
+        internal void ExecuteGenericMultiplication(InstructionLine instruction)
         {
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                RuntimeValue result;
-
-                // Cached, fast path.
-                if (instruction.Handler != null && left.NumberType == instruction.CachedLhsType && right.NumberType == instruction.CachedRhsType)
+                var handler = InlineCacheManager.CreateSpecializedMulHandler(instruction, left, right);
+                if (handler != null)
                 {
-                    result = instruction.Handler(left, right);
-
-                    SetVariableOrRegister(instruction.Lhs, result);
+                    instruction.SpecializedHandler = handler;
+                    handler(instruction, this);
                     return;
                 }
-
-                BinaryOpHandler handler = InlineCacheManager.GetSpecializedMultiplicationHandler(left, right) ?? throw new FluenceRuntimeException("Unsupported numeric combination for Multiplication.");
-
-                instruction.Handler = handler;
-                instruction.CachedLhsType = left.NumberType;
-                instruction.CachedRhsType = right.NumberType;
-
-                result = handler(left, right);
-
-                SetVariableOrRegister(instruction.Lhs, result);
-                return;
             }
 
             if (left.ObjectReference is StringObject strLeft && right.Type == RuntimeValueType.Number)
@@ -496,100 +492,82 @@ namespace Fluence
             ConstructAndThrowException($"Runtime Error: Cannot apply operator '*' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
-        /// <summary>Handles the DIVIDE instruction.</summary>
-        private void ExecuteDivision(InstructionLine instruction)
+        /// <summary>Handles the DIVIDE instruction for numeric subtraction or list difference.</summary>
+        internal void ExecuteDivision(InstructionLine instruction)
         {
-            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
-            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
-            RuntimeValue result;
-
-            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
+            if (instruction.SpecializedHandler != null)
             {
-                ConstructAndThrowException($"Runtime Error: Cannot apply operator '/' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
-            }
-
-            // Cached, fast path.
-            if (instruction.Handler != null && left.NumberType == instruction.CachedLhsType && right.NumberType == instruction.CachedRhsType)
-            {
-                result = instruction.Handler(left, right);
-
-                SetVariableOrRegister(instruction.Lhs, result);
+                instruction.SpecializedHandler(instruction, this);
                 return;
             }
 
-            BinaryOpHandler handler = InlineCacheManager.GetSpecializedDivisionHandler(left, right) ?? throw new FluenceRuntimeException("Unsupported numeric combination for Division.");
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
-            instruction.Handler = handler;
-            instruction.CachedLhsType = left.NumberType;
-            instruction.CachedRhsType = right.NumberType;
+            if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
+            {
+                var handler = InlineCacheManager.CreateSpecializedDivHandler(instruction, left, right);
+                if (handler != null)
+                {
+                    instruction.SpecializedHandler = handler;
+                    handler(instruction, this);
+                    return;
+                }
+            }
 
-            result = handler(left, right);
-
-            SetVariableOrRegister(instruction.Lhs, result);
+            ConstructAndThrowException($"Runtime Error: Cannot apply operator '/' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
-        /// <summary>Handles the MODULO instruction.</summary>
+        /// <summary>Handles the MULTIPLY instruction for numeric subtraction or list difference.</summary>
         private void ExecuteModulo(InstructionLine instruction)
         {
-            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
-            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
-            RuntimeValue result;
-
-            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
+            if (instruction.SpecializedHandler != null)
             {
-                ConstructAndThrowException($"Runtime Error: Cannot apply operator '%' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
-            }
-
-            // Cached, fast path.
-            if (instruction.Handler != null && left.NumberType == instruction.CachedLhsType && right.NumberType == instruction.CachedRhsType)
-            {
-                result = instruction.Handler(left, right);
-
-                SetVariableOrRegister(instruction.Lhs, result);
+                instruction.SpecializedHandler(instruction, this);
                 return;
             }
 
-            BinaryOpHandler handler = InlineCacheManager.GetSpecializedModuloHandler(left, right) ?? throw new FluenceRuntimeException("Unsupported numeric combination for Modulo.");
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
-            instruction.Handler = handler;
-            instruction.CachedLhsType = left.NumberType;
-            instruction.CachedRhsType = right.NumberType;
+            if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
+            {
+                var handler = InlineCacheManager.CreateSpecializedModuloHandler(instruction, left, right);
+                if (handler != null)
+                {
+                    instruction.SpecializedHandler = handler;
+                    handler(instruction, this);
+                    return;
+                }
+            }
 
-            result = handler(left, right);
-
-            SetVariableOrRegister(instruction.Lhs, result);
+            ConstructAndThrowException($"Runtime Error: Cannot apply operator '%' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
         /// <summary>Handles the POWER instruction.</summary>
         private void ExecutePower(InstructionLine instruction)
         {
-            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
-            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
-            RuntimeValue result;
-
-            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
+            if (instruction.SpecializedHandler != null)
             {
-                ConstructAndThrowException($"Runtime Error: Cannot apply operator '**' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
-            }
-
-            // Cached, fast path.
-            if (instruction.Handler != null && left.NumberType == instruction.CachedLhsType && right.NumberType == instruction.CachedRhsType)
-            {
-                result = instruction.Handler(left, right);
-
-                SetVariableOrRegister(instruction.Lhs, result);
+                instruction.SpecializedHandler(instruction, this);
                 return;
             }
 
-            BinaryOpHandler handler = InlineCacheManager.GetSpecializedPowerHandler(left, right) ?? throw new FluenceRuntimeException("Unsupported numeric combination for Exponentiation.");
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
-            instruction.Handler = handler;
-            instruction.CachedLhsType = left.NumberType;
-            instruction.CachedRhsType = right.NumberType;
+            if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
+            {
+                var handler = InlineCacheManager.CreateSpecializedPowerHandler(instruction, left, right);
+                if (handler != null)
+                {
+                    instruction.SpecializedHandler = handler;
+                    handler(instruction, this);
+                    return;
+                }
+            }
 
-            result = handler(left, right);
-
-            SetVariableOrRegister(instruction.Lhs, result);
+            ConstructAndThrowException($"Runtime Error: Cannot apply operator '**' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
         /// <summary>Handles the ASSIGN instruction, which is used for variable assignment and range-to-list expansion.</summary>
@@ -1456,7 +1434,7 @@ namespace Fluence
             }
         }
 
-        private void SetVariableOrRegister(Value target, RuntimeValue value)
+        internal void SetVariableOrRegister(Value target, RuntimeValue value)
         {
             if (target is VariableValue var)
             {

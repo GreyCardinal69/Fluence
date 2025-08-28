@@ -131,6 +131,36 @@
             /// <summary>The third source operand, used only in specialized instructions and generated strictly by the optimizer.</summary>
             internal Value Rhs3;
 
+            // Defines the signature for a specialized, high-performance handler for binary numeric operations.
+            internal delegate RuntimeValue BinaryOpHandler(RuntimeValue left, RuntimeValue right);
+
+            /// <summary>
+            /// Gets or sets the cached 'fast path' handler for this instruction, used by the inline caching system.
+            /// </summary>
+            internal BinaryOpHandler? Handler { get; set; } = null!;
+
+            /// <summary>
+            /// Gets or sets the cached <see cref="RuntimeNumberType"/> of the left-hand side (Rhs) operand.
+            /// </summary>
+            internal RuntimeNumberType CachedLhsType { get; set; } = RuntimeNumberType.Unknown;
+
+            /// <summary>
+            /// Gets or sets the cached <see cref="RuntimeNumberType"/> of the left-hand side (Rhs) operand.
+            /// </summary>
+            internal RuntimeNumberType CachedRhsType { get; set; } = RuntimeNumberType.Unknown;
+
+            /// <summary>
+            /// Defines the signature for a specialized, high-performance handler for branch instructions.
+            /// </summary>
+            /// <param name="instruction">The instruction being executed.</param>
+            /// <param name="vm">The VM instance, used to access state like the instruction pointer.</param>
+            public delegate void BranchHandler(InstructionLine instruction, FluenceVirtualMachine vm);
+
+            /// <summary>
+            /// Gets or sets the cached 'fast path' handler for a branch instruction.
+            /// </summary>
+            public BranchHandler? BranchingHandler { get; set; } = null!;
+
             internal InstructionLine(InstructionCode instruction, Value lhs, Value rhs = null!, Value rhs2 = null!, Value rhs3 = null!)
             {
                 Instruction = instruction;

@@ -330,334 +330,7 @@ namespace Fluence
 #endif
             }
         }
-
-        /// <summary>
-        /// Converts a compile-time <see cref="Value"/> from bytecode into a runtime <see cref="RuntimeValue"/>.
-        /// This is the bridge between the parser's representation and the VM's execution values.
-        /// </summary>
-        private RuntimeValue GetRuntimeValue(Value val)
-        {
-            if (val is TempValue temp)
-            {
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentRegisters, temp.TempName);
-
-                if (!Unsafe.IsNullRef(ref valueRef))
-                {
-                    return valueRef;
-                }
-
-                return RuntimeValue.Nil;
-            }
-
-            if (val is VariableValue variable)
-            {
-                return ResolveVariable(variable.Name);
-            }
-
-            if (val is FunctionValue func)
-            {
-                // A FunctionValue from the bytecode is just a blueprint.
-                // We must convert it into a live, runtime FunctionObject.
-                if (func.IsIntrinsic)
-                {
-                    // This handles global intrinsics like 'printl'.
-                    return new RuntimeValue(new FunctionObject(func.Name, func.Arity, func.IntrinsicBody, func.FunctionScope));
-                }
-                else
-                {
-                    // This handles user-defined functions like 'double' and 'Main'.
-                    return new RuntimeValue(new FunctionObject(func.Name, func.Arity, func.Arguments, func.StartAddress, func.FunctionScope));
-                }
-
-            }
-
-            return val switch
-            {
-                CharValue ch => new RuntimeValue(new CharObject(ch.Value)),
-                EnumValue enumVal => new RuntimeValue(enumVal.Value),
-                NumberValue num => num.Type switch
-                {
-                    NumberValue.NumberType.Integer => new RuntimeValue((int)num.Value),
-                    NumberValue.NumberType.Float => new RuntimeValue((float)num.Value),
-                    NumberValue.NumberType.Double => new RuntimeValue((double)num.Value),
-                    _ => throw new FluenceRuntimeException($"Internal VM Error: Unrecognized NumberType '{num.Type}' in bytecode.")
-                },
-                BooleanValue boolean => new RuntimeValue(boolean.Value),
-                NilValue => RuntimeValue.Nil,
-                StringValue str => new RuntimeValue(new StringObject(str.Value)),
-                RangeValue range => new RuntimeValue(new RangeObject(GetRuntimeValue(range.Start), GetRuntimeValue(range.End))),
-                _ => throw new FluenceRuntimeException($"Internal VM Error: Unrecognized Value type '{val.GetType().Name}' during conversion.")
-            };
-        }
-
-        /// <summary>
-        /// Handles the CALL_METHOD instruction code, which invokes a method on an object instance.
-        /// </summary>
-        private void ExecuteCallMethod(InstructionLine instruction)
-        {
-            if (instruction.Rhs2 is not StringValue methodNameVal)
-            {
-                ConstructAndThrowException("Internal VM Error: Invalid operands for CallMethod. Expected a method name as a string.");
-                return;
-            }
-
-            string methodName = methodNameVal.Value;
-            RuntimeValue instanceVal = GetRuntimeValue(instruction.Rhs);
-
-            // Check if the object is a native type (like List) that exposes fast C# methods.
-            if (instanceVal.ObjectReference is IFluenceObject fluenceObject)
-            {
-                // Ask the object if it has a built-in method with this name.
-                if (fluenceObject.TryGetIntrinsicMethod(methodName, out var intrinsicMethod))
-                {
-                    // We found an intrinsic.
-                    List<RuntimeValue> args = new List<RuntimeValue>();
-                    // The first argument to an intrinsic method is always 'self'.
-                    args.Add(instanceVal);
-
-                    int argCount = _operandStack.Count;
-                    for (int i = 0; i < argCount; i++)
-                    {
-                        args.Add(_operandStack.Pop());
-                    }
-                    args.Reverse(1, argCount); // Reverse the explicit args, but keep 'self' at the front.
-
-                    SetRegister((TempValue)instruction.Lhs, intrinsicMethod(args));
-                    return;
-                }
-            }
-
-            if (instanceVal.ObjectReference is not InstanceObject instance)
-            {
-                ConstructAndThrowException($"Internal VM Error: Cannot call method '{methodName}' on a non-instance object.");
-                return;
-            }
-
-            FunctionValue methodBlueprint;
-
-            if (string.Equals(methodName, "init", StringComparison.Ordinal))
-            {
-                methodBlueprint = instance!.Class.Constructor;
-                if (methodBlueprint == null)
-                {
-                    SetRegister((TempValue)instruction.Lhs, instanceVal);
-                    // No explicit init, do nothing.
-                    return;
-                }
-            }
-            else
-            {
-                if (!instance!.Class.Functions.TryGetValue(methodName, out methodBlueprint))
-                {
-                    ConstructAndThrowException($"Internal VM Error: Undefined method '{methodName}' on struct '{instance.Class.Name}'.");
-                    return;
-                }
-            }
-
-            // Convert the compile-time FunctionValue into a runtime FunctionObject.
-            FunctionObject functionToExecute = new FunctionObject(
-                methodBlueprint.Name,
-                methodBlueprint.Arity,
-                methodBlueprint.Arguments,
-                methodBlueprint.StartAddress,
-                methodBlueprint.FunctionScope
-            );
-
-            int argCountOnStack = _operandStack.Count;
-            if (functionToExecute.Arity != argCountOnStack)
-            {
-                ConstructAndThrowException($"Internal VM Error: Mismatched arity for method '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
-                return;
-            }
-
-            CallFrame newFrame = new CallFrame(functionToExecute, _ip, (TempValue)instruction.Lhs);
-
-            // Implicitly pass 'self'.
-            newFrame.Registers["self"] = instanceVal;
-
-            for (int i = functionToExecute.Parameters.Count - 1; i >= 0; i--)
-            {
-                string paramName = functionToExecute.Parameters[i];
-                RuntimeValue argValue = _operandStack.Pop();
-                newFrame.Registers[paramName] = argValue;
-            }
-
-            _callStack.Push(newFrame);
-            _cachedRegisters = newFrame.Registers;
-            _ip = functionToExecute.StartAddress;
-        }
-
-        /// <summary>
-        /// Resolves a variable name to its runtime value by searching the current scope hierarchy.
-        /// </summary>
-        /// <param name="name">The name of the variable to resolve.</param>
-        /// <returns>The <see cref="RuntimeValue"/> associated with the variable name.</returns>
-        /// <exception cref="FluenceRuntimeException">Thrown if the variable is not defined in any accessible scope.</exception>
-        private RuntimeValue ResolveVariable(string name)
-        {
-            string internedName = name;
-
-            ref RuntimeValue localValue = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentRegisters, internedName);
-            if (!Unsafe.IsNullRef(ref localValue))
-            {
-                return localValue;
-            }
-
-            var lexicalScope = CurrentFrame.Function.DefiningScope;
-            if (lexicalScope.TryResolve(internedName, out Symbol symbol))
-            {
-                return ResolveVariableFromScopeSymbol(symbol, lexicalScope);
-            }
-
-            if (string.Equals(CurrentFrame.Function.Name, "<script>", StringComparison.Ordinal))
-            {
-                foreach (var item in Namespaces.Values)
-                {
-                    FluenceScope lexicalScope2 = item;
-
-                    if (lexicalScope2.TryResolve(name, out Symbol symb))
-                    {
-                        return ResolveVariableFromScopeSymbol(symb, lexicalScope2);
-                    }
-                }
-            }
-
-            // Last case, check in global scope.
-            foreach (Symbol valSymbol in _globalScope.Symbols.Values)
-            {
-                if (valSymbol is VariableSymbol varSymbol && string.Equals(varSymbol.Name, name, StringComparison.Ordinal))
-                {
-                    return GetRuntimeValue(varSymbol.Value);
-                }
-            }
-
-            ConstructAndThrowException($"Runtime Error: Undefined variable '{name}'.");
-            return new();
-        }
-
-        /// <summary>
-        /// Resolves complex symbols into RuntimeValues.
-        /// </summary>
-        /// <param name="symbol"></param>
-        /// <param name="scope"></param>
-        /// <returns></returns>
-        private RuntimeValue ResolveVariableFromScopeSymbol(Symbol symbol, FluenceScope scope)
-        {
-            if (symbol is FunctionSymbol funcSymbol2)
-            {
-                return new RuntimeValue(
-                    funcSymbol2.IsIntrinsic
-                        ? new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.IntrinsicBody, null!)
-                        : new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.Arguments, funcSymbol2.StartAddress, funcSymbol2.DefiningScope
-                        )
-                    );
-            }
-            else if (symbol is VariableSymbol variable)
-            {
-                // Current scopt also contains all symbols from namespaces it uses.
-                ref var namespaceRuntimeValue = ref CollectionsMarshal.GetValueRefOrNullRef(scope.RuntimeStorage, variable.Name);
-                if (!Unsafe.IsNullRef(ref namespaceRuntimeValue))
-                {
-                    return namespaceRuntimeValue;
-                }
-                ref var namespaceRuntimeValue2 = ref CollectionsMarshal.GetValueRefOrNullRef(_globals, variable.Name);
-                if (!Unsafe.IsNullRef(ref namespaceRuntimeValue2))
-                {
-                    return namespaceRuntimeValue2;
-                }
-            }
-
-            // Won't reach here, but satisfies compiler.
-            return new();
-        }
-
-        /// <summary>
-        /// Writes a value to a specified temporary register in the current call frame.
-        /// </summary>
-        private void SetRegister(TempValue destination, RuntimeValue value)
-        {
-            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, destination.TempName, out _);
-            valueRef = value;
-        }
-
-        /// <summary>
-        /// Assigns a value to a variable.
-        /// </summary>
-        private void AssignVariable(string name, RuntimeValue value)
-        {
-            // If we are not in the top-level script, assign to the current frame's local registers.
-            if (!string.Equals(CurrentFrame.Function.Name, "<script>", StringComparison.Ordinal))
-            {
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, name, out _);
-                valueRef = value;
-            }
-
-            ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, name, out _);
-            valueRef2 = value;
-        }
-
-        /// <summary>
-        /// A generic handler for all binary numeric operations. It correctly handles type promotion
-        ///  and dispatches to the appropriate C# operator.
-        /// </summary>
-        private void ExecuteNumericBinaryOperation(
-            InstructionLine instruction, RuntimeValue left, RuntimeValue right,
-            Func<int, int, RuntimeValue> intOp,
-            Func<long, long, RuntimeValue> longOp,
-            Func<float, float, RuntimeValue> floatOp,
-            Func<double, double, RuntimeValue> doubleOp)
-        {
-            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
-            {
-                ConstructAndThrowException($"Internal VM Error: ExecuteNumericBinaryOperation called with non-numeric types.");
-            }
-
-            var result = left.NumberType switch
-            {
-                RuntimeNumberType.Int => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => intOp(left.IntValue, right.IntValue),
-                    RuntimeNumberType.Long => longOp(left.IntValue, right.LongValue),
-                    RuntimeNumberType.Float => floatOp(left.IntValue, right.FloatValue),
-                    RuntimeNumberType.Double => doubleOp(left.IntValue, right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type."),
-                },
-                RuntimeNumberType.Long => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => longOp(left.LongValue, right.IntValue),
-                    RuntimeNumberType.Long => longOp(left.LongValue, right.LongValue),
-                    RuntimeNumberType.Float => floatOp(left.LongValue, right.FloatValue),
-                    RuntimeNumberType.Double => doubleOp(left.LongValue, right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type."),
-                },
-                RuntimeNumberType.Float => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => floatOp(left.FloatValue, right.IntValue),
-                    RuntimeNumberType.Long => floatOp(left.FloatValue, right.LongValue),
-                    RuntimeNumberType.Float => floatOp(left.FloatValue, right.FloatValue),
-                    RuntimeNumberType.Double => doubleOp(left.FloatValue, right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type."),
-                },
-                RuntimeNumberType.Double => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => doubleOp(left.DoubleValue, right.IntValue),
-                    RuntimeNumberType.Long => doubleOp(left.DoubleValue, right.LongValue),
-                    RuntimeNumberType.Float => doubleOp(left.DoubleValue, right.FloatValue),
-                    RuntimeNumberType.Double => doubleOp(left.DoubleValue, right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type."),
-                },
-                _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported left-hand number type."),
-            };
-
-            if (instruction.Lhs is VariableValue var)
-            {
-                AssignVariable(var.Name, result);
-                return;
-            }
-
-            SetRegister((TempValue)instruction.Lhs, result);
-        }
-
+ 
         /// <summary>Handles the ADD instruction, which performs numeric addition, string concatenation, or list concatenation.</summary>
         private void ExecuteAdd(InstructionLine instruction)
         {
@@ -666,13 +339,25 @@ namespace Fluence
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                ExecuteNumericBinaryOperation(
-                    instruction, left, right,
-                    (a, b) => new RuntimeValue(a + b),              // int + int -> int.
-                    (a, b) => new RuntimeValue(a + b),              // long + long -> long.
-                    (a, b) => new RuntimeValue(a + b),              // float + float -> float.
-                    (a, b) => new RuntimeValue(a + b)               // double + double -> double.
-                );
+                RuntimeValue result;
+
+                if (instruction.Handler != null && left.NumberType == instruction.CachedLhsType && right.NumberType == instruction.CachedRhsType)
+                {
+                    result = instruction.Handler(left, right);
+
+                    SetVariableOrRegister(instruction.Lhs, result);
+                    return;
+                }
+
+                BinaryOpHandler handler = InlineCacheManager.GetSpecializedAddHandler(left, right) ?? throw new FluenceRuntimeException("Unsupported numeric combination for Addition.");
+
+                instruction.Handler = handler;
+                instruction.CachedLhsType = left.NumberType;
+                instruction.CachedRhsType = right.NumberType;
+
+                result = handler(left, right);
+
+                SetVariableOrRegister(instruction.Lhs, result);
                 return;
             }
 
@@ -682,13 +367,7 @@ namespace Fluence
             {
                 string resultString = string.Concat(left.ToString(), right.ToString());
 
-                if (instruction.Lhs is VariableValue var)
-                {
-                    AssignVariable(var.Name, new RuntimeValue(new StringObject(resultString)));
-                    return;
-                }
-
-                SetRegister((TempValue)instruction.Lhs, new RuntimeValue(new StringObject(resultString)));
+                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(new StringObject(resultString)));
                 return;
             }
 
@@ -700,13 +379,7 @@ namespace Fluence
                 concatenatedList.Elements.AddRange(leftList.Elements);
                 concatenatedList.Elements.AddRange(rightList.Elements);
 
-                if (instruction.Lhs is VariableValue var)
-                {
-                    AssignVariable(var.Name, new RuntimeValue(concatenatedList));
-                    return;
-                }
-
-                SetRegister((TempValue)instruction.Lhs, new RuntimeValue(concatenatedList));
+                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(concatenatedList));
                 return;
             }
 
@@ -721,13 +394,25 @@ namespace Fluence
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                ExecuteNumericBinaryOperation(
-                    instruction, left, right,
-                    (a, b) => new RuntimeValue(a - b),
-                    (a, b) => new RuntimeValue(a - b),
-                    (a, b) => new RuntimeValue(a - b),
-                    (a, b) => new RuntimeValue(a - b)
-                );
+                RuntimeValue result;
+
+                if (instruction.Handler != null && left.NumberType == instruction.CachedLhsType && right.NumberType == instruction.CachedRhsType)
+                {
+                    result = instruction.Handler(left, right);
+
+                    SetVariableOrRegister(instruction.Lhs, result);
+                    return;
+                }
+
+                BinaryOpHandler handler = InlineCacheManager.GetSpecializedSubtractionHandler(left, right) ?? throw new FluenceRuntimeException("Unsupported numeric combination for Subtraction.");
+
+                instruction.Handler = handler;
+                instruction.CachedLhsType = left.NumberType;
+                instruction.CachedRhsType = right.NumberType;
+
+                result = handler(left, right);
+
+                SetVariableOrRegister(instruction.Lhs, result);
                 return;
             }
 
@@ -752,12 +437,26 @@ namespace Fluence
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                ExecuteNumericBinaryOperation(instruction, left, right,
-                    (a, b) => new RuntimeValue(a * b),
-                    (a, b) => new RuntimeValue(a * b),
-                    (a, b) => new RuntimeValue(a * b),
-                    (a, b) => new RuntimeValue(a * b)
-                );
+                RuntimeValue result;
+
+                // Cached, fast path.
+                if (instruction.Handler != null && left.NumberType == instruction.CachedLhsType && right.NumberType == instruction.CachedRhsType)
+                {
+                    result = instruction.Handler(left, right);
+
+                    SetVariableOrRegister(instruction.Lhs, result);
+                    return;
+                }
+
+                BinaryOpHandler handler = InlineCacheManager.GetSpecializedMultiplicationHandler(left, right) ?? throw new FluenceRuntimeException("Unsupported numeric combination for Multiplication.");
+
+                instruction.Handler = handler;
+                instruction.CachedLhsType = left.NumberType;
+                instruction.CachedRhsType = right.NumberType;
+
+                result = handler(left, right);
+
+                SetVariableOrRegister(instruction.Lhs, result);
                 return;
             }
 
@@ -802,13 +501,31 @@ namespace Fluence
         {
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
-            ExecuteNumericBinaryOperation(
-                instruction, left, right,
-                (a, b) => new RuntimeValue(a / b),
-                (a, b) => new RuntimeValue(a / b),
-                (a, b) => new RuntimeValue(a / b),
-                (a, b) => new RuntimeValue(a / b)
-            );
+            RuntimeValue result;
+
+            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
+            {
+                ConstructAndThrowException($"Runtime Error: Cannot apply operator '/' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
+            }
+
+            // Cached, fast path.
+            if (instruction.Handler != null && left.NumberType == instruction.CachedLhsType && right.NumberType == instruction.CachedRhsType)
+            {
+                result = instruction.Handler(left, right);
+
+                SetVariableOrRegister(instruction.Lhs, result);
+                return;
+            }
+
+            BinaryOpHandler handler = InlineCacheManager.GetSpecializedDivisionHandler(left, right) ?? throw new FluenceRuntimeException("Unsupported numeric combination for Division.");
+
+            instruction.Handler = handler;
+            instruction.CachedLhsType = left.NumberType;
+            instruction.CachedRhsType = right.NumberType;
+
+            result = handler(left, right);
+
+            SetVariableOrRegister(instruction.Lhs, result);
         }
 
         /// <summary>Handles the MODULO instruction.</summary>
@@ -816,13 +533,31 @@ namespace Fluence
         {
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
-            ExecuteNumericBinaryOperation(
-                instruction, left, right,
-                (a, b) => new RuntimeValue(a % b),
-                (a, b) => new RuntimeValue(a % b),
-                (a, b) => new RuntimeValue(a % b),
-                (a, b) => new RuntimeValue(a % b)
-            );
+            RuntimeValue result;
+
+            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
+            {
+                ConstructAndThrowException($"Runtime Error: Cannot apply operator '%' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
+            }
+
+            // Cached, fast path.
+            if (instruction.Handler != null && left.NumberType == instruction.CachedLhsType && right.NumberType == instruction.CachedRhsType)
+            {
+                result = instruction.Handler(left, right);
+
+                SetVariableOrRegister(instruction.Lhs, result);
+                return;
+            }
+
+            BinaryOpHandler handler = InlineCacheManager.GetSpecializedModuloHandler(left, right) ?? throw new FluenceRuntimeException("Unsupported numeric combination for Modulo.");
+
+            instruction.Handler = handler;
+            instruction.CachedLhsType = left.NumberType;
+            instruction.CachedRhsType = right.NumberType;
+
+            result = handler(left, right);
+
+            SetVariableOrRegister(instruction.Lhs, result);
         }
 
         /// <summary>Handles the POWER instruction.</summary>
@@ -830,14 +565,31 @@ namespace Fluence
         {
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue result;
 
-            ExecuteNumericBinaryOperation(
-                instruction, left, right,
-                (a, b) => new RuntimeValue(Math.Pow(a, b)),
-                (a, b) => new RuntimeValue(Math.Pow(a, b)),
-                (a, b) => new RuntimeValue(Math.Pow(a, b)),
-                (a, b) => new RuntimeValue(Math.Pow(a, b))
-            );
+            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
+            {
+                ConstructAndThrowException($"Runtime Error: Cannot apply operator '**' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
+            }
+
+            // Cached, fast path.
+            if (instruction.Handler != null && left.NumberType == instruction.CachedLhsType && right.NumberType == instruction.CachedRhsType)
+            {
+                result = instruction.Handler(left, right);
+
+                SetVariableOrRegister(instruction.Lhs, result);
+                return;
+            }
+
+            BinaryOpHandler handler = InlineCacheManager.GetSpecializedPowerHandler(left, right) ?? throw new FluenceRuntimeException("Unsupported numeric combination for Exponentiation.");
+
+            instruction.Handler = handler;
+            instruction.CachedLhsType = left.NumberType;
+            instruction.CachedRhsType = right.NumberType;
+
+            result = handler(left, right);
+
+            SetVariableOrRegister(instruction.Lhs, result);
         }
 
         /// <summary>Handles the ASSIGN instruction, which is used for variable assignment and range-to-list expansion.</summary>
@@ -1575,6 +1327,103 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Handles the CALL_METHOD instruction code, which invokes a method on an object instance.
+        /// </summary>
+        private void ExecuteCallMethod(InstructionLine instruction)
+        {
+            if (instruction.Rhs2 is not StringValue methodNameVal)
+            {
+                ConstructAndThrowException("Internal VM Error: Invalid operands for CallMethod. Expected a method name as a string.");
+                return;
+            }
+
+            string methodName = methodNameVal.Value;
+            RuntimeValue instanceVal = GetRuntimeValue(instruction.Rhs);
+
+            // Check if the object is a native type (like List) that exposes fast C# methods.
+            if (instanceVal.ObjectReference is IFluenceObject fluenceObject)
+            {
+                // Ask the object if it has a built-in method with this name.
+                if (fluenceObject.TryGetIntrinsicMethod(methodName, out var intrinsicMethod))
+                {
+                    // We found an intrinsic.
+                    List<RuntimeValue> args = new List<RuntimeValue>();
+                    // The first argument to an intrinsic method is always 'self'.
+                    args.Add(instanceVal);
+
+                    int argCount = _operandStack.Count;
+                    for (int i = 0; i < argCount; i++)
+                    {
+                        args.Add(_operandStack.Pop());
+                    }
+                    args.Reverse(1, argCount); // Reverse the explicit args, but keep 'self' at the front.
+
+                    SetRegister((TempValue)instruction.Lhs, intrinsicMethod(args));
+                    return;
+                }
+            }
+
+            if (instanceVal.ObjectReference is not InstanceObject instance)
+            {
+                ConstructAndThrowException($"Internal VM Error: Cannot call method '{methodName}' on a non-instance object.");
+                return;
+            }
+
+            FunctionValue methodBlueprint;
+
+            if (string.Equals(methodName, "init", StringComparison.Ordinal))
+            {
+                methodBlueprint = instance!.Class.Constructor;
+                if (methodBlueprint == null)
+                {
+                    SetRegister((TempValue)instruction.Lhs, instanceVal);
+                    // No explicit init, do nothing.
+                    return;
+                }
+            }
+            else
+            {
+                if (!instance!.Class.Functions.TryGetValue(methodName, out methodBlueprint))
+                {
+                    ConstructAndThrowException($"Internal VM Error: Undefined method '{methodName}' on struct '{instance.Class.Name}'.");
+                    return;
+                }
+            }
+
+            // Convert the compile-time FunctionValue into a runtime FunctionObject.
+            FunctionObject functionToExecute = new FunctionObject(
+                methodBlueprint.Name,
+                methodBlueprint.Arity,
+                methodBlueprint.Arguments,
+                methodBlueprint.StartAddress,
+                methodBlueprint.FunctionScope
+            );
+
+            int argCountOnStack = _operandStack.Count;
+            if (functionToExecute.Arity != argCountOnStack)
+            {
+                ConstructAndThrowException($"Internal VM Error: Mismatched arity for method '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
+                return;
+            }
+
+            CallFrame newFrame = new CallFrame(functionToExecute, _ip, (TempValue)instruction.Lhs);
+
+            // Implicitly pass 'self'.
+            newFrame.Registers["self"] = instanceVal;
+
+            for (int i = functionToExecute.Parameters.Count - 1; i >= 0; i--)
+            {
+                string paramName = functionToExecute.Parameters[i];
+                RuntimeValue argValue = _operandStack.Pop();
+                newFrame.Registers[paramName] = argValue;
+            }
+
+            _callStack.Push(newFrame);
+            _cachedRegisters = newFrame.Registers;
+            _ip = functionToExecute.StartAddress;
+        }
+
+        /// <summary>
         /// Handles the RETURN instruction, which ends the current function's execution.
         /// </summary>
         private void ExecuteReturn(InstructionLine instruction)
@@ -1605,6 +1454,182 @@ namespace Fluence
                 ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, destination.TempName, out _);
                 valueRef2 = returnValue;
             }
+        }
+
+        private void SetVariableOrRegister(Value target, RuntimeValue value)
+        {
+            if (target is VariableValue var)
+            {
+                AssignVariable(var.Name, value);
+                return;
+            }
+
+            SetRegister((TempValue)target, value);
+        }
+
+        /// <summary>
+        /// Converts a compile-time <see cref="Value"/> from bytecode into a runtime <see cref="RuntimeValue"/>.
+        /// This is the bridge between the parser's representation and the VM's execution values.
+        /// </summary>
+        private RuntimeValue GetRuntimeValue(Value val)
+        {
+            if (val is TempValue temp)
+            {
+                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentRegisters, temp.TempName);
+
+                if (!Unsafe.IsNullRef(ref valueRef))
+                {
+                    return valueRef;
+                }
+
+                return RuntimeValue.Nil;
+            }
+
+            if (val is VariableValue variable)
+            {
+                return ResolveVariable(variable.Name);
+            }
+
+            if (val is FunctionValue func)
+            {
+                // A FunctionValue from the bytecode is just a blueprint.
+                // We must convert it into a live, runtime FunctionObject.
+                if (func.IsIntrinsic)
+                {
+                    // This handles global intrinsics like 'printl'.
+                    return new RuntimeValue(new FunctionObject(func.Name, func.Arity, func.IntrinsicBody, func.FunctionScope));
+                }
+                else
+                {
+                    // This handles user-defined functions like 'double' and 'Main'.
+                    return new RuntimeValue(new FunctionObject(func.Name, func.Arity, func.Arguments, func.StartAddress, func.FunctionScope));
+                }
+            }
+
+            return val switch
+            {
+                CharValue ch => new RuntimeValue(new CharObject(ch.Value)),
+                EnumValue enumVal => new RuntimeValue(enumVal.Value),
+                NumberValue num => num.Type switch
+                {
+                    NumberValue.NumberType.Integer => new RuntimeValue((int)num.Value),
+                    NumberValue.NumberType.Float => new RuntimeValue((float)num.Value),
+                    NumberValue.NumberType.Double => new RuntimeValue((double)num.Value),
+                    _ => throw new FluenceRuntimeException($"Internal VM Error: Unrecognized NumberType '{num.Type}' in bytecode.")
+                },
+                BooleanValue boolean => new RuntimeValue(boolean.Value),
+                NilValue => RuntimeValue.Nil,
+                StringValue str => new RuntimeValue(new StringObject(str.Value)),
+                RangeValue range => new RuntimeValue(new RangeObject(GetRuntimeValue(range.Start), GetRuntimeValue(range.End))),
+                _ => throw new FluenceRuntimeException($"Internal VM Error: Unrecognized Value type '{val.GetType().Name}' during conversion.")
+            };
+        }
+
+        /// <summary>
+        /// Resolves a variable name to its runtime value by searching the current scope hierarchy.
+        /// </summary>
+        /// <param name="name">The name of the variable to resolve.</param>
+        /// <returns>The <see cref="RuntimeValue"/> associated with the variable name.</returns>
+        /// <exception cref="FluenceRuntimeException">Thrown if the variable is not defined in any accessible scope.</exception>
+        private RuntimeValue ResolveVariable(string name)
+        {
+            ref RuntimeValue localValue = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentRegisters, name);
+            if (!Unsafe.IsNullRef(ref localValue))
+            {
+                return localValue;
+            }
+
+            var lexicalScope = CurrentFrame.Function.DefiningScope;
+            if (lexicalScope.TryResolve(name, out Symbol symbol))
+            {
+                return ResolveVariableFromScopeSymbol(symbol, lexicalScope);
+            }
+
+            if (string.Equals(CurrentFrame.Function.Name, "<script>", StringComparison.Ordinal))
+            {
+                foreach (var item in Namespaces.Values)
+                {
+                    FluenceScope lexicalScope2 = item;
+
+                    if (lexicalScope2.TryResolve(name, out Symbol symb))
+                    {
+                        return ResolveVariableFromScopeSymbol(symb, lexicalScope2);
+                    }
+                }
+            }
+
+            // Last case, check in global scope.
+            foreach (Symbol valSymbol in _globalScope.Symbols.Values)
+            {
+                if (valSymbol is VariableSymbol varSymbol && string.Equals(varSymbol.Name, name, StringComparison.Ordinal))
+                {
+                    return GetRuntimeValue(varSymbol.Value);
+                }
+            }
+
+            ConstructAndThrowException($"Runtime Error: Undefined variable '{name}'.");
+            return new();
+        }
+
+        /// <summary>
+        /// Resolves complex symbols into RuntimeValues.
+        /// </summary>
+        /// <param name="symbol"></param>
+        /// <param name="scope"></param>
+        /// <returns></returns>
+        private RuntimeValue ResolveVariableFromScopeSymbol(Symbol symbol, FluenceScope scope)
+        {
+            if (symbol is FunctionSymbol funcSymbol2)
+            {
+                return new RuntimeValue(
+                    funcSymbol2.IsIntrinsic
+                        ? new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.IntrinsicBody, null!)
+                        : new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.Arguments, funcSymbol2.StartAddress, funcSymbol2.DefiningScope
+                        )
+                    );
+            }
+            else if (symbol is VariableSymbol variable)
+            {
+                // Current scopt also contains all symbols from namespaces it uses.
+                ref var namespaceRuntimeValue = ref CollectionsMarshal.GetValueRefOrNullRef(scope.RuntimeStorage, variable.Name);
+                if (!Unsafe.IsNullRef(ref namespaceRuntimeValue))
+                {
+                    return namespaceRuntimeValue;
+                }
+                ref var namespaceRuntimeValue2 = ref CollectionsMarshal.GetValueRefOrNullRef(_globals, variable.Name);
+                if (!Unsafe.IsNullRef(ref namespaceRuntimeValue2))
+                {
+                    return namespaceRuntimeValue2;
+                }
+            }
+
+            // Won't reach here, but satisfies compiler.
+            return new();
+        }
+
+        /// <summary>
+        /// Writes a value to a specified temporary register in the current call frame.
+        /// </summary>
+        private void SetRegister(TempValue destination, RuntimeValue value)
+        {
+            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, destination.TempName, out _);
+            valueRef = value;
+        }
+
+        /// <summary>
+        /// Assigns a value to a variable.
+        /// </summary>
+        private void AssignVariable(string name, RuntimeValue value)
+        {
+            // If we are not in the top-level script, assign to the current frame's local registers.
+            if (!string.Equals(CurrentFrame.Function.Name, "<script>", StringComparison.Ordinal))
+            {
+                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, name, out _);
+                valueRef = value;
+            }
+
+            ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, name, out _);
+            valueRef2 = value;
         }
 
         /// <summary>

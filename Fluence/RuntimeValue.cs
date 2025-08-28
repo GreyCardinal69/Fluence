@@ -354,6 +354,7 @@ namespace Fluence
         Double,
         Float,
         Long,
+        Unknown,
     }
 
     /// <summary>

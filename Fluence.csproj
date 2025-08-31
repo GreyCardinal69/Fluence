@@ -8,7 +8,20 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <ApplicationIcon>Assets\Fluence2.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\Fluence3.ico</ApplicationIcon>
+    <AssemblyName>Fluence</AssemblyName>
+    <RootNamespace>Fluence</RootNamespace>
+    <Title>Fluence</Title>
+    <Authors>Cardinalius</Authors>
+    <Description>The Fluence programming language in C#</Description>
+    <Copyright>Copyright © $([System.DateTime]::UtcNow.Year) Cardinalius</Copyright>
+    <PackageProjectUrl>https://github.com/GreyCardinal69/Fluence</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/GreyCardinal69/Fluence</RepositoryUrl>
+    <PackageTags>Fluence;programming language</PackageTags>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>Fluence3.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,12 +34,23 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Assets\Fluence2.ico" />
+    <Content Include="Assets\Fluence3.ico" />
   </ItemGroup>
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="Fluence.Tests" />
 		<InternalsVisibleTo Include="Fluence.Benchmarks" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="Assets\Fluence3.png">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	  <None Update="README.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
 	</ItemGroup>
 
 </Project>

@@ -1,5 +1,5 @@
 # Fluence
-<img width="1024" height="1024" alt="Fluence3" src="https://github.com/user-attachments/assets/ded90492-45ec-446f-a997-bea92e87c27e" />
+<img width="512" height="512" alt="Fluence3" src="https://github.com/user-attachments/assets/ded90492-45ec-446f-a997-bea92e87c27e" />
 
 
 

@@ -412,6 +412,12 @@ namespace Fluence
 
                 InstructionLine instruction = _byteCode[_ip];
                 _ip++;
+
+                if (instruction.Instruction is InstructionCode.Goto)
+                {
+                    _ip = (int)((NumberValue)instruction.Lhs).Value;
+                    continue;
+                }
 #if DEBUG
                 _stopwatch.Restart();
 #endif

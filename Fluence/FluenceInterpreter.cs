@@ -8,6 +8,36 @@ namespace Fluence
         private ParseState _parseState;
         private List<InstructionLine> _byteCode;
 
+        /// <summary>
+        /// Defines the signature for a method that can receive output text from the Fluence VM.
+        /// </summary>
+        /// <param name="text">The text to be written.</param>
+        public delegate void TextOutputMethod(string text);
+
+        /// <summary>
+        /// Defines the signature for a method that can provide input text to the Fluence VM.
+        /// </summary>
+        /// <returns>A line of text read from the input source.</returns>
+        public delegate string TextInputMethod();
+
+        /// <summary>
+        /// Gets or sets the method used by the 'print' family of functions to write text.
+        /// Defaults to Console.WriteLine.
+        /// </summary>
+        public TextOutputMethod OnOutputLine { get; set; } = Console.WriteLine;
+
+        /// <summary>
+        /// Gets or sets the method used by the 'print' family of functions for non-newline output.
+        /// Defaults to Console.Write.
+        /// </summary>
+        public TextOutputMethod OnOutput { get; set; } = Console.Write;
+
+        /// <summary>
+        /// Gets or sets the method used by the 'input()' function to read text.
+        /// Defaults to Console.ReadLine.
+        /// </summary>
+        public TextInputMethod OnInput { get; set; } = Console.ReadLine!;
+
         public FluenceInterpreter()
         {
         }
@@ -40,7 +70,7 @@ namespace Fluence
             }
         }
 
-        public void Run()
+        public void RunUntilDone()
         {
             if (_byteCode == null)
             {
@@ -49,7 +79,7 @@ namespace Fluence
 
             try
             {
-                var vm = new FluenceVirtualMachine(_byteCode, _parseState);
+                var vm = new FluenceVirtualMachine(_byteCode, _parseState, OnOutput, OnOutputLine, OnInput);
                 vm.RunFor(TimeSpan.MaxValue);
 #if DEBUG
                 vm.DumpPerformanceProfile();
@@ -73,7 +103,7 @@ namespace Fluence
 
             try
             {
-                var vm = new FluenceVirtualMachine(_byteCode, _parseState);
+                var vm = new FluenceVirtualMachine(_byteCode, _parseState, OnOutput, OnOutputLine, OnInput);
                 vm.RunFor(duration);
 #if DEBUG
                 vm.DumpPerformanceProfile();
@@ -86,6 +116,25 @@ namespace Fluence
                 Console.WriteLine(ex.Message);
                 Console.ForegroundColor = ConsoleColor.White;
             }
+        }
+
+        public void Reset()
+        {
+
+        }
+        public void Stop()
+        {
+
+        }
+
+        public void Restart()
+        {
+
+        }
+
+        private void ConstructAndThrowError(string error)
+        {
+
         }
     }
 }

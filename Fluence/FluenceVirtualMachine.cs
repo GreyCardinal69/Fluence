@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
+using static Fluence.FluenceInterpreter;
 using static Fluence.FluenceParser;
 
 namespace Fluence
@@ -77,6 +78,10 @@ namespace Fluence
             Error
         }
 
+        private readonly TextOutputMethod _output;
+        private readonly TextOutputMethod _outputLine;
+        private readonly TextInputMethod _input;
+
 #if DEBUG
         //
         //      Debug fields, useful for measuring performance, but for release builds only a waste of memory and performance.
@@ -96,11 +101,11 @@ namespace Fluence
         /// </summary>
         public void DumpPerformanceProfile()
         {
-            Console.WriteLine("\n--- FLUENCE VM EXECUTION PROFILE ---");
+            _outputLine("\n--- FLUENCE VM EXECUTION PROFILE ---");
 
             if (_instructionCounts.Count == 0)
             {
-                Console.WriteLine("No instructions were executed or profiling was not enabled.");
+                _outputLine("No instructions were executed or profiling was not enabled.");
                 return;
             }
 
@@ -116,11 +121,11 @@ namespace Fluence
                 totalTicks += ticks;
             }
 
-            Console.WriteLine($"Total Instructions Executed: {totalInstructions:N0}");
-            Console.WriteLine($"Total Execution Time: {new TimeSpan(totalTicks).TotalMilliseconds:N3} ms\n");
+            _outputLine($"Total Instructions Executed: {totalInstructions:N0}");
+            _outputLine($"Total Execution Time: {new TimeSpan(totalTicks).TotalMilliseconds:N3} ms\n");
 
-            Console.WriteLine($"{"OpCode",-20} | {"Count",-15} | {"% of Total",-12} | {"Total Time (ms)",-18} | {"% of Time",-12} | {"Avg. Ticks/Op",-15}");
-            Console.WriteLine(new string('-', 100));
+            _outputLine($"{"OpCode",-20} | {"Count",-15} | {"% of Total",-12} | {"Total Time (ms)",-18} | {"% of Time",-12} | {"Avg. Ticks/Op",-15}");
+            _outputLine(new string('-', 100));
 
             profileData.Sort((a, b) => b.Ticks.CompareTo(a.Ticks));
 
@@ -138,9 +143,9 @@ namespace Fluence
                 string percentTimeStr = $"{percentOfTotalTime:F2}%";
                 string avgTicksStr = avgTicksPerOp.ToString("F2");
 
-                Console.WriteLine($"{opCodeStr,-20} | {countStr,-15} | {percentCountStr,-12} | {totalMsStr,-18} | {percentTimeStr,-12} | {avgTicksStr,-15}");
+                _outputLine($"{opCodeStr,-20} | {countStr,-15} | {percentCountStr,-12} | {totalMsStr,-18} | {percentTimeStr,-12} | {avgTicksStr,-15}");
             }
-            Console.WriteLine("--------------------------------------\n");
+            _outputLine("--------------------------------------\n");
         }
 #endif
 
@@ -185,7 +190,7 @@ namespace Fluence
                 CurrentFunctionName = vm.CurrentFrame.Function.Name;
             }
 
-            internal void DumpContext()
+            internal string DumpContext()
             {
                 var sb = new StringBuilder();
                 var separator = new string('-', 50);
@@ -233,7 +238,7 @@ namespace Fluence
                 }
                 sb.AppendLine(separator);
 
-                Console.WriteLine(sb.ToString());
+                return sb.ToString();
             }
         }
 
@@ -242,12 +247,18 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The compiled bytecode to execute.</param>
         /// <param name="parseState">The final state from the parser, containing scope information.</param>
-        internal FluenceVirtualMachine(List<InstructionLine> bytecode, ParseState parseState)
+        internal FluenceVirtualMachine(List<InstructionLine> bytecode, ParseState parseState, TextOutputMethod? output, TextOutputMethod? outputLine, TextInputMethod? input)
         {
             _byteCode = bytecode;
             _globalScope = parseState.GlobalScope;
             _globals = new Dictionary<string, RuntimeValue>();
             _callStack = new Stack<CallFrame>();
+
+            _output = output ?? Console.Write;
+            _outputLine = outputLine ?? Console.WriteLine;
+
+            // TO DO, Needs testing.
+            _input = input ?? Console.ReadLine!;
 
             // This represents the top-level global execution context.
             FunctionObject mainScriptFunc = new FunctionObject("<script>", 0, new List<string>(), 0, _globalScope);
@@ -376,7 +387,7 @@ namespace Fluence
 #endif
             }
 
-            // If the loop finishes naturally, the script is done
+            // If the loop finishes naturally, the script is done.
             State = VMState.Finished;
         }
 
@@ -1819,7 +1830,7 @@ namespace Fluence
         private object ConstructAndThrowException(string exception)
         {
             VMDebugContext ctx = new VMDebugContext(this);
-            ctx.DumpContext();
+            _outputLine(ctx.DumpContext());
             throw new FluenceRuntimeException(exception);
         }
     }

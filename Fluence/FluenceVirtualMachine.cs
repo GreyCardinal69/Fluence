@@ -59,24 +59,12 @@ namespace Fluence
         /// <summary>
         /// The current state of the Virtual Machine.
         /// </summary>
-        public VMState State { get; private set; } = VMState.NotStarted;
+        public FluenceVMState State { get; private set; } = FluenceVMState.NotStarted;
 
         /// <summary>
         /// A flag, whether to stop the execution of bytecode at the next iteration.
         /// </summary>
         private bool _stopRequested;
-
-        /// <summary>
-        /// The state of the Virtual Machine.
-        /// </summary>
-        public enum VMState
-        {
-            NotStarted,
-            Running,
-            Paused,
-            Finished,
-            Error
-        }
 
         private readonly TextOutputMethod _output;
         private readonly TextOutputMethod _outputLine;
@@ -347,21 +335,63 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Returns a global value from the given key name.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        internal bool TryGetGlobalVariable(string name, out RuntimeValue val) => _globals.TryGetValue(name, out val);
+
+        /// <summary>
+        /// Sets a global variable in the VM's global scope, converting from a standard C# type.
+        /// This is the primary way for a host application to pass data into a Fluence script.
+        /// </summary>
+        /// <param name="name">The name the variable will have in the script.</param>
+        /// <param name="value">The C# object to convert and assign. Supported types are:
+        /// null, bool, int, long, float, double, string, and char.
+        /// </param>
+        /// <exception cref="ArgumentException">Thrown if the value is of an unsupported type.</exception>
+        public void SetGlobal(string name, object? value)
+        {
+            RuntimeValue runtimeValue = value switch
+            {
+                null => RuntimeValue.Nil,
+
+                int intVal => new RuntimeValue(intVal),
+                long longVal => new RuntimeValue(longVal),
+                double doubleVal => new RuntimeValue(doubleVal),
+                float floatVal => new RuntimeValue(floatVal),
+
+                bool boolVal => new RuntimeValue(boolVal),
+
+                string stringVal => new RuntimeValue(new StringObject(stringVal)),
+                char charVal => new RuntimeValue(new CharObject(charVal)),
+
+                // TO DO, lists.
+
+                _ => throw new FluenceRuntimeException(
+                    $"Unsupported type '{value.GetType().FullName}' for SetGlobal. " +
+                    "Supported types are null, bool, int, long, float, double, string, char.")
+            };
+
+            AssignVariable(name, runtimeValue);
+        }
+
+        /// <summary>
         /// Begins execution of the loaded bytecode and runs until completion, until the duration runs out or an error occurs.
         /// </summary>
         internal void RunFor(TimeSpan duration)
         {
-            if (State == VMState.Finished || State == VMState.Error) return;
+            if (State == FluenceVMState.Finished || State == FluenceVMState.Error) return;
 
             _stopRequested = false;
-            State = VMState.Running;
+            State = FluenceVMState.Running;
             var stopwatch = Stopwatch.StartNew();
 
             while (_ip < _byteCode.Count)
             {
                 if (_stopRequested || stopwatch.Elapsed >= duration)
                 {
-                    State = VMState.Paused;
+                    State = FluenceVMState.Paused;
                     return;
                 }
 
@@ -388,7 +418,7 @@ namespace Fluence
             }
 
             // If the loop finishes naturally, the script is done.
-            State = VMState.Finished;
+            State = FluenceVMState.Finished;
         }
 
         /// <summary>

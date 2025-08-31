@@ -138,7 +138,7 @@ namespace Fluence
     /// <summary>
     /// Represents an exception that occurs during the execution of a Fluence script by the VM.
     /// </summary>
-    public sealed class FluenceRuntimeException : Exception
+    public sealed class FluenceRuntimeException : FluenceException
     {
         public FluenceRuntimeException(string message) : base(message) { }
     }

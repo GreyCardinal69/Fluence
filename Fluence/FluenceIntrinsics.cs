@@ -34,7 +34,7 @@ namespace Fluence
         /// </summary>
         internal void RegisterCoreGlobals()
         {
-            GlobalLibrary.Register(_parser.CurrentParserStateGlobalScope, _outputLine,  _input, _output);
+            GlobalLibrary.Register(_parser.CurrentParserStateGlobalScope, _outputLine, _input, _output);
         }
 
         /// <summary>

@@ -3,6 +3,11 @@ using static Fluence.FluenceParser;
 
 namespace Fluence
 {
+    /// <summary>
+    /// Provides the main public API for compiling and executing Fluence scripts.
+    /// This class is the primary entry point for embedding the Fluence language into a host application.
+    /// It manages the lifecycle of the parser, optimizer, and virtual machine.
+    /// </summary>
     public sealed class FluenceInterpreter
     {
         private ParseState _parseState;
@@ -40,12 +45,18 @@ namespace Fluence
         public TextInputMethod OnInput { get; set; } = Console.ReadLine!;
 
         /// <summary>
-        /// Gets the current state of the virtual machine.
+        /// Gets the current execution state of the virtual machine.
         /// </summary>
         public FluenceVMState State => _vm?.State ?? FluenceVMState.NotStarted;
 
+        /// <summary>
+        /// Gets a value indicating whether the script has finished execution.
+        /// </summary>
         public bool IsDone => _vm.State == FluenceVMState.Finished;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FluenceInterpreter"/>.
+        /// </summary>
         public FluenceInterpreter()
         {
         }
@@ -84,37 +95,23 @@ namespace Fluence
             }
         }
 
+        /// <summary>
+        /// Runs the compiled script to completion in a single blocking call.
+        /// If the script was previously paused, execution will resume and run to completion.
+        /// If the script was finished, it will be reset and run again from the beginning.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown if no code has been compiled.</exception>
         public void RunUntilDone()
         {
-            if (_byteCode == null)
-            {
-                throw new InvalidOperationException("Code must be compiled successfully before it can be run.");
-            }
-
-            try
-            {
-                if (_vm == null|| _vm.State == FluenceVMState.NotStarted)
-                {
-                    _vm = new FluenceVirtualMachine(_byteCode, _parseState, OnOutput, OnOutputLine, OnInput);
-                }
-
-                if (_vm.State == FluenceVMState.Finished || _vm.State == FluenceVMState.Error)
-                {
-                    _vm = new FluenceVirtualMachine(_byteCode, _parseState, OnOutput, OnOutputLine, OnInput);
-                }
-
-                _vm.RunFor(TimeSpan.MaxValue);
-#if DEBUG
-                _vm.DumpPerformanceProfile();
-#endif
-            }
-            catch (FluenceRuntimeException ex)
-            {
-                ConstructAndThrowException(ex);
-                _vm.Stop();
-            }
+            RunFor(TimeSpan.MaxValue);
         }
 
+        /// <summary>
+        /// Runs or resumes the compiled script for a specified maximum duration.
+        /// If the duration is reached before the script finishes, the VM state will be 'Paused'.
+        /// </summary>
+        /// <param name="duration">The maximum time to run before pausing.</param>
+        /// <exception cref="InvalidOperationException">Thrown if no code has been compiled.</exception>
         public void RunFor(TimeSpan duration)
         {
             if (_byteCode == null)
@@ -147,7 +144,8 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Resets the Virtual Machine, the parsed bytecode.
+        /// Resets the interpreter, clearing the compiled bytecode and the virtual machine instance.
+        /// The interpreter must be re-initialized with a call to <see cref="Compile(string, bool)"/> before it can be run again.
         /// </summary>
         public void Reset()
         {
@@ -157,8 +155,8 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Requests the running script to pause execution at the next instruction.
-        /// This method is non-blocking.
+        /// Signals the running script to pause execution at the next available opportunity (before the next instruction).
+        /// This method returns immediately and does not block.
         /// </summary>
         public void Stop() => _vm.Stop();
 
@@ -184,7 +182,7 @@ namespace Fluence
                         {
                             RuntimeNumberType.Long => Convert.ToInt64(val.LongValue),
                             RuntimeNumberType.Int => Convert.ToInt32(val.IntValue),
-                            RuntimeNumberType.Float => (float)val.FloatValue,
+                            RuntimeNumberType.Float => val.FloatValue,
                             RuntimeNumberType.Double => Convert.ToDouble(val.DoubleValue),
                             _ => throw new NotImplementedException(),
                         };
@@ -207,6 +205,9 @@ namespace Fluence
             _vm.SetGlobal(name, value);
         }
 
+        /// <summary>
+        /// Handles the formatting and display of runtime exceptions.
+        /// </summary>
         private static void ConstructAndThrowException(FluenceException ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;

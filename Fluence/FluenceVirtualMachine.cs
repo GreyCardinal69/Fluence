@@ -62,12 +62,17 @@ namespace Fluence
         public FluenceVMState State { get; private set; } = FluenceVMState.NotStarted;
 
         /// <summary>
-        /// A flag, whether to stop the execution of bytecode at the next iteration.
+        /// A flag that, when set to true, will cause the execution loop to pause at the next instruction.
         /// </summary>
         private bool _stopRequested;
 
+        /// <summary>The delegate method used for non-newline output.</summary>
         private readonly TextOutputMethod _output;
+
+        /// <summary>The delegate method used for line-based output.</summary>
         private readonly TextOutputMethod _outputLine;
+
+        /// <summary>The delegate method used to receive input.</summary>
         private readonly TextInputMethod _input;
 
 #if DEBUG
@@ -178,6 +183,10 @@ namespace Fluence
                 CurrentFunctionName = vm.CurrentFrame.Function.Name;
             }
 
+            /// <summary>
+            /// Formats the captured VM state into a detailed string for display.
+            /// </summary>
+            /// <returns>A formatted string representing the VM state.</returns>
             internal string DumpContext()
             {
                 var sb = new StringBuilder();
@@ -235,6 +244,9 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The compiled bytecode to execute.</param>
         /// <param name="parseState">The final state from the parser, containing scope information.</param>
+        /// <param name="output">The delegate to handle non-newline output.</param>
+        /// <param name="outputLine">The delegate to handle line-based output.</param>
+        /// <param name="input">The delegate to handle user input.</param>
         internal FluenceVirtualMachine(List<InstructionLine> bytecode, ParseState parseState, TextOutputMethod? output, TextOutputMethod? outputLine, TextInputMethod? input)
         {
             _byteCode = bytecode;
@@ -335,10 +347,11 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Returns a global value from the given key name.
+        /// Tries to retrieve a global variable by name.
         /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
+        /// <param name="name">The name of the global variable.</param>
+        /// <param name="val">When this method returns, contains the value of the global variable, if found; otherwise, the default value.</param>
+        /// <returns>True if the global variable was found; otherwise, false.</returns>
         internal bool TryGetGlobalVariable(string name, out RuntimeValue val) => _globals.TryGetValue(name, out val);
 
         /// <summary>
@@ -377,8 +390,10 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Begins execution of the loaded bytecode and runs until completion, until the duration runs out or an error occurs.
+        /// Runs the loaded bytecode for a specified duration.
+        /// The main execution loop of the virtual machine.
         /// </summary>
+        /// <param name="duration">The maximum time to run before pausing.</param>
         internal void RunFor(TimeSpan duration)
         {
             if (State == FluenceVMState.Finished || State == FluenceVMState.Error) return;
@@ -429,6 +444,10 @@ namespace Fluence
             _stopRequested = true;
         }
 
+        /// <summary>
+        /// Directly sets the instruction pointer. Used for debugging or advanced control.
+        /// </summary>
+        /// <param name="id">The address of the next instruction to execute.</param>
         internal void SetInstructionPointer(int id) => _ip = id;
 
         /// <summary>Handles the ADD instruction, which performs numeric addition, string concatenation, or list concatenation.</summary>
@@ -443,7 +462,10 @@ namespace Fluence
             ExecuteGenericAdd(instruction);
         }
 
-        /// <summary>Handles the ADD instruction, which performs numeric addition, string concatenation, or list concatenation.</summary>
+        /// <summary>
+        /// The generic, "slow path" handler for the ADD instruction. It performs the full operation
+        /// and attempts to create and cache a specialized handler for future executions.
+        /// </summary>
         internal void ExecuteGenericAdd(InstructionLine instruction)
         {
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
@@ -497,7 +519,10 @@ namespace Fluence
             ExecuteGenericSubtraction(instruction);
         }
 
-        /// <summary>Handles the SUBTRACT instruction for numeric subtraction or list difference.</summary>
+        /// <summary>
+        /// The generic, "slow path" handler for the SUBTRACT instruction. It performs the full operation
+        /// and attempts to create and cache a specialized handler for future executions.
+        /// </summary>
         internal void ExecuteGenericSubtraction(InstructionLine instruction)
         {
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
@@ -539,7 +564,10 @@ namespace Fluence
             ExecuteGenericMultiplication(instruction);
         }
 
-        /// <summary>Handles the MULTIPLY instruction for numeric multiplication or string/list repetition.</summary>
+        /// <summary>
+        /// The generic, "slow path" handler for the MULTIPLY instruction. It performs the full operation
+        /// and attempts to create and cache a specialized handler for future executions.
+        /// </summary>
         internal void ExecuteGenericMultiplication(InstructionLine instruction)
         {
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
@@ -820,7 +848,7 @@ namespace Fluence
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
-            instruction.SpecializedHandler =  InlineCacheManager.CreateSpecializedBranchHandler(instruction, left, right, target);
+            instruction.SpecializedHandler = InlineCacheManager.CreateSpecializedBranchHandler(instruction, left, right, target);
             bool result = left.Equals(right);
 
             if (result == target)

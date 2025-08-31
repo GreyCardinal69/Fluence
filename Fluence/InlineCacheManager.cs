@@ -1407,6 +1407,32 @@ namespace Fluence
                 };
             }
 
+            // Temp vs Temp.
+            if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
+            {
+                string leftName = tempLeft.TempName;
+                string rightName = tempRight.TempName;
+
+                return (instruction, vm) =>
+                {
+                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+
+                    if (!Unsafe.IsNullRef(ref val1) && !Unsafe.IsNullRef(ref val2))
+                    {
+                        if (AreEqual(val1, val2) == target)
+                        {
+                            vm.SetInstructionPointer(jumpTarget);
+                        }
+                    }
+                    else
+                    {
+                        instruction.SpecializedHandler = null;
+                        vm.ExecuteBranchIfEqual(instruction, target);
+                    }
+                };
+            }
+
             return null;
         }
     }

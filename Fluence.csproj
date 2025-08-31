@@ -8,6 +8,7 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>Assets\Fluence2.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +18,10 @@
     <EmbeddedResource Remove="Fluence.Tests\**" />
     <None Remove="Fluence.Benchmarks\**" />
     <None Remove="Fluence.Tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\Fluence2.ico" />
   </ItemGroup>
 
 	<ItemGroup>

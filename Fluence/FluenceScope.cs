@@ -98,6 +98,6 @@ namespace Fluence
         }
 
         // This scope.
-        internal bool TryGetLocalSymbol(string name, out Symbol symbol) => Symbols.TryGetValue(name, out symbol);
+        internal bool TryGetLocalSymbol(string name, out Symbol symbol) => Symbols.TryGetValue(name, out symbol!);
     }
 }

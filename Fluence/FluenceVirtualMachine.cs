@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -54,13 +55,40 @@ namespace Fluence
         /// <summary>Gets the registers for the current call frame via the cached reference.</summary>
         internal Dictionary<string, RuntimeValue> CurrentRegisters => _cachedRegisters;
 
+        /// <summary>
+        /// The current state of the Virtual Machine.
+        /// </summary>
+        public VMState State { get; private set; } = VMState.NotStarted;
+
+        /// <summary>
+        /// A flag, whether to stop the execution of bytecode at the next iteration.
+        /// </summary>
+        private bool _stopRequested;
+
+        /// <summary>
+        /// The state of the Virtual Machine.
+        /// </summary>
+        public enum VMState
+        {
+            NotStarted,
+            Running,
+            Paused,
+            Finished,
+            Error
+        }
+
 #if DEBUG
         //
         //      Debug fields, useful for measuring performance, but for release builds only a waste of memory and performance.
         //
+
         private readonly Dictionary<InstructionCode, long> _instructionTimings = new();
         private readonly Dictionary<InstructionCode, long> _instructionCounts = new();
-        private readonly System.Diagnostics.Stopwatch _stopwatch = new();
+
+        /// <summary>
+        /// A debug stopwatch measuring the approximate time the Virtual Machine has been running for.
+        /// </summary>
+        private readonly Stopwatch _stopwatch = new();
 
         /// <summary>
         /// Dumps a detailed performance profile to the console, showing instruction counts,
@@ -96,15 +124,15 @@ namespace Fluence
 
             profileData.Sort((a, b) => b.Ticks.CompareTo(a.Ticks));
 
-            foreach (var data in profileData)
+            foreach (var (OpCode, Count, Ticks) in profileData)
             {
-                double percentOfTotalCount = (double)data.Count / totalInstructions * 100;
-                double totalMs = new TimeSpan(data.Ticks).TotalMilliseconds;
-                double percentOfTotalTime = (double)data.Ticks / totalTicks * 100;
-                double avgTicksPerOp = (double)data.Ticks / data.Count;
+                double percentOfTotalCount = (double)Count / totalInstructions * 100;
+                double totalMs = new TimeSpan(Ticks).TotalMilliseconds;
+                double percentOfTotalTime = (double)Ticks / totalTicks * 100;
+                double avgTicksPerOp = (double)Ticks / Count;
 
-                string opCodeStr = data.OpCode.ToString();
-                string countStr = data.Count.ToString("N0");
+                string opCodeStr = OpCode.ToString();
+                string countStr = Count.ToString("N0");
                 string percentCountStr = $"{percentOfTotalCount:F2}%";
                 string totalMsStr = totalMs.ToString("N4");
                 string percentTimeStr = $"{percentOfTotalTime:F2}%";
@@ -308,15 +336,26 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Begins execution of the loaded bytecode and runs until completion or an error occurs.
+        /// Begins execution of the loaded bytecode and runs until completion, until the duration runs out or an error occurs.
         /// </summary>
-        internal void Run()
+        internal void RunFor(TimeSpan duration)
         {
+            if (State == VMState.Finished || State == VMState.Error) return;
+
+            _stopRequested = false;
+            State = VMState.Running;
+            var stopwatch = Stopwatch.StartNew();
+
             while (_ip < _byteCode.Count)
             {
+                if (_stopRequested || stopwatch.Elapsed >= duration)
+                {
+                    State = VMState.Paused;
+                    return;
+                }
+
                 InstructionLine instruction = _byteCode[_ip];
                 _ip++;
-
 #if DEBUG
                 _stopwatch.Restart();
 #endif
@@ -336,6 +375,17 @@ namespace Fluence
                 _instructionTimings[instruction.Instruction] += _stopwatch.ElapsedTicks;
 #endif
             }
+
+            // If the loop finishes naturally, the script is done
+            State = VMState.Finished;
+        }
+
+        /// <summary>
+        /// Signals the VM to stop execution at the next available opportunity.
+        /// </summary>
+        internal void Stop()
+        {
+            _stopRequested = true;
         }
 
         internal void SetInstructionPointer(int id) => _ip = id;

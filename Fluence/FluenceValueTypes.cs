@@ -287,7 +287,7 @@
         /// </summary>
         internal FluenceScope FunctionScope { get; private set; }
 
-        internal FunctionValue(string name, int arity, int startAddress, List<string> arguments = null)
+        internal FunctionValue(string name, int arity, int startAddress, List<string> arguments = null!)
         {
             Name = name;
             Arity = arity;

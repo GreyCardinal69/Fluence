@@ -22,3 +22,6 @@ dotnet_diagnostic.CS8603.severity = none
 dotnet_diagnostic.IDE0090.severity = none
 [*.{cs,vb}]
 dotnet_diagnostic.IDE0028.severity = none
+
+# IDE0130: Namespace does not match folder structure
+dotnet_diagnostic.IDE0130.severity = none

@@ -4,6 +4,18 @@
     {
         static int Main(string[] args)
         {
+#if DEBUG
+            string source = File.ReadAllText($@"{Directory.GetCurrentDirectory()}\test.fl");
+
+            FluenceInterpreter fluenceInterpreter = new FluenceInterpreter();
+
+            if (fluenceInterpreter.Compile(source, true))
+            {
+                fluenceInterpreter.RunFor(TimeSpan.FromSeconds(110));
+            }
+
+            return 1;
+#endif
             if (args.Length == 0)
             {
                 Console.WriteLine("Fluence Interpreter");

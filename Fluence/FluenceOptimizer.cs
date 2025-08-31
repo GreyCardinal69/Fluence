@@ -20,6 +20,7 @@ namespace Fluence
         {
             FuseGotoConditionals(ref bytecode, startIndex);
             FuseCompoundAssignments(ref bytecode, startIndex);
+            FuseSimpleAssignments(ref bytecode, startIndex);
 
             CompactAndRealignFromBottomUp(ref bytecode, parseState);
         }
@@ -57,6 +58,33 @@ namespace Fluence
                     bytecode[i].Lhs = line2.Lhs;
                     bytecode[i].Rhs = line1.Rhs;
                     bytecode[i].Rhs2 = line1.Rhs2;
+                    bytecode[i + 1] = null!;
+                    i++;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Combines two simple assignment operations into one.
+        /// </summary>
+        /// <param name="bytecode">The bytecode list to modify.</param>
+        /// <param name="startIndex">The index from which to begin scanning.</param>
+        private static void FuseSimpleAssignments(ref List<InstructionLine> bytecode, int startIndex)
+        {
+            for (int i = startIndex; i < bytecode.Count - 1; i++)
+            {
+                var line1 = bytecode[i];
+                if (line1 == null) continue;
+                var line2 = bytecode[i + 1];
+                if (line2 == null) continue;
+
+                if (line1.Instruction == InstructionCode.Assign && line2.Instruction == InstructionCode.Assign)
+                {
+                    bytecode[i].Instruction = InstructionCode.AssignTwo;
+                    bytecode[i].Lhs = line1.Lhs;
+                    bytecode[i].Rhs = line1.Rhs;
+                    bytecode[i].Rhs2 = line2.Lhs;
+                    bytecode[i].Rhs3 = line2.Rhs;
                     bytecode[i + 1] = null!;
                     i++;
                 }

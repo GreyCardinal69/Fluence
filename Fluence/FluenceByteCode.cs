@@ -112,6 +112,8 @@
                 DivAssign,
                 ModAssign,
 
+                AssignTwo,
+
                 BranchIfEqual,
                 BranchIfNotEqual,
             }

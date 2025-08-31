@@ -336,6 +336,8 @@ namespace Fluence
             _dispatchTable[(int)InstructionCode.ModAssign] = ExecuteModulo;
             _dispatchTable[(int)InstructionCode.SubAssign] = ExecuteSubtraction;
 
+            _dispatchTable[(int)InstructionCode.AssignTwo] = ExecuteAssignTwo;
+
             // Goto family.
             _dispatchTable[(int)InstructionCode.BranchIfEqual] = (inst) => ExecuteBranchIfEqual(inst, true);
             _dispatchTable[(int)InstructionCode.BranchIfNotEqual] = (inst) => ExecuteBranchIfEqual(inst, false);
@@ -704,11 +706,23 @@ namespace Fluence
             ConstructAndThrowException($"Runtime Error: Cannot apply operator '**' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
+        /// <summary>Handles the ASSIGN_TWO instruction, which is used for variable assignment of two variables at once.</summary>
+        private void ExecuteAssignTwo(InstructionLine instruction)
+        {
+            AssignTo(instruction.Lhs, instruction.Rhs);
+            AssignTo(instruction.Rhs2, instruction.Rhs3);
+        }
+
         /// <summary>Handles the ASSIGN instruction, which is used for variable assignment and range-to-list expansion.</summary>
         private void ExecuteAssign(InstructionLine instruction)
         {
-            RuntimeValue sourceValue = GetRuntimeValue(instruction.Rhs);
-            if (instruction.Lhs is VariableValue destVar && sourceValue.ObjectReference is RangeObject range)
+            AssignTo(instruction.Lhs, instruction.Rhs);
+        }
+
+        private void AssignTo(Value left, Value right)
+        {
+            RuntimeValue sourceValue = GetRuntimeValue(right);
+            if (left is VariableValue destVar && sourceValue.ObjectReference is RangeObject range)
             {
                 ListObject list = new ListObject();
                 RuntimeValue startValue = range.Start;
@@ -740,11 +754,11 @@ namespace Fluence
                 return;
             }
             // Standard assignment.
-            else if (instruction.Lhs is VariableValue destVar2)
+            else if (left is VariableValue destVar2)
             {
                 AssignVariable(destVar2.Name, sourceValue);
             }
-            else if (instruction.Lhs is TempValue destTemp) AssignVariable(destTemp.TempName, sourceValue);
+            else if (left is TempValue destTemp) AssignVariable(destTemp.TempName, sourceValue);
             else ConstructAndThrowException("Internal VM Error: Destination of 'Assign' must be a variable or temporary.");
         }
 

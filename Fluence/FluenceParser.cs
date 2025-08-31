@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
+using static Fluence.FluenceInterpreter;
 using static Fluence.Token;
 
 namespace Fluence
@@ -23,6 +24,8 @@ namespace Fluence
         /// the <see cref="FluenceOptimizer"/>.
         /// </summary>
         private int _lastOptimizationIndex;
+
+        private FluenceIntrinsics _intrinsicsManager;
 
         /// <summary>
         /// Exposes the global scope of the current parsing state, primarily for the intrinsic registrar.
@@ -147,10 +150,13 @@ namespace Fluence
             }
         }
 
-        internal FluenceParser(FluenceLexer lexer)
+        internal FluenceParser(FluenceLexer lexer, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input)
         {
             _currentParseState = new ParseState();
             _lexer = lexer;
+
+            _intrinsicsManager = new FluenceIntrinsics(this, outLine, input, outNormal);
+            _intrinsicsManager.RegisterCoreGlobals();
         }
 
         internal void DumpSymbolTables()
@@ -1874,6 +1880,8 @@ namespace Fluence
             {
                 Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a namespace name after a 'use' statement.");
                 string namespaceName = nameToken.Text;
+
+                _intrinsicsManager.Use(namespaceName);
 
                 if (!_currentParseState.NameSpaces.TryGetValue(namespaceName, out FluenceScope namespaceToUse))
                 {

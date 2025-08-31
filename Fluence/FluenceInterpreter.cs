@@ -49,9 +49,7 @@ namespace Fluence
             try
             {
                 FluenceLexer lexer = new FluenceLexer(source);
-                FluenceParser parser = new FluenceParser(lexer);
-                FluenceIntrinsics intrinsics = new FluenceIntrinsics(parser);
-                intrinsics.Register();
+                FluenceParser parser = new FluenceParser(lexer, OnOutputLine, OnOutput, OnInput);
                 parser.Parse(partialCode);
 #if DEBUG
                 parser.DumpSymbolTables();

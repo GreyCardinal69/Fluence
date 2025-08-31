@@ -8,9 +8,9 @@
 
             FluenceInterpreter fluenceInterpreter = new FluenceInterpreter();
 
-            if (fluenceInterpreter.Compile(source))
+            if (fluenceInterpreter.Compile(source, true))
             {
-                fluenceInterpreter.Run();
+                fluenceInterpreter.RunFor(TimeSpan.FromSeconds(30));
             }
         }
     }

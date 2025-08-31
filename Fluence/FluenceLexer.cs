@@ -679,14 +679,14 @@ namespace Fluence
                 return ScanString(false);
             }
 
-            int errorColumn = _currentColumn == 0 ? 2 : _currentColumn;
-            faultyCodeLine = GetCodeLineFromSource(_sourceCode, _currentLine).TrimStart();
+            int errorColumn = _currentColumn;
+            faultyCodeLine = GetCodeLineFromSource(_sourceCode, _currentLine);
             char invalidChar = _sourceCode[startPos];
 
             LexerExceptionContext context = new LexerExceptionContext()
             {
                 LineNum = _currentLine,
-                Column = errorColumn + 2,
+                Column = errorColumn + 1,
                 FaultyLine = faultyCodeLine,
                 Token = new Token(TokenType.UNKNOWN, _sourceCode[_currentPosition].ToString())
             };

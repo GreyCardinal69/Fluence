@@ -45,6 +45,11 @@ namespace Fluence
         public TextInputMethod OnInput { get; set; } = Console.ReadLine!;
 
         /// <summary>
+        /// Gets or sets the output method to report errors and exceptions.
+        /// </summary>
+        public TextOutputMethod OnErrorOutput { get; set; } = Console.WriteLine;
+
+        /// <summary>
         /// Gets the current execution state of the virtual machine.
         /// </summary>
         public FluenceVMState State => _vm?.State ?? FluenceVMState.NotStarted;
@@ -89,8 +94,7 @@ namespace Fluence
             }
             catch (FluenceException ex)
             {
-                Console.WriteLine("Compilation Error:");
-                Console.WriteLine(ex);
+                ConstructAndThrowException(ex);
                 return false;
             }
         }
@@ -136,7 +140,7 @@ namespace Fluence
                 _vm.DumpPerformanceProfile();
 #endif
             }
-            catch (FluenceRuntimeException ex)
+            catch (FluenceException ex)
             {
                 ConstructAndThrowException(ex);
                 _vm.Stop();
@@ -208,12 +212,10 @@ namespace Fluence
         /// <summary>
         /// Handles the formatting and display of runtime exceptions.
         /// </summary>
-        private static void ConstructAndThrowException(FluenceException ex)
+        private void ConstructAndThrowException(FluenceException ex)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("Runtime Error:");
-            Console.WriteLine(ex);
-            Console.ForegroundColor = ConsoleColor.White;
+            OnOutputLine("Error:");
+            OnOutputLine(ex.ToString());
         }
     }
 }

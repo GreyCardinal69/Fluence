@@ -22,10 +22,13 @@
         /// </summary>
         internal Value Value { get; set; }
 
-        internal VariableSymbol(string name, Value value)
+        internal bool IsReadonly { get; init; }
+
+        internal VariableSymbol(string name, Value value, bool readOnly = false)
         {
             Name = name;
             Value = value;
+            IsReadonly = readOnly;
         }
 
         internal override string ToFluenceString() => $"VariableSymbol: {Name}{Value}";

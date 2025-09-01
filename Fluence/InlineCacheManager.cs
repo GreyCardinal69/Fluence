@@ -7,6 +7,7 @@ namespace Fluence
 {
     internal static class InlineCacheManager
     {
+        // TO DO, apply readonly check to all specialized handlers, move to direct assignment without that check.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static RuntimeValue AddValues(RuntimeValue left, RuntimeValue right)
         {
@@ -253,13 +254,30 @@ namespace Fluence
             };
         }
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedAddHandler(InstructionLine insn, RuntimeValue left, RuntimeValue right)
+        internal static SpecializedOpcodeHandler? CreateSpecializedAddHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
             // We can only specialize if both operands are numbers.
             if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
             {
                 return null;
             }
+
+            string? destName = null;
+            if (insn.Lhs is VariableValue varDest) destName = varDest.Name;
+            else if (insn.Lhs is TempValue tempDest) destName = tempDest.TempName;
+
+            if (destName != null)
+            {
+                if (vm.CurrentFrame.Function.DefiningScope.TryResolve(destName, out Symbol symbol) &&
+                    symbol is VariableSymbol { IsReadonly: true })
+                {
+                    // The destination is readonly. We can't create a writer for it.
+                    // We throw the error right here during the specialization attempt.
+                    vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{destName}'.");
+                    return null; // Should not be reached
+                }
+            }
+            else { return null; }
 
             var lhsOperand = insn.Rhs;
             var rhsOperand = insn.Rhs2;
@@ -281,7 +299,7 @@ namespace Fluence
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         var result = AddValues(val1, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        vm.SetVariable((VariableValue)instruction.Lhs, result);
                     }
                     else
                     {
@@ -305,7 +323,14 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
                         var result = AddValues(val1, constValue);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        if (instruction.Lhs is TempValue temp)
+                        {
+                            vm.SetRegister(temp, result);
+                        }
+                        else
+                        {
+                            vm.SetVariable((VariableValue)instruction.Lhs, result);
+                        }
                     }
                     else
                     {
@@ -379,7 +404,14 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
                         var result = AddValues(val1, constValue);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        if (instruction.Lhs is TempValue temp)
+                        {
+                            vm.SetRegister(temp, result);
+                        }
+                        else
+                        {
+                            vm.SetVariable((VariableValue)instruction.Lhs, result);
+                        }
                     }
                     else
                     {
@@ -456,7 +488,7 @@ namespace Fluence
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         var result = AddValues(val1, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        vm.SetVariable((VariableValue)instruction.Lhs, result);
                     }
                     else
                     {
@@ -822,12 +854,6 @@ namespace Fluence
 
         internal static SpecializedOpcodeHandler? CreateSpecializedMulHandler(InstructionLine insn, RuntimeValue left, RuntimeValue right)
         {
-            // We can only specialize if both operands are numbers.
-            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
-            {
-                return null;
-            }
-
             var lhsOperand = insn.Rhs;
             var rhsOperand = insn.Rhs2;
 
@@ -852,7 +878,15 @@ namespace Fluence
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        vm.ExecuteGenericMultiplication(instruction);
+                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+
+                        vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b)
+                        );
                     }
                 };
             }
@@ -875,7 +909,16 @@ namespace Fluence
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        vm.ExecuteGenericMultiplication(instruction);
+                        
+                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+
+                        vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b)
+                        );
                     }
                 };
             }
@@ -899,7 +942,15 @@ namespace Fluence
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        vm.ExecuteGenericMultiplication(instruction);
+                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+
+                        vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b)
+                        );
                     }
                 };
             }
@@ -925,7 +976,15 @@ namespace Fluence
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        vm.ExecuteGenericMultiplication(instruction);
+                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+
+                        vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b)
+                        );
                     }
                 };
             }
@@ -947,7 +1006,15 @@ namespace Fluence
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        vm.ExecuteGenericMultiplication(instruction);
+                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+
+                        vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b)
+                        );
                     }
                 };
             }
@@ -969,7 +1036,15 @@ namespace Fluence
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        vm.ExecuteGenericMultiplication(instruction);
+                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+
+                        vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b)
+                        );
                     }
                 };
             }
@@ -995,7 +1070,15 @@ namespace Fluence
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        vm.ExecuteGenericMultiplication(instruction);
+                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+
+                        vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b)
+                        );
                     }
                 };
             }
@@ -1021,7 +1104,15 @@ namespace Fluence
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        vm.ExecuteGenericMultiplication(instruction);
+                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+
+                        vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b),
+                             (a, b) => new RuntimeValue(a * b)
+                        );
                     }
                 };
             }

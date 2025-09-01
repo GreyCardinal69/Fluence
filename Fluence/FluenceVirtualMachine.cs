@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Xml.Linq;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceInterpreter;
@@ -51,7 +52,7 @@ namespace Fluence
         private int _ip;
 
         /// <summary>Gets the currently active call frame from the top of the call stack.</summary>
-        private CallFrame CurrentFrame => _callStack.Peek();
+        internal CallFrame CurrentFrame => _callStack.Peek();
 
         /// <summary>Gets the registers for the current call frame via the cached reference.</summary>
         internal Dictionary<string, RuntimeValue> CurrentRegisters => _cachedRegisters;
@@ -146,12 +147,19 @@ namespace Fluence
         /// Represents the state of a single function call on the stack. It contains the function being executed,
         /// its local variables (registers), the return address, and the destination for the return value.
         /// </summary>
-        private readonly record struct CallFrame
+        internal readonly record struct CallFrame
         {
             internal Dictionary<string, RuntimeValue> Registers { get; } = new();
             internal readonly TempValue DestinationRegister;
             internal readonly FunctionObject Function;
             internal readonly int ReturnAddress;
+
+            /// <summary>
+            /// A cache to store the readonly status of variables in this scope.
+            /// Key: variable name. Value: true if readonly, false if writable.
+            /// This avoids expensive TryResolve calls on every assignment.
+            /// </summary>
+            internal readonly Dictionary<string, bool> WritableCache = new();
 
             internal CallFrame(FunctionObject function, int returnAddress, TempValue destination)
             {
@@ -415,14 +423,16 @@ namespace Fluence
                 InstructionLine instruction = _byteCode[_ip];
                 _ip++;
 
+#if DEBUG
+                _stopwatch.Restart();
+#endif
+
                 if (instruction.Instruction is InstructionCode.Goto)
                 {
                     _ip = (int)((NumberValue)instruction.Lhs).Value;
                     continue;
                 }
-#if DEBUG
-                _stopwatch.Restart();
-#endif
+
                 if (instruction.SpecializedHandler != null)
                 {
                     instruction.SpecializedHandler(instruction, this);
@@ -481,7 +491,7 @@ namespace Fluence
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                var handler = InlineCacheManager.CreateSpecializedAddHandler(instruction, left, right);
+                var handler = InlineCacheManager.CreateSpecializedAddHandler(instruction, this, left, right);
                 if (handler != null)
                 {
                     instruction.SpecializedHandler = handler;
@@ -760,6 +770,62 @@ namespace Fluence
             }
             else if (left is TempValue destTemp) AssignVariable(destTemp.TempName, sourceValue);
             else ConstructAndThrowException("Internal VM Error: Destination of 'Assign' must be a variable or temporary.");
+        }
+
+        /// <summary>
+        /// A generic handler for all binary numeric operations. It correctly handles type promotion
+        ///  and dispatches to the appropriate C# operator.
+        /// </summary>
+        internal void ExecuteNumericBinaryOperation(
+            InstructionLine instruction, RuntimeValue left, RuntimeValue right,
+            Func<int, int, RuntimeValue> intOp,
+            Func<long, long, RuntimeValue> longOp,
+            Func<float, float, RuntimeValue> floatOp,
+            Func<double, double, RuntimeValue> doubleOp)
+        {
+            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
+            {
+                ConstructAndThrowException($"Internal VM Error: ExecuteNumericBinaryOperation called with non-numeric types.");
+            }
+
+            var result = left.NumberType switch
+            {
+                RuntimeNumberType.Int => right.NumberType switch
+                {
+                    RuntimeNumberType.Int => intOp(left.IntValue, right.IntValue),
+                    RuntimeNumberType.Long => longOp(left.IntValue, right.LongValue),
+                    RuntimeNumberType.Float => floatOp(left.IntValue, right.FloatValue),
+                    RuntimeNumberType.Double => doubleOp(left.IntValue, right.DoubleValue),
+                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type."),
+                },
+                RuntimeNumberType.Long => right.NumberType switch
+                {
+                    RuntimeNumberType.Int => longOp(left.LongValue, right.IntValue),
+                    RuntimeNumberType.Long => longOp(left.LongValue, right.LongValue),
+                    RuntimeNumberType.Float => floatOp(left.LongValue, right.FloatValue),
+                    RuntimeNumberType.Double => doubleOp(left.LongValue, right.DoubleValue),
+                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type."),
+                },
+                RuntimeNumberType.Float => right.NumberType switch
+                {
+                    RuntimeNumberType.Int => floatOp(left.FloatValue, right.IntValue),
+                    RuntimeNumberType.Long => floatOp(left.FloatValue, right.LongValue),
+                    RuntimeNumberType.Float => floatOp(left.FloatValue, right.FloatValue),
+                    RuntimeNumberType.Double => doubleOp(left.FloatValue, right.DoubleValue),
+                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type."),
+                },
+                RuntimeNumberType.Double => right.NumberType switch
+                {
+                    RuntimeNumberType.Int => doubleOp(left.DoubleValue, right.IntValue),
+                    RuntimeNumberType.Long => doubleOp(left.DoubleValue, right.LongValue),
+                    RuntimeNumberType.Float => doubleOp(left.DoubleValue, right.FloatValue),
+                    RuntimeNumberType.Double => doubleOp(left.DoubleValue, right.DoubleValue),
+                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type."),
+                },
+                _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported left-hand number type."),
+            };
+
+            SetVariableOrRegister(instruction.Lhs, result);
         }
 
         /// <summary>
@@ -1601,11 +1667,23 @@ namespace Fluence
             SetRegister((TempValue)target, value);
         }
 
+        internal void SetVariable(VariableValue var, RuntimeValue val)
+        {
+            if (CurrentFrame.ReturnAddress != _byteCode.Count)
+            {
+                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, var.Name, out _);
+                valueRef = val;
+            }
+
+            ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, var.Name, out _);
+            valueRef2 = val;
+        }
+
         /// <summary>
         /// Converts a compile-time <see cref="Value"/> from bytecode into a runtime <see cref="RuntimeValue"/>.
         /// This is the bridge between the parser's representation and the VM's execution values.
         /// </summary>
-        private RuntimeValue GetRuntimeValue(Value val)
+        internal RuntimeValue GetRuntimeValue(Value val)
         {
             if (val is TempValue temp)
             {
@@ -1679,7 +1757,7 @@ namespace Fluence
                 return ResolveVariableFromScopeSymbol(symbol, lexicalScope);
             }
 
-            if (string.Equals(CurrentFrame.Function.Name, "<script>", StringComparison.Ordinal))
+            if (CurrentFrame.ReturnAddress == _byteCode.Count)
             {
                 foreach (var item in Namespaces.Values)
                 {
@@ -1735,6 +1813,14 @@ namespace Fluence
                 {
                     return namespaceRuntimeValue2;
                 }
+
+                foreach (var item in Namespaces.Values)
+                {
+                    if (item.TryResolve(variable.Name, out Symbol symb ))
+                    {
+                        return GetRuntimeValue(((VariableSymbol)symb).Value);
+                    }
+                }
             }
 
             // Won't reach here, but satisfies compiler.
@@ -1744,7 +1830,7 @@ namespace Fluence
         /// <summary>
         /// Writes a value to a specified temporary register in the current call frame.
         /// </summary>
-        private void SetRegister(TempValue destination, RuntimeValue value)
+        internal void SetRegister(TempValue destination, RuntimeValue value)
         {
             ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, destination.TempName, out _);
             valueRef = value;
@@ -1755,9 +1841,35 @@ namespace Fluence
         /// </summary>
         private void AssignVariable(string name, RuntimeValue value)
         {
-            // If we are not in the top-level script, assign to the current frame's local registers.
-            if (!string.Equals(CurrentFrame.Function.Name, "<script>", StringComparison.Ordinal))
+            var cache = CurrentFrame.WritableCache;
+            ref bool isReadonlyRef = ref CollectionsMarshal.GetValueRefOrNullRef(cache, name);
+
+            if (!Unsafe.IsNullRef(ref isReadonlyRef))
             {
+                if (isReadonlyRef)
+                {
+                    ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{name}'.");
+                    return;
+                }
+            }
+            else
+            {
+                if (CurrentFrame.Function.DefiningScope.TryResolve(name, out Symbol symbol) &&
+                    symbol is VariableSymbol { IsReadonly: true })
+                {
+                    cache[name] = true;
+                    ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{name}'.");
+                    return;
+                }
+                else
+                {
+                    cache[name] = false;
+                }
+            }
+
+            // If we are not in the top-level script, assign to the current frame's local registers.
+            if (CurrentFrame.ReturnAddress != _byteCode.Count)
+            { 
                 ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, name, out _);
                 valueRef = value;
             }
@@ -1905,7 +2017,7 @@ namespace Fluence
         /// <param name="exception"></param>
         /// <returns></returns>
         /// <exception cref="FluenceRuntimeException"></exception>
-        private object ConstructAndThrowException(string exception)
+        internal object ConstructAndThrowException(string exception)
         {
             VMDebugContext ctx = new VMDebugContext(this);
             _outputLine(ctx.DumpContext());

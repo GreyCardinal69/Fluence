@@ -25,7 +25,7 @@ namespace Fluence
         /// </summary>
         private int _lastOptimizationIndex;
 
-        private FluenceIntrinsics _intrinsicsManager;
+        private readonly FluenceIntrinsics _intrinsicsManager;
 
         /// <summary>
         /// Exposes the global scope of the current parsing state, primarily for the intrinsic registrar.

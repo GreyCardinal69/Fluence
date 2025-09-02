@@ -613,10 +613,16 @@ namespace Fluence
             StructSymbol structSymbol = new StructSymbol(structName);
 
             int currentIndex = startTokenIndex + 3;
+            bool solidField = false;
 
             while (currentIndex < endTokenIndex)
             {
                 Token token = _lexer.PeekAheadByN(currentIndex + 1);
+
+                if (token.Type == TokenType.SOLID)
+                {
+                    solidField = true;
+                }
 
                 if (token.Type == TokenType.IDENTIFIER)
                 {
@@ -633,6 +639,12 @@ namespace Fluence
                     for (int z = currentIndex + 3; z <= statementEndIndex; z++)
                     {
                         defaultValueTokens.Add(_lexer.PeekAheadByN(z));
+                    }
+
+                    if (solidField)
+                    {
+                        solidField = false;
+                        structSymbol.StaticFields.Add(token.Text, new RuntimeValue(null!));
                     }
 
                     structSymbol.DefaultFieldValuesAsTokens.TryAdd(token.Text, defaultValueTokens);
@@ -771,6 +783,7 @@ namespace Fluence
                 case TokenType.FOR: ParseForStatement(); break;
                 case TokenType.LOOP: ParseLoopStatement(); break;
                 case TokenType.MATCH: ParseMatchStatement(); break;
+                case TokenType.SOLID: ParseSolidStatement(); break;
 
                 // Simple Statements that MUST be terminated.
                 case TokenType.RETURN:
@@ -1334,6 +1347,43 @@ namespace Fluence
 
                 if (!isInit)
                 {
+                    // Bytecode for solid, static fields must be generated before the application is run.
+                    foreach (var field in structSymbol.DefaultFieldValuesAsTokens)
+                    {
+                        Value defaultValueResult;
+                        string fieldName = field.Key;
+                        List<Token> expressionTokens = field.Value;
+
+                        if (structSymbol.StaticFields.ContainsKey(fieldName))
+                        {
+                            if (expressionTokens.Count == 0)
+                            {
+                                ConstructAndThrowParserException($"Expected an assignment of a value to a solid static struct field, value can not be Nil: {structSymbol}__Field:{fieldName}.", new Token());
+                                return;
+                            }
+
+                            _fieldLexer = _lexer;
+                            _lexer = new FluenceLexer(expressionTokens);
+
+                            defaultValueResult = ParseTernary();
+
+                            _lexer = _fieldLexer; // Restore the main lexer.
+
+                            // We call SetStatic for static fields, and add to the initializer code list.
+                            // This way the values are assigned before the application runs.
+                            _currentParseState.ScriptInitializerCode.Add(
+                                new InstructionLine(
+                                        InstructionCode.SetStatic,
+                                        structSymbol,
+                                        new StringValue(fieldName),
+                                        defaultValueResult
+                                )
+                            );
+
+                            continue;
+                        }
+                    }
+
                     if (!structSymbol.Functions.TryGetValue(functionName, out FunctionValue functionValue))
                     {
                         ConstructAndThrowParserException($"Internal error: Method '{funcValue.Name}' not found in the symbol table for struct '{structName}'.", nameToken);
@@ -1341,6 +1391,7 @@ namespace Fluence
                     functionValue!.SetScope(_currentParseState.CurrentScope);
                     functionValue!.SetStartAddress(functionStartAddress);
                     _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{functionValue.Name}"), functionValue));
+
                     return;
                 }
 
@@ -1352,8 +1403,15 @@ namespace Fluence
 
                 foreach (var field in structSymbol.DefaultFieldValuesAsTokens)
                 {
+                    if (structSymbol.StaticFields.ContainsKey(field.Key))
+                    {
+                        continue;
+                    }
+
+                    Value defaultValueResult;
                     string fieldName = field.Key;
                     List<Token> expressionTokens = field.Value;
+
                     if (expressionTokens.Count == 0)
                     {
                         _currentParseState.AddCodeInstruction(
@@ -1370,7 +1428,7 @@ namespace Fluence
                     _fieldLexer = _lexer;
                     _lexer = new FluenceLexer(expressionTokens);
 
-                    Value defaultValueResult = ParseTernary();
+                    defaultValueResult = ParseTernary();
 
                     _lexer = _fieldLexer; // Restore the main lexer.
 
@@ -1923,6 +1981,23 @@ namespace Fluence
                 ParseStatement();
             }
             AdvanceAndExpect(closeToken, $"Expected a closing '{closeToken}' to end an imitation block of code.");
+        }
+
+        /// <summary>
+        /// Parses the assignment of a solid variable, the variable must be assigned to an explicit value.
+        /// </summary>
+        private void ParseSolidStatement()
+        {
+            _lexer.ConsumeToken(); // Consume 'solid'.
+
+            VariableValue left = (VariableValue)ParseExpression();
+            left.IsReadOnly = true;
+
+            ConsumeAndExpect(TokenType.EQUAL, "Expected an assignment for an immutable solid variable or field.");
+
+            Value value = ParseExpression();
+
+            GenerateWriteBackInstruction(left, value);
         }
 
         /// <summary>
@@ -2996,6 +3071,13 @@ namespace Fluence
                         valueToAssign
                     ));
                     break;
+                case StaticStructAccess statAccess:
+                    if (statAccess.Struct.StaticFields.ContainsKey(statAccess.Name))
+                    {
+                        ConstructAndThrowParserException($"Attempted to modify a solid ( static ) struct field: {statAccess.Struct}__Field:{statAccess.Name}.", _lexer.PeekNextToken());
+                        return;
+                    }
+                    break;
                 default:
                     break;
             }
@@ -3012,9 +3094,22 @@ namespace Fluence
         private Value ResolveValue(Value val)
         {
             // Base case: The value is already a simple type, not a descriptor. Return it directly.
-            if (val is not (PropertyAccessValue or ElementAccessValue))
+            if (val is not (PropertyAccessValue or ElementAccessValue or StaticStructAccess))
             {
                 return val;
+            }
+
+            if (val is StaticStructAccess statAccess)
+            {
+                TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(
+                    InstructionCode.GetStatic,
+                    result,
+                    statAccess.Struct,
+                    new StringValue(statAccess.Name)
+                ));
+
+                return result;
             }
 
             if (val is PropertyAccessValue propAccess)
@@ -3189,7 +3284,6 @@ namespace Fluence
                     _lexer.Advance(); // Consume the dot.
 
                     Token memberToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a member name after '.' .");
-
                     if (left is VariableValue variable)
                     {
                         if (_currentParseState.CurrentScope.TryResolve(variable.Name, out Symbol symbol) && symbol is EnumSymbol enumSymbol)
@@ -3207,6 +3301,10 @@ namespace Fluence
                         {
                             left = new PropertyAccessValue(left, memberToken.Text);
                         }
+                    }
+                    else if (left is StaticStructAccess stat)
+                    {
+                        left = new StaticStructAccess(stat.Struct, memberToken.Text);
                     }
                     else
                     {
@@ -3254,6 +3352,15 @@ namespace Fluence
                        ResolveValue(propAccess.Target),
                        new StringValue(propAccess.FieldName)
                    ));
+            }
+            else if (callable is StaticStructAccess statAccess)
+            {
+                _currentParseState.AddCodeInstruction(new InstructionLine(
+                    InstructionCode.CallStatic,
+                    result,
+                    statAccess.Struct,
+                    new StringValue(statAccess.Name)
+                ));
             }
             else
             {
@@ -3377,6 +3484,11 @@ namespace Fluence
                         else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
                         {
                             return ParseDirectInitializer(structSymbol);
+                        }
+                        // Static struct field or method.
+                        else if (_lexer.TokenTypeMatches(TokenType.DOT))
+                        {
+                            return new StaticStructAccess(structSymbol, null!);
                         }
                     }
                     else

@@ -44,6 +44,11 @@ namespace Fluence
         /// <summary>The stack used for passing arguments to functions and for temporary operand storage.</summary>
         private readonly Stack<RuntimeValue> _operandStack = new();
 
+        /// <summary>
+        /// A cache to store the readonly status of variables in the global scope.
+        /// </summary>
+        internal readonly Dictionary<string, bool> GlobalWritableCache = new();
+
         /// <summary> The list of all namespaces in the source code. </summary>
         private readonly Dictionary<string, FluenceScope> Namespaces;
 
@@ -1309,7 +1314,7 @@ namespace Fluence
                 ConstructAndThrowException("Internal VM Error: Invalid operands for SET_STATIC. Expected StructSymbol and StringValue.");
                 return;
             }
-            
+
             RuntimeValue valueToSet = GetRuntimeValue(instruction.Rhs2);
             structSymbol.StaticFields[fieldName.Value] = valueToSet;
         }
@@ -1942,11 +1947,20 @@ namespace Fluence
                     return;
                 }
             }
+            else if (!Unsafe.IsNullRef(ref CollectionsMarshal.GetValueRefOrNullRef(GlobalWritableCache, name)))
+            {
+                ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly global variable '{name}'.");
+                return;
+            }
             else
             {
                 if (readOnly)
                 {
                     cache[name] = true;
+                    if (CurrentFrame.ReturnAddress == _byteCode.Count)
+                    {
+                        GlobalWritableCache[name] = true;
+                    }
                 }
                 else if (CurrentFrame.Function.DefiningScope.TryResolve(name, out Symbol symbol) &&
                     symbol is VariableSymbol { IsReadonly: true })
@@ -1955,8 +1969,15 @@ namespace Fluence
                     ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly or solid variable '{name}'.");
                     return;
                 }
+                else if (_globalScope.TryResolve(name, out symbol) && symbol is VariableSymbol symb && symb.IsReadonly)
+                {
+                    GlobalWritableCache[name] = true;
+                    ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly or solid variable '{name}'.");
+                    return;
+                }
                 else
                 {
+                    GlobalWritableCache[name] = false;
                     cache[name] = false;
                 }
             }

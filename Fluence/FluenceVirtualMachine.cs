@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Xml.Linq;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceInterpreter;
@@ -311,6 +310,10 @@ namespace Fluence
             _dispatchTable[(int)InstructionCode.NewIterator] = ExecuteNewIterator;
             _dispatchTable[(int)InstructionCode.IterNext] = ExecuteIterNext;
             _dispatchTable[(int)InstructionCode.PushParam] = ExecutePushParam;
+
+            _dispatchTable[(int)InstructionCode.CallStatic] = ExecuteCallStatic;
+            _dispatchTable[(int)InstructionCode.GetStatic] = ExecuteGetStatic;
+            _dispatchTable[(int)InstructionCode.SetStatic] = ExecuteSetStatic;
 
             _dispatchTable[(int)InstructionCode.BitwiseNot] = ExecuteBitwiseOperation;
             _dispatchTable[(int)InstructionCode.BitwiseAnd] = ExecuteBitwiseOperation;
@@ -766,9 +769,9 @@ namespace Fluence
             // Standard assignment.
             else if (left is VariableValue destVar2)
             {
-                AssignVariable(destVar2.Name, sourceValue);
+                AssignVariable(destVar2.Name, sourceValue, destVar2.IsReadOnly);
             }
-            else if (left is TempValue destTemp) AssignVariable(destTemp.TempName, sourceValue);
+            else if (left is TempValue destTemp) SetRegister(destTemp, sourceValue);
             else ConstructAndThrowException("Internal VM Error: Destination of 'Assign' must be a variable or temporary.");
         }
 
@@ -855,7 +858,7 @@ namespace Fluence
 
             if (instruction.Lhs is VariableValue var)
             {
-                AssignVariable(var.Name, new RuntimeValue(result));
+                AssignVariable(var.Name, new RuntimeValue(result), var.IsReadOnly);
                 return;
             }
 
@@ -1275,6 +1278,43 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Handles the GET_STATIC instruction, retrieving a static field's value from a struct symbol.
+        /// </summary>
+        private void ExecuteGetStatic(InstructionLine instruction)
+        {
+            if (instruction.Rhs is not StructSymbol structSymbol ||
+                instruction.Rhs2 is not StringValue fieldName)
+            {
+                ConstructAndThrowException("Internal VM Error: Invalid operands for GET_STATIC. Expected StructSymbol and StringValue.");
+                return;
+            }
+
+            if (structSymbol.StaticFields.TryGetValue(fieldName.Value, out var value))
+            {
+                SetRegister((TempValue)instruction.Lhs, value);
+                return;
+            }
+
+            ConstructAndThrowException($"Internal VM Erorr: Attempt to retrieve a non-existant static struct field: {structSymbol}__Field:{fieldName.Value}.");
+        }
+
+        /// <summary>
+        /// Handles the SET_STATIC instruction, assigning a value to a struct's static field.
+        /// </summary>
+        private void ExecuteSetStatic(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not StructSymbol structSymbol ||
+                instruction.Rhs is not StringValue fieldName)
+            {
+                ConstructAndThrowException("Internal VM Error: Invalid operands for SET_STATIC. Expected StructSymbol and StringValue.");
+                return;
+            }
+            
+            RuntimeValue valueToSet = GetRuntimeValue(instruction.Rhs2);
+            structSymbol.StaticFields[fieldName.Value] = valueToSet;
+        }
+
+        /// <summary>
         /// Handles the SET_FIELD instruction, which assigns a new value to a field of a struct instance.
         /// </summary>
         private void ExecuteSetField(InstructionLine instruction)
@@ -1293,6 +1333,12 @@ namespace Fluence
             if (instanceValue.ObjectReference is not InstanceObject instance)
             {
                 ConstructAndThrowException($"Runtime Error: Cannot set property '{fieldName.Value}' on a non-instance value (got type '{GetDetailedTypeName(instanceValue)}').");
+                return;
+            }
+
+            if (instance.Class.StaticFields.ContainsKey(fieldName.Value))
+            {
+                ConstructAndThrowException($"Runtime Error: Cannot set solid ( static ) property '{fieldName.Value}' of a struct.");
                 return;
             }
 
@@ -1623,6 +1669,50 @@ namespace Fluence
             _ip = functionToExecute.StartAddress;
         }
 
+        private void ExecuteCallStatic(InstructionLine instruction)
+        {
+            if (instruction.Rhs is not StructSymbol structSymbol ||
+                instruction.Rhs2 is not StringValue methodName)
+            {
+                ConstructAndThrowException("Internal VM Error: Invalid operands for CALL_STATIC.");
+                return;
+            }
+
+            if (!structSymbol.Functions.TryGetValue(methodName.Value, out var methodBlueprint))
+            {
+                ConstructAndThrowException($"Runtime Error: Static function '{methodName.Value}' not found on struct '{structSymbol.Name}'.");
+                return;
+            }
+
+            FunctionObject functionToExecute = new FunctionObject(
+                methodBlueprint.Name,
+                methodBlueprint.Arity,
+                methodBlueprint.Arguments,
+                methodBlueprint.StartAddress,
+                methodBlueprint.FunctionScope
+            );
+
+            int argCountOnStack = _operandStack.Count;
+            if (functionToExecute.Arity != argCountOnStack)
+            {
+                ConstructAndThrowException($"Runtime Error: Mismatched arity for static function '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
+                return;
+            }
+
+            CallFrame newFrame = new CallFrame(functionToExecute, _ip, (TempValue)instruction.Lhs);
+
+            for (int i = functionToExecute.Parameters.Count - 1; i >= 0; i--)
+            {
+                string paramName = functionToExecute.Parameters[i];
+                RuntimeValue argValue = _operandStack.Pop();
+                newFrame.Registers[paramName] = argValue;
+            }
+
+            _callStack.Push(newFrame);
+            _cachedRegisters = newFrame.Registers;
+            _ip = functionToExecute.StartAddress;
+        }
+
         /// <summary>
         /// Handles the RETURN instruction, which ends the current function's execution.
         /// </summary>
@@ -1660,7 +1750,7 @@ namespace Fluence
         {
             if (target is VariableValue var)
             {
-                AssignVariable(var.Name, value);
+                AssignVariable(var.Name, value, var.IsReadOnly);
                 return;
             }
 
@@ -1816,7 +1906,7 @@ namespace Fluence
 
                 foreach (var item in Namespaces.Values)
                 {
-                    if (item.TryResolve(variable.Name, out Symbol symb ))
+                    if (item.TryResolve(variable.Name, out Symbol symb))
                     {
                         return GetRuntimeValue(((VariableSymbol)symb).Value);
                     }
@@ -1839,7 +1929,7 @@ namespace Fluence
         /// <summary>
         /// Assigns a value to a variable.
         /// </summary>
-        private void AssignVariable(string name, RuntimeValue value)
+        private void AssignVariable(string name, RuntimeValue value, bool readOnly = false)
         {
             var cache = CurrentFrame.WritableCache;
             ref bool isReadonlyRef = ref CollectionsMarshal.GetValueRefOrNullRef(cache, name);
@@ -1854,11 +1944,15 @@ namespace Fluence
             }
             else
             {
-                if (CurrentFrame.Function.DefiningScope.TryResolve(name, out Symbol symbol) &&
+                if (readOnly)
+                {
+                    cache[name] = true;
+                }
+                else if (CurrentFrame.Function.DefiningScope.TryResolve(name, out Symbol symbol) &&
                     symbol is VariableSymbol { IsReadonly: true })
                 {
                     cache[name] = true;
-                    ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{name}'.");
+                    ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly or solid variable '{name}'.");
                     return;
                 }
                 else
@@ -1869,7 +1963,7 @@ namespace Fluence
 
             // If we are not in the top-level script, assign to the current frame's local registers.
             if (CurrentFrame.ReturnAddress != _byteCode.Count)
-            { 
+            {
                 ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, name, out _);
                 valueRef = value;
             }

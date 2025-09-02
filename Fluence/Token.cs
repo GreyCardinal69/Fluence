@@ -111,9 +111,10 @@
             OPTIONAL_ASSIGN_N,                   // <n?|
             OPTIONAL_REST_ASSIGN,                // <?|
             SEQUENTIAL_REST_ASSIGN,              // <~|
-            OPTIONAL_SEQUENTIAL_REST_ASSIGN,     // <~?|
             CHAIN_N_UNIQUE_ASSIGN,               // <!|
             OPTIONAL_CHAIN_N_UNIQUE_ASSIGN,      // <!?|
+            OPTIONAL_SEQUENTIAL_REST_ASSIGN,     // <~?|
+
             GUARD_CHAIN,                         // <??|
             OR_GUARD_CHAIN,                      // <||??|
 

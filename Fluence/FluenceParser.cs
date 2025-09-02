@@ -2037,6 +2037,11 @@ namespace Fluence
                     ParseSequentialRestAssign(lhsList);
                     return;
                 }
+                else if (opType == TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN || opType == TokenType.CHAIN_N_UNIQUE_ASSIGN)
+                {
+                    ParseUniqueChainAssignment(lhsList);
+                    return;
+                }
 
                 ParseChainAssignment(lhsList);
                 return;
@@ -2243,6 +2248,11 @@ namespace Fluence
             return new BroadcastCallTemplate(functionToCall, args, underscoreIndex);
         }
 
+        /// <summary>
+        /// Parses a pipeline of |?? truthy expressions. Returns false if even one of the expressions is false.
+        /// Otherwise assigns true.
+        /// </summary>
+        /// <param name="lhs">The variable on the left to which false or true is assigned.</param>
         private void ParseTruthyGuardChain(Value lhs)
         {
             _lexer.ConsumeToken(); // Consume first |??.
@@ -2332,6 +2342,86 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Parses a chain assinment of values, but allows them to be unique for each variable.
+        /// This means that the expression is evaluated N times.
+        /// </summary>
+        private void ParseUniqueChainAssignment(List<Value> lhsExpressions)
+        {
+            int lhsIndex = 0;
+
+            while (IsChainAssignmentOperator(_lexer.PeekNextTokenType()))
+            {
+                if (lhsIndex >= lhsExpressions.Count)
+                {
+                    // All variables have been assigned, but there are more operators.
+                    ConstructAndThrowParserException("Redundant chain assignment operator. No more variables are available for assignment.", _lexer.PeekNextToken());
+                }
+
+                Token op = _lexer.ConsumeToken();
+
+                bool isOptional = IsOptionalChainAssignmentOperator(op.Type);
+                List<int> optionalSkipIndexes = new List<int>();
+
+                if (op.Type == TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN || op.Type == TokenType.CHAIN_N_UNIQUE_ASSIGN)
+                {
+                    int count = Convert.ToInt32(op.Literal);
+
+                    int start = _currentParseState.CodeInstructions.Count;
+                    Value rhs = ParseTernary();
+                    int end = _currentParseState.CodeInstructions.Count;
+                    bool ignoreFirstCopy = true;
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (!ignoreFirstCopy)
+                        {
+                            _currentParseState.CodeInstructions.AddRange(_currentParseState.CodeInstructions[start..end]);
+                        }
+                        ignoreFirstCopy = false;
+
+                        TempValue valueToAssign = new TempValue(_currentParseState.NextTempNumber);
+
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, valueToAssign, rhs));
+
+                        if (isOptional)
+                        {
+                            TempValue isNil = new TempValue(_currentParseState.NextTempNumber+ 1);
+                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, valueToAssign, new NilValue()));
+                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null!, isNil));
+                            optionalSkipIndexes.Add( _currentParseState.CodeInstructions.Count - 1 );
+                        }
+
+                        if (lhsIndex >= lhsExpressions.Count)
+                        {
+                            ConstructAndThrowParserException($"Chain operator '{op.ToDisplayString()}' expected {count} variables, but only {i} were available. There are more variables on the left-hand side.", op);
+                        }
+
+                        GenerateWriteBackInstruction(lhsExpressions[lhsIndex], valueToAssign);
+                        lhsIndex++;
+                    }
+
+                    if (optionalSkipIndexes.Count != 0)
+                    {
+                        for (int i = 0; i < optionalSkipIndexes.Count; i++)
+                        {
+                            _currentParseState.CodeInstructions[optionalSkipIndexes[i]].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+                        }
+                        optionalSkipIndexes.Clear();
+                    }
+                }
+                else
+                {
+                    while (lhsIndex < lhsExpressions.Count)
+                    {
+                        TempValue valueToAssign = new TempValue(_currentParseState.NextTempNumber++);
+                        GenerateWriteBackInstruction(lhsExpressions[lhsIndex], ParseTernary());
+                        lhsIndex++;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Parses a standard chain assignment.
         /// </summary>
         private void ParseStandardChainAssignment(List<Value> lhsExpressions)
@@ -2347,7 +2437,7 @@ namespace Fluence
 
                 Token op = _lexer.ConsumeToken();
 
-                bool isOptional = op.Type == TokenType.OPTIONAL_REST_ASSIGN || op.Type == TokenType.OPTIONAL_ASSIGN_N;
+                bool isOptional = IsOptionalChainAssignmentOperator(op.Type);
 
                 Value rhs = ParseTernary();
 
@@ -3655,7 +3745,6 @@ namespace Fluence
         {
             if (!_lexer.TokenTypeMatches(expectedType))
             {
-                // Since this is an error, it doesnt matter if its slightly less performant than it could be.
                 ConstructAndThrowParserException(errorMessage, _lexer.PeekNextToken());
             }
             _lexer.Advance();
@@ -3671,6 +3760,17 @@ namespace Fluence
                 UnexpectedToken = token,
             };
             throw new FluenceParserException(errorMessage, context);
+        }
+
+        /// <summary>
+        /// Checks if an assignment operator pipe is of the optional type.
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        private static bool IsOptionalChainAssignmentOperator(TokenType type)
+        {
+            return type == TokenType.OPTIONAL_ASSIGN_N || type == TokenType.OPTIONAL_REST_ASSIGN ||
+            type == TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN;
         }
 
         /// <summary>

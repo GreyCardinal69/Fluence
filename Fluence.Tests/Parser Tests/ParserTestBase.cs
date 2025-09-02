@@ -7,17 +7,16 @@ namespace Fluence.ParserTests
     {
         protected readonly ITestOutputHelper _output = output;
 
-        internal List<InstructionLine> Compile(string source)
+        internal static List<InstructionLine> Compile(string source)
         {
             var lexer = new FluenceLexer(source);
-            var parser = new FluenceParser(lexer);
-            FluenceIntrinsics fluenceIntrinsics = new FluenceIntrinsics(parser);
-            fluenceIntrinsics.Register();
+            var parser = new FluenceParser(lexer, null!,null!,null!);
+       
             parser.Parse(true);
             return parser.CompiledCode;
         }
 
-        internal void AssertBytecodeEqual(List<InstructionLine> expected, List<InstructionLine> actual)
+        internal static void AssertBytecodeEqual(List<InstructionLine> expected, List<InstructionLine> actual)
         {
             Assert.Equal(expected.Count, actual.Count);
 
@@ -34,7 +33,7 @@ namespace Fluence.ParserTests
             }
         }
 
-        internal void AssertValueEqual(Value expected, Value actual, string context)
+        internal static void AssertValueEqual(Value expected, Value actual, string context)
         {
             if (expected == null || actual == null)
             {

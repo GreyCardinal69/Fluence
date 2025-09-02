@@ -2024,6 +2024,12 @@ namespace Fluence
                 return;
             }
 
+            if (IsTruthyGuardPipeCall())
+            {
+                ParseTruthyGuardChain(firstLhs);
+                return;
+            }
+
             if (IsChainAssignmentOperator(opType))
             {
                 if (opType == TokenType.SEQUENTIAL_REST_ASSIGN || opType == TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN)
@@ -2155,6 +2161,48 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Parses a custom <see cref="TokenType"/>-separated list of one or more expressions.
+        /// </summary>
+        /// <returns>A list of Value objects representing the parsed expressions.</returns>
+        private List<Value> ParseTokenSeparatedArguments(TokenType token)
+        {
+            List<Value> lhs = new List<Value>();
+            do
+            {
+                lhs.Add(ParseTernary());
+            } while (ConsumeTokenIfMatch(token));
+
+            return lhs;
+        }
+
+        /// <summary>
+        /// Checks if after an assignment of a value comes a truthy guard pipe chain.
+        /// </summary>
+        /// <returns></returns>
+        private bool IsTruthyGuardPipeCall()
+        {
+            int lookahead = 1;
+
+            while (true)
+            {
+                TokenType type = _lexer.PeekTokenTypeAheadByN(lookahead);
+
+                if (type == TokenType.EOL)
+                {
+                    return false;
+                }
+
+                if (type == TokenType.GUARD_PIPE)
+                {
+                    return true;
+                }
+
+                if (type == TokenType.EOF) return false;
+                lookahead++;
+            }
+        }
+
+        /// <summary>
         /// A helper method to parse a broadcast call template.
         /// </summary>
         /// <returns>A BroadcastCallTemplate object representing the parsed template.</returns>
@@ -2193,6 +2241,39 @@ namespace Fluence
             }
 
             return new BroadcastCallTemplate(functionToCall, args, underscoreIndex);
+        }
+
+        private void ParseTruthyGuardChain(Value lhs)
+        {
+            _lexer.ConsumeToken(); // Consume first |??.
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, new BooleanValue(true)));
+
+            List<Value> expressions = ParseTokenSeparatedArguments(TokenType.GUARD_PIPE);
+            List<int> boolyExitPatches = new List<int>(expressions.Count);
+
+            for (int i = 0; i < expressions.Count; i++)
+            {
+                Value curr = expressions[i];
+
+                TempValue isNil = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, curr, new BooleanValue(true)));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, isNil));
+                boolyExitPatches.Add(_currentParseState.CodeInstructions.Count - 1);
+            }
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
+            int breakIndex = _currentParseState.CodeInstructions.Count - 1;
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, new BooleanValue(false)));
+            int exitIndex = _currentParseState.CodeInstructions.Count - 1;
+
+            for (int i = 0; i < boolyExitPatches.Count; i++)
+            {
+                _currentParseState.CodeInstructions[boolyExitPatches[i]].Lhs = new NumberValue(exitIndex);
+            }
+
+            _currentParseState.CodeInstructions[breakIndex].Lhs = new NumberValue(exitIndex + 1);
         }
 
         /// <summary>

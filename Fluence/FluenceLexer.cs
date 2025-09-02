@@ -365,8 +365,8 @@ namespace Fluence
              * 2 Char: == != <= => || && ** is >> << |> |? <| ~> .. ++ --
              * +=. -=. *=, /=, or
              * 3 Char: |?? |>> |~> <<| <>| <n| <?| not, <~| ->>
-             * 4 Char: |>>= <==| <!=| <<=| <>=| <??| <n|?, <~?|
-             * 5 Char: <||<| <||>|
+             * 4 Char: |>>= <==| <!=| <<=| <>=| <??| <n|?, <~?| <N!|
+             * 5 Char: <||<| <||>| <N!?|
              * 6 Char: <||!=| <||==| <||??|
              * And more.
              */
@@ -908,7 +908,7 @@ namespace Fluence
                 }
             }
 
-            // <n?| and <n|
+            // <n?|, <n|, <n!|, <n!?|
             if (peek.Length >= 2 && char.IsDigit(_sourceCode[_currentPosition + 1]))
             {
                 AdvancePosition();
@@ -926,13 +926,24 @@ namespace Fluence
                     return new Token(TokenType.CHAIN_ASSIGN_N, null!, n, (short)_currentLine, (short)_currentColumn);
                 }
 
+                // <n!|
+                if (Match("!|"))
+                {
+                    return new Token(TokenType.CHAIN_N_UNIQUE_ASSIGN, null!, n, (short)_currentLine, (short)_currentColumn);
+                }
+                // <n!?|
+                if (Match("!?|"))
+                {
+                    return new Token(TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN, null!, n, (short)_currentLine, (short)_currentColumn);
+                }
+
                 // If we get here then we have an error.
                 // incomplete chain assignment.
 
                 string initialLineContent = GetCodeLineFromSource(_sourceCode, _currentLine).TrimStart();
                 string truncatedLine = FluenceDebug.TruncateLine(initialLineContent);
 
-                ConstructAndThrowLexerException(_currentLine, _currentColumn - 2, "Faulty chain assignment pipe operator detected, expected '<n|' or '<n?|' or '<|' format.", truncatedLine, PeekNextToken());
+                ConstructAndThrowLexerException(_currentLine, _currentColumn - 2, "Faulty chain assignment pipe operator detected, expected '<n|' or '<n?|' or '<|' or '<n!|' or '<n!?|' format.", truncatedLine, PeekNextToken());
             }
 
             // Now we check 3 Char operators.

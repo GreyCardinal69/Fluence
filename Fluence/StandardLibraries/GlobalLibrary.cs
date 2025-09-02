@@ -1,6 +1,4 @@
-﻿using Fluence;
-
-using static Fluence.FluenceInterpreter;
+﻿using static Fluence.FluenceInterpreter;
 
 namespace Fluence
 {
@@ -35,7 +33,7 @@ namespace Fluence
             }));
 
             globalScope.Declare("consoleReadAndClear", new FunctionSymbol("consoleReadAndClear", 0, (args) =>
-            { 
+            {
                 Console.ReadLine();
                 Console.Clear();
                 return new NilValue();

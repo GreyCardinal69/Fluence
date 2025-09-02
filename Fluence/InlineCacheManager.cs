@@ -909,7 +909,7 @@ namespace Fluence
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        
+
                         var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
                         var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
 

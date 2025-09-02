@@ -86,10 +86,10 @@
 
             mathNamespace.Declare("atan2", new FunctionSymbol("atan2", 2, (args) =>
             {
-                if (args.Count < 2 || (args[0] is not NumberValue num || args[1] is not NumberValue num2))
+                if (args.Count < 2 || args[0] is not NumberValue num || args[1] is not NumberValue num2)
                     throw new FluenceRuntimeException("atan2() expects two numerical argumenta.");
 
-                return new NumberValue(Math.Atan2(Convert.ToDouble(num.Value), Convert.ToDouble(num2) ), NumberValue.NumberType.Double);
+                return new NumberValue(Math.Atan2(Convert.ToDouble(num.Value), Convert.ToDouble(num2)), NumberValue.NumberType.Double);
             }));
 
             mathNamespace.Declare("atanh", new FunctionSymbol("atanh", 1, (args) =>
@@ -115,7 +115,7 @@
 
             mathNamespace.Declare("clamp", new FunctionSymbol("clamp", 3, (args) =>
             {
-                if (args.Count < 3 || (args[0] is not NumberValue num || args[1] is not NumberValue num2 || args[2] is not NumberValue num3))
+                if (args.Count < 3 || args[0] is not NumberValue num || args[1] is not NumberValue num2 || args[2] is not NumberValue num3)
                     throw new FluenceRuntimeException("clamp() expects three numerical argumenta.");
 
                 return num.Type switch
@@ -176,7 +176,7 @@
 
             mathNamespace.Declare("max", new FunctionSymbol("max", 2, (args) =>
             {
-                if (args.Count < 2 || (args[0] is not NumberValue num || args[1] is not NumberValue num2))
+                if (args.Count < 2 || args[0] is not NumberValue num || args[1] is not NumberValue num2)
                     throw new FluenceRuntimeException("max() expects three numerical argumenta.");
 
                 return num.Type switch
@@ -189,7 +189,7 @@
 
             mathNamespace.Declare("min", new FunctionSymbol("min", 2, (args) =>
             {
-                if (args.Count < 2 || (args[0] is not NumberValue num || args[1] is not NumberValue num2))
+                if (args.Count < 2 || args[0] is not NumberValue num || args[1] is not NumberValue num2)
                     throw new FluenceRuntimeException("min() expects three numerical argumenta.");
 
                 return num.Type switch

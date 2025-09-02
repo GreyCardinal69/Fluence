@@ -140,6 +140,11 @@ namespace Fluence
                 return value;
             }
 
+            if (Class.StaticFields.TryGetValue(fieldName, out var value2))
+            {
+                return value2;
+            }
+
             if (Class.Functions.TryGetValue(fieldName, out var method))
             {
                 // Create a new BoundMethodObject that pairs this instance ('self') with the method blueprint.

@@ -141,6 +141,35 @@
     }
 
     /// <summary>
+    /// A descriptor representing an access to a struct's static function, or a static and solid field.
+    /// </summary>
+    internal sealed record class StaticStructAccess : Value
+    {
+        internal readonly StructSymbol Struct;
+
+        /// <summary>
+        /// The name of the static solid field, or the static function.
+        /// </summary>
+        internal readonly string Name;
+
+        internal StaticStructAccess(StructSymbol structType, string name)
+        {
+            Struct = structType;
+            Name = name;
+        }
+
+        internal override string ToFluenceString()
+        {
+            return $"<internal: static_struct> <{Struct}__{Name}>";
+        }
+
+        public override string ToString()
+        {
+            return $"StaticStructAccessValue: <{Struct}__{Name}>";
+        }
+    }
+
+    /// <summary>
     /// A descriptor representing an element access operation.
     /// The parser resolves this into GetElement or SetElement bytecode.
     /// </summary>
@@ -353,17 +382,19 @@
     internal sealed record class VariableValue : Value
     {
         internal readonly string Name;
+        internal bool IsReadOnly;
 
-        internal VariableValue(string identifierValue)
+        internal VariableValue(string identifierValue, bool readOnly = false)
         {
+            IsReadOnly = readOnly;
             Name = identifierValue;
         }
 
-        internal override string ToFluenceString() => "<internal: variable>";
+        internal override string ToFluenceString() => $"<internal: variable_{(IsReadOnly ? "solid" : "fluid")}>";
 
         public override string ToString()
         {
-            return $"VariableValue: {Name}";
+            return $"VariableValue: {Name}:{(IsReadOnly ? "solid" : "fluid")}";
         }
     }
 

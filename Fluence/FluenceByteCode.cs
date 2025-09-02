@@ -99,6 +99,10 @@
                 SetElement,     // Sets an element at an index (Rhs) on a list (Lhs) to a new value (Rhs2).
                 GetLength,      // Gets the length of a collection (Rhs). Result stored in Lhs.
 
+                CallStatic,
+                GetStatic,
+                SetStatic,
+
                 // == Type Operations ==
                 ToString,       // Converts a value (Rhs) to its string representation. Result stored in Lhs.
 

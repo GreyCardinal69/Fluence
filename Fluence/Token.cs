@@ -94,6 +94,7 @@
             MATCH,
             SELF,
             REST,   // `rest` keyword in match statements.
+            SOLID,  // immutable.
 
             // == Pipe Family Operators ==
             PIPE,               // |>

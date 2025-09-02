@@ -34,6 +34,7 @@ namespace Fluence
                 TokenType.ENUM      or
                 TokenType.MATCH     or
                 TokenType.SELF      or
+                TokenType.SOLID     or
                 TokenType.REST => true,
                 _ => false,
             };
@@ -89,6 +90,7 @@ namespace Fluence
                     if (text.SequenceEqual("match")) return TokenType.MATCH;
                     if (text.SequenceEqual("space")) return TokenType.SPACE;
                     if (text.SequenceEqual("while")) return TokenType.WHILE;
+                    if (text.SequenceEqual("solid")) return TokenType.SOLID;
                     break;
                 case 6:
                     if (text.SequenceEqual("return")) return TokenType.RETURN;

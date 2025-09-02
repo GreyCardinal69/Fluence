@@ -1938,6 +1938,7 @@ namespace Fluence
         {
             var cache = CurrentFrame.WritableCache;
             ref bool isReadonlyRef = ref CollectionsMarshal.GetValueRefOrNullRef(cache, name);
+            ref bool isReadOnlyGlobalRef = ref CollectionsMarshal.GetValueRefOrNullRef(GlobalWritableCache, name);
 
             if (!Unsafe.IsNullRef(ref isReadonlyRef))
             {
@@ -1947,10 +1948,13 @@ namespace Fluence
                     return;
                 }
             }
-            else if (!Unsafe.IsNullRef(ref CollectionsMarshal.GetValueRefOrNullRef(GlobalWritableCache, name)))
+            else if (!Unsafe.IsNullRef(ref isReadOnlyGlobalRef))
             {
-                ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly global variable '{name}'.");
-                return;
+                if (isReadOnlyGlobalRef)
+                {
+                    ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly global variable '{name}'.");
+                    return;
+                }
             }
             else
             {
@@ -1977,7 +1981,10 @@ namespace Fluence
                 }
                 else
                 {
-                    GlobalWritableCache[name] = false;
+                    if (CurrentFrame.ReturnAddress == _byteCode.Count)
+                    {
+                        GlobalWritableCache[name] = false;
+                    }
                     cache[name] = false;
                 }
             }

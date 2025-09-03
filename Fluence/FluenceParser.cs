@@ -1002,19 +1002,8 @@ namespace Fluence
             _currentParseState.ActiveLoopContexts.Push(loopContext);
 
             int bodyStartIndex = _currentParseState.CodeInstructions.Count;
-            if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
-            {
-                ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
-            }
-            else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
-            {
-                ParseBlockStatement();
-            }
-            else
-            {
-                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected an '->' for a single-line for loop body.");
-                ParseStatement();
-            }
+
+            ParseStatementBody("Expected an '->' for a single-line for loop body.");
 
             // At the end of the body, add a jump to the incrementer.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(incrementerStartIndex)));
@@ -1182,20 +1171,7 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
             int loopExitPatch = _currentParseState.CodeInstructions.Count - 1;
 
-            // While has two forms, block {...} or while cond -> ...;
-            if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
-            {
-                ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
-            }
-            else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
-            {
-                ParseBlockStatement();
-            }
-            else
-            {
-                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected an '->' for a single-line while loop body.");
-                ParseStatement();
-            }
+            ParseStatementBody("Expected an '->' for a single-line while loop body.");
 
             // We jump to the start of the loop, which is the condition check.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex - 1)));
@@ -1263,19 +1239,7 @@ namespace Fluence
 
             int elsePatchIndex = _currentParseState.CodeInstructions.Count - 1;
 
-            if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
-            {
-                ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
-            }
-            else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
-            {
-                ParseBlockStatement();
-            }
-            else  // Single line unless statement expects ; instead.
-            {
-                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected '->' token for a single-line Unless statement body.");
-                ParseStatement();
-            }
+            ParseStatementBody( "Expected '->' token for a single-line Unless statement body.");
 
             int endAddress = _currentParseState.CodeInstructions.Count;
             _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(endAddress);
@@ -1293,21 +1257,7 @@ namespace Fluence
 
             int elsePatchIndex = _currentParseState.CodeInstructions.Count - 1;
 
-            // ifs come into ways, a block body if ... { ... }
-            // or one line expressions, if ... -> .... ;
-            if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
-            {
-                ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
-            }
-            else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
-            {
-                ParseBlockStatement();
-            }
-            else  // Single line if statement expects ; instead.
-            {
-                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected '->' token for a single-line if statement body.");
-                ParseStatement();
-            }
+            ParseStatementBody("Expected '->' token for a single-line if statement body.");
 
             // else, also handles else if, we just consume the else part, call parse with the rest.
             if (_lexer.TokenTypeMatches(TokenType.ELSE))
@@ -2511,7 +2461,6 @@ namespace Fluence
         private void ParseBroadCastCallChain(BroadcastCallTemplate broadcastCall)
         {
             // Although weird, there are cases when you could pipe multiple broadcast calls.
-            // For example when you want to print some values, but print only those that are not nil.
             while (IsChainAssignmentOperator(_lexer.PeekNextTokenType()))
             {
                 Token op = _lexer.ConsumeToken(); // Consume <| or <?|.
@@ -3590,19 +3539,7 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null!, truthy));
             int loopExitPatch = _currentParseState.CodeInstructions.Count - 1;
 
-            if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
-            {
-                ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
-            }
-            else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
-            {
-                ParseBlockStatement();
-            }
-            else
-            {
-                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected an '->' for a single-line while loop body.");
-                ParseStatement();
-            }
+            ParseStatementBody("Expected an '->' for a single-line while loop body.");
 
             _lexer.InsertNextToken(TokenType.EOL);
 
@@ -3794,6 +3731,27 @@ namespace Fluence
             // If we've fallen through the entire switch, we have an invalid token.
             ConstructAndThrowParserException($"Unexpected token '{token.ToDisplayString()}' when expecting an expression. Expected a literal (e.g., number, string), variable, or '('.", token);
             return null!;
+        }
+
+        /// <summary>
+        /// Parses the body of a statement, whether a block body or a single line expression.
+        /// </summary>
+        /// <param name="errorMsgForSingleLine">The error to display when there is no '->' in a single line expression body.</param>
+        private void ParseStatementBody(string errorMsgForSingleLine)
+        {
+            if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
+            {
+                ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
+            }
+            else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
+            {
+                ParseBlockStatement();
+            }
+            else
+            {
+                AdvanceAndExpect(TokenType.THIN_ARROW, errorMsgForSingleLine);
+                ParseStatement();
+            }
         }
 
         /// <summary>

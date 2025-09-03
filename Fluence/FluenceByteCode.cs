@@ -14,6 +14,7 @@
             Console.WriteLine("--- Compiled Bytecode ---\n");
             Console.WriteLine(string.Format("{0,-5} {1,-20} {2,-50} {3,-45} {4,-40} {5, -25}", "", "TYPE", "LHS", "RHS", "RHS2", "RHS3"));
             Console.WriteLine();
+
             if (instructions == null || instructions.Count == 0)
             {
                 Console.WriteLine("(No instructions generated)");
@@ -25,12 +26,13 @@
                 if (instructions[i] == null) Console.WriteLine($"{i:D4}: NULL");
                 else Console.WriteLine($"{i:D4}: {instructions[i].ToString().Replace("\n", "")}");
             }
+
             Console.WriteLine("\n--- End of Bytecode ---");
         }
 
         /// <summary>
         /// Represents a single line of executable Fluence bytecode.
-        /// An instruction consists of an opcode and up to three operands (LHS, RHS, RHS2).
+        /// An instruction consists of an opcode and up to four operands (LHS, RHS, RHS2, RHS3).
         /// </summary>
         internal sealed class InstructionLine
         {
@@ -142,14 +144,14 @@
             /// the generic logic for maximum performance. It is responsible for all its
             /// own work, including operand resolution and assignment.
             /// </summary>
-            public delegate void SpecializedOpcodeHandler(InstructionLine instruction, FluenceVirtualMachine vm);
+            internal delegate void SpecializedOpcodeHandler(InstructionLine instruction, FluenceVirtualMachine vm);
 
             /// <summary>
             /// The cached, hyper-optimized "fast path" for this instruction.
             /// If this is not null, it is executed by the generic opcode handler
             /// instead of its default logic.
             /// </summary>
-            public SpecializedOpcodeHandler? SpecializedHandler { get; set; } = null!;
+            internal SpecializedOpcodeHandler? SpecializedHandler { get; set; } = null!;
 
             internal InstructionLine(InstructionCode instruction, Value lhs, Value rhs = null!, Value rhs2 = null!, Value rhs3 = null!)
             {

@@ -88,7 +88,7 @@ namespace Fluence
 
             if (LineNum > 0 && FaultyLine != null && Column > 0)
             {
-                string linePrefix = $"{LineNum}. \t";
+                string linePrefix = $"{LineNum}.";
                 stringBuilder
                     .AppendLine($"Parser Error at line {LineNum}, Column {Column}")
                     .AppendLine(linePrefix + FaultyLine);

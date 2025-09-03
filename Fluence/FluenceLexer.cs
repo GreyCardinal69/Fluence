@@ -14,6 +14,8 @@ namespace Fluence
         private int _currentPosition;
         private int _currentLine;
         private int _currentColumn;
+        private int _currentLineBeforeWhiteSpace;
+        private int _currentColumnBeforeWhiteSpace;
         private readonly TokenBuffer _tokenBuffer;
 
         private bool _hasReachedEndInternal => _currentPosition >= _sourceLength;
@@ -280,13 +282,26 @@ namespace Fluence
         /// </summary>
         internal Token ConsumeToken() => _tokenBuffer.Consume();
 
+        /// <summary>
+        /// Removes a range of tokens from the buffer, used primarily in the first pass of the parser.
+        /// </summary>
+        /// <param name="startIndex">The start index of the range.</param>
+        /// <param name="count">How many tokens to remove.</param>
         internal void RemoveTokenRange(int startIndex, int count)
         {
             _tokenBuffer.RemoveRange(startIndex, count);
         }
 
+        /// <summary>
+        /// Checks if the provided <see cref="TokenType"/> matches the next token's type in the buffer.
+        /// </summary>
+        /// <param name="type">The token type to compare with.</param>
+        /// <returns>True if the next token is of the same type.</returns>
         internal bool TokenTypeMatches(TokenType type) => _tokenBuffer.TokenTypeMatches(type);
 
+        /// <summary>
+        /// Returns the <see cref="TokenType"/> of the next token in the buffer.
+        /// </summary>
         internal TokenType PeekNextTokenType() => _tokenBuffer.PeekNextTokenType();
 
         /// <summary>
@@ -307,13 +322,11 @@ namespace Fluence
             int lookahead = 1;
             while (true)
             {
-                // Peek at the next token in the buffer.
                 Token token = PeekAheadByN(lookahead);
 
                 // Stop when we hit the end of the file.
                 if (token.Type == TokenType.EOF)
                 {
-                    // Also print the EOF token for completeness.
                     Console.WriteLine("{0,-35} {1,-40} {2,-30} {3, -10} {4, -10}", token.Type, "EOF", "EOF", "EOF", "EOF");
                     break;
                 }
@@ -363,8 +376,14 @@ namespace Fluence
             }
         }
 
+        /// <summary>
+        /// Scans and returns the next logical token from the source code.
+        /// </summary>
         private Token GetNextToken()
         {
+            _currentColumnBeforeWhiteSpace = _currentColumn;
+            _currentLineBeforeWhiteSpace = _currentLine;
+
             SkipWhiteSpaceAndComments();
 
             if (_hasReachedEndInternal) return EOF;
@@ -510,8 +529,7 @@ namespace Fluence
                             AdvancePosition(); // Consume the \n as part of the \r\n pair.
                         }
                     }
-                    _currentLine++;
-                    _currentColumn = 1;
+                    AdvanceCurrentLine();
                     AdvancePosition();
                     return EOL_LEXER;
             }
@@ -681,8 +699,7 @@ namespace Fluence
                 }
             }
 
-            // Unless it is something alien, this should be the last match, otherwise
-            // TokenType.Unknown will be thrown.
+            // This should be the last match, otherwise TokenType.Unknown will be thrown.
             if (CanLookAheadStartInclusive(2) && isFString)
             {
                 AdvancePosition(2); // consume 'f' and '"'.
@@ -769,7 +786,7 @@ namespace Fluence
                 ConstructAndThrowLexerException(stringInitialLine, stringOpenColumn, "Unclosed string literal. The file ended before a closing '\"' was found.", truncatedLine, PeekNextToken());
             }
 
-            AdvancePosition(); // Consume the closing quote "
+            AdvancePosition(); // Consume the closing quote.
 
             TokenType type = isFString ? TokenType.F_STRING : TokenType.STRING;
 
@@ -799,7 +816,7 @@ namespace Fluence
                     if (currentLine == lineNumber)
                         return span[lineStart..i].ToString();
 
-                    // Handle \r\n as a single newline
+                    // Handle \r\n as a single newline.
                     if (span[i] == '\r' && i + 1 < span.Length && span[i + 1] == '\n')
                         i++;
 
@@ -961,7 +978,6 @@ namespace Fluence
                 ConstructAndThrowLexerException(_currentLine, _currentColumn - 2, "Faulty chain assignment pipe operator detected, expected '<n|' or '<n?|' or '<|' or '<n!|' or '<n!?|' format.", truncatedLine, PeekNextToken());
             }
 
-            // Now we check 3 Char operators.
             if (peek.Length >= 3 && peek[2] == '|')
             {
                 switch (peek[..3])
@@ -977,7 +993,6 @@ namespace Fluence
                 return MakeTokenAndTryAdvance(TokenType.TRAIN_PIPE_END, 3);
             }
 
-            // Two Char operators.
             if (peek.Length >= 2 && (peek[1] == '|' || peek[1] == '<' || peek[1] == '='))
             {
                 switch (peek[..2])
@@ -1104,10 +1119,8 @@ namespace Fluence
 
         private Token MakeTokenAndTryAdvance(TokenType type, int len = 0, string text = null!, object lieteral = null!)
         {
-            int line = _currentLine;
-            int column = _currentColumn;
             AdvancePosition(len);
-            return new Token(type, text, lieteral, (short)line, (short)column);
+            return new Token(type, text, lieteral, (short)_currentLineBeforeWhiteSpace, (short)_currentColumnBeforeWhiteSpace);
         }
 
         private static bool IsWhiteSpace(char c) => c is ' ' or '\t';

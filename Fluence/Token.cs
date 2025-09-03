@@ -96,6 +96,7 @@
             REST,   // `rest` keyword in match statements.
             SOLID,  // immutable.
             TIMES,  // N times do x.
+            UNLESS, // Reverse of if, unless ( x ) do something.
 
             // == Pipe Family Operators ==
             PIPE,               // |>

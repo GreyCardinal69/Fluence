@@ -201,7 +201,7 @@ namespace Fluence
             internal void InsertNextToken(TokenType type)
             {
                 EnsureFilled(1);
-               _buffer.Insert(_head, new Token(type));
+                _buffer.Insert(_head, new Token(type));
             }
 
             internal TokenType PeekNextTokenType()

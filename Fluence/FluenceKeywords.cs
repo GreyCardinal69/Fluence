@@ -36,6 +36,7 @@ namespace Fluence
                 TokenType.SELF      or
                 TokenType.SOLID     or
                 TokenType.TIMES     or
+                TokenType.UNLESS    or
                 TokenType.REST => true,
                 _ => false,
             };
@@ -97,6 +98,7 @@ namespace Fluence
                 case 6:
                     if (text.SequenceEqual("return")) return TokenType.RETURN;
                     if (text.SequenceEqual("struct")) return TokenType.STRUCT;
+                    if (text.SequenceEqual("unless")) return TokenType.UNLESS;
                     break;
                 case 8:
                     if (text.SequenceEqual("continue")) return TokenType.CONTINUE;

@@ -784,6 +784,7 @@ namespace Fluence
                 case TokenType.LOOP: ParseLoopStatement(); break;
                 case TokenType.MATCH: ParseMatchStatement(); break;
                 case TokenType.SOLID: ParseSolidStatement(); break;
+                case TokenType.UNLESS: ParseUnlessStatement(); break;
 
                 // Simple Statements that MUST be terminated.
                 case TokenType.RETURN:
@@ -1244,6 +1245,37 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Parses an Unless statement, the reverse of if, but without unless-else chains.
+        /// </summary>
+        private void ParseUnlessStatement()
+        {
+            _lexer.Advance(); // Consume 'unless'.
+
+            Value condition = ResolveValue(ParseTernary());
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null!, condition));
+
+            int elsePatchIndex = _currentParseState.CodeInstructions.Count - 1;
+
+            if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
+            {
+                ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
+            }
+            else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
+            {
+                ParseBlockStatement();
+            }
+            else  // Single line unless statement expects ; instead.
+            {
+                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected '->' token for a single-line Unless statement body.");
+                ParseStatement();
+            }
+
+            int endAddress = _currentParseState.CodeInstructions.Count;
+            _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(endAddress);
+        }
+
+        /// <summary>
         /// Parses an `if-else if-else` conditional statement chain.
         /// </summary>
         private void ParseIfStatement()
@@ -1270,9 +1302,6 @@ namespace Fluence
                 AdvanceAndExpect(TokenType.THIN_ARROW, "Expected '->' token for a single-line if statement body.");
                 ParseStatement();
             }
-
-            // Skips EOLS in between.
-            while (_lexer.TokenTypeMatches(TokenType.EOL) && !_lexer.HasReachedEnd) _lexer.Advance();
 
             // else, also handles else if, we just consume the else part, call parse with the rest.
             if (_lexer.TokenTypeMatches(TokenType.ELSE))
@@ -2385,10 +2414,10 @@ namespace Fluence
 
                         if (isOptional)
                         {
-                            TempValue isNil = new TempValue(_currentParseState.NextTempNumber+ 1);
+                            TempValue isNil = new TempValue(_currentParseState.NextTempNumber + 1);
                             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, valueToAssign, new NilValue()));
                             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null!, isNil));
-                            optionalSkipIndexes.Add( _currentParseState.CodeInstructions.Count - 1 );
+                            optionalSkipIndexes.Add(_currentParseState.CodeInstructions.Count - 1);
                         }
 
                         if (lhsIndex >= lhsExpressions.Count)
@@ -3568,7 +3597,7 @@ namespace Fluence
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null!, truthy));
             int loopExitPatch = _currentParseState.CodeInstructions.Count - 1;
-            
+
             if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
             {
                 ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
@@ -3731,7 +3760,7 @@ namespace Fluence
 
                         return new VariableValue(name);
                     }
-                    break; 
+                    break;
                 case TokenType.NUMBER:
                     if (_lexer.PeekNextTokenType() == TokenType.TIMES)
                     {

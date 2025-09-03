@@ -6,7 +6,6 @@ using static Fluence.Token;
 
 namespace Fluence
 {
-    // No REPL for demo.
     internal sealed class FluenceParser
     {
         private FluenceLexer _lexer;
@@ -356,13 +355,11 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Searches for the main entry point function ("Main") for the program.
-        /// The search order is: 1. Inside a "Program" namespace. 2. In the global scope. 3. Namespaces.
+        /// Searches for the main entry point function "Main" for the program.
         /// </summary>
         /// <returns>The FunctionSymbol for the entry point, or null if not found.</returns>
         private FunctionSymbol FindEntryPoint()
         {
-
             if (_currentParseState.GlobalScope.TryResolve("Main", out var globalMainSymbol))
             {
                 return (FunctionSymbol)globalMainSymbol;
@@ -396,11 +393,14 @@ namespace Fluence
                     int namespaceNameIndex = currentIndex + 1;
                     int namespaceEndIndex = FindMatchingBrace(namespaceNameIndex);
                     string namespaceName = _lexer.PeekAheadByN(namespaceNameIndex + 1).Text;
+
                     FluenceScope parentScope = _currentParseState.CurrentScope;
                     FluenceScope namespaceScope = new FluenceScope(parentScope, namespaceName);
+
                     _currentParseState.NameSpaces.TryAdd(namespaceName, namespaceScope);
                     _currentParseState.CurrentScope = namespaceScope;
                     ParseDeclarations(namespaceNameIndex + 2, namespaceEndIndex + 1);
+
                     _currentParseState.CurrentScope = parentScope;
                     currentIndex = namespaceEndIndex + 1;
                     continue;
@@ -410,7 +410,9 @@ namespace Fluence
                 {
                     int declarationStartIndex = currentIndex;
                     int declarationEndIndex = FindMatchingBrace(declarationStartIndex + 1);
+
                     ParseEnumDeclaration(declarationStartIndex, declarationEndIndex);
+
                     int count = declarationEndIndex - declarationStartIndex + 1;
                     _lexer.RemoveTokenRange(declarationStartIndex, count);
                     continue;
@@ -419,7 +421,9 @@ namespace Fluence
                 {
                     int declarationStartIndex = currentIndex;
                     int declarationEndIndex = FindFunctionHeaderDeclarationEnd(declarationStartIndex);
+
                     ParseFunctionHeaderDeclaration(declarationStartIndex, declarationEndIndex);
+
                     int functionEndIndex = FindFunctionBodyEnd(declarationEndIndex);
                     currentIndex = functionEndIndex + 1;
                     continue;
@@ -428,7 +432,9 @@ namespace Fluence
                 {
                     int declarationStartIndex = currentIndex;
                     int declarationEndIndex = FindMatchingBrace(declarationStartIndex + 1);
+
                     ParseStructDeclaration(declarationStartIndex, declarationEndIndex);
+
                     currentIndex = declarationEndIndex;
                     continue;
                 }
@@ -940,11 +946,11 @@ namespace Fluence
         {
             while (_lexer.PeekNextTokenType() == TokenType.TRAIN_PIPE)
             {
-                _lexer.ConsumeToken();
+                _lexer.Advance();
                 ParseStatement();
             }
 
-            ConsumeAndExpect(TokenType.TRAIN_PIPE_END, "Expected a '<<-' operator to end a train");
+            AdvanceAndExpect(TokenType.TRAIN_PIPE_END, "Expected a '<<-' operator to end a train");
         }
 
         /// <summary>
@@ -1052,7 +1058,7 @@ namespace Fluence
             _currentParseState.ActiveLoopContexts.Push(loopContext);
 
             // Unless we use for in loop with a list, allocating a new list for a range, even if the range is 
-            // slightly large is very inefficient, so we create an iterator instead.
+            // only slightly large is very inefficient, so we create an iterator instead.
             if (collectionExpr is RangeValue range)
             {
                 var tempRangeReg = new TempValue(_currentParseState.NextTempNumber++);
@@ -1417,6 +1423,7 @@ namespace Fluence
                     {
                         ConstructAndThrowParserException($"Internal error: Method '{funcValue.Name}' not found in the symbol table for struct '{structName}'.", nameToken);
                     }
+                    
                     functionValue!.SetScope(_currentParseState.CurrentScope);
                     functionValue!.SetStartAddress(functionStartAddress);
                     _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{functionValue.Name}"), functionValue));
@@ -1589,7 +1596,7 @@ namespace Fluence
             // Check for match x { } empty match.
             if (_lexer.TokenTypeMatches(TokenType.R_BRACE))
             {
-                _lexer.Advance(); // Consume '}'
+                _lexer.Advance(); // Consume '}'.
                 return new NilValue(); // An empty match does nothing and returns nil.
             }
 
@@ -1940,7 +1947,7 @@ namespace Fluence
             if (!_lexer.TokenTypeMatches(TokenType.R_BRACKET))
             {
                 // Non empty array.
-                List<Value> elements = ParseCommaSeparatedArguments();
+                List<Value> elements = ParseTokenSeparatedArguments(TokenType.COMMA);
 
                 foreach (var element in elements)
                 {
@@ -2017,12 +2024,12 @@ namespace Fluence
         /// </summary>
         private void ParseSolidStatement()
         {
-            _lexer.ConsumeToken(); // Consume 'solid'.
+            _lexer.Advance(); // Consume 'solid'.
 
             VariableValue left = (VariableValue)ParseExpression();
             left.IsReadOnly = true;
 
-            ConsumeAndExpect(TokenType.EQUAL, "Expected an assignment for an immutable solid variable or field.");
+            AdvanceAndExpect(TokenType.EQUAL, "Expected an assignment for an immutable solid variable or field.");
 
             Value value = ParseExpression();
 
@@ -2141,7 +2148,7 @@ namespace Fluence
 
             InstructionCode operation = GetInstructionCodeForMultiCompoundAssignment(opToken.Type);
 
-            List<Value> rhsExpressions = ParseCommaSeparatedArguments();
+            List<Value> rhsExpressions = ParseTokenSeparatedArguments(TokenType.COMMA);
 
             if (lhsDescriptors.Count != rhsExpressions.Count)
             {
@@ -2175,23 +2182,7 @@ namespace Fluence
                 return [ParseBroadcastCallTemplate()];
             }
 
-            return ParseCommaSeparatedArguments();
-        }
-
-        /// <summary>
-        /// Parses a comma-separated list of one or more expressions.
-        /// This is a common helper for parsing argument lists, list literals, and multi-assign targets.
-        /// </summary>
-        /// <returns>A list of Value objects representing the parsed expressions.</returns>
-        private List<Value> ParseCommaSeparatedArguments()
-        {
-            List<Value> lhs = new List<Value>();
-            do
-            {
-                lhs.Add(ParseTernary());
-            } while (ConsumeTokenIfMatch(TokenType.COMMA));
-
-            return lhs;
+            return ParseTokenSeparatedArguments(TokenType.COMMA);
         }
 
         /// <summary>
@@ -2264,7 +2255,8 @@ namespace Fluence
                 {
                     args.Add(ParseTernary());
                 }
-            } while (ConsumeTokenIfMatch(TokenType.COMMA));
+            }
+            while (ConsumeTokenIfMatch(TokenType.COMMA));
 
             AdvanceAndExpect(TokenType.R_PAREN, "Expected a closing ')' for the broadcast call template.");
 
@@ -2284,7 +2276,7 @@ namespace Fluence
         /// <param name="lhs">The variable on the left to which false or true is assigned.</param>
         private void ParseTruthyGuardChain(Value lhs)
         {
-            _lexer.ConsumeToken(); // Consume first |??.
+            _lexer.Advance(); // Consume first |??.
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, new BooleanValue(true)));
 
@@ -2325,7 +2317,7 @@ namespace Fluence
             Token opToken = _lexer.ConsumeToken();
             bool isOptional = opToken.Type == TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN;
 
-            List<Value> rhsExpressions = ParseCommaSeparatedArguments();
+            List<Value> rhsExpressions = ParseTokenSeparatedArguments(TokenType.COMMA);
 
             if (lhsDescriptors.Count != rhsExpressions.Count)
             {
@@ -2351,7 +2343,8 @@ namespace Fluence
                 {
                     _currentParseState.CodeInstructions[skipOptionalAssign].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
                 }
-            } while (lhsIndex < lhsDescriptors.Count);
+            }
+            while (lhsIndex < lhsDescriptors.Count);
         }
 
         /// <summary>
@@ -2531,7 +2524,7 @@ namespace Fluence
 
                 bool isOptional = op.Type == TokenType.OPTIONAL_REST_ASSIGN;
 
-                List<Value> rhsExpressions = ParseCommaSeparatedArguments();
+                List<Value> rhsExpressions = ParseTokenSeparatedArguments(TokenType.COMMA);
 
                 if (rhsExpressions.Count == 0)
                 {
@@ -3207,7 +3200,7 @@ namespace Fluence
         /// </summary>
         private void ParseMultiIncrementDecrementOperators()
         {
-            Token opToken = _lexer.ConsumeToken(); // Consume .++ or .--
+            Token opToken = _lexer.ConsumeToken(); // Consume '.++' or '.--'.
 
             AdvanceAndExpect(TokenType.L_PAREN, $"Expected an opening '(' after the '{opToken.ToDisplayString()}' operator.");
 
@@ -3460,12 +3453,11 @@ namespace Fluence
 
         /// <summary>
         /// Parses postfix expressions, which include function calls `()`, index access `[]`, and property access `.`.
-        /// This method is called repeatedly in a loop to handle chained accesses like `my_obj.field[0]()`.
+        /// This method is called repeatedly in a loop to handle chained accesses.
         /// </summary>
         /// <returns>A Value representing the result of the access chain.</returns>
         private Value ParseAccess()
         {
-            // First, parse the primary expression that is being "accessed".
             Value left = ParsePrimary();
 
             // Then, loop to handle any number of chained postfix operators.
@@ -3508,7 +3500,7 @@ namespace Fluence
                     }
                     else
                     {
-                        // For everything else (variables, index results, function results), create a PropertyAccessValue.
+                        // For everything else.
                         left = new PropertyAccessValue(left, memberToken.Text);
                     }
                 }
@@ -3531,7 +3523,7 @@ namespace Fluence
         /// </summary>
         private TempValue ParseFunctionCall(Value callable)
         {
-            _lexer.Advance(); // Consume (.
+            _lexer.Advance(); // Consume '('.
             List<Value> arguments = ParseArgumentList();
 
             AdvanceAndExpect(TokenType.R_PAREN, "Expected a closing ')' for function call after function arguments.");
@@ -3564,7 +3556,7 @@ namespace Fluence
             }
             else
             {
-                // This is a direct function call: func()
+                // This is a direct function call: func().
                 _currentParseState.AddCodeInstruction(new InstructionLine(
                     InstructionCode.CallFunction,
                     result,
@@ -3577,12 +3569,12 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Parses a 'N times' statement that accepts either a raw integer number, or a variable that is a number.
+        /// Parses an 'N times' statement that accepts either a raw integer number, or a variable that is a number.
         /// </summary>
         /// <param name="count">The amount of times to repeat the statements or the expression.</param>
         private void ParseTimesStatement(Value count)
         {
-            _lexer.ConsumeToken(); // Consume 'times'.
+            _lexer.Advance(); // Consume 'times'.
 
             TempValue condition = new TempValue(_currentParseState.NextTempNumber++);
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, condition, count));
@@ -3631,6 +3623,7 @@ namespace Fluence
             {
                 _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(continueAddress);
             }
+
             _currentParseState.ActiveLoopContexts.Pop();
         }
 
@@ -3657,7 +3650,7 @@ namespace Fluence
         /// </summary>
         private ElementAccessValue ParseIndexAccess(Value left)
         {
-            _lexer.Advance(); // Consume [.
+            _lexer.Advance(); // Consume '['.
 
             Value index = ParseExpression();
 
@@ -3751,17 +3744,21 @@ namespace Fluence
                     }
                     else
                     {
-                        // Otherwise, it's just a regular variable.
+                        // "x times" consumes the identifier, and dispatches the appropriate method.
+                        // But must return a value, so we return StatementComplete.
                         if (_lexer.PeekNextTokenType() == TokenType.TIMES)
                         {
                             ParseTimesStatement(new VariableValue(name));
                             return new StatementCompleteValue();
                         }
 
+                        // Otherwise, it's just a regular variable.
                         return new VariableValue(name);
                     }
                     break;
                 case TokenType.NUMBER:
+                    // "x times" consumes the number, and dispatches the appropriate method.
+                    // But must return a value, so we return StatementComplete.
                     if (_lexer.PeekNextTokenType() == TokenType.TIMES)
                     {
                         ParseTimesStatement(NumberValue.FromToken(token));
@@ -3775,12 +3772,9 @@ namespace Fluence
                 case TokenType.F_STRING: return ParseFString(token.Literal);
                 case TokenType.CHARACTER: return new CharValue((char)token.Literal);
                 case TokenType.L_BRACKET:
-                    // We are in list, either initialization, or [i] access.
+                    // We are in list, either initialization, or [..] access.
                     return ParseList();
-                case TokenType.MATCH:
-                    // This is when we call lhs = match x.
-                    // Returning an actual value, an expression based match.
-                    return ParseMatchStatement();
+                case TokenType.MATCH: return ParseMatchStatement();
                 case TokenType.SELF:
                     if (_currentParseState.CurrentStructContext == null)
                     {
@@ -3811,7 +3805,7 @@ namespace Fluence
         {
             if (_lexer.TokenTypeMatches(expectedType))
             {
-                _lexer.Advance(); // It's a match, so we consume it.
+                _lexer.Advance();
                 return true;
             }
 
@@ -3820,7 +3814,6 @@ namespace Fluence
 
         /// <summary>
         /// Consumes the next token from the lexer and throws a formatted parser exception if it does not match the expected type.
-        /// This is the primary method for enforcing grammatical structure.
         /// </summary>
         /// <param name="expectedType">The TokenType that is grammatically required at this point in the stream.</param>
         /// <returns>The consumed token if it matches the expected type.</returns>
@@ -3965,7 +3958,7 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Peeks ahead in the token stream to determine if a broadcast pipe call (e.g., `func(_) <| ...`) is coming up.
+        /// Peeks ahead in the token stream to determine if a broadcast pipe call is coming up.
         /// </summary>
         private bool IsBroadCastPipeFunctionCall()
         {

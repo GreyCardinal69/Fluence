@@ -107,7 +107,7 @@ namespace Fluence
             }
 
             /// <summary>
-            /// Surgically removes a range of tokens from the buffer.
+            /// Removes a range of tokens from the buffer.
             /// This is an advanced operation used by a multi-pass parser to
             /// remove declarative code after it has been processed in a first pass.
             /// </summary>
@@ -199,7 +199,7 @@ namespace Fluence
             /// <summary>
             /// Inserts a new token at the current position in the buffer.
             /// </summary>
-            /// <param name="type">The type of the token</param>
+            /// <param name="type">The type of the token.</param>
             internal void InsertNextToken(TokenType type)
             {
                 EnsureFilled(1);

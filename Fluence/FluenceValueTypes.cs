@@ -80,14 +80,15 @@
         }
     }
 
-    /// <summary>Represents a numerical literal, which can be an Integer, Float, or Double.</summary>
+    /// <summary>Represents a numerical literal, which can be an Integer, Float, Long, or Double.</summary>
     internal sealed record class NumberValue : Value
     {
         internal enum NumberType
         {
             Integer,
             Float,
-            Double
+            Double,
+            Long,
         }
 
         internal object Value { get; init; }
@@ -96,7 +97,16 @@
         internal NumberValue(object literal, NumberType type = NumberType.Integer)
         {
             Value = literal;
-            Type = type;
+
+            if (literal is int)
+            {
+                Type = type;
+                return;
+            }
+
+            if (literal is float) Type = NumberType.Float;
+            if (literal is double) Type = NumberType.Double;
+            if (literal is long) Type = NumberType.Long;
         }
 
         internal override object GetValue() => Value;
@@ -117,6 +127,10 @@
             {
                 return new NumberValue(intVal, NumberType.Integer);
             }
+            if (long.TryParse(lexeme, out var longVal))
+            {
+                return new NumberValue(intVal, NumberType.Long);
+            }
             if (double.TryParse(lexeme, out var fallbackVal))
             {
                 return new NumberValue(fallbackVal, NumberType.Double);
@@ -130,10 +144,11 @@
         }
     }
 
-    /// <summary>A special value indicating a statement completed but produced no result.</summary>
+    /// <summary>A special value indicating a statement completed but produced no result, or the result should be ignored.</summary>
     internal sealed record class StatementCompleteValue : Value
     {
         internal override string ToFluenceString() => "<internal: statement_complete>";
+
         public override string ToString()
         {
             return $"StatementCompleteValue";
@@ -175,8 +190,8 @@
     /// </summary>
     internal sealed record class ElementAccessValue : Value
     {
-        internal Value Target { get; }
-        internal Value Index { get; }
+        internal Value Target { get; init; }
+        internal Value Index { get; init; }
 
         internal ElementAccessValue(Value target, Value index)
         {
@@ -215,6 +230,11 @@
         }
 
         internal override string ToFluenceString() => "<internal: broadcast_template>";
+
+        public override string ToString()
+        {
+            return "BroadcastTemplateValue";
+        }
     }
 
     /// <summary>
@@ -254,7 +274,7 @@
         }
 
         /// <summary>
-        /// Provides a user-friendly string representation of the list, suitable for the `print` function.
+        /// Provides a user-friendly string representation of the list.
         /// </summary>
         /// <returns>A string in the format "[element1, element2, ...]".</returns>
         public override string ToString()
@@ -377,7 +397,6 @@
 
     /// <summary>
     /// Represents a variable by its name. The VM resolves this to a value in the current scope.
-    /// This is a descriptor and should never be seen directly by the user.
     /// </summary>
     internal sealed record class VariableValue : Value
     {

@@ -83,7 +83,7 @@
         /// <summary>
         /// The static and solid fields of a struct.
         /// </summary>
-        public Dictionary<string, RuntimeValue> StaticFields { get; } = new();
+        internal Dictionary<string, RuntimeValue> StaticFields { get; init; } = new();
 
         /// <summary>
         /// Gets a dictionary of methods defined within the struct, mapping method names to their <see cref="FunctionValue"/>s.

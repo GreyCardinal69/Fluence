@@ -14,7 +14,7 @@ namespace Fluence
     /// <summary>
     /// Represents a "closure" that binds an instance of an object (the receiver).
     /// </summary>
-    internal sealed class BoundMethodObject
+    internal sealed record class BoundMethodObject
     {
         /// <summary>
         /// The instance of the object that the method belongs to. This will be passed as 'self'.
@@ -42,7 +42,7 @@ namespace Fluence
     /// Represents the runtime instance of a function, containing all information needed
     /// to execute it, including its bytecode address and lexical scope.
     /// </summary>
-    internal sealed class FunctionObject
+    internal sealed record class FunctionObject
     {
         /// <summary>The name of the function.</summary>
         internal string Name { get; }
@@ -109,7 +109,7 @@ namespace Fluence
     /// Represents a runtime instance of a user-defined 'struct'. It holds a reference
     /// to its class blueprint (the StructSymbol) and its own set of instance fields.
     /// </summary>
-    internal sealed class InstanceObject
+    internal sealed record class InstanceObject
     {
         /// <summary>
         /// The compile-time "class" or blueprint that defines the structure and methods for this instance.
@@ -180,7 +180,7 @@ namespace Fluence
     /// Represents the runtime instance of a list, which can contain any <see cref="RuntimeValue"/>.
     /// Implements <see cref="IFluenceObject"/> to provide fast, native C# methods.
     /// </summary>
-    internal sealed class ListObject : IFluenceObject
+    internal sealed record class ListObject : IFluenceObject
     {
         internal readonly List<RuntimeValue> Elements = new();
 
@@ -227,7 +227,7 @@ namespace Fluence
     /// <summary>
     /// Represents a heap-allocated char object in the Fluence VM.
     /// </summary>
-    internal record class CharObject : IFluenceObject
+    internal sealed record class CharObject : IFluenceObject
     {
         internal readonly char Value;
 
@@ -250,7 +250,7 @@ namespace Fluence
     /// <summary>
     /// Represents a heap-allocated string object in the Fluence VM.
     /// </summary>
-    internal record class StringObject : IFluenceObject
+    internal sealed record class StringObject : IFluenceObject
     {
         internal readonly string Value;
 
@@ -307,7 +307,7 @@ namespace Fluence
     /// <summary>
     /// Represents a heap-allocated range object, typically used in for-in loops.
     /// </summary>
-    internal sealed class RangeObject
+    internal sealed record class RangeObject
     {
         internal RuntimeValue Start { get; }
         internal RuntimeValue End { get; }
@@ -324,7 +324,7 @@ namespace Fluence
     /// <summary>
     /// Represents the state of an ongoing iteration over an iterable object (like a list or range).
     /// </summary>
-    internal sealed class IteratorObject
+    internal sealed record class IteratorObject
     {
         /// <summary>The object being iterated over.</summary>
         internal object Iterable { get; }
@@ -379,7 +379,7 @@ namespace Fluence
         internal readonly float FloatValue;
 
         [FieldOffset(8)]
-        internal readonly object ObjectReference; // A reference to a heap object (String, ListObject, InstanceObject, etc.).
+        internal readonly object ObjectReference;
         [FieldOffset(16)]
         internal readonly RuntimeValueType Type;
         [FieldOffset(17)]
@@ -433,7 +433,6 @@ namespace Fluence
             LongValue = value;
         }
 
-        // This constructor is for all heap-allocated types.
         internal RuntimeValue(object obj)
         {
             this = default;

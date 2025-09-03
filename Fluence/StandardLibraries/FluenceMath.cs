@@ -1,12 +1,15 @@
 ﻿namespace Fluence
 {
     /// <summary>
-    /// Registers intrinsic functions for the 'FluenceMath' namespace.
+    /// The default intrinsic namespace for common mathematical operations.
     /// </summary>
     internal static class FluenceMath
     {
         internal const string NamespaceName = "FluenceMath";
 
+        /// <summary>
+        /// Registers intrinsic functions for the 'FluenceMath' namespace.
+        /// </summary>
         internal static void Register(FluenceScope mathNamespace)
         {
             mathNamespace.Declare("Pi", new VariableSymbol("Pi", new NumberValue(Math.PI, NumberValue.NumberType.Double), true));

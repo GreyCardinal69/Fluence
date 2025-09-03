@@ -194,6 +194,15 @@ namespace Fluence
                 }
             }
 
+            /// <summary>
+            /// Inserts a new token at the current position in the buffer.
+            /// </summary>
+            /// <param name="type">The type of the token</param>
+            internal void InsertNextToken(TokenType type)
+            {
+                EnsureFilled(1);
+               _buffer.Insert(_head, new Token(type));
+            }
 
             internal TokenType PeekNextTokenType()
             {
@@ -257,6 +266,12 @@ namespace Fluence
         /// Peeks N tokens ahead in the stream without consuming them.
         /// </summary>
         internal Token PeekAheadByN(int n) => _tokenBuffer.Peek(n);
+
+        /// <summary>
+        /// Inserts a new token at the current position in the buffer.
+        /// </summary>
+        /// <param name="type">The type of the token</param>
+        internal void InsertNextToken(TokenType type) => _tokenBuffer.InsertNextToken(type);
 
         internal TokenType PeekTokenTypeAheadByN(int n) => _tokenBuffer.PeekTokenTypeAheadByN(n);
 

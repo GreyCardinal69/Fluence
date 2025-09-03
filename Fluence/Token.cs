@@ -95,6 +95,7 @@
             SELF,
             REST,   // `rest` keyword in match statements.
             SOLID,  // immutable.
+            TIMES,  // N times do x.
 
             // == Pipe Family Operators ==
             PIPE,               // |>

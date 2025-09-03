@@ -35,6 +35,7 @@ namespace Fluence
                 TokenType.MATCH     or
                 TokenType.SELF      or
                 TokenType.SOLID     or
+                TokenType.TIMES     or
                 TokenType.REST => true,
                 _ => false,
             };
@@ -91,6 +92,7 @@ namespace Fluence
                     if (text.SequenceEqual("space")) return TokenType.SPACE;
                     if (text.SequenceEqual("while")) return TokenType.WHILE;
                     if (text.SequenceEqual("solid")) return TokenType.SOLID;
+                    if (text.SequenceEqual("times")) return TokenType.TIMES;
                     break;
                 case 6:
                     if (text.SequenceEqual("return")) return TokenType.RETURN;

@@ -1706,7 +1706,7 @@ namespace Fluence
                     TempValue condition = new TempValue(_currentParseState.NextTempNumber++);
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, condition, resolvedMatchOn, pattern));
 
-                    // We'll patch later
+                    // We'll patch later.
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
                     nextCasePatchIndex = _currentParseState.CodeInstructions.Count - 1;
                 }
@@ -3548,6 +3548,64 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Parses a 'N times' statement that accepts either a raw integer number, or a variable that is a number.
+        /// </summary>
+        /// <param name="count">The amount of times to repeat the statements or the expression.</param>
+        private void ParseTimesStatement(Value count)
+        {
+            _lexer.ConsumeToken(); // Consume 'times'.
+
+            TempValue condition = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, condition, count));
+
+            TempValue truthy = new TempValue(_currentParseState.NextTempNumber++);
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, truthy, condition, new NumberValue(0)));
+            int loopStartIndex = _currentParseState.CodeInstructions.Count;
+
+            LoopContext loopContext = new LoopContext();
+            _currentParseState.ActiveLoopContexts.Push(loopContext);
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null!, truthy));
+            int loopExitPatch = _currentParseState.CodeInstructions.Count - 1;
+            
+            if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
+            {
+                ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
+            }
+            else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
+            {
+                ParseBlockStatement();
+            }
+            else
+            {
+                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected an '->' for a single-line while loop body.");
+                ParseStatement();
+            }
+
+            _lexer.InsertNextToken(TokenType.EOL);
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Subtract, condition, condition, new NumberValue(1)));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex - 1)));
+
+            int loopEndIndex = _currentParseState.CodeInstructions.Count;
+
+            _currentParseState.CodeInstructions[loopExitPatch].Lhs = new NumberValue(loopEndIndex);
+
+            foreach (int breakPatch in loopContext.BreakPatchAddresses)
+            {
+                _currentParseState.CodeInstructions[breakPatch].Lhs = new NumberValue(loopEndIndex);
+            }
+
+            int continueAddress = loopStartIndex;
+            foreach (var patchIndex in loopContext.ContinuePatchAddresses)
+            {
+                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(continueAddress);
+            }
+            _currentParseState.ActiveLoopContexts.Pop();
+        }
+
+        /// <summary>
         /// Parses a comma-separated list of arguments until a closing parenthesis is encountered.
         /// </summary>
         /// <returns>A list of Values representing the parsed arguments.</returns>
@@ -3665,10 +3723,23 @@ namespace Fluence
                     else
                     {
                         // Otherwise, it's just a regular variable.
+                        if (_lexer.PeekNextTokenType() == TokenType.TIMES)
+                        {
+                            ParseTimesStatement(new VariableValue(name));
+                            return new StatementCompleteValue();
+                        }
+
                         return new VariableValue(name);
                     }
-                    break;
-                case TokenType.NUMBER: return NumberValue.FromToken(token);
+                    break; 
+                case TokenType.NUMBER:
+                    if (_lexer.PeekNextTokenType() == TokenType.TIMES)
+                    {
+                        ParseTimesStatement(NumberValue.FromToken(token));
+                        return new StatementCompleteValue();
+                    }
+
+                    return NumberValue.FromToken(token);
                 case TokenType.STRING: return new StringValue(token.Literal.ToString()!);
                 case TokenType.TRUE: return new BooleanValue(true);
                 case TokenType.FALSE: return new BooleanValue(false);

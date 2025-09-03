@@ -1180,19 +1180,8 @@ namespace Fluence
 
             // Patch our GoToIfFalse.
             _currentParseState.CodeInstructions[loopExitPatch].Lhs = new NumberValue(loopEndIndex);
-
-            // Assign breakPatches to the end of the loop, or the instruction after if there is more code.
-            foreach (int breakPatch in whileContext.BreakPatchAddresses)
-            {
-                _currentParseState.CodeInstructions[breakPatch].Lhs = new NumberValue(loopEndIndex);
-            }
-
-            int continueAddress = loopStartIndex;
-            // Patch all 'continue' statements to jump to the top.
-            foreach (var patchIndex in whileContext.ContinuePatchAddresses)
-            {
-                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(continueAddress);
-            }
+ 
+            PatchLoopExits(whileContext, loopEndIndex, loopStartIndex);
             _currentParseState.ActiveLoopContexts.Pop();
         }
 
@@ -1202,7 +1191,7 @@ namespace Fluence
         /// </summary>
         private void ParseLoopStatement()
         {
-            _lexer.Advance(); // Consume loop.
+            _lexer.Advance(); // Consume 'loop'.
 
             int loopStartIndex = _currentParseState.CodeInstructions.Count;
             LoopContext loopContext = new LoopContext();
@@ -1214,15 +1203,8 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex)));
 
             int loopEndIndex = _currentParseState.CodeInstructions.Count;
-            foreach (int breakPatch in loopContext.BreakPatchAddresses)
-            {
-                _currentParseState.CodeInstructions[breakPatch].Lhs = new NumberValue(loopEndIndex);
-            }
 
-            foreach (var patchIndex in loopContext.ContinuePatchAddresses)
-            {
-                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(loopStartIndex);
-            }
+            PatchLoopExits(loopContext, loopEndIndex, loopStartIndex);
             _currentParseState.ActiveLoopContexts.Pop();
         }
 

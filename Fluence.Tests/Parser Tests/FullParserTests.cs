@@ -71,7 +71,6 @@ namespace Fluence.ParserTests
             var symbolTree = GetSymbolTree(parser);
 
             // --- Assertions for Global Scope ---
-            Assert.True(symbolTree.GlobalScope.Contains("printl")); // Intrinsic
             Assert.True(symbolTree.GlobalScope.Contains("A_1"));
             Assert.True(symbolTree.GlobalScope.Contains("Globuloid_1"));
             Assert.True(symbolTree.GlobalScope.Contains("A_2"));

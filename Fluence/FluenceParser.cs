@@ -1438,8 +1438,13 @@ namespace Fluence
         /// <param name="structName">The name of the struct, if `inStruct` is true.</param>
         private void ParseFunction(bool inStruct = false, bool isInit = false, string structName = null!)
         {
-            // We optimize all the bytecode up to this point.
-            FluenceOptimizer.OptimizeChunk(ref _currentParseState.CodeInstructions, _currentParseState, _lastOptimizationIndex);
+            bool noCodeYet = _currentParseState.CodeInstructions.Count == 0;
+
+            if (!noCodeYet)
+            {
+                // We optimize all the bytecode up to this point.
+                FluenceOptimizer.OptimizeChunk(ref _currentParseState.CodeInstructions, _currentParseState, _lastOptimizationIndex);
+            }
 
             _currentParseState.IsParsingFunctionBody = true;
             (Token nameToken, List<string> parameters) = ParseFunctionHeader();
@@ -1471,6 +1476,11 @@ namespace Fluence
             int afterBodyAddress = _currentParseState.CodeInstructions.Count;
             _currentParseState.CodeInstructions[functionStartAddress - 1].Lhs = new NumberValue(afterBodyAddress);
             _currentParseState.IsParsingFunctionBody = false;
+
+            if (noCodeYet)
+            {
+                FluenceOptimizer.OptimizeChunk(ref _currentParseState.CodeInstructions, _currentParseState, _lastOptimizationIndex);
+            }
 
             // Next time we call OptimizeChunk, all the bytecode before here will be skipped, to avoid repetitive, useless optimization passes.
             _lastOptimizationIndex = functionStartAddress;
@@ -2000,6 +2010,12 @@ namespace Fluence
                 return;
             }
 
+            if (IsGuardChainCall())
+            {
+                ParseGuardChain(firstLhs);
+                return;
+            }
+
             if (IsChainAssignmentOperator(opType))
             {
                 if (opType == TokenType.SEQUENTIAL_REST_ASSIGN || opType == TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN)
@@ -2138,6 +2154,33 @@ namespace Fluence
         /// Checks if after an assignment of a value comes a truthy guard pipe chain.
         /// </summary>
         /// <returns></returns>
+        private bool IsGuardChainCall()
+        {
+            int lookahead = 1;
+
+            while (true)
+            {
+                TokenType type = _lexer.PeekTokenTypeAheadByN(lookahead);
+
+                if (type == TokenType.EOL)
+                {
+                    return false;
+                }
+
+                if (type == TokenType.GUARD_CHAIN || type == TokenType.OR_GUARD_CHAIN)
+                {
+                    return true;
+                }
+
+                if (type == TokenType.EOF) return false;
+                lookahead++;
+            }
+        }
+
+        /// <summary>
+        /// Checks if after an assignment of a value comes a truthy guard pipe chain.
+        /// </summary>
+        /// <returns></returns>
         private bool IsTruthyGuardPipeCall()
         {
             int lookahead = 1;
@@ -2225,6 +2268,45 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Parses a guard chain, or its or variant: <??| or <||??|.
+        /// </summary>
+        /// <param name="lhs">The variable on the left to which false or true is assigned.</param>
+        private void ParseGuardChain(Value lhs)
+        {
+            Token pipe = _lexer.ConsumeToken();
+
+            bool isOptional = pipe.Type == TokenType.OR_GUARD_CHAIN;
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, new BooleanValue(!isOptional)));
+
+            List<Value> expressions = ParseTokenSeparatedArguments(TokenType.COMMA);
+            List<int> boolyExitPatches = new List<int>(expressions.Count);
+
+            for (int i = 0; i < expressions.Count; i++)
+            {
+                Value curr = expressions[i];
+
+                TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, temp, curr, new BooleanValue(true)));
+                _currentParseState.AddCodeInstruction(new InstructionLine(isOptional ? InstructionCode.GotoIfTrue : InstructionCode.GotoIfFalse, null!, temp));
+                boolyExitPatches.Add(_currentParseState.CodeInstructions.Count - 1);
+            }
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
+            int breakIndex = _currentParseState.CodeInstructions.Count - 1;
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, new BooleanValue(isOptional)));
+            int exitIndex = _currentParseState.CodeInstructions.Count - 1;
+
+            for (int i = 0; i < boolyExitPatches.Count; i++)
+            {
+                _currentParseState.CodeInstructions[boolyExitPatches[i]].Lhs = new NumberValue(exitIndex);
+            }
+
+            _currentParseState.CodeInstructions[breakIndex].Lhs = new NumberValue(exitIndex + 1);
+        }
+
+        /// <summary>
         /// Parses a pipeline of |?? truthy expressions. Returns false if even one of the expressions is false.
         /// Otherwise assigns true.
         /// </summary>
@@ -2242,9 +2324,9 @@ namespace Fluence
             {
                 Value curr = expressions[i];
 
-                TempValue isNil = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, curr, new BooleanValue(true)));
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, isNil));
+                TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, temp, curr, new BooleanValue(true)));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, temp));
                 boolyExitPatches.Add(_currentParseState.CodeInstructions.Count - 1);
             }
 

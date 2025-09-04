@@ -1694,9 +1694,9 @@ namespace Fluence
 
                 List<Value> args = new List<Value>(argCount);
 
-                for (int i = 0; i < argCount; i++) 
-                { 
-                    args.Add(ToValue(_operandStack.Pop())); 
+                for (int i = 0; i < argCount; i++)
+                {
+                    args.Add(ToValue(_operandStack.Pop()));
                 }
                 args.Reverse();
 

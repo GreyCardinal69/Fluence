@@ -80,7 +80,7 @@ namespace Fluence
 
             file.StaticIntrinsics.Add("read", new FunctionSymbol("read", 1, (args) =>
             {
-                if (args.Count < 1 || args[0] is not StringValue path )
+                if (args.Count < 1 || args[0] is not StringValue path)
                     throw new FluenceRuntimeException("File.read() expects one argument, a path (string).");
 
                 return new StringValue(File.ReadAllText(path.Value));
@@ -108,7 +108,7 @@ namespace Fluence
             {
                 if (args.Count < 1 || args[0] is not StringValue path)
                     throw new FluenceRuntimeException("File.exists() expects one argument, a path (string).");
-                 
+
                 return new BooleanValue(File.Exists(path.Value));
             }));
         }

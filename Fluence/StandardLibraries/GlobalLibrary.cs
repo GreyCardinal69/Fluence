@@ -10,13 +10,6 @@ namespace Fluence
         internal static void Register(FluenceScope globalScope, TextOutputMethod outputLine, TextInputMethod input, TextOutputMethod output)
         {
             // Arity -100 means dynamic argument count.
-            globalScope.Declare("printl", new FunctionSymbol("printl", -100, (args) =>
-            {
-                string message = (args.Count < 1) ? "" : args[0]?.ToFluenceString() ?? "nil";
-                outputLine(message);
-                return new NilValue();
-            }));
-
             globalScope.Declare("input", new FunctionSymbol("input", 0, (args) =>
             {
                 return new StringValue(input() ?? "");

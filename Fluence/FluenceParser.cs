@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Xml.Linq;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceInterpreter;
@@ -1180,7 +1181,7 @@ namespace Fluence
 
             // Patch our GoToIfFalse.
             _currentParseState.CodeInstructions[loopExitPatch].Lhs = new NumberValue(loopEndIndex);
- 
+
             PatchLoopExits(whileContext, loopEndIndex, loopStartIndex);
             _currentParseState.ActiveLoopContexts.Pop();
         }
@@ -1221,7 +1222,7 @@ namespace Fluence
 
             int elsePatchIndex = _currentParseState.CodeInstructions.Count - 1;
 
-            ParseStatementBody( "Expected '->' token for a single-line Unless statement body.");
+            ParseStatementBody("Expected '->' token for a single-line Unless statement body.");
 
             int endAddress = _currentParseState.CodeInstructions.Count;
             _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(endAddress);
@@ -1355,7 +1356,7 @@ namespace Fluence
                     {
                         ConstructAndThrowParserException($"Internal error: Method '{funcValue.Name}' not found in the symbol table for struct '{structName}'.", nameToken);
                     }
-                    
+
                     functionValue!.SetScope(_currentParseState.CurrentScope);
                     functionValue!.SetStartAddress(functionStartAddress);
                     _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{functionValue.Name}"), functionValue));
@@ -1913,6 +1914,7 @@ namespace Fluence
                 {
                     ConstructAndThrowParserException($"Namespace '{namespaceName}' not found. Expected a defined namespace.", nameToken);
                 }
+
                 foreach (var entry in namespaceToUse!.Symbols)
                 {
                     if (!_currentParseState.CurrentScope.Declare(entry.Key, entry.Value) && !_currentParseState.CurrentScope.UsedScopes.Contains(entry.Key))
@@ -1920,7 +1922,8 @@ namespace Fluence
                         ConstructAndThrowParserException($"Symbol '{entry.Key}' from namespace '{namespaceName}' conflicts with a symbol already defined in this scope.", nameToken);
                     }
                 }
-            } while (ConsumeTokenIfMatch(TokenType.COMMA));
+            }
+            while (ConsumeTokenIfMatch(TokenType.COMMA));
 
             AdvanceAndExpect(TokenType.EOL, "Expected a ';' to end the 'use' statement.");
         }
@@ -2165,7 +2168,28 @@ namespace Fluence
         /// <returns>A BroadcastCallTemplate object representing the parsed template.</returns>
         private BroadcastCallTemplate ParseBroadcastCallTemplate()
         {
-            Value functionToCall = ParsePrimary();
+            Value functionToCall;
+
+            if (_lexer.PeekTokenTypeAheadByN(2) == TokenType.DOT)
+            {
+                string name = _lexer.ConsumeToken().Text;
+
+                if (_currentParseState.CurrentScope.TryResolve(name, out Symbol symbol) && symbol is StructSymbol structSymbol)
+                {
+                    _lexer.Advance();
+                    functionToCall = new StaticStructAccess(structSymbol, _lexer.ConsumeToken().Text);
+                }
+                else
+                {
+                    _lexer.Advance();
+                    functionToCall = new PropertyAccessValue(new VariableValue(name), _lexer.ConsumeToken().Text);
+                }
+            }
+            else
+            {
+                functionToCall = ParsePrimary();
+            }
+
             Token openingParen = ConsumeAndExpect(TokenType.L_PAREN, "Expected an opening '(' for the broadcast call template.");
 
             List<Value> args = new List<Value>();
@@ -2198,7 +2222,7 @@ namespace Fluence
                 ConstructAndThrowParserException("Broadcast call template must contain an `_` placeholder.", openingParen);
             }
 
-            return new BroadcastCallTemplate(functionToCall, args, underscoreIndex);
+            return new BroadcastCallTemplate(functionToCall!, args, underscoreIndex);
         }
 
         /// <summary>
@@ -2484,7 +2508,29 @@ namespace Fluence
                     }
 
                     TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, temp, broadcastCall.Callable, new NumberValue(broadcastCall.Arguments.Count)));
+
+                    if (broadcastCall.Callable is StaticStructAccess statAccess)
+                    {
+                        _currentParseState.AddCodeInstruction(new InstructionLine(
+                            InstructionCode.CallStatic,
+                            temp,
+                            statAccess.Struct,
+                            new StringValue(statAccess.Name)
+                        ));
+                    }
+                    else if (broadcastCall.Callable is PropertyAccessValue propAccess)
+                    {
+                        _currentParseState.AddCodeInstruction(new InstructionLine(
+                            InstructionCode.CallMethod,
+                            temp,
+                            propAccess.Target,
+                            new StringValue(propAccess.FieldName)
+                        ));
+                    }
+                    else
+                    {
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, temp, broadcastCall.Callable, new NumberValue(broadcastCall.Arguments.Count)));
+                    }
 
                     if (skipOptionalAssign != -1)
                     {
@@ -3152,8 +3198,8 @@ namespace Fluence
                 _currentParseState.AddCodeInstruction(new InstructionLine(operation, result, currentValue, one));
 
                 GenerateWriteBackInstruction(targetDescriptor, result);
-            } while (ConsumeTokenIfMatch(TokenType.COMMA));
-
+            }
+            while (ConsumeTokenIfMatch(TokenType.COMMA));
 
             AdvanceAndExpect(TokenType.R_PAREN, $"a closing ')' after the '{opToken.ToDisplayString()}' operator's arguments.");
         }
@@ -3902,12 +3948,6 @@ namespace Fluence
         /// </summary>
         private bool IsBroadCastPipeFunctionCall()
         {
-            // A broadcast call must start with `identifier (`
-            if (_lexer.TokenTypeMatches(TokenType.IDENTIFIER) && _lexer.PeekTokenTypeAheadByN(2) != TokenType.L_PAREN)
-            {
-                return false;
-            }
-
             int lookahead = 3;
             bool hasUnderscore = false;
 

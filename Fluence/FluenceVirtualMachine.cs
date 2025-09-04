@@ -123,7 +123,7 @@ namespace Fluence
             _outputLine($"Total Execution Time: {new TimeSpan(totalTicks).TotalMilliseconds:N3} ms\n");
 
             _outputLine($"{"OpCode",-20} | {"Count",-15} | {"% of Total",-12} | {"Total Time (ms)",-18} | {"% of Time",-12} | {"Avg. Ticks/Op",-15}");
-            _outputLine(new string('-', 100));
+            _outputLine(new string('-', 110));
 
             profileData.Sort((a, b) => b.Ticks.CompareTo(a.Ticks));
 
@@ -143,7 +143,8 @@ namespace Fluence
 
                 _outputLine($"{opCodeStr,-20} | {countStr,-15} | {percentCountStr,-12} | {totalMsStr,-18} | {percentTimeStr,-12} | {avgTicksStr,-15}");
             }
-            _outputLine("--------------------------------------\n");
+            _outputLine(new string('-', 110));
+            _outputLine(Environment.NewLine);
         }
 #endif
 

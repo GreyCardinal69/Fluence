@@ -124,10 +124,10 @@ namespace Fluence
             {
                 if (!IsParsingFunctionBody && !AllowTestCode)
                 {
-
                     ScriptInitializerCode.Add(instructionLine);
                     return;
                 }
+
                 CodeInstructions.Add(instructionLine);
             }
 
@@ -162,13 +162,12 @@ namespace Fluence
         {
             StringBuilder sb = new StringBuilder("------------------------------------\n\nGenerated Symbol Hierarchy:\n\n");
 
-            // Dump the global scope first.
             DumpScope(sb, _currentParseState.GlobalScope, "Global Scope", 0);
 
             // If there are any namespaces, dump them as separate top-level scopes.
             if (_currentParseState.NameSpaces.Count != 0)
             {
-                sb.AppendLine(); // Add a separator
+                sb.AppendLine();
                 foreach (KeyValuePair<string, FluenceScope> ns in _currentParseState.NameSpaces)
                 {
                     DumpScope(sb, ns.Value, $"Namespace: {ns.Key}", 0);
@@ -229,11 +228,11 @@ namespace Fluence
                     break;
 
                 case FunctionSymbol functionSymbol:
-                    string scope = functionSymbol.DefiningScope == null || functionSymbol.Arguments.Count == 0 ? "None (Intrinsic? Or Global)" : functionSymbol.DefiningScope.Name;
+                    string scope = functionSymbol.DefiningScope == null || functionSymbol.Arguments.Count == 0 ? $"None {(functionSymbol.IsIntrinsic ? "(Intrinsic)" : "Global?")}" : functionSymbol.DefiningScope.Name;
                     string args = functionSymbol.Arguments == null ? "None" : string.Join(",", functionSymbol.Arguments);
                     if (string.IsNullOrEmpty(args)) args = "None";
 
-                    sb.Append(indent).Append($"Symbol: {symbolName}, type Function Header {{");
+                    sb.Append(indent).Append($"Symbol: {symbolName}, type: Function Header {{");
                     sb.Append($" Arity: {functionSymbol.Arity}, Scope: {scope}, StartAddress: {FluenceDebug.FormatByteCodeAddress(functionSymbol.StartAddress)},");
                     sb.Append($" Args: {args}.").AppendLine();
                     break;
@@ -242,7 +241,7 @@ namespace Fluence
                     break;
                 case StructSymbol structSymbol:
                     sb.Append(indent).Append($"Symbol: {symbolName}, type Struct {{").AppendLine();
-                    sb.Append(innerIndent).Append("Fields: ").Append(string.Join(", ", structSymbol.Fields)).AppendLine(".");
+                    sb.Append(innerIndent).Append("Fields: ").Append(structSymbol.Fields.Count != 0 ? string.Join(", ", structSymbol.Fields) : "None").AppendLine(".");
 
                     if (structSymbol.Functions.Count != 0)
                     {
@@ -254,11 +253,15 @@ namespace Fluence
                         sb.Append(innerIndent).AppendLine("}");
                     }
 
-                    sb.Append("\tDefault Values of Fields:\n");
+                    sb.Append("\tDefault Values of Fields:");
+                    if (structSymbol.DefaultFieldValuesAsTokens.Count != 0) sb.Append('\n');
+
                     foreach (KeyValuePair<string, List<Token>> item in structSymbol.DefaultFieldValuesAsTokens)
                     {
                         sb.Append($"\t\t{item.Key} : {(item.Value.Count == 0 ? "None (Nil)." : string.Join(", ", item.Value))}\n");
                     }
+
+                    if (structSymbol.DefaultFieldValuesAsTokens.Count == 0) sb.Append(" None.\n");
 
                     FunctionValue constructor = structSymbol.Constructor;
                     if (constructor != null)

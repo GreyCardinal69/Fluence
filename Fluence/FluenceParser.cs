@@ -593,7 +593,7 @@ namespace Fluence
                     arity++;
                     currentIndex++;
                 }
-                else if (currentTokenType == TokenType.COMMA || currentTokenType == TokenType.R_PAREN)
+                else if (currentTokenType is TokenType.COMMA or TokenType.R_PAREN)
                 {
                     currentIndex++;
                 }
@@ -2018,12 +2018,12 @@ namespace Fluence
 
             if (IsChainAssignmentOperator(opType))
             {
-                if (opType == TokenType.SEQUENTIAL_REST_ASSIGN || opType == TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN)
+                if (opType is TokenType.SEQUENTIAL_REST_ASSIGN or TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN)
                 {
                     ParseSequentialRestAssign(lhsList);
                     return;
                 }
-                else if (opType == TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN || opType == TokenType.CHAIN_N_UNIQUE_ASSIGN)
+                else if (opType is TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN or TokenType.CHAIN_N_UNIQUE_ASSIGN)
                 {
                     ParseUniqueChainAssignment(lhsList);
                     return;
@@ -2072,7 +2072,7 @@ namespace Fluence
                 // In Fluence the statement 'variable;' is valid, but it would be ignored.
                 // We should generate bytecode regardless. That would return StatementCompleteValue.
                 // It represents nothing so we just skip here.
-                if ((firstLhs is StatementCompleteValue) || (firstLhs is ElementAccessValue))
+                if (firstLhs is StatementCompleteValue or ElementAccessValue)
                 {
                     // Either a StatementCompleteValue and we do nothing.
                     // Or some nonsense like:
@@ -2167,7 +2167,7 @@ namespace Fluence
                     return false;
                 }
 
-                if (type == TokenType.GUARD_CHAIN || type == TokenType.OR_GUARD_CHAIN)
+                if (type is TokenType.GUARD_CHAIN or TokenType.OR_GUARD_CHAIN)
                 {
                     return true;
                 }
@@ -2421,7 +2421,7 @@ namespace Fluence
                 bool isOptional = IsOptionalChainAssignmentOperator(op.Type);
                 List<int> optionalSkipIndexes = new List<int>();
 
-                if (op.Type == TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN || op.Type == TokenType.CHAIN_N_UNIQUE_ASSIGN)
+                if (op.Type is TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN or TokenType.CHAIN_N_UNIQUE_ASSIGN)
                 {
                     int count = Convert.ToInt32(op.Literal);
 
@@ -2512,7 +2512,7 @@ namespace Fluence
                     skipOptionalAssign = _currentParseState.CodeInstructions.Count - 1;
                 }
 
-                if (op.Type == TokenType.CHAIN_ASSIGN_N || op.Type == TokenType.OPTIONAL_ASSIGN_N)
+                if (op.Type is TokenType.CHAIN_ASSIGN_N or TokenType.OPTIONAL_ASSIGN_N)
                 {
                     int count = Convert.ToInt32(op.Literal);
                     for (int i = 0; i < count; i++)
@@ -2630,7 +2630,7 @@ namespace Fluence
 
             TokenType type = _lexer.PeekNextTokenType();
 
-            if (type != TokenType.QUESTION && type != TokenType.TERNARY_JOINT)
+            if (type is not TokenType.QUESTION and not TokenType.TERNARY_JOINT)
             {
                 return left;
             }
@@ -2954,7 +2954,7 @@ namespace Fluence
             TokenType opType = _lexer.PeekNextTokenType();
 
             // The .and()/.or() syntax must be checked first, as it doesn't follow the infix `left op right` pattern.
-            if (opType == TokenType.DOT_AND_CHECK || opType == TokenType.DOT_OR_CHECK)
+            if (opType is TokenType.DOT_AND_CHECK or TokenType.DOT_OR_CHECK)
             {
                 return ParseDotAndOrOperators();
             }
@@ -3928,8 +3928,8 @@ namespace Fluence
         /// <returns></returns>
         private static bool IsOptionalChainAssignmentOperator(TokenType type)
         {
-            return type == TokenType.OPTIONAL_ASSIGN_N || type == TokenType.OPTIONAL_REST_ASSIGN ||
-            type == TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN;
+            return type is TokenType.OPTIONAL_ASSIGN_N or TokenType.OPTIONAL_REST_ASSIGN or
+            TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN;
         }
 
         /// <summary>
@@ -3942,13 +3942,13 @@ namespace Fluence
         /// Checks if a token type is a simple assignment operator (=, +=, -=, etc.).
         /// </summary>
         private static bool IsSimpleAssignmentOperator(TokenType type) =>
-            type >= TokenType.EQUAL && type <= TokenType.EQUAL_AMPERSAND;
+            type is >= TokenType.EQUAL and <= TokenType.EQUAL_AMPERSAND;
 
         /// <summary>
         /// Checks if a token type is one of the chain-assignment operators (<|, <n|, <?|, etc.).
         /// </summary>
         private static bool IsChainAssignmentOperator(TokenType type) =>
-            type >= TokenType.CHAIN_ASSIGN_N && type <= TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN;
+            type is >= TokenType.CHAIN_ASSIGN_N and <= TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN;
 
         /// <summary>
         /// Checks if a token type is a multi-target compound assignment operator (.+=, .-=, etc.).
@@ -3966,16 +3966,16 @@ namespace Fluence
         /// Checks if a token type is a standard comparison operator (>, <, >=, <=).
         /// </summary>
         private static bool IsStandardComparisonOperator(TokenType type) =>
-            type == TokenType.GREATER ||
-            type == TokenType.LESS ||
-            type == TokenType.GREATER_EQUAL ||
-            type == TokenType.LESS_EQUAL;
+            type is TokenType.GREATER or
+            TokenType.LESS or
+            TokenType.GREATER_EQUAL or
+            TokenType.LESS_EQUAL;
 
         /// <summary>
         /// Checks if a token type is a collective comparison operator (<==|, <||==|, etc.).
         /// </summary>
         private static bool IsCollectiveOperator(TokenType type) =>
-            type >= TokenType.COLLECTIVE_EQUAL && type <= TokenType.COLLECTIVE_OR_GREATER_EQUAL;
+            type is >= TokenType.COLLECTIVE_EQUAL and <= TokenType.COLLECTIVE_OR_GREATER_EQUAL;
 
         /// <summary>
         /// Peeks ahead to determine if a match statement is using the switch-style syntax (`case:`)
@@ -3987,7 +3987,7 @@ namespace Fluence
             while (true)
             {
                 TokenType type = _lexer.PeekTokenTypeAheadByN(lookAhead);
-                if (type == TokenType.THIN_ARROW || type == TokenType.ARROW) return false;
+                if (type is TokenType.THIN_ARROW or TokenType.ARROW) return false;
                 if (type == TokenType.COLON) return true;
                 if (type == TokenType.R_BRACE) return false; // Empty match.
                 lookAhead++;
@@ -4013,7 +4013,7 @@ namespace Fluence
                     return true;
                 }
 
-                if (type == TokenType.L_BRACE || type == TokenType.THIN_ARROW || type == TokenType.EOF || type == TokenType.EOL)
+                if (type is TokenType.L_BRACE or TokenType.THIN_ARROW or TokenType.EOF or TokenType.EOL)
                 {
                     // Reached the end of the potential condition.
                     return false;
@@ -4097,7 +4097,7 @@ namespace Fluence
         /// <param name="type">The type of the token.</param>
         /// <returns>True if it is.</returns>
         private static bool IsOrCollectiveOperator(TokenType type) =>
-            type >= TokenType.COLLECTIVE_OR_EQUAL && type <= TokenType.COLLECTIVE_OR_GREATER_EQUAL;
+            type is >= TokenType.COLLECTIVE_OR_EQUAL and <= TokenType.COLLECTIVE_OR_GREATER_EQUAL;
 
         /// <summary>
         /// Converts a collective comparison TokenType into its corresponding base comparison InstructionCode.

@@ -336,7 +336,7 @@ namespace Fluence
                     .Replace("\n", "\\n");
 
                 string literalToDisplay = token.Literal?.ToString() ?? "null";
-                literalToDisplay = (literalToDisplay == "\r\n" || literalToDisplay == "\n") ? "NewLine" : literalToDisplay;
+                literalToDisplay = (literalToDisplay is "\r\n" or "\n") ? "NewLine" : literalToDisplay;
 
                 if (textToDisplay.Length > 20)
                 {
@@ -617,7 +617,7 @@ namespace Fluence
                             decimalPointAlreadyDefined = true;
                         }
 
-                        if (currChar == 'E' || currChar == 'e')
+                        if (currChar is 'E' or 'e')
                         {
                             // After seeing an 'E', the next character should be a digit or a sign.
                             char next = PeekNext();

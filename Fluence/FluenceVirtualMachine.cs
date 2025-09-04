@@ -414,7 +414,7 @@ namespace Fluence
         /// <param name="duration">The maximum time to run before pausing.</param>
         internal void RunFor(TimeSpan duration)
         {
-            if (State == FluenceVMState.Finished || State == FluenceVMState.Error) return;
+            if (State is FluenceVMState.Finished or FluenceVMState.Error) return;
 
             _stopRequested = false;
             State = FluenceVMState.Running;
@@ -1453,7 +1453,7 @@ namespace Fluence
         {
             RuntimeValue iterable = GetRuntimeValue(instruction.Rhs);
 
-            if (iterable.ObjectReference is ListObject || iterable.ObjectReference is RangeObject)
+            if (iterable.ObjectReference is ListObject or RangeObject)
             {
                 IteratorObject iterator = new IteratorObject(iterable.ObjectReference);
                 SetRegister((TempValue)instruction.Lhs, new RuntimeValue(iterator));
@@ -2061,7 +2061,7 @@ namespace Fluence
         /// </summary>
         private static RuntimeValue HandleListRepetition(ListObject list, RuntimeValue num)
         {
-            if (num.NumberType != RuntimeNumberType.Int && num.NumberType != RuntimeNumberType.Long)
+            if (num.NumberType is not RuntimeNumberType.Int and not RuntimeNumberType.Long)
             {
                 throw new FluenceRuntimeException($"Internal VM Error: Cannot multiply a list by a non-integer number ({num.NumberType}).");
             }
@@ -2088,7 +2088,7 @@ namespace Fluence
         /// </summary>
         private static RuntimeValue HandleStringRepetition(StringObject str, RuntimeValue num)
         {
-            if (num.NumberType != RuntimeNumberType.Int && num.NumberType != RuntimeNumberType.Long)
+            if (num.NumberType is not RuntimeNumberType.Int and not RuntimeNumberType.Long)
             {
                 throw new FluenceRuntimeException($"Internal VM Error: Cannot multiply a string by a non-integer number (got {num.NumberType}).");
             }

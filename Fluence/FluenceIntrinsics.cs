@@ -50,14 +50,14 @@ namespace Fluence
         /// <returns>The newly created and populated scope if the library was found, otherwise null.</returns>
         internal FluenceScope? Use(string namespaceName)
         {
-            if (_libraryRegistry.TryGetValue(namespaceName, out var registrationAction))
+            if (_libraryRegistry.TryGetValue(namespaceName, out Action<FluenceScope>? registrationAction))
             {
                 if (_parser.CurrentParserStateGlobalScope.UsedScopes.Contains(namespaceName))
                 {
                     return null;
                 }
 
-                var newNamespaceScope = new FluenceScope(_parser.CurrentParserStateGlobalScope, namespaceName);
+                FluenceScope newNamespaceScope = new FluenceScope(_parser.CurrentParserStateGlobalScope, namespaceName);
                 registrationAction(newNamespaceScope);
                 _parser.AddNameSpace(newNamespaceScope);
 

@@ -96,7 +96,7 @@ namespace Fluence
                 stringBuilder.AppendLine(new string(' ', linePrefix.Length + Column - 1) + "^");
             }
 
-            string tokenText = (UnexpectedToken.Text == "\r" || UnexpectedToken.Text == "\n")
+            string tokenText = (UnexpectedToken.Text is "\r" or "\n")
                 ? "NewLine"
                 : UnexpectedToken.ToDisplayString();
 

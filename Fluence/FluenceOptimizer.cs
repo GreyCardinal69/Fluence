@@ -155,11 +155,11 @@ namespace Fluence
         /// </summary>
         /// <returns>True if the instruction is a jump, otherwise false.</returns>
         private static bool IsJumpInstruction(InstructionCode op) =>
-            op == InstructionCode.Goto
-            || op == InstructionCode.GotoIfTrue
-            || op == InstructionCode.GotoIfFalse
-            || op == InstructionCode.BranchIfEqual
-            || op == InstructionCode.BranchIfNotEqual;
+            op is InstructionCode.Goto
+            or InstructionCode.GotoIfTrue
+            or InstructionCode.GotoIfFalse
+            or InstructionCode.BranchIfEqual
+            or InstructionCode.BranchIfNotEqual;
 
         /// <summary>
         /// Compacts the bytecode list by removing all null placeholders and realigns all absolute addresses.

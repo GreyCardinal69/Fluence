@@ -68,7 +68,7 @@
                     return 1;
                 }
             }
-            catch (Exception ex)
+            catch (FluenceException ex)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("An unexpected error occurred:");

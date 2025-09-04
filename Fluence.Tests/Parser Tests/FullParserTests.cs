@@ -77,7 +77,7 @@ namespace Fluence.ParserTests
             Assert.True(symbolTree.GlobalScope.Contains("Globuloid_2"));
             Assert.True(symbolTree.GlobalScope.Contains("A_3"));
             Assert.True(symbolTree.GlobalScope.Contains("Globuloid_3"));
-            Assert.False(symbolTree.GlobalScope.Contains("MyProgram_1")); // Namespace is not a symbol in the scope
+            Assert.False(symbolTree.GlobalScope.Contains("MyProgram_1"));
 
             // --- Assertions for Namespaces ---
             Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_1"));
@@ -86,7 +86,7 @@ namespace Fluence.ParserTests
             Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_2"));
             Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_3"));
             Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_3"));
-            Assert.True(symbolTree.NameSpaces.ContainsKey("FluenceMath")); // Intrinsic namespace
+            Assert.True(symbolTree.NameSpaces.ContainsKey("FluenceMath"));
 
             // --- Assertions for MyProgram_1 Scope ---
             var myProgram1Scope = symbolTree.NameSpaces["MyProgram_1"];
@@ -94,9 +94,9 @@ namespace Fluence.ParserTests
             Assert.True(myProgram1Scope.ContainsLocal("Number_1Type"));
             Assert.True(myProgram1Scope.ContainsLocal("Main_1"));
             Assert.True(myProgram1Scope.ContainsLocal("Helper_1"));
-            Assert.True(myProgram1Scope.ContainsLocal("Vector3_1")); // Imported via `use`
-            Assert.True(myProgram1Scope.ContainsLocal("cos"));       // Imported via `use`
-            Assert.False(myProgram1Scope.ContainsLocal("Globuloid_1")); // Should be in global
+            Assert.True(myProgram1Scope.ContainsLocal("Vector3_1"));
+            Assert.True(myProgram1Scope.ContainsLocal("cos"));
+            Assert.False(myProgram1Scope.ContainsLocal("Globuloid_1"));
 
             // --- Assertions for MyMath_2 Scope ---
             var myMath2Scope = symbolTree.NameSpaces["MyMath_2"];
@@ -107,9 +107,8 @@ namespace Fluence.ParserTests
             var myProgram3Scope = symbolTree.NameSpaces["MyProgram_3"];
             Assert.True(myProgram3Scope.ContainsLocal("Number_3"));
             Assert.True(myProgram3Scope.ContainsLocal("Main_3"));
-            Assert.True(myProgram3Scope.ContainsLocal("Vector3_3")); // Imported
+            Assert.True(myProgram3Scope.ContainsLocal("Vector3_3"));
 
-            // Check symbol types for a specific case to be thorough
             Assert.IsType<StructSymbol>(myProgram1Scope.Symbols["Vector3_1"]);
             Assert.IsType<EnumSymbol>(myProgram1Scope.Symbols["Number_1Type"]);
             Assert.IsType<FunctionSymbol>(myProgram1Scope.Symbols["Main_1"]);
@@ -1312,17 +1311,15 @@ namespace Fluence.ParserTests
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.Goto, new NumberValue(12)),
-                new(InstructionCode.Equal, new TempValue(1), new VariableValue("a"), new NumberValue(1)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(1)),
+                new(InstructionCode.Goto, new NumberValue(10)),
+                new(InstructionCode.BranchIfNotEqual, new NumberValue(4), new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Assign, new TempValue(0), new NumberValue(1)),
-                new(InstructionCode.Goto, new NumberValue(11)),
-                new(InstructionCode.Equal, new TempValue(2), new VariableValue("a"), new NumberValue(2)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(9), new TempValue(2)),
+                new(InstructionCode.Goto, new NumberValue(9)),
+                new(InstructionCode.BranchIfNotEqual, new NumberValue(7), new VariableValue("a"), new NumberValue(2)),
                 new(InstructionCode.Assign, new TempValue(0), new NumberValue(2)),
-                new(InstructionCode.Goto, new NumberValue(11)),
+                new(InstructionCode.Goto, new NumberValue(9)),
                 new(InstructionCode.Assign, new TempValue(0), new NumberValue(5)),
-                new(InstructionCode.Goto, new NumberValue(11)),
+                new(InstructionCode.Goto, new NumberValue(9)),
                 new(InstructionCode.Return, new TempValue(0)),
                 new(InstructionCode.Assign, new VariableValue("GetYFromX"), new FunctionValue("GetYFromX", 3, 1)),
                 new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main"), new NumberValue(0)),

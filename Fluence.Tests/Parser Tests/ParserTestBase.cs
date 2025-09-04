@@ -10,8 +10,8 @@ namespace Fluence.ParserTests
         internal static List<InstructionLine> Compile(string source)
         {
             var lexer = new FluenceLexer(source);
-            var parser = new FluenceParser(lexer, null!,null!,null!);
-       
+            var parser = new FluenceParser(lexer, null!, null!, null!);
+
             parser.Parse(true);
             return parser.CompiledCode;
         }

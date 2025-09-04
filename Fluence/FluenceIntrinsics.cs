@@ -22,10 +22,15 @@ namespace Fluence
             _parser = parser;
             _outputLine = outputLine;
             _input = input;
+            _output = output;
 
             // Pre-register all known standard libraries.
             _libraryRegistry[FluenceMath.NamespaceName] = FluenceMath.Register;
-            _output = output;
+
+            _libraryRegistry[FluenceIO.NamespaceName] = (scope) =>
+            {
+                FluenceIO.Register(scope, _outputLine, _input, _output);
+            };
         }
 
         /// <summary>

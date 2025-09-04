@@ -1683,6 +1683,28 @@ namespace Fluence
                 return;
             }
 
+            if (structSymbol.StaticIntrinsics.TryGetValue(methodName.Value, out var intrinsicSymbol))
+            {
+                int argCount = _operandStack.Count;
+                if (intrinsicSymbol.Arity != argCount)
+                {
+                    ConstructAndThrowException($"Runtime Error: Mismatched arity for static intrinsic struct function '{intrinsicSymbol.Name}'. Expected {intrinsicSymbol.Arity}, but got {argCount}.");
+                    return;
+                }
+
+                List<Value> args = new List<Value>(argCount);
+
+                for (int i = 0; i < argCount; i++) 
+                { 
+                    args.Add(ToValue(_operandStack.Pop())); 
+                }
+                args.Reverse();
+
+                Value resultValue = intrinsicSymbol.IntrinsicBody(args);
+                SetRegister((TempValue)instruction.Lhs, GetRuntimeValue(resultValue));
+                return;
+            }
+
             if (!structSymbol.Functions.TryGetValue(methodName.Value, out var methodBlueprint))
             {
                 ConstructAndThrowException($"Runtime Error: Static function '{methodName.Value}' not found on struct '{structSymbol.Name}'.");

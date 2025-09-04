@@ -1,8 +1,8 @@
 ﻿namespace Fluence
 {
-    class Program
+    internal class Program
     {
-        static int Main(string[] args)
+        private static int Main(string[] args)
         {
 #if DEBUG
             string source = File.ReadAllText($@"{Directory.GetCurrentDirectory()}\test.fl");
@@ -52,7 +52,7 @@
             {
                 string sourceCode = File.ReadAllText(filePath);
 
-                var interpreter = new FluenceInterpreter();
+                FluenceInterpreter interpreter = new FluenceInterpreter();
                 bool success = interpreter.Compile(sourceCode, true);
 
                 if (success)

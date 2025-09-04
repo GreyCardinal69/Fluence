@@ -279,26 +279,26 @@ namespace Fluence
             }
             else { return null; }
 
-            var lhsOperand = insn.Rhs;
-            var rhsOperand = insn.Rhs2;
+            Value lhsOperand = insn.Rhs;
+            Value rhsOperand = insn.Rhs2;
 
             // Case 1: Variable op Variable (e.g., x + y)
             if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
             {
                 string leftName = varLeft.Name;
                 string rightName = varRight.Name;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType &&
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = AddValues(val1, val2);
+                        RuntimeValue result = AddValues(val1, val2);
                         vm.SetVariable((VariableValue)instruction.Lhs, result);
                     }
                     else
@@ -313,16 +313,16 @@ namespace Fluence
             if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
             {
                 string varName = varOp.Name;
-                var constValue = right;
-                var expectedLhsType = left.NumberType;
+                RuntimeValue constValue = right;
+                RuntimeNumberType expectedLhsType = left.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
-                        var result = AddValues(val1, constValue);
+                        RuntimeValue result = AddValues(val1, constValue);
                         if (instruction.Lhs is TempValue temp)
                         {
                             vm.SetRegister(temp, result);
@@ -343,17 +343,17 @@ namespace Fluence
             // The other way around.
             if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
             {
-                var constValue = left;
+                RuntimeValue constValue = left;
                 string varName = varOp_R.Name;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     if (!Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = AddValues(constValue, val2);
+                        RuntimeValue result = AddValues(constValue, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
@@ -368,19 +368,19 @@ namespace Fluence
             {
                 string leftName = tempLeft.TempName;
                 string rightName = tempRight.TempName;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
                     // Same logic as Var+Var.
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType &&
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = AddValues(val1, val2);
+                        RuntimeValue result = AddValues(val1, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
@@ -394,16 +394,16 @@ namespace Fluence
             if (lhsOperand is TempValue tempOp && rhsOperand is NumberValue)
             {
                 string tempName = tempOp.TempName;
-                var constValue = right;
-                var expectedLhsType = left.NumberType;
+                RuntimeValue constValue = right;
+                RuntimeNumberType expectedLhsType = left.NumberType;
 
                 return (instruction, vm) =>
                 {
                     // Same logic as Var+Const.
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
-                        var result = AddValues(val1, constValue);
+                        RuntimeValue result = AddValues(val1, constValue);
                         if (instruction.Lhs is TempValue temp)
                         {
                             vm.SetRegister(temp, result);
@@ -423,17 +423,17 @@ namespace Fluence
 
             if (lhsOperand is NumberValue && rhsOperand is TempValue tempOp_R)
             {
-                var constValue = left;
+                RuntimeValue constValue = left;
                 string tempName = tempOp_R.TempName;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
                     // Same logic as Const+Var.
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     if (!Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = AddValues(constValue, val2);
+                        RuntimeValue result = AddValues(constValue, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
@@ -448,19 +448,19 @@ namespace Fluence
             {
                 string tempName = tempOp_L.TempName;
                 string varName = varOp_R_2.Name;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
                     // Same logic as Var+Var.
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType &&
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = AddValues(val1, val2);
+                        RuntimeValue result = AddValues(val1, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
@@ -475,19 +475,19 @@ namespace Fluence
             {
                 string varName = varOp_L_2.Name;
                 string tempName = tempOp_R_2.TempName;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
                     // Same logic as Var+Var.
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType &&
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = AddValues(val1, val2);
+                        RuntimeValue result = AddValues(val1, val2);
                         vm.SetVariable((VariableValue)instruction.Lhs, result);
                     }
                     else
@@ -509,25 +509,25 @@ namespace Fluence
                 return null;
             }
 
-            var lhsOperand = insn.Rhs;
-            var rhsOperand = insn.Rhs2;
+            Value lhsOperand = insn.Rhs;
+            Value rhsOperand = insn.Rhs2;
 
             if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
             {
                 string leftName = varLeft.Name;
                 string rightName = varRight.Name;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType &&
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = SubValues(val1, val2);
+                        RuntimeValue result = SubValues(val1, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
@@ -541,16 +541,16 @@ namespace Fluence
             if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
             {
                 string varName = varOp.Name;
-                var constValue = right;
-                var expectedLhsType = left.NumberType;
+                RuntimeValue constValue = right;
+                RuntimeNumberType expectedLhsType = left.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
-                        var result = SubValues(val1, constValue);
+                        RuntimeValue result = SubValues(val1, constValue);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
@@ -564,17 +564,17 @@ namespace Fluence
             // The other way around.
             if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
             {
-                var constValue = left;
+                RuntimeValue constValue = left;
                 string varName = varOp_R.Name;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     if (!Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = SubValues(constValue, val2);
+                        RuntimeValue result = SubValues(constValue, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
@@ -589,18 +589,18 @@ namespace Fluence
             {
                 string leftName = tempLeft.TempName;
                 string rightName = tempRight.TempName;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType &&
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = SubValues(val1, val2);
+                        RuntimeValue result = SubValues(val1, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
@@ -614,15 +614,15 @@ namespace Fluence
             if (lhsOperand is TempValue tempOp && rhsOperand is NumberValue)
             {
                 string tempName = tempOp.TempName;
-                var constValue = right;
-                var expectedLhsType = left.NumberType;
+                RuntimeValue constValue = right;
+                RuntimeNumberType expectedLhsType = left.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
-                        var result = SubValues(val1, constValue);
+                        RuntimeValue result = SubValues(val1, constValue);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
@@ -635,16 +635,16 @@ namespace Fluence
 
             if (lhsOperand is NumberValue && rhsOperand is TempValue tempOp_R)
             {
-                var constValue = left;
+                RuntimeValue constValue = left;
                 string tempName = tempOp_R.TempName;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     if (!Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = SubValues(constValue, val2);
+                        RuntimeValue result = SubValues(constValue, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
@@ -659,18 +659,18 @@ namespace Fluence
             {
                 string tempName = tempOp_L.TempName;
                 string varName = varOp_R_2.Name;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType &&
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = SubValues(val1, val2);
+                        RuntimeValue result = SubValues(val1, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
@@ -685,18 +685,18 @@ namespace Fluence
             {
                 string varName = varOp_L_2.Name;
                 string tempName = tempOp_R_2.TempName;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType &&
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = SubValues(val1, val2);
+                        RuntimeValue result = SubValues(val1, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
@@ -718,22 +718,22 @@ namespace Fluence
                 return null;
             }
 
-            var lhsOperand = insn.Rhs;
-            var rhsOperand = insn.Rhs2;
+            Value lhsOperand = insn.Rhs;
+            Value rhsOperand = insn.Rhs2;
 
             if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
             {
                 string leftName = varLeft.Name;
                 string rightName = varRight.Name;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    var result = DivValues(val1, val2);
+                    RuntimeValue result = DivValues(val1, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -741,14 +741,14 @@ namespace Fluence
             if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
             {
                 string varName = varOp.Name;
-                var constValue = right;
-                var expectedLhsType = left.NumberType;
+                RuntimeValue constValue = right;
+                RuntimeNumberType expectedLhsType = left.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    var result = DivValues(val1, constValue);
+                    RuntimeValue result = DivValues(val1, constValue);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -756,15 +756,15 @@ namespace Fluence
             // The other way around.
             if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
             {
-                var constValue = left;
+                RuntimeValue constValue = left;
                 string varName = varOp_R.Name;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    var result = DivValues(constValue, val2);
+                    RuntimeValue result = DivValues(constValue, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -773,15 +773,15 @@ namespace Fluence
             {
                 string leftName = tempLeft.TempName;
                 string rightName = tempRight.TempName;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    var result = DivValues(val1, val2);
+                    RuntimeValue result = DivValues(val1, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -789,28 +789,28 @@ namespace Fluence
             if (lhsOperand is TempValue tempOp && rhsOperand is NumberValue)
             {
                 string tempName = tempOp.TempName;
-                var constValue = right;
-                var expectedLhsType = left.NumberType;
+                RuntimeValue constValue = right;
+                RuntimeNumberType expectedLhsType = left.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    var result = DivValues(val1, constValue);
+                    RuntimeValue result = DivValues(val1, constValue);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
 
             if (lhsOperand is NumberValue && rhsOperand is TempValue tempOp_R)
             {
-                var constValue = left;
+                RuntimeValue constValue = left;
                 string tempName = tempOp_R.TempName;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-                    var result = DivValues(constValue, val2);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    RuntimeValue result = DivValues(constValue, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -819,15 +819,15 @@ namespace Fluence
             {
                 string tempName = tempOp_L.TempName;
                 string varName = varOp_R_2.Name;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    var result = DivValues(val1, val2);
+                    RuntimeValue result = DivValues(val1, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -836,15 +836,15 @@ namespace Fluence
             {
                 string varName = varOp_L_2.Name;
                 string tempName = tempOp_R_2.TempName;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    var result = DivValues(val1, val2);
+                    RuntimeValue result = DivValues(val1, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -854,32 +854,32 @@ namespace Fluence
 
         internal static SpecializedOpcodeHandler? CreateSpecializedMulHandler(InstructionLine insn, RuntimeValue left, RuntimeValue right)
         {
-            var lhsOperand = insn.Rhs;
-            var rhsOperand = insn.Rhs2;
+            Value lhsOperand = insn.Rhs;
+            Value rhsOperand = insn.Rhs2;
 
             if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
             {
                 string leftName = varLeft.Name;
                 string rightName = varRight.Name;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType &&
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = MulValues(val1, val2);
+                        RuntimeValue result = MulValues(val1, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
-                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+                        RuntimeValue genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        RuntimeValue genericRight = vm.GetRuntimeValue(instruction.Rhs2);
 
                         vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
                              (a, b) => new RuntimeValue(a * b),
@@ -894,24 +894,24 @@ namespace Fluence
             if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
             {
                 string varName = varOp.Name;
-                var constValue = right;
-                var expectedLhsType = left.NumberType;
+                RuntimeValue constValue = right;
+                RuntimeNumberType expectedLhsType = left.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
-                        var result = MulValues(val1, constValue);
+                        RuntimeValue result = MulValues(val1, constValue);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
                     {
                         instruction.SpecializedHandler = null;
 
-                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
-                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+                        RuntimeValue genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        RuntimeValue genericRight = vm.GetRuntimeValue(instruction.Rhs2);
 
                         vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
                              (a, b) => new RuntimeValue(a * b),
@@ -926,24 +926,24 @@ namespace Fluence
             // The other way around.
             if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
             {
-                var constValue = left;
+                RuntimeValue constValue = left;
                 string varName = varOp_R.Name;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     if (!Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = MulValues(constValue, val2);
+                        RuntimeValue result = MulValues(constValue, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
-                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+                        RuntimeValue genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        RuntimeValue genericRight = vm.GetRuntimeValue(instruction.Rhs2);
 
                         vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
                              (a, b) => new RuntimeValue(a * b),
@@ -959,25 +959,25 @@ namespace Fluence
             {
                 string leftName = tempLeft.TempName;
                 string rightName = tempRight.TempName;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType &&
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = MulValues(val1, val2);
+                        RuntimeValue result = MulValues(val1, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
-                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+                        RuntimeValue genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        RuntimeValue genericRight = vm.GetRuntimeValue(instruction.Rhs2);
 
                         vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
                              (a, b) => new RuntimeValue(a * b),
@@ -992,22 +992,22 @@ namespace Fluence
             if (lhsOperand is TempValue tempOp && rhsOperand is NumberValue)
             {
                 string tempName = tempOp.TempName;
-                var constValue = right;
-                var expectedLhsType = left.NumberType;
+                RuntimeValue constValue = right;
+                RuntimeNumberType expectedLhsType = left.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
-                        var result = MulValues(val1, constValue);
+                        RuntimeValue result = MulValues(val1, constValue);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
-                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+                        RuntimeValue genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        RuntimeValue genericRight = vm.GetRuntimeValue(instruction.Rhs2);
 
                         vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
                              (a, b) => new RuntimeValue(a * b),
@@ -1021,23 +1021,23 @@ namespace Fluence
 
             if (lhsOperand is NumberValue && rhsOperand is TempValue tempOp_R)
             {
-                var constValue = left;
+                RuntimeValue constValue = left;
                 string tempName = tempOp_R.TempName;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     if (!Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = MulValues(constValue, val2);
+                        RuntimeValue result = MulValues(constValue, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
-                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+                        RuntimeValue genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        RuntimeValue genericRight = vm.GetRuntimeValue(instruction.Rhs2);
 
                         vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
                              (a, b) => new RuntimeValue(a * b),
@@ -1053,25 +1053,25 @@ namespace Fluence
             {
                 string tempName = tempOp_L.TempName;
                 string varName = varOp_R_2.Name;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType &&
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = MulValues(val1, val2);
+                        RuntimeValue result = MulValues(val1, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
-                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+                        RuntimeValue genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        RuntimeValue genericRight = vm.GetRuntimeValue(instruction.Rhs2);
 
                         vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
                              (a, b) => new RuntimeValue(a * b),
@@ -1087,25 +1087,25 @@ namespace Fluence
             {
                 string varName = varOp_L_2.Name;
                 string tempName = tempOp_R_2.TempName;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType &&
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
-                        var result = MulValues(val1, val2);
+                        RuntimeValue result = MulValues(val1, val2);
                         vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
                     {
                         instruction.SpecializedHandler = null;
-                        var genericLeft = vm.GetRuntimeValue(instruction.Rhs);
-                        var genericRight = vm.GetRuntimeValue(instruction.Rhs2);
+                        RuntimeValue genericLeft = vm.GetRuntimeValue(instruction.Rhs);
+                        RuntimeValue genericRight = vm.GetRuntimeValue(instruction.Rhs2);
 
                         vm.ExecuteNumericBinaryOperation(instruction, genericLeft, genericRight,
                              (a, b) => new RuntimeValue(a * b),
@@ -1128,22 +1128,22 @@ namespace Fluence
                 return null;
             }
 
-            var lhsOperand = insn.Rhs;
-            var rhsOperand = insn.Rhs2;
+            Value lhsOperand = insn.Rhs;
+            Value rhsOperand = insn.Rhs2;
 
             if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
             {
                 string leftName = varLeft.Name;
                 string rightName = varRight.Name;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    var result = ModuloValues(val1, val2);
+                    RuntimeValue result = ModuloValues(val1, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -1151,14 +1151,14 @@ namespace Fluence
             if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
             {
                 string varName = varOp.Name;
-                var constValue = right;
-                var expectedLhsType = left.NumberType;
+                RuntimeValue constValue = right;
+                RuntimeNumberType expectedLhsType = left.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    var result = ModuloValues(val1, constValue);
+                    RuntimeValue result = ModuloValues(val1, constValue);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -1166,15 +1166,15 @@ namespace Fluence
             // The other way around.
             if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
             {
-                var constValue = left;
+                RuntimeValue constValue = left;
                 string varName = varOp_R.Name;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    var result = ModuloValues(constValue, val2);
+                    RuntimeValue result = ModuloValues(constValue, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -1183,15 +1183,15 @@ namespace Fluence
             {
                 string leftName = tempLeft.TempName;
                 string rightName = tempRight.TempName;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    var result = ModuloValues(val1, val2);
+                    RuntimeValue result = ModuloValues(val1, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -1199,28 +1199,28 @@ namespace Fluence
             if (lhsOperand is TempValue tempOp && rhsOperand is NumberValue)
             {
                 string tempName = tempOp.TempName;
-                var constValue = right;
-                var expectedLhsType = left.NumberType;
+                RuntimeValue constValue = right;
+                RuntimeNumberType expectedLhsType = left.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    var result = ModuloValues(val1, constValue);
+                    RuntimeValue result = ModuloValues(val1, constValue);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
 
             if (lhsOperand is NumberValue && rhsOperand is TempValue tempOp_R)
             {
-                var constValue = left;
+                RuntimeValue constValue = left;
                 string tempName = tempOp_R.TempName;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-                    var result = ModuloValues(constValue, val2);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    RuntimeValue result = ModuloValues(constValue, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -1229,15 +1229,15 @@ namespace Fluence
             {
                 string tempName = tempOp_L.TempName;
                 string varName = varOp_R_2.Name;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    var result = ModuloValues(val1, val2);
+                    RuntimeValue result = ModuloValues(val1, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -1246,15 +1246,15 @@ namespace Fluence
             {
                 string varName = varOp_L_2.Name;
                 string tempName = tempOp_R_2.TempName;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    var result = ModuloValues(val1, val2);
+                    RuntimeValue result = ModuloValues(val1, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -1270,22 +1270,22 @@ namespace Fluence
                 return null;
             }
 
-            var lhsOperand = insn.Rhs;
-            var rhsOperand = insn.Rhs2;
+            Value lhsOperand = insn.Rhs;
+            Value rhsOperand = insn.Rhs2;
 
             if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
             {
                 string leftName = varLeft.Name;
                 string rightName = varRight.Name;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    var result = PowerValues(val1, val2);
+                    RuntimeValue result = PowerValues(val1, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -1293,14 +1293,14 @@ namespace Fluence
             if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
             {
                 string varName = varOp.Name;
-                var constValue = right;
-                var expectedLhsType = left.NumberType;
+                RuntimeValue constValue = right;
+                RuntimeNumberType expectedLhsType = left.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    var result = PowerValues(val1, constValue);
+                    RuntimeValue result = PowerValues(val1, constValue);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -1308,15 +1308,15 @@ namespace Fluence
             // The other way around.
             if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
             {
-                var constValue = left;
+                RuntimeValue constValue = left;
                 string varName = varOp_R.Name;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    var result = PowerValues(constValue, val2);
+                    RuntimeValue result = PowerValues(constValue, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -1325,15 +1325,15 @@ namespace Fluence
             {
                 string leftName = tempLeft.TempName;
                 string rightName = tempRight.TempName;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    var result = PowerValues(val1, val2);
+                    RuntimeValue result = PowerValues(val1, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -1341,29 +1341,29 @@ namespace Fluence
             if (lhsOperand is TempValue tempOp && rhsOperand is NumberValue)
             {
                 string tempName = tempOp.TempName;
-                var constValue = right;
-                var expectedLhsType = left.NumberType;
+                RuntimeValue constValue = right;
+                RuntimeNumberType expectedLhsType = left.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    var result = PowerValues(val1, constValue);
+                    RuntimeValue result = PowerValues(val1, constValue);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
 
             if (lhsOperand is NumberValue && rhsOperand is TempValue tempOp_R)
             {
-                var constValue = left;
+                RuntimeValue constValue = left;
                 string tempName = tempOp_R.TempName;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    var result = PowerValues(constValue, val2);
+                    RuntimeValue result = PowerValues(constValue, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -1372,15 +1372,15 @@ namespace Fluence
             {
                 string tempName = tempOp_L.TempName;
                 string varName = varOp_R_2.Name;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    var result = PowerValues(val1, val2);
+                    RuntimeValue result = PowerValues(val1, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -1389,15 +1389,15 @@ namespace Fluence
             {
                 string varName = varOp_L_2.Name;
                 string tempName = tempOp_R_2.TempName;
-                var expectedLhsType = left.NumberType;
-                var expectedRhsType = right.NumberType;
+                RuntimeNumberType expectedLhsType = left.NumberType;
+                RuntimeNumberType expectedRhsType = right.NumberType;
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    var result = PowerValues(val1, val2);
+                    RuntimeValue result = PowerValues(val1, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -1418,19 +1418,19 @@ namespace Fluence
 
         internal static SpecializedOpcodeHandler? CreateSpecializedBranchHandler(InstructionLine insn, RuntimeValue left, RuntimeValue right, bool target)
         {
-            var lhsOperand = insn.Rhs;
-            var rhsOperand = insn.Rhs2;
-            var jumpTarget = (int)((NumberValue)insn.Lhs).Value;
+            Value lhsOperand = insn.Rhs;
+            Value rhsOperand = insn.Rhs2;
+            int jumpTarget = (int)((NumberValue)insn.Lhs).Value;
 
             // Variable vs Constant (e.g., term == 1).
             if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
             {
                 string varName = varOp.Name;
-                var constValue = right;
+                RuntimeValue constValue = right;
 
                 return (instruction, vm) =>
                 {
-                    ref var register = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue register = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     if (!Unsafe.IsNullRef(ref register))
                     {
@@ -1451,11 +1451,11 @@ namespace Fluence
             if (lhsOperand is TempValue temp && rhsOperand is NumberValue)
             {
                 string varName = temp.TempName;
-                var constValue = right;
+                RuntimeValue constValue = right;
 
                 return (instruction, vm) =>
                 {
-                    ref var register = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue register = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     if (!Unsafe.IsNullRef(ref register))
                     {
@@ -1480,8 +1480,8 @@ namespace Fluence
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
                     if (!Unsafe.IsNullRef(ref val1) && !Unsafe.IsNullRef(ref val2))
                     {
@@ -1506,8 +1506,8 @@ namespace Fluence
 
                 return (instruction, vm) =>
                 {
-                    ref var val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref var val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
                     if (!Unsafe.IsNullRef(ref val1) && !Unsafe.IsNullRef(ref val2))
                     {

@@ -109,9 +109,9 @@ namespace Fluence
 
             long totalInstructions = 0;
             long totalTicks = 0;
-            var profileData = new List<(InstructionCode OpCode, long Count, long Ticks)>();
+            List<(InstructionCode OpCode, long Count, long Ticks)> profileData = new List<(InstructionCode OpCode, long Count, long Ticks)>();
 
-            foreach (var kvp in _instructionCounts)
+            foreach (KeyValuePair<InstructionCode, long> kvp in _instructionCounts)
             {
                 long ticks = _instructionTimings.GetValueOrDefault(kvp.Key, 0);
                 profileData.Add((kvp.Key, kvp.Value, ticks));
@@ -127,7 +127,7 @@ namespace Fluence
 
             profileData.Sort((a, b) => b.Ticks.CompareTo(a.Ticks));
 
-            foreach (var (OpCode, Count, Ticks) in profileData)
+            foreach ((InstructionCode OpCode, long Count, long Ticks) in profileData)
             {
                 double percentOfTotalCount = (double)Count / totalInstructions * 100;
                 double totalMs = new TimeSpan(Ticks).TotalMilliseconds;
@@ -201,8 +201,8 @@ namespace Fluence
             /// <returns>A formatted string representing the VM state.</returns>
             internal string DumpContext()
             {
-                var sb = new StringBuilder();
-                var separator = new string('-', 50);
+                StringBuilder sb = new StringBuilder();
+                string separator = new string('-', 50);
 
                 sb.AppendLine(separator);
                 sb.AppendLine("--- FLUENCE VM STATE SNAPSHOT ---");
@@ -234,13 +234,13 @@ namespace Fluence
                 else
                 {
                     int maxKeyLength = 0;
-                    foreach (var key in CurrentLocals.Keys)
+                    foreach (string key in CurrentLocals.Keys)
                     {
                         if (key.Length > maxKeyLength) maxKeyLength = key.Length;
                     }
 
-                    var sortedLocals = CurrentLocals.OrderBy(kvp => kvp.Key);
-                    foreach (var kvp in sortedLocals)
+                    IOrderedEnumerable<KeyValuePair<string, RuntimeValue>> sortedLocals = CurrentLocals.OrderBy(kvp => kvp.Key);
+                    foreach (KeyValuePair<string, RuntimeValue> kvp in sortedLocals)
                     {
                         sb.AppendLine($"  {kvp.Key.PadRight(maxKeyLength)} : {kvp.Value}");
                     }
@@ -279,10 +279,10 @@ namespace Fluence
 
             _cachedRegisters = initialFrame.Registers;
 
-            var opCodeValues = Enum.GetValues<InstructionCode>();
+            InstructionCode[] opCodeValues = Enum.GetValues<InstructionCode>();
             int maxOpCode = 0;
 
-            foreach (var value in opCodeValues)
+            foreach (InstructionCode value in opCodeValues)
             {
                 if ((int)value > maxOpCode) maxOpCode = (int)value;
             }
@@ -418,7 +418,7 @@ namespace Fluence
 
             _stopRequested = false;
             State = FluenceVMState.Running;
-            var stopwatch = Stopwatch.StartNew();
+            Stopwatch stopwatch = Stopwatch.StartNew();
 
             while (_ip < _byteCode.Count)
             {
@@ -499,7 +499,7 @@ namespace Fluence
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                var handler = InlineCacheManager.CreateSpecializedAddHandler(instruction, this, left, right);
+                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedAddHandler(instruction, this, left, right);
                 if (handler != null)
                 {
                     instruction.SpecializedHandler = handler;
@@ -521,7 +521,7 @@ namespace Fluence
             if (left.Type == RuntimeValueType.Object && left.ObjectReference is ListObject leftList &&
                 right.Type == RuntimeValueType.Object && right.ObjectReference is ListObject rightList)
             {
-                var concatenatedList = new ListObject();
+                ListObject concatenatedList = new ListObject();
 
                 concatenatedList.Elements.AddRange(leftList.Elements);
                 concatenatedList.Elements.AddRange(rightList.Elements);
@@ -556,7 +556,7 @@ namespace Fluence
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                var handler = InlineCacheManager.CreateSpecializedSubtractionHandler(instruction, left, right);
+                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedSubtractionHandler(instruction, left, right);
                 if (handler != null)
                 {
                     instruction.SpecializedHandler = handler;
@@ -568,7 +568,7 @@ namespace Fluence
             if (left.Type == RuntimeValueType.Object && left.ObjectReference is ListObject leftList &&
                 right.Type == RuntimeValueType.Object && right.ObjectReference is ListObject rightList)
             {
-                var concatenatedList = new ListObject();
+                ListObject concatenatedList = new ListObject();
                 // This performs a set difference, which is the intuitive meaning of list subtraction.
                 concatenatedList.Elements.AddRange(leftList.Elements.Except(rightList.Elements));
                 SetRegister((TempValue)instruction.Lhs, new RuntimeValue(concatenatedList));
@@ -601,7 +601,7 @@ namespace Fluence
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                var handler = InlineCacheManager.CreateSpecializedMulHandler(instruction, left, right);
+                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedMulHandler(instruction, left, right);
                 if (handler != null)
                 {
                     instruction.SpecializedHandler = handler;
@@ -660,7 +660,7 @@ namespace Fluence
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                var handler = InlineCacheManager.CreateSpecializedDivHandler(instruction, left, right);
+                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedDivHandler(instruction, left, right);
                 if (handler != null)
                 {
                     instruction.SpecializedHandler = handler;
@@ -686,7 +686,7 @@ namespace Fluence
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                var handler = InlineCacheManager.CreateSpecializedModuloHandler(instruction, left, right);
+                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedModuloHandler(instruction, left, right);
                 if (handler != null)
                 {
                     instruction.SpecializedHandler = handler;
@@ -712,7 +712,7 @@ namespace Fluence
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                var handler = InlineCacheManager.CreateSpecializedPowerHandler(instruction, left, right);
+                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedPowerHandler(instruction, left, right);
                 if (handler != null)
                 {
                     instruction.SpecializedHandler = handler;
@@ -796,7 +796,7 @@ namespace Fluence
                 ConstructAndThrowException($"Internal VM Error: ExecuteNumericBinaryOperation called with non-numeric types.");
             }
 
-            var result = left.NumberType switch
+            RuntimeValue result = left.NumberType switch
             {
                 RuntimeNumberType.Int => right.NumberType switch
                 {
@@ -1294,7 +1294,7 @@ namespace Fluence
                 return;
             }
 
-            if (structSymbol.StaticFields.TryGetValue(fieldName.Value, out var value))
+            if (structSymbol.StaticFields.TryGetValue(fieldName.Value, out RuntimeValue value))
             {
                 SetRegister((TempValue)instruction.Lhs, value);
                 return;
@@ -1334,7 +1334,7 @@ namespace Fluence
                 return;
             }
 
-            var instanceValue = GetRuntimeValue(instruction.Lhs);
+            RuntimeValue instanceValue = GetRuntimeValue(instruction.Lhs);
             if (instanceValue.ObjectReference is not InstanceObject instance)
             {
                 ConstructAndThrowException($"Runtime Error: Cannot set property '{fieldName.Value}' on a non-instance value (got type '{GetDetailedTypeName(instanceValue)}').");
@@ -1347,7 +1347,7 @@ namespace Fluence
                 return;
             }
 
-            var valueToSet = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue valueToSet = GetRuntimeValue(instruction.Rhs2);
             instance.SetField(fieldName.Value, valueToSet);
         }
 
@@ -1595,7 +1595,7 @@ namespace Fluence
             if (instanceVal.ObjectReference is IFluenceObject fluenceObject)
             {
                 // Ask the object if it has a built-in method with this name.
-                if (fluenceObject.TryGetIntrinsicMethod(methodName, out var intrinsicMethod))
+                if (fluenceObject.TryGetIntrinsicMethod(methodName, out IntrinsicRuntimeMethod? intrinsicMethod))
                 {
                     // We found an intrinsic.
                     List<RuntimeValue> args = new List<RuntimeValue>();
@@ -1683,7 +1683,7 @@ namespace Fluence
                 return;
             }
 
-            if (structSymbol.StaticIntrinsics.TryGetValue(methodName.Value, out var intrinsicSymbol))
+            if (structSymbol.StaticIntrinsics.TryGetValue(methodName.Value, out FunctionSymbol? intrinsicSymbol))
             {
                 int argCount = _operandStack.Count;
                 if (intrinsicSymbol.Arity != argCount)
@@ -1705,7 +1705,7 @@ namespace Fluence
                 return;
             }
 
-            if (!structSymbol.Functions.TryGetValue(methodName.Value, out var methodBlueprint))
+            if (!structSymbol.Functions.TryGetValue(methodName.Value, out FunctionValue? methodBlueprint))
             {
                 ConstructAndThrowException($"Runtime Error: Static function '{methodName.Value}' not found on struct '{structSymbol.Name}'.");
                 return;
@@ -1868,7 +1868,7 @@ namespace Fluence
                 return localValue;
             }
 
-            var lexicalScope = CurrentFrame.Function.DefiningScope;
+            FluenceScope lexicalScope = CurrentFrame.Function.DefiningScope;
             if (lexicalScope.TryResolve(name, out Symbol symbol))
             {
                 return ResolveVariableFromScopeSymbol(symbol, lexicalScope);
@@ -1876,7 +1876,7 @@ namespace Fluence
 
             if (CurrentFrame.ReturnAddress == _byteCode.Count)
             {
-                foreach (var item in Namespaces.Values)
+                foreach (FluenceScope item in Namespaces.Values)
                 {
                     FluenceScope lexicalScope2 = item;
 
@@ -1920,18 +1920,18 @@ namespace Fluence
             else if (symbol is VariableSymbol variable)
             {
                 // Current scopt also contains all symbols from namespaces it uses.
-                ref var namespaceRuntimeValue = ref CollectionsMarshal.GetValueRefOrNullRef(scope.RuntimeStorage, variable.Name);
+                ref RuntimeValue namespaceRuntimeValue = ref CollectionsMarshal.GetValueRefOrNullRef(scope.RuntimeStorage, variable.Name);
                 if (!Unsafe.IsNullRef(ref namespaceRuntimeValue))
                 {
                     return namespaceRuntimeValue;
                 }
-                ref var namespaceRuntimeValue2 = ref CollectionsMarshal.GetValueRefOrNullRef(_globals, variable.Name);
+                ref RuntimeValue namespaceRuntimeValue2 = ref CollectionsMarshal.GetValueRefOrNullRef(_globals, variable.Name);
                 if (!Unsafe.IsNullRef(ref namespaceRuntimeValue2))
                 {
                     return namespaceRuntimeValue2;
                 }
 
-                foreach (var item in Namespaces.Values)
+                foreach (FluenceScope item in Namespaces.Values)
                 {
                     if (item.TryResolve(variable.Name, out Symbol symb))
                     {
@@ -1958,7 +1958,7 @@ namespace Fluence
         /// </summary>
         private void AssignVariable(string name, RuntimeValue value, bool readOnly = false)
         {
-            var cache = CurrentFrame.WritableCache;
+            Dictionary<string, bool> cache = CurrentFrame.WritableCache;
             ref bool isReadonlyRef = ref CollectionsMarshal.GetValueRefOrNullRef(cache, name);
             ref bool isReadOnlyGlobalRef = ref CollectionsMarshal.GetValueRefOrNullRef(GlobalWritableCache, name);
 

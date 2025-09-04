@@ -22,7 +22,7 @@ namespace Fluence
             ioNamespace.Declare("print", new FunctionSymbol("print", 1, (args) =>
             {
                 string message = (args.Count < 1) ? "" : args[0]?.ToFluenceString() ?? "nil";
-                outputLine(message);
+                output(message);
                 return new NilValue();
             }));
 
@@ -35,7 +35,7 @@ namespace Fluence
             {
                 Console.ReadLine();
                 Console.Clear();
-                return new StringValue(input() ?? "");
+                return new NilValue();
             }));
 
             ioNamespace.Declare("clear", new FunctionSymbol("clear", 0, (args) =>
@@ -48,6 +48,7 @@ namespace Fluence
             //
             //      The "File" static struct managing File creation, read/write and other miscellanea operations.
             //
+
             StructSymbol file = new StructSymbol("File");
             ioNamespace.Declare("File", file);
 

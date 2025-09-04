@@ -35,12 +35,11 @@ namespace Fluence
         {
             for (int i = startIndex; i < bytecode.Count - 1; i++)
             {
-                var line1 = bytecode[i];
-                if (line1 == null) continue;
-                var line2 = bytecode[i + 1];
-                if (line2 == null) continue;
+                InstructionLine line1 = bytecode[i];
+                InstructionLine line2 = bytecode[i + 1];
+                if (line1 == null || line2 == null) continue;
 
-                var opCode = GetFusedOpcode(line1.Instruction);
+                InstructionCode opCode = GetFusedOpcode(line1.Instruction);
 
                 // Pattern Match:
                 // line1: [Arithmetic] TempN TempN-1 Value
@@ -73,10 +72,9 @@ namespace Fluence
         {
             for (int i = startIndex; i < bytecode.Count - 1; i++)
             {
-                var line1 = bytecode[i];
-                if (line1 == null) continue;
-                var line2 = bytecode[i + 1];
-                if (line2 == null) continue;
+                InstructionLine line1 = bytecode[i];
+                InstructionLine line2 = bytecode[i + 1];
+                if (line1 == null || line2 == null) continue;
 
                 if (line1.Instruction == InstructionCode.Assign && line2.Instruction == InstructionCode.Assign && line2.Rhs != line1.Lhs)
                 {
@@ -101,11 +99,11 @@ namespace Fluence
         {
             for (int i = startIndex; i < bytecode.Count - 1; i++)
             {
-                var line1 = bytecode[i];
-                var line2 = bytecode[i + 1];
+                InstructionLine line1 = bytecode[i];
+                InstructionLine line2 = bytecode[i + 1];
                 if (line1 == null || line2 == null) continue;
 
-                var op = GetFusedGotoOpCode(line1.Instruction, line2.Instruction);
+                InstructionCode op = GetFusedGotoOpCode(line1.Instruction, line2.Instruction);
 
                 // Pattern Match:
                 // Not/Equal             TempN    A          B
@@ -187,7 +185,10 @@ namespace Fluence
         /// <param name="removedIndex">The index of the instruction that was just removed. All addresses greater than this index will be decremented.</param>
         private static void PatchAllAddressesAfterRemoval(ref List<InstructionLine> bytecode, ParseState state, int removedIndex)
         {
-            int MapAddr(int oldAddr) => oldAddr > removedIndex ? oldAddr - 1 : oldAddr;
+            int MapAddr(int oldAddr)
+            {
+                return oldAddr > removedIndex ? oldAddr - 1 : oldAddr;
+            }
 
             void PatchFunctionValue(FunctionValue f)
             {
@@ -196,7 +197,7 @@ namespace Fluence
 
             for (int i = 0; i < bytecode.Count; i++)
             {
-                var insn = bytecode[i];
+                InstructionLine insn = bytecode[i];
                 if (insn == null) continue;
 
                 if (IsJumpInstruction(insn.Instruction) && insn.Lhs is NumberValue targetAddr)
@@ -207,17 +208,17 @@ namespace Fluence
                 if (insn.Rhs2 is FunctionValue fvRhs2) PatchFunctionValue(fvRhs2);
             }
 
-            foreach (var symbol in state.GlobalScope.Symbols.Values)
+            foreach (Symbol symbol in state.GlobalScope.Symbols.Values)
             {
                 if (symbol is FunctionSymbol f) f.SetStartAddress(MapAddr(f.StartAddress));
-                else if (symbol is StructSymbol s) { PatchFunctionValue(s.Constructor); foreach (var m in s.Functions.Values) PatchFunctionValue(m); }
+                else if (symbol is StructSymbol s) { PatchFunctionValue(s.Constructor); foreach (FunctionValue m in s.Functions.Values) PatchFunctionValue(m); }
             }
-            foreach (var scope in state.NameSpaces.Values)
+            foreach (FluenceScope scope in state.NameSpaces.Values)
             {
-                foreach (var symbol in scope.Symbols.Values)
+                foreach (Symbol symbol in scope.Symbols.Values)
                 {
                     if (symbol is FunctionSymbol f) f.SetStartAddress(MapAddr(f.StartAddress));
-                    else if (symbol is StructSymbol s) { PatchFunctionValue(s.Constructor); foreach (var m in s.Functions.Values) PatchFunctionValue(m); }
+                    else if (symbol is StructSymbol s) { PatchFunctionValue(s.Constructor); foreach (FunctionValue m in s.Functions.Values) PatchFunctionValue(m); }
                 }
             }
         }

@@ -115,23 +115,23 @@
         public static NumberValue FromToken(Token token)
         {
             string lexeme = token.Text;
-            if (lexeme.EndsWith('f') && float.TryParse(lexeme[..^1], out var floatVal))
+            if (lexeme.EndsWith('f') && float.TryParse(lexeme[..^1], out float floatVal))
             {
                 return new NumberValue(floatVal, NumberType.Float);
             }
-            if (lexeme.Contains('.', StringComparison.OrdinalIgnoreCase) && double.TryParse(lexeme, out var doubleVal))
+            if (lexeme.Contains('.', StringComparison.OrdinalIgnoreCase) && double.TryParse(lexeme, out double doubleVal))
             {
                 return new NumberValue(doubleVal, NumberType.Double);
             }
-            if (int.TryParse(lexeme, out var intVal))
+            if (int.TryParse(lexeme, out int intVal))
             {
                 return new NumberValue(intVal, NumberType.Integer);
             }
-            if (long.TryParse(lexeme, out var longVal))
+            if (long.TryParse(lexeme, out long longVal))
             {
-                return new NumberValue(intVal, NumberType.Long);
+                return new NumberValue(longVal, NumberType.Long);
             }
-            if (double.TryParse(lexeme, out var fallbackVal))
+            if (double.TryParse(lexeme, out double fallbackVal))
             {
                 return new NumberValue(fallbackVal, NumberType.Double);
             }
@@ -281,7 +281,7 @@
         {
             // Limit the number of elements shown for very large lists to avoid flooding the console.
             const int maxElementsToShow = 20;
-            var elementsToShow = Elements.Take(maxElementsToShow);
+            IEnumerable<Value> elementsToShow = Elements.Take(maxElementsToShow);
             string formattedElements = string.Join(", ", elementsToShow);
 
             if (Elements.Count > maxElementsToShow)

@@ -169,7 +169,7 @@ namespace Fluence
             if (_currentParseState.NameSpaces.Count != 0)
             {
                 sb.AppendLine(); // Add a separator
-                foreach (var ns in _currentParseState.NameSpaces)
+                foreach (KeyValuePair<string, FluenceScope> ns in _currentParseState.NameSpaces)
                 {
                     DumpScope(sb, ns.Value, $"Namespace: {ns.Key}", 0);
                     Console.WriteLine();
@@ -200,7 +200,7 @@ namespace Fluence
             else
             {
                 // Dump all symbols within the current scope.
-                foreach (var item in scope.Symbols)
+                foreach (KeyValuePair<string, Symbol> item in scope.Symbols)
                 {
                     DumpSymbol(sb, item.Key, item.Value, indentationLevel + 1);
                 }
@@ -221,7 +221,7 @@ namespace Fluence
             {
                 case EnumSymbol enumSymbol:
                     sb.Append(indent).Append($"Symbol: {symbolName}, type Enum {{").AppendLine();
-                    foreach (var member in enumSymbol.Members)
+                    foreach (KeyValuePair<string, EnumValue> member in enumSymbol.Members)
                     {
                         sb.Append(innerIndent).Append(member.Value.MemberName).Append(", ").Append(member.Value.Value).AppendLine();
                     }
@@ -247,7 +247,7 @@ namespace Fluence
                     if (structSymbol.Functions.Count != 0)
                     {
                         sb.Append(innerIndent).AppendLine("Functions: {");
-                        foreach (var function in structSymbol.Functions)
+                        foreach (KeyValuePair<string, FunctionValue> function in structSymbol.Functions)
                         {
                             sb.Append(innerIndent).Append($"    Name: {function.Key}, Arity: {function.Value.Arity}, Start Address: {FluenceDebug.FormatByteCodeAddress(function.Value.StartAddress)}").AppendLine();
                         }
@@ -255,7 +255,7 @@ namespace Fluence
                     }
 
                     sb.Append("\tDefault Values of Fields:\n");
-                    foreach (var item in structSymbol.DefaultFieldValuesAsTokens)
+                    foreach (KeyValuePair<string, List<Token>> item in structSymbol.DefaultFieldValuesAsTokens)
                     {
                         sb.Append($"\t\t{item.Key} : {(item.Value.Count == 0 ? "None (Nil)." : string.Join(", ", item.Value))}\n");
                     }
@@ -360,12 +360,12 @@ namespace Fluence
         /// <returns>The FunctionSymbol for the entry point, or null if not found.</returns>
         private FunctionSymbol FindEntryPoint()
         {
-            if (_currentParseState.GlobalScope.TryResolve("Main", out var globalMainSymbol))
+            if (_currentParseState.GlobalScope.TryResolve("Main", out Symbol? globalMainSymbol))
             {
                 return (FunctionSymbol)globalMainSymbol;
             }
 
-            foreach (var scope in _currentParseState.NameSpaces.Values)
+            foreach (FluenceScope scope in _currentParseState.NameSpaces.Values)
             {
                 if (scope.TryResolve("Main", out Symbol mainFunc))
                 {
@@ -722,7 +722,7 @@ namespace Fluence
         {
             Token nameToken = _lexer.PeekAheadByN(startTokenIndex + 2);
             string enumName = nameToken.Text;
-            var enumSymbol = new EnumSymbol(enumName);
+            EnumSymbol enumSymbol = new EnumSymbol(enumName);
 
             int currentValue = 0;
             // Start scanning for members after the '{'.
@@ -741,7 +741,7 @@ namespace Fluence
                         ConstructAndThrowParserException($"Duplicate enum member '{memberName}'.", currentToken);
                     }
 
-                    var enumValue = new EnumValue(enumName, memberName, currentValue);
+                    EnumValue enumValue = new EnumValue(enumName, memberName, currentValue);
                     enumSymbol.Members.Add(memberName, enumValue);
                     currentValue++;
                 }
@@ -851,7 +851,7 @@ namespace Fluence
             Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a namespace name.");
             AdvanceAndExpect(TokenType.L_BRACE, "Expected an opening '{' for the namespace body.");
 
-            if (!_currentParseState.NameSpaces.TryGetValue(nameToken.Text, out var namespaceScope))
+            if (!_currentParseState.NameSpaces.TryGetValue(nameToken.Text, out FluenceScope? namespaceScope))
             {
                 ConstructAndThrowParserException($"Namespace '{nameToken.Text}' not found during second pass.", nameToken);
             }
@@ -1018,12 +1018,12 @@ namespace Fluence
             _currentParseState.CodeInstructions[loopExitPatchIndex].Lhs = new NumberValue(loopEndAddress);
 
             // Patch all 'break' statements to also jump to the end of the loop.
-            foreach (var patchIndex in loopContext.BreakPatchAddresses)
+            foreach (int patchIndex in loopContext.BreakPatchAddresses)
             {
                 _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(loopEndAddress);
             }
 
-            foreach (var patchIndex in loopContext.ContinuePatchAddresses)
+            foreach (int patchIndex in loopContext.ContinuePatchAddresses)
             {
                 _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(incrementerStartIndex);
             }
@@ -1037,23 +1037,23 @@ namespace Fluence
         private void ParseForInStatement()
         {
             Token itemToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a loop variable name after 'for'.");
-            var loopVariable = new VariableValue(itemToken.Text);
+            VariableValue loopVariable = new VariableValue(itemToken.Text);
 
             AdvanceAndExpect(TokenType.IN, "Expected the 'in' keyword in a for-in loop.");
 
             Value collectionExpr = ResolveValue(ParseExpression());
 
-            var loopContext = new LoopContext();
+            LoopContext loopContext = new LoopContext();
             _currentParseState.ActiveLoopContexts.Push(loopContext);
 
             // Unless we use for in loop with a list, allocating a new list for a range, even if the range is 
             // only slightly large is very inefficient, so we create an iterator instead.
             if (collectionExpr is RangeValue range)
             {
-                var tempRangeReg = new TempValue(_currentParseState.NextTempNumber++);
-                var iteratorReg = new TempValue(_currentParseState.NextTempNumber++);
-                var valueReg = new TempValue(_currentParseState.NextTempNumber++); // Will hold the loop variable's value
-                var continueReg = new TempValue(_currentParseState.NextTempNumber++);
+                TempValue tempRangeReg = new TempValue(_currentParseState.NextTempNumber++);
+                TempValue iteratorReg = new TempValue(_currentParseState.NextTempNumber++);
+                TempValue valueReg = new TempValue(_currentParseState.NextTempNumber++); // Will hold the loop variable's value
+                TempValue continueReg = new TempValue(_currentParseState.NextTempNumber++);
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewRange, tempRangeReg, range));
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewIterator, iteratorReg, tempRangeReg));
@@ -1079,31 +1079,31 @@ namespace Fluence
             }
             else
             {
-                var indexVar = new TempValue(_currentParseState.NextTempNumber++, "ForInIndex");
-                var collectionVar = new TempValue(_currentParseState.NextTempNumber++, "ForInCollectionCopy");
+                TempValue indexVar = new TempValue(_currentParseState.NextTempNumber++, "ForInIndex");
+                TempValue collectionVar = new TempValue(_currentParseState.NextTempNumber++, "ForInCollectionCopy");
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, collectionVar, collectionExpr));
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, new NumberValue(0)));
 
                 int loopTopAddress = _currentParseState.CodeInstructions.Count;
 
-                var lengthVar = new TempValue(_currentParseState.NextTempNumber++, "ForInCollectionLen");
+                TempValue lengthVar = new TempValue(_currentParseState.NextTempNumber++, "ForInCollectionLen");
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetLength, lengthVar, collectionVar));
 
-                var conditionVar = new TempValue(_currentParseState.NextTempNumber++);
+                TempValue conditionVar = new TempValue(_currentParseState.NextTempNumber++);
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.LessThan, conditionVar, indexVar, lengthVar));
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, conditionVar));
                 int loopExitPatchIndex = _currentParseState.CodeInstructions.Count - 1;
 
-                var currentElementVar = new TempValue(_currentParseState.NextTempNumber++);
+                TempValue currentElementVar = new TempValue(_currentParseState.NextTempNumber++);
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetElement, currentElementVar, collectionVar, indexVar));
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, loopVariable, currentElementVar));
 
                 ParseLoopBody();
 
                 int continueAddress = _currentParseState.CodeInstructions.Count;
-                var incrementedIndex = new TempValue(_currentParseState.NextTempNumber++);
+                TempValue incrementedIndex = new TempValue(_currentParseState.NextTempNumber++);
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Add, incrementedIndex, indexVar, new NumberValue(1)));
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, incrementedIndex));
 
@@ -1142,12 +1142,12 @@ namespace Fluence
         /// </summary>
         private void PatchLoopExits(LoopContext loopContext, int breakAddress, int continueAddress)
         {
-            foreach (var patchIndex in loopContext.BreakPatchAddresses)
+            foreach (int patchIndex in loopContext.BreakPatchAddresses)
             {
                 _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(breakAddress);
             }
 
-            foreach (var patchIndex in loopContext.ContinuePatchAddresses)
+            foreach (int patchIndex in loopContext.ContinuePatchAddresses)
             {
                 _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(continueAddress);
             }
@@ -1315,7 +1315,7 @@ namespace Fluence
                 if (!isInit)
                 {
                     // Bytecode for solid, static fields must be generated before the application is run.
-                    foreach (var field in structSymbol.DefaultFieldValuesAsTokens)
+                    foreach (KeyValuePair<string, List<Token>> field in structSymbol.DefaultFieldValuesAsTokens)
                     {
                         Value defaultValueResult;
                         string fieldName = field.Key;
@@ -1369,7 +1369,7 @@ namespace Fluence
                     ConstructAndThrowParserException($"Internal error: Constructor for '{structName}' not found in symbol table.", nameToken);
                 }
 
-                foreach (var field in structSymbol.DefaultFieldValuesAsTokens)
+                foreach (KeyValuePair<string, List<Token>> field in structSymbol.DefaultFieldValuesAsTokens)
                 {
                     if (structSymbol.StaticFields.ContainsKey(field.Key))
                     {
@@ -1496,7 +1496,7 @@ namespace Fluence
             Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a function name after 'func'.");
             AdvanceAndExpect(TokenType.L_PAREN, $"Expected an opening '(' for function '{nameToken.Text}' parameters.");
 
-            var parameters = new List<string>();
+            List<string> parameters = new List<string>();
             if (!_lexer.TokenTypeMatches(TokenType.R_PAREN))
             {
                 do
@@ -1577,7 +1577,7 @@ namespace Fluence
 
                 int nextCaseAddress = _currentParseState.CodeInstructions.Count;
                 // Patch all fall-throughs from the previous case to jump here.
-                foreach (var patch in nextCasePatches)
+                foreach (int patch in nextCasePatches)
                 {
                     _currentParseState.CodeInstructions[patch].Lhs = new NumberValue(nextCaseAddress);
                 }
@@ -1638,12 +1638,12 @@ namespace Fluence
 
             int matchEndAddress = _currentParseState.CodeInstructions.Count;
 
-            foreach (var patch in nextCasePatches)
+            foreach (int patch in nextCasePatches)
             {
                 _currentParseState.CodeInstructions[patch].Lhs = new NumberValue(matchEndAddress);
             }
 
-            foreach (var patch in context.BreakPatches)
+            foreach (int patch in context.BreakPatches)
             {
                 _currentParseState.CodeInstructions[patch].Lhs = new NumberValue(matchEndAddress);
             }
@@ -1741,7 +1741,7 @@ namespace Fluence
 
             int matchEndAddress = _currentParseState.CodeInstructions.Count;
 
-            foreach (var endJump in endJumpPatches)
+            foreach (int endJump in endJumpPatches)
             {
                 _currentParseState.CodeInstructions[endJump].Lhs = new NumberValue(matchEndAddress);
             }
@@ -1771,7 +1771,7 @@ namespace Fluence
         private Value ParseFString(object literal)
         {
             string fstringContent = literal.ToString()!;
-            var stringParts = new List<Value>();
+            List<Value> stringParts = new List<Value>();
             int lastIndex = 0;
 
             while (lastIndex < fstringContent.Length)
@@ -1891,7 +1891,7 @@ namespace Fluence
                 // Non empty array.
                 List<Value> elements = ParseTokenSeparatedArguments(TokenType.COMMA);
 
-                foreach (var element in elements)
+                foreach (Value element in elements)
                 {
                     _currentParseState.AddCodeInstruction(new InstructionLine(
                         InstructionCode.PushElement,
@@ -1924,7 +1924,7 @@ namespace Fluence
                     ConstructAndThrowParserException($"Namespace '{namespaceName}' not found. Expected a defined namespace.", nameToken);
                 }
 
-                foreach (var entry in namespaceToUse!.Symbols)
+                foreach (KeyValuePair<string, Symbol> entry in namespaceToUse!.Symbols)
                 {
                     if (!_currentParseState.CurrentScope.Declare(entry.Key, entry.Value) && !_currentParseState.CurrentScope.UsedScopes.Contains(entry.Key))
                     {
@@ -2082,7 +2082,7 @@ namespace Fluence
                 else if (firstLhs is VariableValue variable)
                 {
                     // The expression was just a variable. Force a read.
-                    var temp = new TempValue(_currentParseState.NextTempNumber++);
+                    TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, temp, variable));
                 }
             }
@@ -2472,7 +2472,6 @@ namespace Fluence
                 {
                     while (lhsIndex < lhsExpressions.Count)
                     {
-                        TempValue valueToAssign = new TempValue(_currentParseState.NextTempNumber++);
                         GenerateWriteBackInstruction(lhsExpressions[lhsIndex], ParseTernary());
                         lhsIndex++;
                     }
@@ -2568,7 +2567,7 @@ namespace Fluence
                     return;
                 }
 
-                foreach (var rhsValue in rhsExpressions)
+                foreach (Value rhsValue in rhsExpressions)
                 {
                     Value resolvedRhs = ResolveValue(rhsValue);
 
@@ -2583,7 +2582,7 @@ namespace Fluence
 
                     broadcastCall.Arguments[broadcastCall.PlaceholderIndex] = resolvedRhs;
 
-                    foreach (var item in broadcastCall.Arguments)
+                    foreach (Value item in broadcastCall.Arguments)
                     {
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, item));
                     }
@@ -2722,7 +2721,7 @@ namespace Fluence
 
             AdvanceAndExpect(TokenType.R_PAREN, "Expected a closing ')' for the function call in a pipe.");
 
-            foreach (var arg in args)
+            foreach (Value arg in args)
             {
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, arg));
             }
@@ -2907,7 +2906,7 @@ namespace Fluence
                 Value right = ParseBitwiseShift();
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
-                var opcode = (op.Type == TokenType.EQUAL_EQUAL)
+                InstructionCode opcode = (op.Type == TokenType.EQUAL_EQUAL)
                     ? InstructionCode.Equal
                     : InstructionCode.NotEqual;
 
@@ -2932,7 +2931,7 @@ namespace Fluence
                 Value right = ParseComparison();
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
-                var opcode = (op.Type == TokenType.BITWISE_LEFT_SHIFT)
+                InstructionCode opcode = (op.Type == TokenType.BITWISE_LEFT_SHIFT)
                     ? InstructionCode.BitwiseLShift
                     : InstructionCode.BitwiseRShift;
 
@@ -3120,7 +3119,7 @@ namespace Fluence
                 Value right = ParseMulDivModulo();
 
                 Value result = new TempValue(_currentParseState.NextTempNumber++);
-                var opcode = (op.Type == TokenType.PLUS)
+                InstructionCode opcode = (op.Type == TokenType.PLUS)
                     ? InstructionCode.Add
                     : InstructionCode.Subtract;
 
@@ -3275,7 +3274,7 @@ namespace Fluence
                 Value currentValue = ResolveValue(targetDescriptor);
 
                 TempValue result = new TempValue(_currentParseState.NextTempNumber++);
-                var one = new NumberValue(1);
+                NumberValue one = new NumberValue(1);
                 _currentParseState.AddCodeInstruction(new InstructionLine(operation, result, currentValue, one));
 
                 GenerateWriteBackInstruction(targetDescriptor, result);
@@ -3429,7 +3428,7 @@ namespace Fluence
                     );
                 }
 
-                foreach (var arg in arguments)
+                foreach (Value arg in arguments)
                 {
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, ResolveValue(arg)));
                 }
@@ -3665,7 +3664,7 @@ namespace Fluence
             }
 
             int continueAddress = loopStartIndex;
-            foreach (var patchIndex in loopContext.ContinuePatchAddresses)
+            foreach (int patchIndex in loopContext.ContinuePatchAddresses)
             {
                 _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(continueAddress);
             }

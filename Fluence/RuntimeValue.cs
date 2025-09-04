@@ -135,20 +135,20 @@ namespace Fluence
         /// <exception cref="FluenceRuntimeException">Thrown if the property or method is not defined.</exception>
         internal RuntimeValue GetField(string fieldName)
         {
-            if (_fields.TryGetValue(fieldName, out var value))
+            if (_fields.TryGetValue(fieldName, out RuntimeValue value))
             {
                 return value;
             }
 
-            if (Class.StaticFields.TryGetValue(fieldName, out var value2))
+            if (Class.StaticFields.TryGetValue(fieldName, out RuntimeValue value2))
             {
                 return value2;
             }
 
-            if (Class.Functions.TryGetValue(fieldName, out var method))
+            if (Class.Functions.TryGetValue(fieldName, out FunctionValue? method))
             {
                 // Create a new BoundMethodObject that pairs this instance ('self') with the method blueprint.
-                var boundMethod = new BoundMethodObject(this, method);
+                BoundMethodObject boundMethod = new BoundMethodObject(this, method);
                 return new RuntimeValue(boundMethod);
             }
 
@@ -168,7 +168,7 @@ namespace Fluence
         public override string ToString()
         {
             StringBuilder stringBuilder = new StringBuilder($"<instance of {Class.Name}>.");
-            foreach (var item in _fields)
+            foreach (KeyValuePair<string, RuntimeValue> item in _fields)
             {
                 stringBuilder.Append($"\n\t{item}");
             }
@@ -194,14 +194,14 @@ namespace Fluence
         private static RuntimeValue ListLengthIntrinsic(IReadOnlyList<RuntimeValue> args)
         {
             // For a method call, 'self' is always passed as the first argument.
-            var self = args[0].As<ListObject>();
+            ListObject? self = args[0].As<ListObject>();
             return new RuntimeValue(self!.Elements.Count);
         }
 
         /// <summary>Implements the native 'push(element)' method for lists.</summary>
         private static RuntimeValue ListPushElementIntrinsic(IReadOnlyList<RuntimeValue> args)
         {
-            var self = args[0].As<ListObject>();
+            ListObject? self = args[0].As<ListObject>();
             self!.Elements.Add(args[1]);
             return new RuntimeValue(null!);
         }
@@ -259,21 +259,21 @@ namespace Fluence
         /// <summary>Implements the native length property for strings.</summary>
         private static RuntimeValue StringLengthIntrinsic(IReadOnlyList<RuntimeValue> args)
         {
-            var self = (StringObject)args[0].ObjectReference;
+            StringObject self = (StringObject)args[0].ObjectReference;
             return new RuntimeValue(self.Value.Length);
         }
 
         /// <summary>Implements the native ToUpper function for strings.</summary>
         private static RuntimeValue StringToUpperIntrinsic(IReadOnlyList<RuntimeValue> args)
         {
-            var self = (StringObject)args[0].ObjectReference;
+            StringObject self = (StringObject)args[0].ObjectReference;
             return new RuntimeValue(new StringObject(self.Value.ToUpperInvariant()));
         }
 
         /// <summary>Implements the native IndexOf function for strings.</summary>
         private static RuntimeValue StringIntrinsicFind(IReadOnlyList<RuntimeValue> args)
         {
-            var self = (StringObject)args[0].ObjectReference;
+            StringObject self = (StringObject)args[0].ObjectReference;
             if (args.Count < 2 || args[1].ObjectReference is not CharObject charToFind)
             {
                 throw new FluenceRuntimeException($"Runtime Error: string.find() expects a character as an argument.");

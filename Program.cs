@@ -11,7 +11,7 @@
 
             if (fluenceInterpreter.Compile(source, true))
             {
-                fluenceInterpreter.RunFor(TimeSpan.FromSeconds(110));
+                fluenceInterpreter.RunUntilDone();
             }
 
             return 1;

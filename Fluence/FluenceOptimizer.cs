@@ -78,7 +78,7 @@ namespace Fluence
                 var line2 = bytecode[i + 1];
                 if (line2 == null) continue;
 
-                if (line1.Instruction == InstructionCode.Assign && line2.Instruction == InstructionCode.Assign)
+                if (line1.Instruction == InstructionCode.Assign && line2.Instruction == InstructionCode.Assign && line2.Rhs != line1.Lhs )
                 {
                     bytecode[i].Instruction = InstructionCode.AssignTwo;
                     bytecode[i].Lhs = line1.Lhs;

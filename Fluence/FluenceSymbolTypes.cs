@@ -86,6 +86,11 @@
         internal Dictionary<string, RuntimeValue> StaticFields { get; init; } = new();
 
         /// <summary>
+        /// Stores natively implemented static methods (intrinsics).
+        /// </summary>
+        public Dictionary<string, FunctionSymbol> StaticIntrinsics { get; } = new();
+
+        /// <summary>
         /// Gets a dictionary of methods defined within the struct, mapping method names to their <see cref="FunctionValue"/>s.
         /// </summary>
         internal Dictionary<string, FunctionValue> Functions { get; init; } = new();
@@ -101,6 +106,10 @@
         /// This can be null if no explicit constructor is defined.
         /// </summary>
         internal FunctionValue Constructor { get; set; }
+
+        internal StructSymbol()
+        {
+        }
 
         internal StructSymbol(string name)
         {

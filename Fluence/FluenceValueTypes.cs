@@ -336,6 +336,10 @@
         /// </summary>
         internal FluenceScope FunctionScope { get; private set; }
 
+        internal FunctionValue()
+        {
+        }
+
         internal FunctionValue(string name, int arity, int startAddress, List<string> arguments = null!)
         {
             Name = name;
@@ -351,6 +355,16 @@
             StartAddress = -1;
             IsIntrinsic = true;
             IntrinsicBody = body;
+        }
+
+        public FunctionValue(string name, int arity, IntrinsicMethod body, List<string> args)
+        {
+            Name = name;
+            Arity = arity;
+            StartAddress = -1;
+            IsIntrinsic = true;
+            IntrinsicBody = body;
+            Arguments = args;
         }
 
         internal void SetScope(FluenceScope scope)

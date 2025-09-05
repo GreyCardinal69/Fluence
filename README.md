@@ -27,6 +27,7 @@ Fluence is a dynamically-typed, multi-paradigm scripting language that rejects v
   - [The "Dot Family" Operators](#the-dot-family-operators)
   - [Syntactic Sugar & QoL](#syntactic-sugar--qol)
 - [Roadmap](#roadmap)
+- [Examples](#examples)
 
 ## Performance
 
@@ -340,7 +341,7 @@ Fluence is still in its early stages of development. Many features are yet to be
 ---
 
 
-# Some examples:
+# Examples:
 
 ## A simple calculator in Fluence:
 ```cs

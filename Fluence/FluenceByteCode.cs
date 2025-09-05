@@ -122,6 +122,8 @@
 
                 BranchIfEqual,
                 BranchIfNotEqual,
+
+                PushTwoParams,
             }
 
             /// <summary>Gets the operation code for this instruction.</summary>

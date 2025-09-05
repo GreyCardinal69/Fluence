@@ -21,6 +21,7 @@ namespace Fluence
             FuseGotoConditionals(ref bytecode, startIndex);
             FuseCompoundAssignments(ref bytecode, startIndex);
             FuseSimpleAssignments(ref bytecode, startIndex);
+            FuseTwoPushParams(ref bytecode, startIndex);
 
             CompactAndRealignFromBottomUp(ref bytecode, parseState);
         }
@@ -57,6 +58,29 @@ namespace Fluence
                     bytecode[i].Lhs = line2.Lhs;
                     bytecode[i].Rhs = line1.Rhs;
                     bytecode[i].Rhs2 = line1.Rhs2;
+                    bytecode[i + 1] = null!;
+                    i++;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Fuses two PushParam instructions into one.
+        /// </summary>
+        /// <param name="bytecode">The bytecode list to modify.</param>
+        /// <param name="startIndex">The index from which to begin scanning.</param>
+        private static void FuseTwoPushParams(ref List<InstructionLine> bytecode, int startIndex)
+        {
+            for (int i = startIndex; i < bytecode.Count - 1; i++)
+            {
+                InstructionLine line1 = bytecode[i];
+                InstructionLine line2 = bytecode[i + 1];
+                if (line1 == null || line2 == null) continue;
+
+                if (line1.Instruction == InstructionCode.PushParam && line2.Instruction == InstructionCode.PushParam)
+                {
+                    bytecode[i].Instruction = InstructionCode.PushTwoParams;
+                    bytecode[i].Rhs = line2.Lhs;
                     bytecode[i + 1] = null!;
                     i++;
                 }

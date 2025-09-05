@@ -354,6 +354,8 @@ namespace Fluence
 
             _dispatchTable[(int)InstructionCode.AssignTwo] = ExecuteAssignTwo;
 
+            _dispatchTable[(int)InstructionCode.PushTwoParams] = ExecutePushTwoParam;
+
             // Goto family.
             _dispatchTable[(int)InstructionCode.BranchIfEqual] = (inst) => ExecuteBranchIfEqual(inst, true);
             _dispatchTable[(int)InstructionCode.BranchIfNotEqual] = (inst) => ExecuteBranchIfEqual(inst, false);
@@ -1528,6 +1530,15 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Handles the PUSH_TWO_PARAMS instruction, which pushes two values onto the operand stack in preparation for a function call.
+        /// </summary>
+        private void ExecutePushTwoParam(InstructionLine instruction)
+        {
+            _operandStack.Push(GetRuntimeValue(instruction.Lhs));
+            _operandStack.Push(GetRuntimeValue(instruction.Rhs));
+        }
+
+        /// <summary>
         /// Handles the CALL_FUNCTION instruction, which invokes a standalone function.
         /// </summary>
         private void ExecuteCallFunction(InstructionLine instruction)
@@ -1618,7 +1629,8 @@ namespace Fluence
 
             FunctionValue methodBlueprint;
 
-            if (string.Equals(methodName, "init", StringComparison.Ordinal))
+            // <script> frame.
+            if (CurrentFrame.ReturnAddress == _byteCode.Count)
             {
                 methodBlueprint = instance!.Class.Constructor;
                 if (methodBlueprint == null)

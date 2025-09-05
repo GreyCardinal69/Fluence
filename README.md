@@ -81,7 +81,7 @@ Fluence is dynamically typed. The core types include:
 -   **Strings:** Simple (`"..."`) and formatted (`f"..."`) strings with `{expression}` interpolation.
 -   **Chars:** Simple (`'c'`) characters.
 -   **Booleans:** `true` and `false`.
--   **Nil:** A null-like value, checked with the `is nil` operator.
+-   **Nil:** A null-like value.
 -   **Lists:** There are no arrays in Fluence, only lists.
 -   **Structs:** User defined and intrinsic.
 -   **Enums:** Simple C-style enumerations.

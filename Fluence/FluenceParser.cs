@@ -1458,15 +1458,7 @@ namespace Fluence
         /// <param name="isInit">True if the method being parsed is a constructor (`init`).</param>
         /// <param name="structName">The name of the struct, if `inStruct` is true.</param>
         private void ParseFunction(bool inStruct = false, bool isInit = false, string structName = null!)
-        {
-            bool noCodeYet = _currentParseState.CodeInstructions.Count == 0;
-
-            if (!noCodeYet)
-            {
-                // We optimize all the bytecode up to this point.
-                FluenceOptimizer.OptimizeChunk(ref _currentParseState.CodeInstructions, _currentParseState, _lastOptimizationIndex);
-            }
-
+        { 
             _currentParseState.IsParsingFunctionBody = true;
             (Token nameToken, List<string> parameters) = ParseFunctionHeader();
             string functionName = nameToken.Text;
@@ -1498,10 +1490,7 @@ namespace Fluence
             _currentParseState.CodeInstructions[functionStartAddress - 1].Lhs = new NumberValue(afterBodyAddress);
             _currentParseState.IsParsingFunctionBody = false;
 
-            if (noCodeYet)
-            {
-                FluenceOptimizer.OptimizeChunk(ref _currentParseState.CodeInstructions, _currentParseState, _lastOptimizationIndex);
-            }
+            FluenceOptimizer.OptimizeChunk(ref _currentParseState.CodeInstructions, _currentParseState, _lastOptimizationIndex);
 
             // Next time we call OptimizeChunk, all the bytecode before here will be skipped, to avoid repetitive, useless optimization passes.
             _lastOptimizationIndex = functionStartAddress;

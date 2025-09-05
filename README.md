@@ -198,7 +198,7 @@ The `match` statement is a flexible tool for handling complex conditional logic 
         y = 0;
         z; # A field with no default value, defaults to nil on initialization.
         
-        # A static, readonly field
+        # A static, readonly field.
         solid ORIGIN = Point(0, 0); 
         
         # Constructor.
@@ -218,8 +218,6 @@ The `match` statement is a flexible tool for handling complex conditional logic 
     enum Status { Pending, Complete, Failed, }
     task_status = Status.Pending;
     ```
-
-
 
 ### Namespaces & Modules
 Organize code with `space` and import with `use`. The `use` keyword can import multiple namespaces at once.

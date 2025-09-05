@@ -15,7 +15,7 @@ Fluence is a dynamically-typed, multi-paradigm scripting language that rejects v
 - [Core Philosophy](#core-philosophy)
 - [Performance](#performance)
 - [Language Tour](#language-tour)
-  - [Fundamentals (Variables, `solid`, Data Types)](#fundamentals)
+  - [Fundamentals](#fundamentals)
   - [Functions](#functions)
   - [Control Flow](#control-flow)
   - [Data Structures & Object Model](#data-structures--object-model)
@@ -31,11 +31,8 @@ Fluence is a dynamically-typed, multi-paradigm scripting language that rejects v
 ## Performance
 
 Fluence is designed for high performance. The interpreter features a multi-stage pipeline that includes:
-1.  **Lexer:** Converts source code into a stream of tokens.
-2.  **Parser:** Builds a symbol hierarchy and generates an initial, unoptimized bytecode representation.
-3.  **Optimizer:** A crucial peephole optimization pass that fuses common instruction patterns (e.g., `Equal` + `GotoIfFalse` -> `BranchIfNotEqual`) to reduce instruction count.
-4.  **Virtual Machine (VM):** A highly optimized, dispatch-table based VM that executes the bytecode. It features an advanced inline caching system that dynamically specializes hot code paths at runtime, dramatically reducing the overhead of variable lookups and type checks for performance-critical loops.
-
+1.  **Optimizer:** A crucial peephole optimization pass that fuses common instruction patterns to reduce instruction count.
+2.  **Virtual Machine (VM):** A highly optimized, dispatch-table based VM that executes the bytecode.
 ---
 
 ## Core Philosophy
@@ -45,7 +42,7 @@ Fluence is guided by a simple principle: to express complex logic with minimum f
 -   **Versatility:** Most constructs, including `if`, `match`, and even `loop`, can be used as expressions to produce a value.
 -   **Readability:** Data flows naturally from left to right through a series of transformative pipes, minimizing intermediate variables and enhancing readability.
 -   **Compactness:** The language comes with a vast array of shorthand operators, leading to a higher code density and ease of navigation.
--   **Embeddable:** Built to be a powerful scripting engine inside a larger host application with a clean API for communication.
+-   **Embeddable:** Built to be a powerful scripting engine.on.
 
 ## Language Tour
 
@@ -58,24 +55,24 @@ Fluence is guided by a simple principle: to express complex logic with minimum f
     ```
     
 -  #### Variables & The `solid` Keyword
-   Variables are declared implicitly on their first assignment. The `solid` keyword creates a **readonly** binding.
+   The `solid` keyword creates a **readonly** binding.
   
     ```cs
-    // A mutable variable
+    # A mutable variable.
     my_var = 10;
-    my_var = 20; // This is fine
+    my_var = 20; // This is fine.
     
-    // A readonly (immutable) variable
+    # A readonly (immutable) variable.
     solid immutable_var = "Hello";
-    immutable_var = "World"; // This will cause a compile-time or runtime error
+    immutable_var = "World"; # This will cause a compile-time or runtime error.
     ```
 -   **Comments:** Single-line (`#`) and multi-line, nestable (`#* ... *#`).
 -   **Strings:** Simple (`"..."`) and formatted (`f"..."`) strings with `{expression}` interpolation.
     ```cs
     world = "World";
-    greeting = f"Hello, {world}!"; // "Hello, World!"
+    greeting = f"Hello, {world}!";
     ```
--   **Ranges:** Inclusive ranges defined by `start..end` (e.g., `1..10`).
+-   **Ranges:** Inclusive ranges defined by `start..end` (e.g., `1..10`). If used outside a `for .. in ..` loop, the range operator returns a list of the elements from a to b.
 
 #### Data Types
 Fluence is dynamically typed. The core types include:
@@ -84,6 +81,9 @@ Fluence is dynamically typed. The core types include:
 -   **Chars:** Simple (`'c'`) characters.
 -   **Booleans:** `true` and `false`.
 -   **Nil:** A null-like value, checked with the `is nil` operator.
+-   **Lists:** There are no arrays in Fluence, only lists.
+-   **Structs:** User defined and intrinsic.
+-   **Enums:** Simple C-style enumerations.
 -   **Ranges:** Inclusive ranges defined by `start..end` (e.g., `1..10`). When used in a `for n in a...b` loop, a special iterator object is created. Otherwise the range returns a list of values from a to b.
 
 ### Functions
@@ -106,7 +106,7 @@ Lambdas are yet to be implemented.
 
 All control structures support a single-line `->` syntax for simple bodies.
 -   **`if`/`else if`/`else`:** Standard conditional branching.
--   **`unless`:** A highly readable inverse of `if`. `unless condition` is equivalent to `if not condition`.
+-   **`unless`:** The inverse of `if`. `unless condition` is equivalent to `if not condition`.
     ```cs
     unless user.is_authenticated -> redirectToLoginPage();
     ```
@@ -115,7 +115,7 @@ All control structures support a single-line `->` syntax for simple bodies.
     -   `while condition -> ...`
     -   `loop { ... if condition -> break; }`
     -   `for i = 0; i < N; i++ -> ...`
-    -   **Natural Language Loop:** A unique, readable way to loop a fixed number of times.
+    -   **Natural Language Loop:** A way to loop a fixed number of times.
         ```cs
         5 times { printl("Hello!"); }
         N = 10;
@@ -130,7 +130,7 @@ The `match` statement is a flexible tool for handling complex conditional logic 
     This is the most common form. It's an expression that evaluates to the value of the first matching case. It must be exhaustive, meaning a `rest` (default) case is required if all other possibilities aren't covered.
 
     ```cs
-    // Before: A clunky if/else if/else chain
+    # Before: A clunky if/else if/else chain.
     icon = "";
     if tile == Tile.Hit {
         icon = "X";
@@ -141,7 +141,7 @@ The `match` statement is a flexible tool for handling complex conditional logic 
     }
     row_str += f" {icon} ";
 
-    // After: A clean, single match expression
+    # After: A clean, single match expression.
     row_str += f" {match tile {
                    Tile.Hit -> "X";
                    Tile.Miss -> "0";
@@ -154,14 +154,14 @@ The `match` statement is a flexible tool for handling complex conditional logic 
     For more complex logic, you can use a colon (`:`) to define a block of statements for each case. This form does **not** return a value and supports fallthrough and `break`.
 
     ```cs
-    // A statement-style match for handling different command types.
+    # A statement-style match for handling different command types.
     match command.type {
         Command.MOVE:
             handle_move(command.payload);
-            // Implicit fallthrough to the next case
+            # Implicit fallthrough to the next case
         Command.UPDATE_UI:
             ui.needs_redraw = true;
-            break; // Exit the match block
+            break; # Exit the match block
         Command.QUIT:
             game.is_running = false;
             break;
@@ -179,7 +179,7 @@ The `match` statement is a flexible tool for handling complex conditional logic 
         Tile.Ship => {
             player_grid.update_tile(shot_point, Tile.Hit);
             game.score += 100;
-            return ">>> HIT! <<<"; // This block returns a value
+            return ">>> HIT! <<<"; # This block returns a value.
         },
         rest -> ">>> Miss. <<<";
     };
@@ -192,25 +192,25 @@ The `match` statement is a flexible tool for handling complex conditional logic 
 -   **Structs:** Simple data aggregates with instance fields, static fields, methods, and a special `init` constructor. `self` is used to refer to the instance.
     ```cs
     struct Vector2 {
-        // Instance fields with default values
+        # Instance fields with default values.
         x = 0; 
         y = 0;
-        z; // A field with no default value, default to nil on initialization.
+        z; # A field with no default value, default to nil on initialization.
         
-        // A static, readonly field
+        # A static, readonly field
         solid ORIGIN = Point(0, 0); 
         
-        // Constructor
+        # Constructor.
         func init(x, y) => { self.x, self.y <~| x, y; }
         
-        // Instance Method
+        # Instance Method.
         func length() => (self.x**2 + self.y**2)**0.5;
 
         func from_angle(angle, magnitude) => { ... }
     }
-    v = Vector2(3, 4);      // Constructor call
-    p = Point{x: 10, y: 20};  // Direct initializer
-    origin = Vector2.ORIGIN;  // Accessing a static field
+    v = Vector2(3, 4);      # Constructor call.
+    p = Point{x: 10, y: 20};  # Direct initializer.
+    origin = Vector2.ORIGIN;  # Accessing a static field.
     ```
 -   **Enums:** Simple, C-style enumerations for named constants.
     ```cs
@@ -225,6 +225,9 @@ Organize code with `space` and import with `use`. The `use` keyword can import m
 ```cs
 space MyGame {
     use FluenceIO, FluenceMath;
+    # or
+    use FluenceIO;
+    use FluenceMath;
     ...
 }
 ```
@@ -315,7 +318,7 @@ fluence -run my_script.fl
 ```
 
 # Roadmap
-Fluence is still in its early stages of development. Here is a look at what is on the horizon:
+Fluence is still in its early stages of development. Many features are yet to be implemented.
 
 -   **Enhanced Type System:**
     -   **Access Modifiers:** Introducing `private` and `public` keywords for fields and methods to provide robust encapsulation.

@@ -7,7 +7,6 @@ namespace Fluence
 {
     internal static class InlineCacheManager
     {
-        // TO DO, apply readonly check to all specialized handlers, move to direct assignment without that check.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static RuntimeValue AddValues(RuntimeValue left, RuntimeValue right)
         {
@@ -254,35 +253,51 @@ namespace Fluence
             };
         }
 
+        private static bool AttemptToModifyReadonlyVar(InstructionLine insn, FluenceVirtualMachine vm)
+        {
+            if (insn.Lhs is TempValue)
+            {
+                return false;
+            }
+
+            string destName = ((VariableValue)insn.Lhs).Name;
+
+            if (vm.CurrentFrame.Function.DefiningScope.TryResolve(destName, out Symbol symbol) &&
+                symbol is VariableSymbol { IsReadonly: true })
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool AreEqual(RuntimeValue left, RuntimeValue right)
+        {
+            if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
+            {
+                return left.DoubleValue == right.DoubleValue;
+            }
+
+            return left.Equals(right);
+        }
+
         internal static SpecializedOpcodeHandler? CreateSpecializedAddHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            // We can only specialize if both operands are numbers.
             if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
             {
                 return null;
             }
 
-            string? destName = null;
-            if (insn.Lhs is VariableValue varDest) destName = varDest.Name;
-            else if (insn.Lhs is TempValue tempDest) destName = tempDest.TempName;
-
-            if (destName != null)
+            if (AttemptToModifyReadonlyVar(insn, vm))
             {
-                if (vm.CurrentFrame.Function.DefiningScope.TryResolve(destName, out Symbol symbol) &&
-                    symbol is VariableSymbol { IsReadonly: true })
-                {
-                    // The destination is readonly. We can't create a writer for it.
-                    // We throw the error right here during the specialization attempt.
-                    vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{destName}'.");
-                    return null; // Should not be reached
-                }
+                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
+                return null;
             }
-            else { return null; }
 
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;
 
-            // Case 1: Variable op Variable (e.g., x + y)
             if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
             {
                 string leftName = varLeft.Name;
@@ -309,7 +324,6 @@ namespace Fluence
                 };
             }
 
-            // Case 2: Variable op Constant (e.g., x + 5)
             if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
             {
                 string varName = varOp.Name;
@@ -340,7 +354,6 @@ namespace Fluence
                 };
             }
 
-            // The other way around.
             if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
             {
                 RuntimeValue constValue = left;
@@ -373,7 +386,6 @@ namespace Fluence
 
                 return (instruction, vm) =>
                 {
-                    // Same logic as Var+Var.
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
@@ -399,7 +411,6 @@ namespace Fluence
 
                 return (instruction, vm) =>
                 {
-                    // Same logic as Var+Const.
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
@@ -429,7 +440,6 @@ namespace Fluence
 
                 return (instruction, vm) =>
                 {
-                    // Same logic as Const+Var.
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     if (!Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
@@ -453,7 +463,6 @@ namespace Fluence
 
                 return (instruction, vm) =>
                 {
-                    // Same logic as Var+Var.
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
@@ -501,11 +510,20 @@ namespace Fluence
             return null;
         }
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedSubtractionHandler(InstructionLine insn, RuntimeValue left, RuntimeValue right)
+        internal static SpecializedOpcodeHandler? CreateSpecializedSubtractionHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            // We can only specialize if both operands are numbers.
             if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
             {
+                return null;
+            }
+
+            if (AttemptToModifyReadonlyVar(insn, vm))
+            {
+                string destName = null;
+                if (insn.Lhs is VariableValue value) destName = value.Name;
+                else if (insn.Lhs is TempValue tempDest) destName = tempDest.TempName;
+
+                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{destName}'.");
                 return null;
             }
 
@@ -561,7 +579,6 @@ namespace Fluence
                 };
             }
 
-            // The other way around.
             if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
             {
                 RuntimeValue constValue = left;
@@ -710,11 +727,20 @@ namespace Fluence
             return null;
         }
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedDivHandler(InstructionLine insn, RuntimeValue left, RuntimeValue right)
+        internal static SpecializedOpcodeHandler? CreateSpecializedDivHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            // We can only specialize if both operands are numbers.
             if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
             {
+                return null;
+            }
+
+            if (AttemptToModifyReadonlyVar(insn, vm))
+            {
+                string destName = null;
+                if (insn.Lhs is VariableValue value) destName = value.Name;
+                else if (insn.Lhs is TempValue tempDest) destName = tempDest.TempName;
+
+                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{destName}'.");
                 return null;
             }
 
@@ -852,8 +878,23 @@ namespace Fluence
             return null;
         }
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedMulHandler(InstructionLine insn, RuntimeValue left, RuntimeValue right)
+        internal static SpecializedOpcodeHandler? CreateSpecializedMulHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
+            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
+            {
+                return null;
+            }
+
+            if (AttemptToModifyReadonlyVar(insn, vm))
+            {
+                string destName = null;
+                if (insn.Lhs is VariableValue value) destName = value.Name;
+                else if (insn.Lhs is TempValue tempDest) destName = tempDest.TempName;
+
+                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{destName}'.");
+                return null;
+            }
+
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;
 
@@ -923,7 +964,6 @@ namespace Fluence
                 };
             }
 
-            // The other way around.
             if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
             {
                 RuntimeValue constValue = left;
@@ -1120,11 +1160,20 @@ namespace Fluence
             return null;
         }
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedModuloHandler(InstructionLine insn, RuntimeValue left, RuntimeValue right)
+        internal static SpecializedOpcodeHandler? CreateSpecializedModuloHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            // We can only specialize if both operands are numbers.
             if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
             {
+                return null;
+            }
+
+            if (AttemptToModifyReadonlyVar(insn, vm))
+            {
+                string destName = null;
+                if (insn.Lhs is VariableValue value) destName = value.Name;
+                else if (insn.Lhs is TempValue tempDest) destName = tempDest.TempName;
+
+                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{destName}'.");
                 return null;
             }
 
@@ -1163,7 +1212,6 @@ namespace Fluence
                 };
             }
 
-            // The other way around.
             if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
             {
                 RuntimeValue constValue = left;
@@ -1262,11 +1310,20 @@ namespace Fluence
             return null;
         }
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedPowerHandler(InstructionLine insn, RuntimeValue left, RuntimeValue right)
+        internal static SpecializedOpcodeHandler? CreateSpecializedPowerHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            // We can only specialize if both operands are numbers.
             if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
             {
+                return null;
+            }
+
+            if (AttemptToModifyReadonlyVar(insn, vm))
+            {
+                string destName = null;
+                if (insn.Lhs is VariableValue value) destName = value.Name;
+                else if (insn.Lhs is TempValue tempDest) destName = tempDest.TempName;
+
+                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{destName}'.");
                 return null;
             }
 
@@ -1305,7 +1362,6 @@ namespace Fluence
                 };
             }
 
-            // The other way around.
             if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
             {
                 RuntimeValue constValue = left;
@@ -1405,24 +1461,12 @@ namespace Fluence
             return null;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool AreEqual(RuntimeValue left, RuntimeValue right)
-        {
-            if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
-            {
-                return left.DoubleValue == right.DoubleValue;
-            }
-
-            return left.Equals(right);
-        }
-
-        internal static SpecializedOpcodeHandler? CreateSpecializedBranchHandler(InstructionLine insn, RuntimeValue left, RuntimeValue right, bool target)
+        internal static SpecializedOpcodeHandler? CreateSpecializedBranchHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right, bool target)
         {
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;
             int jumpTarget = (int)((NumberValue)insn.Lhs).Value;
 
-            // Variable vs Constant (e.g., term == 1).
             if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
             {
                 string varName = varOp.Name;
@@ -1447,7 +1491,6 @@ namespace Fluence
                 };
             }
 
-            // Temp vs Constant (e.g., temp  == 1).
             if (lhsOperand is TempValue temp && rhsOperand is NumberValue)
             {
                 string varName = temp.TempName;
@@ -1472,7 +1515,6 @@ namespace Fluence
                 };
             }
 
-            // Variable vs Variable (e.g., x == y).
             if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
             {
                 string leftName = varLeft.Name;
@@ -1498,7 +1540,6 @@ namespace Fluence
                 };
             }
 
-            // Temp vs Temp.
             if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
             {
                 string leftName = tempLeft.TempName;

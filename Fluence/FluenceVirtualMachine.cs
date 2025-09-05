@@ -556,7 +556,7 @@ namespace Fluence
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedSubtractionHandler(instruction, left, right);
+                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedSubtractionHandler(instruction, this, left, right);
                 if (handler != null)
                 {
                     instruction.SpecializedHandler = handler;
@@ -601,7 +601,7 @@ namespace Fluence
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedMulHandler(instruction, left, right);
+                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedMulHandler(instruction, this, left, right);
                 if (handler != null)
                 {
                     instruction.SpecializedHandler = handler;
@@ -660,7 +660,7 @@ namespace Fluence
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedDivHandler(instruction, left, right);
+                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedDivHandler(instruction, this, left, right);
                 if (handler != null)
                 {
                     instruction.SpecializedHandler = handler;
@@ -686,7 +686,7 @@ namespace Fluence
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedModuloHandler(instruction, left, right);
+                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedModuloHandler(instruction, this, left, right);
                 if (handler != null)
                 {
                     instruction.SpecializedHandler = handler;
@@ -712,7 +712,7 @@ namespace Fluence
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
-                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedPowerHandler(instruction, left, right);
+                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedPowerHandler(instruction, this, left, right);
                 if (handler != null)
                 {
                     instruction.SpecializedHandler = handler;
@@ -942,7 +942,7 @@ namespace Fluence
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
-            instruction.SpecializedHandler = InlineCacheManager.CreateSpecializedBranchHandler(instruction, left, right, target);
+            instruction.SpecializedHandler = InlineCacheManager.CreateSpecializedBranchHandler(instruction, this, left, right, target);
             bool result = left.Equals(right);
 
             if (result == target)

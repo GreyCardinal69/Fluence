@@ -356,7 +356,7 @@ func Main() => {
             "-" -> num1 - num2;
             "*" -> num1 * num2;
             "/" -> num2 == 0 ? nil : num1 / num2;
-            rest -> nil; # fluid uses rest keyword here instead of "_"
+            rest -> nil;
         } ->> print(result is nil ?: "Error: Invalid operation or division by zero.", f"Result: {result}") <<-;
     else -> print("Error: Invalid input, one or more arguments were null.");
 }

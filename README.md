@@ -84,7 +84,7 @@ Fluence is dynamically typed. The core types include:
 -   **Chars:** Simple (`'c'`) characters.
 -   **Booleans:** `true` and `false`.
 -   **Nil:** A null-like value, checked with the `is nil` operator.
--   **Ranges:** Inclusive ranges defined by `start..end` (e.g., `1..10`).
+-   **Ranges:** Inclusive ranges defined by `start..end` (e.g., `1..10`). When used in a `for n in a...b` loop, a special iterator object is created. Otherwise the range returns a list of values from a to b.
 
 ### Functions
 

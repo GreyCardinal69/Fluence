@@ -210,6 +210,12 @@
             DefiningScope = definingScope;
         }
 
+        public override string ToString()
+        {
+            string args = (Arguments == null || Arguments.Count == 0) ? "None" : string.Join(",", Arguments);
+            return $"FunctionSymbol: {Name}, Intrinsic:{IsIntrinsic}, {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} args: {args}.";
+        }
+
         internal override string ToFluenceString()
         {
             return $"<internal: function_symbol>";

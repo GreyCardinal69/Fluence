@@ -1552,10 +1552,9 @@ namespace Fluence
                 List<Value> args = new List<Value>(argCount);
                 for (int i = 0; i < argCount; i++)
                 {
-                    // Intrinsics work with the raw `Value` types.
                     args.Add(ToValue(_operandStack.Pop()));
                 }
-                args.Reverse(); // The stack gives them in reverse order, so we fix it.
+                args.Reverse();
 
                 Value resultValue = function.IntrinsicBody(args);
                 SetRegister((TempValue)instruction.Lhs, GetRuntimeValue(resultValue));
@@ -1591,13 +1590,10 @@ namespace Fluence
             string methodName = methodNameVal.Value;
             RuntimeValue instanceVal = GetRuntimeValue(instruction.Rhs);
 
-            // Check if the object is a native type (like List) that exposes fast C# methods.
             if (instanceVal.ObjectReference is IFluenceObject fluenceObject)
             {
-                // Ask the object if it has a built-in method with this name.
                 if (fluenceObject.TryGetIntrinsicMethod(methodName, out IntrinsicRuntimeMethod? intrinsicMethod))
                 {
-                    // We found an intrinsic.
                     List<RuntimeValue> args = new List<RuntimeValue>();
                     // The first argument to an intrinsic method is always 'self'.
                     args.Add(instanceVal);
@@ -1607,7 +1603,7 @@ namespace Fluence
                     {
                         args.Add(_operandStack.Pop());
                     }
-                    args.Reverse(1, argCount); // Reverse the explicit args, but keep 'self' at the front.
+                    args.Reverse(1, argCount);
 
                     SetRegister((TempValue)instruction.Lhs, intrinsicMethod(args));
                     return;
@@ -1628,7 +1624,6 @@ namespace Fluence
                 if (methodBlueprint == null)
                 {
                     SetRegister((TempValue)instruction.Lhs, instanceVal);
-                    // No explicit init, do nothing.
                     return;
                 }
             }
@@ -1641,7 +1636,6 @@ namespace Fluence
                 }
             }
 
-            // Convert the compile-time FunctionValue into a runtime FunctionObject.
             FunctionObject functionToExecute = new FunctionObject(
                 methodBlueprint.Name,
                 methodBlueprint.Arity,

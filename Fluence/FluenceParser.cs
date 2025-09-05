@@ -269,6 +269,24 @@ namespace Fluence
                         sb.Append(innerIndent).Append($"Constructor: {constructor.Name} {{ Arity: {constructor.Arity}, Start Address: {FluenceDebug.FormatByteCodeAddress(constructor.StartAddress)} }}").AppendLine();
                     }
 
+                    sb.Append(indent).Append($"Functions: {(structSymbol.Functions.Count == 0 ? "None.\n" : "\n")}");
+                    foreach (var item in structSymbol.Functions)
+                    {
+                        sb.Append(indent).Append(item).AppendLine();
+                    }
+
+                    sb.Append(indent).Append($"Static Intrinsics: {(structSymbol.StaticIntrinsics.Count == 0 ? "None.\n" : "\n")}");
+                    foreach (var item in structSymbol.StaticIntrinsics)
+                    {
+                        sb.Append(indent).Append(indent).Append(item).AppendLine();
+                    }
+
+                    sb.Append(indent).Append($"Static Fields: {(structSymbol.StaticFields.Count == 0 ? "None.\n" : "\n")}");
+                    foreach (var item in structSymbol.StaticFields)
+                    {
+                        sb.Append(indent).Append(indent).Append(item).AppendLine();
+                    }
+
                     sb.Append(indent).AppendLine("}");
                     break;
             }

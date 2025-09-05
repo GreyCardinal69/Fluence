@@ -36,8 +36,6 @@ Fluence is designed for high performance. The interpreter features a multi-stage
 3.  **Optimizer:** A crucial peephole optimization pass that fuses common instruction patterns (e.g., `Equal` + `GotoIfFalse` -> `BranchIfNotEqual`) to reduce instruction count.
 4.  **Virtual Machine (VM):** A highly optimized, dispatch-table based VM that executes the bytecode. It features an advanced **inline caching** system that dynamically specializes hot code paths at runtime, dramatically reducing the overhead of variable lookups and type checks for performance-critical loops.
 
-For CPU-intensive numerical algorithms, this architecture allows Fluence to be exceptionally fast, often executing much faster than other C#-based scripting languages.
-
 ---
 
 ## Core Philosophy

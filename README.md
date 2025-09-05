@@ -43,7 +43,7 @@ Fluence is guided by a simple principle: to express complex logic with minimum f
 -   **Versatility:** Most constructs, including `if`, `match`, and even `loop`, can be used as expressions to produce a value.
 -   **Readability:** Data flows naturally from left to right through a series of transformative pipes, minimizing intermediate variables and enhancing readability.
 -   **Compactness:** The language comes with a vast array of shorthand operators, leading to a higher code density and ease of navigation.
--   **Embeddable:** Built to be a powerful scripting engine.on.
+-   **Embeddable:** Built to be a powerful scripting engine.
 
 ## Language Tour
 

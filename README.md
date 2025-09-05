@@ -340,6 +340,26 @@ Fluence is still in its early stages of development. Many features are yet to be
 ---
 
 
+# Some examples:
+
+## A simple calculator in Fluence:
+```cs
+use FluenceIO;
+
+func Main() => {
+    num1, num2, op <2!| to_int(input()) <| input();
+
+    if num1, num2, op <!=| nil ->
+        ->> result = match op {
+            "+" -> num1 + num2;
+            "-" -> num1 - num2;
+            "*" -> num1 * num2;
+            "/" -> num2 == 0 ? nil : num1 / num2;
+            rest -> nil; # fluid uses rest keyword here instead of "_"
+        } ->> print(result is nil ?: "Error: Invalid operation or division by zero.", f"Result: {result}") <<-;
+    else -> print("Error: Invalid input, one or more arguments were null.");
+}
+```
 
 
 

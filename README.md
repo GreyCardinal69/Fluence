@@ -9,7 +9,7 @@
 </p>
 </div>
 
-Fluence is a dynamically-typed, multi-paradigm scripting language built from the ground up for expressive power. It rejects verbosity and boilerplate, providing a rich suite of unique operators and constructs that enable a declarative, pipeline-oriented style.
+Fluence is a dynamically-typed, multi-paradigm scripting language that rejects verbosity and boilerplate. The language provides a rich suite of unique operators and constructs that enable a declarative, pipeline-oriented style.
 
 
 - [Core Philosophy](#core-philosophy)
@@ -34,18 +34,18 @@ Fluence is designed for high performance. The interpreter features a multi-stage
 1.  **Lexer:** Converts source code into a stream of tokens.
 2.  **Parser:** Builds a symbol hierarchy and generates an initial, unoptimized bytecode representation.
 3.  **Optimizer:** A crucial peephole optimization pass that fuses common instruction patterns (e.g., `Equal` + `GotoIfFalse` -> `BranchIfNotEqual`) to reduce instruction count.
-4.  **Virtual Machine (VM):** A highly optimized, dispatch-table based VM that executes the bytecode. It features an advanced **inline caching** system that dynamically specializes hot code paths at runtime, dramatically reducing the overhead of variable lookups and type checks for performance-critical loops.
+4.  **Virtual Machine (VM):** A highly optimized, dispatch-table based VM that executes the bytecode. It features an advanced inline caching system that dynamically specializes hot code paths at runtime, dramatically reducing the overhead of variable lookups and type checks for performance-critical loops.
 
 ---
 
 ## Core Philosophy
 
-Fluence is guided by a simple principle: empower the developer to express complex logic with minimum friction.
+Fluence is guided by a simple principle: to express complex logic with minimum friction.
 
--   **Expression-Oriented:** Most constructs, including `if`, `match`, and even `loop`, can be used as expressions to produce a value.
--   **Pipeline-Driven:** Data flows naturally from left to right through a series of transformative pipes, minimizing intermediate variables and enhancing readability.
--   **Concise but Clear:** The language provides a wealth of "shorthand" operators, but they are designed to be intuitive and improve the signal-to-noise ratio of the code.
--   **Embeddable:** Fluence is built to be a powerful scripting engine inside a larger host application (like a game engine, server, or plugin system), with a clean API for communication.
+-   **Versatility:** Most constructs, including `if`, `match`, and even `loop`, can be used as expressions to produce a value.
+-   **Readability:** Data flows naturally from left to right through a series of transformative pipes, minimizing intermediate variables and enhancing readability.
+-   **Compactness:** The language comes with a vast array of shorthand operators, leading to a higher code density and ease of navigation.
+-   **Embeddable:** Built to be a powerful scripting engine inside a larger host application with a clean API for communication.
 
 ## Language Tour
 
@@ -122,12 +122,12 @@ All control structures support a single-line `->` syntax for simple bodies.
         N times as i { create_enemy(i * 20); }
         ```
         
-#### `match` — Powerful Pattern Matching
-The `match` statement is Fluence's powerful and flexible tool for handling complex conditional logic based on a value's identity. It can be used as a traditional statement (like a `switch`) or as an expression that returns a value.
+#### `match` — Versatile Pattern Matching
+The `match` statement is a flexible tool for handling complex conditional logic based on a value's identity. It can be used as a traditional statement (like a `switch`) or as an expression that returns a value.
 
 *   **Expression-Style `match` (`->`)**
 
-    This is the most common form. It's an expression that evaluates to the value of the first matching case. It **must be exhaustive**, meaning a `rest` (default) case is required if all other possibilities aren't covered.
+    This is the most common form. It's an expression that evaluates to the value of the first matching case. It must be exhaustive, meaning a `rest` (default) case is required if all other possibilities aren't covered.
 
     ```cs
     // Before: A clunky if/else if/else chain
@@ -232,9 +232,9 @@ space MyGame {
 ---
 
 
-## The Soul of Fluence: The Operator Suite
+## Operators
 
-This is what makes Fluence unique. The operators are designed to be composed into powerful, declarative expressions.
+Operators can be considered Fluence its most distinct features. The operators are designed with ease of use and readability in mind.
 
 ### Pipeline Operators
 These operators create a linear, left-to-right flow of data, eliminating nested calls.
@@ -242,8 +242,8 @@ These operators create a linear, left-to-right flow of data, eliminating nested 
 | Operator | Name | Description | Example |
 | :--- | :--- | :--- | :--- |
 | **`\|>`** | Pipe | Pipes the LHS result into an argument of the RHS function, marked by `_`. Implicit for single-argument functions. | `input() \|> trim() \|> to_upper()` |
-| **`\|?`** | Optional Pipe | **Nil-propagating.** If LHS is `nil`, the chain stops and returns `nil`. | `user \|? _.get_profile() \|? _.name` |
-| **`\|??`**| Guard Pipe | **Truthy-propagating.** If the current value is `false`, the chain stops and returns `false`. | `is_valid \|?? check_a() \|?? check_b()` |
+| **`\|?`** | Optional Pipe |  If LHS is `nil`, the chain stops and returns `nil`. | `user \|? _.get_profile() \|? _.name` |
+| **`\|??`**| Guard Pipe | If the current value is `false`, the chain stops and returns `false`. | `is_valid \|?? check_a() \|?? check_b()` |
 | **`\|>>`** | Map Pipe | Transforms each element of a list into a new list. | `[1,2,3] \|>> _ * 2` -> `[2,4,6]` |
 | **`\|>>=`**| Reducer Pipe | Reduces a list to a single value. Takes an `(initial, (acc, el) => ...)` lambda. | `[1,2,3] \|>>= (0, (s, n) => s + n)` -> `6` |
 | **`\|~>`** | Scan Pipe | Reduces a list but returns all intermediate results. Takes `(count, (el) => ...)` lambda. | `1 \|~> (4, (x) => x * 2)` -> `[1,2,4,8,16]` |
@@ -253,7 +253,7 @@ As of now, the following are not yet implemented: Scan Pipe, Composition pipe, r
 
 
 ### Advanced Assignment Operators
-Fluence elevates assignment from a simple statement to a powerful expression tool for reducing boilerplate.
+Elevates assignment from a simple statement to a powerful expression tool for reducing boilerplate.
 
 | Operator | Name | Description | Example |
 | :--- | :--- | :--- | :--- |
@@ -270,13 +270,13 @@ Check a condition against multiple variables at once, eliminating long `&&` or `
 
 | Operator | Name | Description | Example |
 | :--- | :--- | :--- | :--- |
-| **`<==\|`** | Collective AND | Returns `true` if **ALL** variables on the left meet the condition. | `if x, y <>\| 5` (if x>5 AND y>5) |
-| **`<\|\|==\|`**| Collective OR | Returns `true` if **ANY** variable on the left meets the condition. | `if x, y <\|\|==\| nil` (if x is nil OR y is nil) |
+| **`<==\|`** | Collective AND | Returns `true` if all variables on the left meet the condition. | `if x, y <>\| 5` (if x>5 AND y>5) |
+| **`<\|\|==\|`**| Collective OR | Returns `true` if any variable on the left meets the condition. | `if x, y <\|\|==\| nil` (if x is nil OR y is nil) |
 *(Variants exist for `!=`, `<`, `>`, `<=`, `>=` by changing the middle symbol, e.g., `<>=\|`, `<\|\|<\|`)*
 
 
 ### The "Dot Family" Operators
-These operators provide function-style syntax for common operations, improving clarity.
+These operators provide function-style syntax for common operations.
 
 | Operator | Name | Description | Example |
 | :--- | :--- | :--- | :--- |
@@ -315,7 +315,7 @@ fluence -run my_script.fl
 ```
 
 # Roadmap
-Fluence is an actively evolving language with an ambitious vision. Here is a look at what's on the horizon:
+Fluence is still in its early stages of development. Here is a look at what is on the horizon:
 
 -   **Enhanced Type System:**
     -   **Access Modifiers:** Introducing `private` and `public` keywords for fields and methods to provide robust encapsulation.

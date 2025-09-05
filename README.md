@@ -159,10 +159,10 @@ The `match` statement is a flexible tool for handling complex conditional logic 
     match command.type {
         Command.MOVE:
             handle_move(command.payload);
-            # Implicit fallthrough to the next case
+            # Implicit fallthrough to the next case.
         Command.UPDATE_UI:
             ui.needs_redraw = true;
-            break; # Exit the match block
+            break; # Exit the match block.
         Command.QUIT:
             game.is_running = false;
             break;
@@ -196,7 +196,7 @@ The `match` statement is a flexible tool for handling complex conditional logic 
         # Instance fields with default values.
         x = 0; 
         y = 0;
-        z; # A field with no default value, default to nil on initialization.
+        z; # A field with no default value, defaults to nil on initialization.
         
         # A static, readonly field
         solid ORIGIN = Point(0, 0); 

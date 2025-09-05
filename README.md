@@ -114,7 +114,7 @@ All control structures support a single-line `->` syntax for simple bodies.
 -   **Loops:** A comprehensive suite for any use case.
     -   `for item in collection -> ...`
     -   `while condition -> ...`
-    -   `loop { ... if condition -> break; }`
+    -   `loop { ... if condition -> break; }` A special infinite loop, until it encounters a `break` statement.
     -   `for i = 0; i < N; i++ -> ...`
     -   **Natural Language Loop:** A way to loop a fixed number of times.
         ```cs

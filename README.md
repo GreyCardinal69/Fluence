@@ -361,6 +361,27 @@ func Main() => {
 }
 ```
 
+## Collatz Conjecture
+```cs
+use FluenceIO;
+
+func Collatz() => {
+    max_len, num_with_max_len, limit <2| 0 <| 100000;
+
+    for n in 1..limit {
+        len, term <~| 1, n;
+        while term != 1 {
+            if term % 2 == 0 -> term /= 2;
+            else -> term = term * 3 + 1;
+            len += 1;
+        }
+        if len > max_len -> max_len, num_with_max_len <~| len, n;
+    }
+    return num_with_max_len; 
+}
+
+func Main() => printl(Collatz());
+```
 
 
 

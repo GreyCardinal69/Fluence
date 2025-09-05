@@ -1880,41 +1880,42 @@ namespace Fluence.ParserTests
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
         }
+
         [Fact]
         public void MultiAssignVectorCombined()
         {
             string source = @"
-        list = [1,2];
-        a,b,c,booly <~| 10, -10, ""Hello world!"", true;
-        x,y,z, list[1] <~?| 10, -10, 0, 999;
-    ";
+                list = [1,2];
+                a,b,c,booly <~| 10, -10, ""Hello world!"", true;
+                x,y,z, list[1] <~?| 10, -10, 0, 999;
+            ";
 
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
-    {
-        new(InstructionCode.NewList, new TempValue(1)),
-        new(InstructionCode.PushElement, new TempValue(1), new NumberValue(1)),
-        new(InstructionCode.PushElement, new TempValue(1), new NumberValue(2)),
-        new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
-        new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(10)),
-        new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(-10)),
-        new(InstructionCode.Assign, new VariableValue("c"), new StringValue("Hello world!")),
-        new(InstructionCode.Assign, new VariableValue("booly"), new BooleanValue(true)),
-        new(InstructionCode.Equal, new TempValue(2), new NumberValue(10), new NilValue()),
-        new(InstructionCode.GotoIfTrue, new NumberValue(11), new TempValue(2)),
-        new(InstructionCode.Assign, new VariableValue("x"), new NumberValue(10)),
-        new(InstructionCode.Equal, new TempValue(3), new NumberValue(-10), new NilValue()),
-        new(InstructionCode.GotoIfTrue, new NumberValue(14), new TempValue(3)),
-        new(InstructionCode.Assign, new VariableValue("y"), new NumberValue(-10)),
-        new(InstructionCode.Equal, new TempValue(4), new NumberValue(0), new NilValue()),
-        new(InstructionCode.GotoIfTrue, new NumberValue(17), new TempValue(4)),
-        new(InstructionCode.Assign, new VariableValue("z"), new NumberValue(0)),
-        new(InstructionCode.Equal, new TempValue(5), new NumberValue(999), new NilValue()),
-        new(InstructionCode.GotoIfTrue, new NumberValue(20), new TempValue(5)),
-        new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(1), new NumberValue(999)),
-        new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
-        new(InstructionCode.Terminate, null!)
-    };
+            {
+                new(InstructionCode.NewList, new TempValue(1)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(1)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(2)),
+                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
+                new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(10)),
+                new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(-10)),
+                new(InstructionCode.Assign, new VariableValue("c"), new StringValue("Hello world!")),
+                new(InstructionCode.Assign, new VariableValue("booly"), new BooleanValue(true)),
+                new(InstructionCode.Equal, new TempValue(2), new NumberValue(10), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(11), new TempValue(2)),
+                new(InstructionCode.Assign, new VariableValue("x"), new NumberValue(10)),
+                new(InstructionCode.Equal, new TempValue(3), new NumberValue(-10), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(14), new TempValue(3)),
+                new(InstructionCode.Assign, new VariableValue("y"), new NumberValue(-10)),
+                new(InstructionCode.Equal, new TempValue(4), new NumberValue(0), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(17), new TempValue(4)),
+                new(InstructionCode.Assign, new VariableValue("z"), new NumberValue(0)),
+                new(InstructionCode.Equal, new TempValue(5), new NumberValue(999), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(20), new TempValue(5)),
+                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(1), new NumberValue(999)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Terminate, null!)
+            };
             AssertBytecodeEqual(expectedCode, compiledCode);
         }
 
@@ -1922,54 +1923,51 @@ namespace Fluence.ParserTests
         public void MultiAssignVectorNilSafe()
         {
             string source = @"
-        list = [1,2];
-        x,y,z, list[1] <~?| 10, -10, 0, 999;
-    ";
+                list = [1,2];
+                x,y,z, list[1] <~?| 10, -10, 0, 999;
+            ";
 
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
-    {
-        new(InstructionCode.NewList, new TempValue(1)),
-        new(InstructionCode.PushElement, new TempValue(1), new NumberValue(1)),
-        new(InstructionCode.PushElement, new TempValue(1), new NumberValue(2)),
-        new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
-        new(InstructionCode.Equal, new TempValue(2), new NumberValue(10), new NilValue()),
-        new(InstructionCode.GotoIfTrue, new NumberValue(7), new TempValue(2)),
-        new(InstructionCode.Assign, new VariableValue("x"), new NumberValue(10)),
-        new(InstructionCode.Equal, new TempValue(3), new NumberValue(-10), new NilValue()),
-        new(InstructionCode.GotoIfTrue, new NumberValue(10), new TempValue(3)),
-        new(InstructionCode.Assign, new VariableValue("y"), new NumberValue(-10)),
-        new(InstructionCode.Equal, new TempValue(4), new NumberValue(0), new NilValue()),
-        new(InstructionCode.GotoIfTrue, new NumberValue(13), new TempValue(4)),
-        new(InstructionCode.Assign, new VariableValue("z"), new NumberValue(0)),
-        new(InstructionCode.Equal, new TempValue(5), new NumberValue(999), new NilValue()),
-        new(InstructionCode.GotoIfTrue, new NumberValue(16), new TempValue(5)),
-        new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(1), new NumberValue(999)),
-        new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
-        new(InstructionCode.Terminate, null!)
-    };
+            {
+                new(InstructionCode.NewList, new TempValue(1)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(1)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(2)),
+                new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
+                new(InstructionCode.Equal, new TempValue(2), new NumberValue(10), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(7), new TempValue(2)),
+                new(InstructionCode.Assign, new VariableValue("x"), new NumberValue(10)),
+                new(InstructionCode.Equal, new TempValue(3), new NumberValue(-10), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(10), new TempValue(3)),
+                new(InstructionCode.Assign, new VariableValue("y"), new NumberValue(-10)),
+                new(InstructionCode.Equal, new TempValue(4), new NumberValue(0), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(13), new TempValue(4)),
+                new(InstructionCode.Assign, new VariableValue("z"), new NumberValue(0)),
+                new(InstructionCode.Equal, new TempValue(5), new NumberValue(999), new NilValue()),
+                new(InstructionCode.GotoIfTrue, new NumberValue(16), new TempValue(5)),
+                new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(1), new NumberValue(999)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Terminate, null!)
+            };
             AssertBytecodeEqual(expectedCode, compiledCode);
         }
 
         [Fact]
         public void MultiAssignVector()
         {
-            string source = @"
-        a,b,c,booly <~| 10, -10, ""Hello world!"", true;
-    ";
+            string source = @"a,b,c,booly <~| 10, -10, ""Hello world!"", true;";
 
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
-    {
-        new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(10)),
-        new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(-10)),
-        new(InstructionCode.Assign, new VariableValue("c"), new StringValue("Hello world!")),
-        new(InstructionCode.Assign, new VariableValue("booly"), new BooleanValue(true)),
-        new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
-        new(InstructionCode.Terminate, null!)
-    };
+            {
+                new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(10)),
+                new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(-10)),
+                new(InstructionCode.Assign, new VariableValue("c"), new StringValue("Hello world!")),
+                new(InstructionCode.Assign, new VariableValue("booly"), new BooleanValue(true)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Terminate, null!)
+            };
             AssertBytecodeEqual(expectedCode, compiledCode);
         }
-
     }
 }

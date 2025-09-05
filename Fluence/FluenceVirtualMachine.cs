@@ -162,7 +162,6 @@ namespace Fluence
             /// <summary>
             /// A cache to store the readonly status of variables in this scope.
             /// Key: variable name. Value: true if readonly, false if writable.
-            /// This avoids expensive TryResolve calls on every assignment.
             /// </summary>
             internal readonly Dictionary<string, bool> WritableCache = new();
 

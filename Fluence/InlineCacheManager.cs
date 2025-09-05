@@ -299,7 +299,7 @@ namespace Fluence
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = AddValues(val1, val2);
-                        vm.SetVariable((VariableValue)instruction.Lhs, result);
+                        vm.SetVariableOrRegister(instruction.Lhs, result);
                     }
                     else
                     {

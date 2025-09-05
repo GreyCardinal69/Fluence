@@ -282,6 +282,18 @@ namespace Fluence
             return left.Equals(right);
         }
 
+        private static void ModifyTarget(Value dest, FluenceVirtualMachine vm, RuntimeValue newValue)
+        {
+            if (dest is TempValue temp)
+            {
+                vm.SetRegister(temp, newValue);
+            }
+            else
+            {
+                vm.SetVariable((VariableValue)dest, newValue);
+            }
+        }
+
         internal static SpecializedOpcodeHandler? CreateSpecializedAddHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
             if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
@@ -314,7 +326,7 @@ namespace Fluence
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = AddValues(val1, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -337,14 +349,7 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
                         RuntimeValue result = AddValues(val1, constValue);
-                        if (instruction.Lhs is TempValue temp)
-                        {
-                            vm.SetRegister(temp, result);
-                        }
-                        else
-                        {
-                            vm.SetVariable((VariableValue)instruction.Lhs, result);
-                        }
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -367,7 +372,7 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = AddValues(constValue, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -393,7 +398,7 @@ namespace Fluence
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = AddValues(val1, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -415,14 +420,7 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
                         RuntimeValue result = AddValues(val1, constValue);
-                        if (instruction.Lhs is TempValue temp)
-                        {
-                            vm.SetRegister(temp, result);
-                        }
-                        else
-                        {
-                            vm.SetVariable((VariableValue)instruction.Lhs, result);
-                        }
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -444,7 +442,7 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = AddValues(constValue, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -470,7 +468,7 @@ namespace Fluence
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = AddValues(val1, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -497,7 +495,7 @@ namespace Fluence
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = AddValues(val1, val2);
-                        vm.SetVariable((VariableValue)instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -519,11 +517,7 @@ namespace Fluence
 
             if (AttemptToModifyReadonlyVar(insn, vm))
             {
-                string destName = null;
-                if (insn.Lhs is VariableValue value) destName = value.Name;
-                else if (insn.Lhs is TempValue tempDest) destName = tempDest.TempName;
-
-                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{destName}'.");
+                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
                 return null;
             }
 
@@ -546,7 +540,7 @@ namespace Fluence
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = SubValues(val1, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -569,7 +563,7 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
                         RuntimeValue result = SubValues(val1, constValue);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -592,7 +586,7 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = SubValues(constValue, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -618,7 +612,7 @@ namespace Fluence
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = SubValues(val1, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -640,7 +634,7 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
                         RuntimeValue result = SubValues(val1, constValue);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -662,7 +656,7 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = SubValues(constValue, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -688,7 +682,7 @@ namespace Fluence
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = SubValues(val1, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -714,7 +708,7 @@ namespace Fluence
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = SubValues(val1, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -736,11 +730,7 @@ namespace Fluence
 
             if (AttemptToModifyReadonlyVar(insn, vm))
             {
-                string destName = null;
-                if (insn.Lhs is VariableValue value) destName = value.Name;
-                else if (insn.Lhs is TempValue tempDest) destName = tempDest.TempName;
-
-                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{destName}'.");
+                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
                 return null;
             }
 
@@ -760,7 +750,7 @@ namespace Fluence
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
                     RuntimeValue result = DivValues(val1, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -775,7 +765,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     RuntimeValue result = DivValues(val1, constValue);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -808,7 +798,7 @@ namespace Fluence
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
                     RuntimeValue result = DivValues(val1, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -823,7 +813,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
                     RuntimeValue result = DivValues(val1, constValue);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -837,7 +827,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     RuntimeValue result = DivValues(constValue, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -854,7 +844,7 @@ namespace Fluence
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     RuntimeValue result = DivValues(val1, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -871,7 +861,7 @@ namespace Fluence
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
                     RuntimeValue result = DivValues(val1, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -887,11 +877,7 @@ namespace Fluence
 
             if (AttemptToModifyReadonlyVar(insn, vm))
             {
-                string destName = null;
-                if (insn.Lhs is VariableValue value) destName = value.Name;
-                else if (insn.Lhs is TempValue tempDest) destName = tempDest.TempName;
-
-                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{destName}'.");
+                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
                 return null;
             }
 
@@ -914,7 +900,7 @@ namespace Fluence
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = MulValues(val1, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -945,7 +931,7 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
                         RuntimeValue result = MulValues(val1, constValue);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -977,7 +963,7 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = MulValues(constValue, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -1011,7 +997,7 @@ namespace Fluence
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = MulValues(val1, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -1041,7 +1027,7 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
                         RuntimeValue result = MulValues(val1, constValue);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -1071,7 +1057,7 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = MulValues(constValue, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -1105,7 +1091,7 @@ namespace Fluence
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = MulValues(val1, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -1139,7 +1125,7 @@ namespace Fluence
                         !Unsafe.IsNullRef(ref val2) && val2.NumberType == expectedRhsType)
                     {
                         RuntimeValue result = MulValues(val1, val2);
-                        vm.SetVariableOrRegister(instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {
@@ -1169,11 +1155,7 @@ namespace Fluence
 
             if (AttemptToModifyReadonlyVar(insn, vm))
             {
-                string destName = null;
-                if (insn.Lhs is VariableValue value) destName = value.Name;
-                else if (insn.Lhs is TempValue tempDest) destName = tempDest.TempName;
-
-                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{destName}'.");
+                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
                 return null;
             }
 
@@ -1193,7 +1175,7 @@ namespace Fluence
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
                     RuntimeValue result = ModuloValues(val1, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -1208,7 +1190,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     RuntimeValue result = ModuloValues(val1, constValue);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -1223,7 +1205,7 @@ namespace Fluence
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     RuntimeValue result = ModuloValues(constValue, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -1240,7 +1222,7 @@ namespace Fluence
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
                     RuntimeValue result = ModuloValues(val1, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -1255,7 +1237,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
                     RuntimeValue result = ModuloValues(val1, constValue);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -1269,7 +1251,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     RuntimeValue result = ModuloValues(constValue, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -1286,7 +1268,7 @@ namespace Fluence
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     RuntimeValue result = ModuloValues(val1, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -1303,7 +1285,7 @@ namespace Fluence
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
                     RuntimeValue result = ModuloValues(val1, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -1319,11 +1301,7 @@ namespace Fluence
 
             if (AttemptToModifyReadonlyVar(insn, vm))
             {
-                string destName = null;
-                if (insn.Lhs is VariableValue value) destName = value.Name;
-                else if (insn.Lhs is TempValue tempDest) destName = tempDest.TempName;
-
-                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{destName}'.");
+                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
                 return null;
             }
 
@@ -1343,7 +1321,7 @@ namespace Fluence
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
                     RuntimeValue result = PowerValues(val1, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -1358,7 +1336,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     RuntimeValue result = PowerValues(val1, constValue);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -1373,7 +1351,7 @@ namespace Fluence
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     RuntimeValue result = PowerValues(constValue, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -1390,7 +1368,7 @@ namespace Fluence
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
                     RuntimeValue result = PowerValues(val1, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -1405,7 +1383,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
                     RuntimeValue result = PowerValues(val1, constValue);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -1420,7 +1398,7 @@ namespace Fluence
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
                     RuntimeValue result = PowerValues(constValue, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -1437,7 +1415,7 @@ namespace Fluence
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
                     RuntimeValue result = PowerValues(val1, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 
@@ -1454,7 +1432,7 @@ namespace Fluence
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
                     RuntimeValue result = PowerValues(val1, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
+                    ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
 

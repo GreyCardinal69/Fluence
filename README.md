@@ -243,7 +243,7 @@ These operators create a linear, left-to-right flow of data, eliminating nested 
 
 | Operator | Name | Description | Example |
 | :--- | :--- | :--- | :--- |
-| **`\|>`** | Pipe | Pipes the LHS result into an argument of the RHS function, marked by `_`. Implicit for single-argument functions. | `input() \|> trim() \|> to_upper()` |
+| **`\|>`** | Pipe | Pipes the LHS result into an argument of the RHS function, marked by `_`. Implicit for single-argument functions. | `input() \|> trim(_) \|> to_upper(_)` | The pipe must be followed by an `_` in the function you pipe into.
 | **`\|?`** | Optional Pipe |  If LHS is `nil`, the chain stops and returns `nil`. | `user \|? _.get_profile() \|? _.name` |
 | **`\|??`**| Guard Pipe | If the current value is `false`, the chain stops and returns `false`. | `is_valid \|?? check_a() \|?? check_b()` |
 | **`\|>>`** | Map Pipe | Transforms each element of a list into a new list. | `[1,2,3] \|>> _ * 2` -> `[2,4,6]` |

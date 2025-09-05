@@ -9,7 +9,7 @@
 </p>
 </div>
 
-Fluence is a dynamically-typed, multi-paradigm scripting language built from the ground up for expressive power. It rejects verbosity and boilerplate, providing a rich suite of unique operators and constructs that enable a declarative, pipeline-oriented style. If you've ever found yourself chaining temporary variables, writing deeply nested null-checks, or creating loops for simple data transformations and thought, "there has to be a better way,"—Fluence was built for you.
+Fluence is a dynamically-typed, multi-paradigm scripting language built from the ground up for expressive power. It rejects verbosity and boilerplate, providing a rich suite of unique operators and constructs that enable a declarative, pipeline-oriented style.
 
 
 - [Core Philosophy](#core-philosophy)

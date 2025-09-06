@@ -1545,5 +1545,77 @@ namespace Fluence
 
             return null;
         }
+
+        internal static SpecializedOpcodeHandler? CreateSpecializedGetElementHandler(InstructionLine insn, RuntimeValue collection, RuntimeValue index)
+        {
+            if (index.Type != RuntimeValueType.Number) return null;
+
+            var collectionOperand = insn.Rhs;
+            var indexOperand = insn.Rhs2;
+            var destRegister = (TempValue)insn.Lhs;
+
+            if (collection.ObjectReference is ListObject)
+            {
+                if (collectionOperand is VariableValue collVar && indexOperand is VariableValue indexVar)
+                {
+                    string collName = collVar.Name;
+                    string indexName = indexVar.Name;
+
+                    return (instruction, vm) =>
+                    {
+                        ref var collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
+                        ref var indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
+
+                        if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is ListObject list &&
+                            !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
+                        {
+                            int idx = indexRef.IntValue;
+                            if (idx >= 0 && idx < list.Elements.Count)
+                            {
+                                vm.SetRegister(destRegister, list.Elements[idx]);
+                            }
+                            else { vm.ConstructAndThrowException("Index out of range."); }
+                        }
+                        else
+                        {
+                            instruction.SpecializedHandler = null;
+                            vm.ExecuteGenericGetElement(instruction);
+                        }
+                    };
+                }
+
+                if (collectionOperand is VariableValue collVar2 && indexOperand is TempValue indextemp)
+                {
+                    string collName = collVar2.Name;
+                    string indexName = indextemp.TempName;
+
+                    return (instruction, vm) =>
+                    {
+                        ref var collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
+                        ref var indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
+
+                        if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is ListObject list &&
+                            !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
+                        {
+                            int idx = indexRef.IntValue;
+                            if (idx >= 0 && idx < list.Elements.Count)
+                            {
+                                vm.SetRegister(destRegister, list.Elements[idx]);
+                            }
+                            else { vm.ConstructAndThrowException("Index out of range."); }
+                        }
+                        else
+                        {
+                            instruction.SpecializedHandler = null;
+                            vm.ExecuteGenericGetElement(instruction);
+                        }
+                    };
+                }
+            }
+
+            // TO DO, for strings.
+
+            return null;
+        }
     }
 }

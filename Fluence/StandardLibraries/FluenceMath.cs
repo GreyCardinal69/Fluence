@@ -185,6 +185,7 @@
                 return num.Type switch
                 {
                     NumberValue.NumberType.Integer => new NumberValue(Math.Max(Convert.ToInt32(num.Value), Convert.ToInt32(num2.Value))),
+                    NumberValue.NumberType.Long => new NumberValue(Math.Max(Convert.ToInt64(num.Value), Convert.ToInt64(num2.Value))),
                     NumberValue.NumberType.Float => new NumberValue(Math.Max(Convert.ToSingle(num.Value), Convert.ToSingle(num2.Value)), NumberValue.NumberType.Float),
                     _ => new NumberValue(Math.Max(Convert.ToDouble(num.Value), Convert.ToDouble(num2.Value)), NumberValue.NumberType.Double),
                 };
@@ -193,13 +194,28 @@
             mathNamespace.Declare("min", new FunctionSymbol("min", 2, (args) =>
             {
                 if (args.Count < 2 || args[0] is not NumberValue num || args[1] is not NumberValue num2)
-                    throw new FluenceRuntimeException("min() expects three numerical argumenta.");
+                    throw new FluenceRuntimeException("min() expects two numerical argumenta.");
 
                 return num.Type switch
                 {
                     NumberValue.NumberType.Integer => new NumberValue(Math.Min(Convert.ToInt32(num.Value), Convert.ToInt32(num2.Value))),
+                    NumberValue.NumberType.Long => new NumberValue(Math.Min(Convert.ToInt64(num.Value), Convert.ToInt64(num2.Value))),
                     NumberValue.NumberType.Float => new NumberValue(Math.Min(Convert.ToSingle(num.Value), Convert.ToSingle(num2.Value)), NumberValue.NumberType.Float),
                     _ => new NumberValue(Math.Min(Convert.ToDouble(num.Value), Convert.ToDouble(num2.Value)), NumberValue.NumberType.Double),
+                };
+            }));
+
+            mathNamespace.Declare("min3", new FunctionSymbol("min3", 3, (args) =>
+            {
+                if (args.Count < 3 || args[0] is not NumberValue num || args[1] is not NumberValue num2 || args[2] is not NumberValue num3)
+                    throw new FluenceRuntimeException("min3() expects three numerical argumenta.");
+
+                return num.Type switch
+                {
+                    NumberValue.NumberType.Integer => new NumberValue(Math.Min(Math.Min(Convert.ToInt32(num.Value), Convert.ToInt32(num2.Value)), Convert.ToInt32(num3.Value))),
+                    NumberValue.NumberType.Float => new NumberValue(Math.Min(Math.Min(Convert.ToSingle(num.Value), Convert.ToSingle(num2.Value)), Convert.ToSingle(num3.Value))),
+                    NumberValue.NumberType.Long => new NumberValue(Math.Min(Math.Min(Convert.ToInt64(num.Value), Convert.ToInt64(num2.Value)), Convert.ToInt64(num3.Value))),
+                    _ => new NumberValue(Math.Min(Math.Min(Convert.ToDouble(num.Value), Convert.ToDouble(num2.Value)), Convert.ToDouble(num3.Value))),
                 };
             }));
 

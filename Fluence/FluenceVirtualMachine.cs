@@ -1358,8 +1358,27 @@ namespace Fluence
         /// </summary>
         private void ExecuteGetElement(InstructionLine instruction)
         {
+            if (instruction.SpecializedHandler != null)
+            {
+                instruction.SpecializedHandler(instruction, this);
+                return;
+            }
+            
+            ExecuteGenericGetElement(instruction);
+        }
+
+        internal void ExecuteGenericGetElement(InstructionLine instruction)
+        {
             RuntimeValue collection = GetRuntimeValue(instruction.Rhs);
             RuntimeValue indexVal = GetRuntimeValue(instruction.Rhs2);
+
+            var handler = InlineCacheManager.CreateSpecializedGetElementHandler(instruction, collection, indexVal);
+            if (handler != null)
+            {
+                instruction.SpecializedHandler = handler;
+                handler(instruction, this);
+                return;
+            }
 
             switch (collection.ObjectReference)
             {
@@ -1390,23 +1409,6 @@ namespace Fluence
                         }
 
                         char charAsString = str.Value[index];
-                        CharObject resultStringObject = new CharObject(charAsString);
-                        SetRegister((TempValue)instruction.Lhs, new RuntimeValue(resultStringObject));
-                        break;
-                    }
-                case StringValue str2:
-                    {
-                        if (indexVal.Type != RuntimeValueType.Number)
-                        {
-                            ConstructAndThrowException($"Runtime Error: String index must be a number, not '{GetDetailedTypeName(indexVal)}'.");
-                        }
-                        int index = indexVal.IntValue;
-                        if (index < 0 || index >= str2.Value.Length)
-                        {
-                            ConstructAndThrowException($"Runtime Error: Index out of range. Index was {index}, but string length is {str2.Value.Length}.");
-                        }
-
-                        char charAsString = str2.Value[index];
                         CharObject resultStringObject = new CharObject(charAsString);
                         SetRegister((TempValue)instruction.Lhs, new RuntimeValue(resultStringObject));
                         break;

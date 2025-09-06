@@ -1617,5 +1617,73 @@ namespace Fluence
 
             return null;
         }
+
+        internal static SpecializedOpcodeHandler? CreateSpecializedIterNextHandler(InstructionLine insn, IteratorObject iterator)
+        {
+            var iteratorReg = (TempValue)insn.Lhs;
+            var valueReg = (TempValue)insn.Rhs;
+            var continueFlagReg = (TempValue)insn.Rhs2;
+
+            if (iterator.Iterable is RangeObject range)
+            {
+                int start = range.Start.IntValue;
+                int end = range.End.IntValue;
+                int step = start <= end ? 1 : -1;
+
+                return (instruction, vm) =>
+                {
+                    var iterVal = vm.CurrentRegisters[iteratorReg.TempName];
+                    if (iterVal.ObjectReference is IteratorObject iter && iter.Iterable is RangeObject)
+                    {
+                        int currentValue = start + iter.CurrentIndex;
+                        if (start <= end ? currentValue <= end : currentValue >= end)
+                        {
+                            vm.SetRegister(valueReg, new RuntimeValue(currentValue));
+                            vm.SetRegister(continueFlagReg, new RuntimeValue(true));
+                            iter.CurrentIndex += step;
+                        }
+                        else
+                        {
+                            vm.SetRegister(valueReg, RuntimeValue.Nil);
+                            vm.SetRegister(continueFlagReg, new RuntimeValue(false));
+                        }
+                    }
+                    else
+                    {
+                        instruction.SpecializedHandler = null;
+                        vm.ExecuteGenericIterNext(instruction);
+                    }
+                };
+            }
+
+            if (iterator.Iterable is ListObject)
+            {
+                return (instruction, vm) =>
+                {
+                    var iterVal = vm.CurrentRegisters[iteratorReg.TempName];
+                    if (iterVal.ObjectReference is IteratorObject iter && iter.Iterable is ListObject listRef)
+                    {
+                        if (iter.CurrentIndex < listRef.Elements.Count)
+                        {
+                            vm.SetRegister(valueReg, listRef.Elements[iter.CurrentIndex]);
+                            vm.SetRegister(continueFlagReg, new RuntimeValue(true));
+                            iter.CurrentIndex++;
+                        }
+                        else
+                        {
+                            vm.SetRegister(valueReg, RuntimeValue.Nil);
+                            vm.SetRegister(continueFlagReg, new RuntimeValue(false));
+                        }
+                    }
+                    else
+                    {
+                        instruction.SpecializedHandler = null;
+                        vm.ExecuteGenericIterNext(instruction);
+                    }
+                };
+            }
+
+            return null;
+        }
     }
 }

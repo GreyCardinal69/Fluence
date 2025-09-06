@@ -1472,6 +1472,20 @@ namespace Fluence
         /// </summary>
         private void ExecuteIterNext(InstructionLine instruction)
         {
+            if (instruction.SpecializedHandler != null)
+            {
+                instruction.SpecializedHandler(instruction, this);
+                return;
+            }
+
+            ExecuteGenericIterNext(instruction);
+        }
+
+        /// <summary>
+        /// Handles the ITER_NEXT instruction, which advances an iterator and retrieves the next value.
+        /// </summary>
+        internal void ExecuteGenericIterNext(InstructionLine instruction)
+        {
             // Lhs:  The source iterator register.
             // Rhs:  The destination register for the value.
             // Rhs2: The destination register for the continue flag.
@@ -1488,6 +1502,14 @@ namespace Fluence
             if (iteratorVal.As<IteratorObject>() is not IteratorObject iterator)
             {
                 ConstructAndThrowException("Internal VM Error: Attempted to iterate over a non-iterator value.");
+                return;
+            }
+
+            var handler = InlineCacheManager.CreateSpecializedIterNextHandler(instruction, iterator);
+            if (handler != null)
+            {
+                instruction.SpecializedHandler = handler;
+                handler(instruction, this);
                 return;
             }
 

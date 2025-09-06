@@ -120,7 +120,7 @@ All control structures support a single-line `->` syntax for simple bodies.
         ```cs
         5 times { printl("Hello!"); }
         N = 10;
-        N times as i { create_enemy(i * 20); }
+        N times { create_enemy(); }
         ```
         
 #### `match` — Versatile Pattern Matching

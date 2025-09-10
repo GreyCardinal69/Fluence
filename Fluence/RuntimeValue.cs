@@ -364,7 +364,6 @@ namespace Fluence
 
     /// <summary>
     /// Represents any value that can exist in the Fluence VM at runtime.
-    /// This is a high-performance, 24-byte struct that acts as a tagged union.
     /// </summary>
     [StructLayout(LayoutKind.Explicit)]
     internal readonly record struct RuntimeValue

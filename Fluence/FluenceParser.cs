@@ -27,6 +27,16 @@ namespace Fluence
         private readonly FluenceIntrinsics _intrinsicsManager;
 
         /// <summary>
+        /// Indicates that we are parsing a multi-file Fluence project.
+        /// </summary>
+        private readonly bool _multiFileProject;
+
+        /// <summary>
+        /// The stack of all Fluence script file paths in the target project's root directory and its children.
+        /// </summary>
+        private readonly Stack<string> _fileStack;
+
+        /// <summary>
         /// Exposes the global scope of the current parsing state, primarily for the intrinsic registrar.
         /// </summary>
         internal FluenceScope CurrentParserStateGlobalScope => _currentParseState.GlobalScope;
@@ -147,6 +157,21 @@ namespace Fluence
             {
                 CodeInstructions.InsertRange(CodeInstructions.Count, FunctionVariableDeclarations);
             }
+        }
+
+        internal FluenceParser(string root, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input)
+        {
+            _currentParseState = new ParseState();
+            _multiFileProject = true;
+            _fileStack = new Stack<string>();
+
+            foreach (var item in Directory.GetFiles(root, "*", SearchOption.AllDirectories))
+            {
+                _fileStack.Push(item);
+            }
+
+            _intrinsicsManager = new FluenceIntrinsics(this, outLine, input, outNormal);
+            _intrinsicsManager.RegisterCoreGlobals();
         }
 
         internal FluenceParser(FluenceLexer lexer, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input)
@@ -302,7 +327,11 @@ namespace Fluence
         {
             _currentParseState.AllowTestCode = allowTestCode;
 
-            ParseTokens();
+            if (_multiFileProject)
+            {
+                ParseProjectTokens();
+            }
+                else { ParseTokens(); }
 
             if (!allowTestCode)
             {
@@ -345,6 +374,40 @@ namespace Fluence
         internal void AddNameSpace(FluenceScope nameSpace)
         {
             _currentParseState.NameSpaces.TryAdd(nameSpace.Name, nameSpace);
+        }
+
+        private void ParseProjectTokens()
+        {
+            while (_fileStack.Count != 0)
+            {
+                using FileStream fs = new FileStream(_fileStack.Pop(), FileMode.Open, FileAccess.Read);
+                using StreamReader sr = new StreamReader(fs);
+                _lexer = new FluenceLexer(sr.ReadToEnd());
+                _lexer.LexFullSource();
+                _lexer.RemoveLexerEOLS();
+
+#if DEBUG
+                _lexer.DumpTokenStream("Initial Token Stream (Before Pre-Parsing declarations)");
+#endif
+
+                ParseDeclarations(0, _lexer.TokenCount);
+
+#if DEBUG
+                _lexer.DumpTokenStream("Token stream after parsing declarations.");
+#endif
+
+                while (!_lexer.HasReachedEnd)
+                {
+                    // We reached end of file, so we just quit.
+                    if (_lexer.TokenTypeMatches(TokenType.EOF))
+                    {
+                        _lexer.Advance();
+                        break;
+                    }
+
+                    ParseStatement();
+                }
+            }
         }
 
         private void ParseTokens()
@@ -1916,6 +1979,30 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Resolves a namespace by its name. If the namespace is not already parsed,
+        /// it triggers the project-wide token parsing and tries again.
+        /// </summary>
+        /// <returns>The resolved FluenceScope for the namespace.</returns>
+        /// <exception cref="FluenceParserException">Thrown if the namespace cannot be found even after parsing.</exception>
+        private FluenceScope ResolveOrParseNamespace(string namespaceName, Token nameTokenForError)
+        {
+            if (_currentParseState.NameSpaces.TryGetValue(namespaceName, out FluenceScope namespaceScope))
+            {
+                return namespaceScope;
+            }
+
+            ParseProjectTokens();
+
+            if (_currentParseState.NameSpaces.TryGetValue(namespaceName, out namespaceScope))
+            {
+                return namespaceScope;
+            }
+
+            ConstructAndThrowParserException($"Namespace '{namespaceName}' not found. Expected a defined namespace.", nameTokenForError);
+            return null!;
+        }
+
+        /// <summary>
         /// Parses a `use` statement, which imports symbols from one or more namespaces.
         /// into the current scop
         private void ParseUseStatement()
@@ -1929,10 +2016,7 @@ namespace Fluence
 
                 _intrinsicsManager.Use(namespaceName);
 
-                if (!_currentParseState.NameSpaces.TryGetValue(namespaceName, out FluenceScope namespaceToUse))
-                {
-                    ConstructAndThrowParserException($"Namespace '{namespaceName}' not found. Expected a defined namespace.", nameToken);
-                }
+                FluenceScope namespaceToUse = ResolveOrParseNamespace(namespaceName, nameToken);
 
                 foreach (KeyValuePair<string, Symbol> entry in namespaceToUse!.Symbols)
                 {

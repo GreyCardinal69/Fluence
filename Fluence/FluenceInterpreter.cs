@@ -100,6 +100,38 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Compiles a Fluence project from a directory with .fl code scripts into executable bytecode.
+        /// This must be called before any of the Run methods.
+        /// </summary>
+        /// <param name="sourceCode">The Fluence script to compile.</param>
+        /// <param name="partialCode">Whether to allow compilation of partial code, that is code without functions, or Main entry point.</param>
+        /// <returns>True if compilation was successful, false otherwise.</returns>
+        public bool CompileProject(string rootDir, bool partialCode = false)
+        {
+            ArgumentException.ThrowIfNullOrEmpty(rootDir);
+
+            try
+            {
+                FluenceParser parser = new FluenceParser(rootDir, OnOutputLine, OnOutput, OnInput);
+                parser.Parse(partialCode);
+#if DEBUG
+                parser.DumpSymbolTables();
+                DumpByteCodeInstructions(parser.CompiledCode);
+#endif
+
+                _byteCode = parser.CompiledCode;
+                _parseState = parser.CurrentParseState;
+                _vm = null!;
+                return true;
+            }
+            catch (FluenceException ex)
+            {
+                ConstructAndThrowException(ex);
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Runs the compiled script to completion in a single blocking call.
         /// If the script was previously paused, execution will resume and run to completion.
         /// If the script was finished, it will be reset and run again from the beginning.

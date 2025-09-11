@@ -31,9 +31,7 @@ Fluence is a dynamically-typed, Interpreted, multi-paradigm scripting language t
 
 ## Performance
 
-Fluence is designed for high performance. The interpreter features a multi-stage pipeline that includes:
-1.  **Optimizer:** A crucial peephole optimization pass that fuses common instruction patterns to reduce instruction count.
-2.  **Virtual Machine (VM):** A highly optimized, dispatch-table based VM that executes the bytecode.
+Fluence is designed for high performance.     The lexer, parser and the virtual machine are highly optimized and allocate minimum memory. The Interpreter also features an Optimizer that fuses common and redundant bytecode operations to reduce instruction count. 
 ---
 
 ## Core Philosophy

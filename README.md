@@ -31,7 +31,7 @@ Fluence is a dynamically-typed, Interpreted, multi-paradigm scripting language t
 
 ## Performance
 
-Fluence is designed for high performance.     The lexer, parser and the virtual machine are highly optimized and allocate minimum memory. The Interpreter also features an Optimizer that fuses common and redundant bytecode operations to reduce instruction count. 
+- Fluence is designed for high performance.     The lexer, parser and the virtual machine are highly optimized and allocate minimum memory. The Interpreter also features an Optimizer that fuses common and redundant bytecode operations to reduce instruction count. 
 ---
 
 ## Core Philosophy

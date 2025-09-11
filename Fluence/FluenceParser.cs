@@ -730,6 +730,26 @@ namespace Fluence
             {
                 Token token = _lexer.PeekAheadByN(currentIndex + 1);
 
+                if (token.Type == TokenType.ENUM)
+                {
+                    int start = currentIndex + 1;
+                    int end = start;
+
+                    while (true)
+                    {
+                        end++;
+
+                        if (_lexer.PeekTokenTypeAheadByN(end) == TokenType.R_BRACE)
+                        {
+                            break;
+                        }
+                    }
+
+                    ParseDeclarations(start - 1, end - 1);
+                    endTokenIndex -= end - start;
+                    continue;
+                }
+
                 if (token.Type == TokenType.SOLID)
                 {
                     solidField = true;
@@ -4025,6 +4045,19 @@ namespace Fluence
         {
             return type is TokenType.OPTIONAL_ASSIGN_N or TokenType.OPTIONAL_REST_ASSIGN or
             TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN;
+        }
+
+        /// <summary>
+        /// A helper debug function to print all tokens starting from the first token at the start index up to the token at the end index.
+        /// </summary>
+        /// <param name="start">The index of the first token.</param>
+        /// <param name="end">The index of the last token.</param>
+        private void DumpTokensFromTo(int start, int end)
+        {
+            for (int i = start; i < end; i++)
+            {
+                Console.WriteLine(_lexer.PeekAheadByN(i));
+            }
         }
 
         /// <summary>

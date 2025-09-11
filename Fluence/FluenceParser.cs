@@ -37,6 +37,11 @@ namespace Fluence
         private readonly Stack<string> _fileStack;
 
         /// <summary>
+        /// Indicates which file, if in a multi-file Fluence project, is being parsed at the moment.
+        /// </summary>
+        private string _currentParsingFileName;
+
+        /// <summary>
         /// Exposes the global scope of the current parsing state, primarily for the intrinsic registrar.
         /// </summary>
         internal FluenceScope CurrentParserStateGlobalScope => _currentParseState.GlobalScope;
@@ -383,11 +388,14 @@ namespace Fluence
         {
             while (_fileStack.Count != 0)
             {
-                using FileStream fs = new FileStream(_fileStack.Pop(), FileMode.Open, FileAccess.Read);
+                string path = _fileStack.Pop();
+                using FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read);
                 using StreamReader sr = new StreamReader(fs);
-                _lexer = new FluenceLexer(sr.ReadToEnd());
+                _lexer = new FluenceLexer(sr.ReadToEnd(), path);
                 _lexer.LexFullSource();
                 _lexer.RemoveLexerEOLS();
+
+                _currentParsingFileName = path;
 
 #if DEBUG
                 _lexer.DumpTokenStream("Initial Token Stream (Before Pre-Parsing declarations)");
@@ -491,8 +499,9 @@ namespace Fluence
                     else
                     {
                         namespaceScope = new FluenceScope(parentScope, namespaceName);
-                        _currentParseState.NameSpaces.TryAdd(namespaceName, namespaceScope);
                     }
+
+                    _currentParseState.NameSpaces.TryAdd(namespaceName, namespaceScope);
 
                     _currentParseState.CurrentScope = namespaceScope;
                     ParseDeclarations(namespaceNameIndex + 2, namespaceEndIndex + 1);
@@ -3998,6 +4007,7 @@ namespace Fluence
         {
             ParserExceptionContext context = new ParserExceptionContext()
             {
+                FileName = _currentParsingFileName,
                 Column = token.ColumnInSourceCode,
                 FaultyLine = FluenceDebug.TruncateLine(FluenceLexer.GetCodeLineFromSource(_lexer.SourceCode, token.LineInSourceCode)),
                 LineNum = token.LineInSourceCode,

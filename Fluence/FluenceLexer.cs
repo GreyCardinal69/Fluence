@@ -17,6 +17,7 @@ namespace Fluence
         private int _currentLineBeforeWhiteSpace;
         private int _currentColumnBeforeWhiteSpace;
         private readonly TokenBuffer _tokenBuffer;
+        private readonly string _fileName;
 
         private bool _hasReachedEndInternal => _currentPosition >= _sourceLength;
 
@@ -26,7 +27,7 @@ namespace Fluence
         internal string SourceCode => _sourceCode;
         internal int CurrentPosition => _currentPosition;
 
-        internal FluenceLexer(string source)
+        internal FluenceLexer(string source, string fileName = null!)
         {
             _tokenBuffer = new TokenBuffer(this);
             _sourceCode = source;
@@ -34,6 +35,7 @@ namespace Fluence
             _currentPosition = 0;
             _currentLine = 1;
             _currentColumn = 1;
+            _fileName = fileName;
         }
 
         internal FluenceLexer(List<Token> tokens)
@@ -612,7 +614,7 @@ namespace Fluence
                             if (decimalPointAlreadyDefined)
                             {
                                 faultyCodeLine = GetCodeLineFromSource(_sourceCode, _currentLine).TrimStart();
-                                ConstructAndThrowLexerException(_currentLine, _currentColumn, "Invalid number format: multiple decimal points found.", faultyCodeLine, PeekNextToken());
+                                ConstructAndThrowLexerException(_currentLine, _currentColumn, "Invalid number format: multiple decimal points found.", faultyCodeLine, PeekNextToken(), _fileName);
                             }
                             decimalPointAlreadyDefined = true;
                         }
@@ -624,7 +626,7 @@ namespace Fluence
                             if (!IsNumeric(next) && next != '+' && next != '-')
                             {
                                 string faultyLine = GetCodeLineFromSource(_sourceCode, _currentLine);
-                                ConstructAndThrowLexerException(_currentLine, _currentColumn + 1, "Scientific notation 'E' must be followed by digits.", faultyLine, PeekNextToken());
+                                ConstructAndThrowLexerException(_currentLine, _currentColumn + 1, "Scientific notation 'E' must be followed by digits.", faultyLine, PeekNextToken(), _fileName);
                             }
                             else
                             {
@@ -644,7 +646,7 @@ namespace Fluence
                     if (_sourceCode[_currentPosition - 1] == '.')
                     {
                         faultyCodeLine = GetCodeLineFromSource(_sourceCode, _currentLine + 1).TrimStart();
-                        ConstructAndThrowLexerException(_currentLine, _currentColumn, "Number literal cannot end with a decimal point.", faultyCodeLine, PeekNextToken());
+                        ConstructAndThrowLexerException(_currentLine, _currentColumn, "Number literal cannot end with a decimal point.", faultyCodeLine, PeekNextToken(), _fileName);
                     }
 
                     // Float here.
@@ -717,6 +719,7 @@ namespace Fluence
 
             LexerExceptionContext context = new LexerExceptionContext()
             {
+                FileName = _fileName,
                 LineNum = _currentLine,
                 Column = errorColumn + 1,
                 FaultyLine = faultyCodeLine,
@@ -725,10 +728,11 @@ namespace Fluence
             throw new FluenceLexerException($"Invalid character '{invalidChar}' found in source. Could not generate appropriate Token.", context);
         }
 
-        private static void ConstructAndThrowLexerException(int lineNum, int column, string errorText, string faultyLine, Token token)
+        private static void ConstructAndThrowLexerException(int lineNum, int column, string errorText, string faultyLine, Token token, string fileName)
         {
             LexerExceptionContext context = new LexerExceptionContext()
             {
+                FileName = fileName,
                 LineNum = lineNum,
                 Column = column,
                 FaultyLine = faultyLine,
@@ -783,7 +787,7 @@ namespace Fluence
                 string initialLineContent = GetCodeLineFromSource(_sourceCode, stringInitialLine).TrimStart();
                 string truncatedLine = FluenceDebug.TruncateLine(initialLineContent);
 
-                ConstructAndThrowLexerException(stringInitialLine, stringOpenColumn, "Unclosed string literal. The file ended before a closing '\"' was found.", truncatedLine, PeekNextToken());
+                ConstructAndThrowLexerException(stringInitialLine, stringOpenColumn, "Unclosed string literal. The file ended before a closing '\"' was found.", truncatedLine, PeekNextToken(), _fileName);
             }
 
             AdvancePosition(); // Consume the closing quote.
@@ -975,7 +979,7 @@ namespace Fluence
                 string initialLineContent = GetCodeLineFromSource(_sourceCode, _currentLine).TrimStart();
                 string truncatedLine = FluenceDebug.TruncateLine(initialLineContent);
 
-                ConstructAndThrowLexerException(_currentLine, _currentColumn - 2, "Faulty chain assignment pipe operator detected, expected '<n|' or '<n?|' or '<|' or '<n!|' or '<n!?|' format.", truncatedLine, PeekNextToken());
+                ConstructAndThrowLexerException(_currentLine, _currentColumn - 2, "Faulty chain assignment pipe operator detected, expected '<n|' or '<n?|' or '<|' or '<n!|' or '<n!?|' format.", truncatedLine, PeekNextToken(), _fileName);
             }
 
             if (peek.Length >= 3 && peek[2] == '|')
@@ -1097,7 +1101,7 @@ namespace Fluence
                             string initialLineContent = GetCodeLineFromSource(_sourceCode, commentStartLine).TrimStart();
                             string truncatedLine = FluenceDebug.TruncateLine(initialLineContent);
 
-                            ConstructAndThrowLexerException(commentStartLine, commentStartCol, "Unterminated multi-line comment. The file ended before a closing '*#' was found.", truncatedLine, PeekNextToken());
+                            ConstructAndThrowLexerException(commentStartLine, commentStartCol, "Unterminated multi-line comment. The file ended before a closing '*#' was found.", truncatedLine, PeekNextToken(), _fileName);
                         }
                     }
                     else // It's a single-line comment

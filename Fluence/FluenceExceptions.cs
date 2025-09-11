@@ -34,6 +34,11 @@ namespace Fluence
         internal int Column { get; init; }
 
         /// <summary>
+        /// The Fluence script file where the error occured.
+        /// </summary>
+        internal required string FileName { get; init; }
+
+        /// <summary>
         /// Last parsed <see cref="Fluence.Token"/>, can be null or <see cref="Token.TokenType.UNKNOWN"/>
         /// </summary>
         internal Token Token { get; init; }
@@ -48,6 +53,7 @@ namespace Fluence
             if (LineNum > 0 && FaultyLine != null && Column > 0)
             {
                 stringBuilder
+                    .AppendLine($"\nException occured in: {(string.IsNullOrEmpty(FileName) ? "Script" : FileName)}.")
                     .AppendLine($"Exception at line {LineNum}, Column {Column}")
                     .AppendLine($"{LineNum}. {FaultyLine}")
                     .AppendLine($"{new string(' ', Column + 1)}^");
@@ -76,6 +82,11 @@ namespace Fluence
         /// <summary>The column number where the error occurred.</summary>
         internal int Column { get; init; }
 
+        /// <summary>
+        /// The Fluence script file where the error occured.
+        /// </summary>
+        internal required string FileName { get; init; }
+
         /// <summary>The source code of the line where the error occurred.</summary>
         internal string FaultyLine { get; init; }
 
@@ -90,6 +101,7 @@ namespace Fluence
             {
                 string linePrefix = $"{LineNum}.";
                 stringBuilder
+                    .AppendLine($"\nException occured in: {(string.IsNullOrEmpty(FileName) ? "Script" : FileName)}.")
                     .AppendLine($"Parser Error at line {LineNum}, Column {Column}")
                     .AppendLine(linePrefix + FaultyLine);
 

@@ -1363,7 +1363,7 @@ namespace Fluence
                 instruction.SpecializedHandler(instruction, this);
                 return;
             }
-            
+
             ExecuteGenericGetElement(instruction);
         }
 

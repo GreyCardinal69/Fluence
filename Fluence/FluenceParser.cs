@@ -297,7 +297,7 @@ namespace Fluence
                     sb.Append(indent).Append($"Functions: {(structSymbol.Functions.Count == 0 ? "None.\n" : "\n")}");
                     foreach (var item in structSymbol.Functions)
                     {
-                        sb.Append(indent).Append(item).AppendLine();
+                        sb.Append(indent).Append(indent).Append(item).AppendLine();
                     }
 
                     sb.Append(indent).Append($"Static Intrinsics: {(structSymbol.StaticIntrinsics.Count == 0 ? "None.\n" : "\n")}");
@@ -331,7 +331,10 @@ namespace Fluence
             {
                 ParseProjectTokens();
             }
-                else { ParseTokens(); }
+            else
+            {
+                ParseTokens();
+            }
 
             if (!allowTestCode)
             {
@@ -479,9 +482,18 @@ namespace Fluence
                     string namespaceName = _lexer.PeekAheadByN(namespaceNameIndex + 1).Text;
 
                     FluenceScope parentScope = _currentParseState.CurrentScope;
-                    FluenceScope namespaceScope = new FluenceScope(parentScope, namespaceName);
+                    FluenceScope namespaceScope;
 
-                    _currentParseState.NameSpaces.TryAdd(namespaceName, namespaceScope);
+                    if (_currentParseState.NameSpaces.TryGetValue(namespaceName, out FluenceScope scope))
+                    {
+                        namespaceScope = scope;
+                    }
+                    else
+                    {
+                        namespaceScope = new FluenceScope(parentScope, namespaceName);
+                        _currentParseState.NameSpaces.TryAdd(namespaceName, namespaceScope);
+                    }
+
                     _currentParseState.CurrentScope = namespaceScope;
                     ParseDeclarations(namespaceNameIndex + 2, namespaceEndIndex + 1);
 
@@ -1521,7 +1533,7 @@ namespace Fluence
         /// <param name="isInit">True if the method being parsed is a constructor (`init`).</param>
         /// <param name="structName">The name of the struct, if `inStruct` is true.</param>
         private void ParseFunction(bool inStruct = false, bool isInit = false, string structName = null!)
-        { 
+        {
             _currentParseState.IsParsingFunctionBody = true;
             (Token nameToken, List<string> parameters) = ParseFunctionHeader();
             string functionName = nameToken.Text;
@@ -1979,30 +1991,6 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Resolves a namespace by its name. If the namespace is not already parsed,
-        /// it triggers the project-wide token parsing and tries again.
-        /// </summary>
-        /// <returns>The resolved FluenceScope for the namespace.</returns>
-        /// <exception cref="FluenceParserException">Thrown if the namespace cannot be found even after parsing.</exception>
-        private FluenceScope ResolveOrParseNamespace(string namespaceName, Token nameTokenForError)
-        {
-            if (_currentParseState.NameSpaces.TryGetValue(namespaceName, out FluenceScope namespaceScope))
-            {
-                return namespaceScope;
-            }
-
-            ParseProjectTokens();
-
-            if (_currentParseState.NameSpaces.TryGetValue(namespaceName, out namespaceScope))
-            {
-                return namespaceScope;
-            }
-
-            ConstructAndThrowParserException($"Namespace '{namespaceName}' not found. Expected a defined namespace.", nameTokenForError);
-            return null!;
-        }
-
-        /// <summary>
         /// Parses a `use` statement, which imports symbols from one or more namespaces.
         /// into the current scop
         private void ParseUseStatement()
@@ -2016,7 +2004,10 @@ namespace Fluence
 
                 _intrinsicsManager.Use(namespaceName);
 
-                FluenceScope namespaceToUse = ResolveOrParseNamespace(namespaceName, nameToken);
+                if (!_currentParseState.NameSpaces.TryGetValue(namespaceName, out FluenceScope namespaceToUse))
+                {
+                    ConstructAndThrowParserException($"Namespace '{namespaceName}' not found. Expected a defined namespace.", nameToken);
+                }
 
                 foreach (KeyValuePair<string, Symbol> entry in namespaceToUse!.Symbols)
                 {

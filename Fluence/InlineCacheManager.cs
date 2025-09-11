@@ -1550,9 +1550,9 @@ namespace Fluence
         {
             if (index.Type != RuntimeValueType.Number) return null;
 
-            var collectionOperand = insn.Rhs;
-            var indexOperand = insn.Rhs2;
-            var destRegister = (TempValue)insn.Lhs;
+            Value collectionOperand = insn.Rhs;
+            Value indexOperand = insn.Rhs2;
+            TempValue destRegister = (TempValue)insn.Lhs;
 
             if (collection.ObjectReference is ListObject)
             {
@@ -1563,8 +1563,8 @@ namespace Fluence
 
                     return (instruction, vm) =>
                     {
-                        ref var collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
-                        ref var indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
+                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
+                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
 
                         if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is ListObject list &&
                             !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
@@ -1591,8 +1591,8 @@ namespace Fluence
 
                     return (instruction, vm) =>
                     {
-                        ref var collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
-                        ref var indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
+                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
+                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
 
                         if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is ListObject list &&
                             !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
@@ -1620,9 +1620,9 @@ namespace Fluence
 
         internal static SpecializedOpcodeHandler? CreateSpecializedIterNextHandler(InstructionLine insn, IteratorObject iterator)
         {
-            var iteratorReg = (TempValue)insn.Lhs;
-            var valueReg = (TempValue)insn.Rhs;
-            var continueFlagReg = (TempValue)insn.Rhs2;
+            TempValue iteratorReg = (TempValue)insn.Lhs;
+            TempValue valueReg = (TempValue)insn.Rhs;
+            TempValue continueFlagReg = (TempValue)insn.Rhs2;
 
             if (iterator.Iterable is RangeObject range)
             {
@@ -1632,7 +1632,7 @@ namespace Fluence
 
                 return (instruction, vm) =>
                 {
-                    var iterVal = vm.CurrentRegisters[iteratorReg.TempName];
+                    RuntimeValue iterVal = vm.CurrentRegisters[iteratorReg.TempName];
                     if (iterVal.ObjectReference is IteratorObject iter && iter.Iterable is RangeObject)
                     {
                         int currentValue = start + iter.CurrentIndex;
@@ -1660,7 +1660,7 @@ namespace Fluence
             {
                 return (instruction, vm) =>
                 {
-                    var iterVal = vm.CurrentRegisters[iteratorReg.TempName];
+                    RuntimeValue iterVal = vm.CurrentRegisters[iteratorReg.TempName];
                     if (iterVal.ObjectReference is IteratorObject iter && iter.Iterable is ListObject listRef)
                     {
                         if (iter.CurrentIndex < listRef.Elements.Count)

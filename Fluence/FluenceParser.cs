@@ -42,6 +42,11 @@ namespace Fluence
         private string _currentParsingFileName;
 
         /// <summary>
+        /// Default line output for the parser's debug methods.
+        /// </summary>
+        private readonly TextOutputMethod _outputLine;
+
+        /// <summary>
         /// Exposes the global scope of the current parsing state, primarily for the intrinsic registrar.
         /// </summary>
         internal FluenceScope CurrentParserStateGlobalScope => _currentParseState.GlobalScope;
@@ -175,6 +180,7 @@ namespace Fluence
                 _fileStack.Push(item);
             }
 
+            _outputLine = outLine;
             _intrinsicsManager = new FluenceIntrinsics(this, outLine, input, outNormal);
             _intrinsicsManager.RegisterCoreGlobals();
         }
@@ -184,6 +190,7 @@ namespace Fluence
             _currentParseState = new ParseState();
             _lexer = lexer;
 
+            _outputLine = outLine;
             _intrinsicsManager = new FluenceIntrinsics(this, outLine, input, outNormal);
             _intrinsicsManager.RegisterCoreGlobals();
         }
@@ -201,12 +208,12 @@ namespace Fluence
                 foreach (KeyValuePair<string, FluenceScope> ns in _currentParseState.NameSpaces)
                 {
                     DumpScope(sb, ns.Value, $"Namespace: {ns.Key}", 0);
-                    Console.WriteLine();
+                    _outputLine("\n");
                 }
             }
 
             sb.AppendLine("------------------------------------");
-            Console.WriteLine(sb.ToString());
+            _outputLine(sb.ToString());
         }
 
         /// <summary>
@@ -3647,35 +3654,34 @@ namespace Fluence
                     _lexer.Advance(); // Consume the dot.
 
                     Token memberToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a member name after '.' .");
-                    if (left is VariableValue variable)
+
+                    switch (left)
                     {
-                        if (_currentParseState.CurrentScope.TryResolve(variable.Name, out Symbol symbol) && symbol is EnumSymbol enumSymbol)
-                        {
-                            if (enumSymbol.Members.TryGetValue(memberToken.Text, out EnumValue enumValue))
+                        case VariableValue variable:
+                            if (_currentParseState.CurrentScope.TryResolve(variable.Name, out Symbol symbol) && symbol is EnumSymbol enumSymbol)
                             {
-                                left = enumValue;
+                                if (enumSymbol.Members.TryGetValue(memberToken.Text, out EnumValue enumValue))
+                                {
+                                    left = enumValue;
+                                }
+                                else
+                                {
+                                    ConstructAndThrowParserException($"Enum '{enumSymbol.Name}' does not have a member named '{memberToken.Text}'.", memberToken);
+                                }
                             }
                             else
                             {
-                                ConstructAndThrowParserException($"Enum '{enumSymbol.Name}' does not have a member named '{memberToken.Text}'.", memberToken);
+                                left = new PropertyAccessValue(left, memberToken.Text);
                             }
-                        }
-                        else
-                        {
+                            break;
+                        case StaticStructAccess staticAccess:
+                            left = new StaticStructAccess(staticAccess.Struct, memberToken.Text);
+                            break;
+                        default:
                             left = new PropertyAccessValue(left, memberToken.Text);
-                        }
-                    }
-                    else if (left is StaticStructAccess stat)
-                    {
-                        left = new StaticStructAccess(stat.Struct, memberToken.Text);
-                    }
-                    else
-                    {
-                        // For everything else.
-                        left = new PropertyAccessValue(left, memberToken.Text);
+                            break;
                     }
                 }
-                // Function call.
                 else if (type == TokenType.L_PAREN)
                 {
                     left = ParseFunctionCall(left);
@@ -4056,7 +4062,7 @@ namespace Fluence
         {
             for (int i = start; i < end; i++)
             {
-                Console.WriteLine(_lexer.PeekAheadByN(i));
+                _outputLine(_lexer.PeekAheadByN(i).ToString());
             }
         }
 

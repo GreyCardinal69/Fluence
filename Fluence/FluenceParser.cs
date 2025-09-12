@@ -1121,44 +1121,25 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
             int loopBodyJumpPatchIndex = _currentParseState.CodeInstructions.Count - 1;
 
-            // Incrementer (e.g., "i += 1").
-            // This is where 'continue' statements will jump to.
             int incrementerStartIndex = _currentParseState.CodeInstructions.Count;
             ParseAssignment();
             AdvanceAndExpect(TokenType.EOL, "Expected a ';' after the for-loop incrementer.");
 
-            // After the incrementer runs, add a jump back to the condition check.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(conditionCheckIndex - 1)));
 
             LoopContext loopContext = new LoopContext();
             _currentParseState.ActiveLoopContexts.Push(loopContext);
-
             int bodyStartIndex = _currentParseState.CodeInstructions.Count;
 
             ParseStatementBody("Expected an '->' for a single-line for loop body.");
 
-            // At the end of the body, add a jump to the incrementer.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(incrementerStartIndex)));
-
-            // Patch the jump that skips the incrementer to now point to the body.
             _currentParseState.CodeInstructions[loopBodyJumpPatchIndex].Lhs = new NumberValue(bodyStartIndex);
 
-            // The loop officially ends at the current instruction count.
             int loopEndAddress = _currentParseState.CodeInstructions.Count;
-
-            // Patch the main exit jump to point to the instruction after the loop.
             _currentParseState.CodeInstructions[loopExitPatchIndex].Lhs = new NumberValue(loopEndAddress);
 
-            // Patch all 'break' statements to also jump to the end of the loop.
-            foreach (int patchIndex in loopContext.BreakPatchAddresses)
-            {
-                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(loopEndAddress);
-            }
-
-            foreach (int patchIndex in loopContext.ContinuePatchAddresses)
-            {
-                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(incrementerStartIndex);
-            }
+            PatchLoopExits(loopContext, loopEndAddress, incrementerStartIndex);
 
             _currentParseState.ActiveLoopContexts.Pop();
         }
@@ -3773,18 +3754,9 @@ namespace Fluence
 
             int loopEndIndex = _currentParseState.CodeInstructions.Count;
 
-            _currentParseState.CodeInstructions[loopExitPatch].Lhs = new NumberValue(loopEndIndex);
-
-            foreach (int breakPatch in loopContext.BreakPatchAddresses)
-            {
-                _currentParseState.CodeInstructions[breakPatch].Lhs = new NumberValue(loopEndIndex);
-            }
-
             int continueAddress = loopStartIndex;
-            foreach (int patchIndex in loopContext.ContinuePatchAddresses)
-            {
-                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(continueAddress);
-            }
+            PatchLoopExits(loopContext, loopEndIndex, continueAddress);
+            _currentParseState.CodeInstructions[loopExitPatch].Lhs = new NumberValue(loopEndIndex);
 
             _currentParseState.ActiveLoopContexts.Pop();
         }

@@ -26,7 +26,7 @@ namespace Fluence
 
             if (byteCodeChanged)
             {
-                CompactAndRealignFromBottomUp(ref bytecode, parseState);   
+                CompactAndRealignFromBottomUp(ref bytecode, parseState);
             }
         }
 

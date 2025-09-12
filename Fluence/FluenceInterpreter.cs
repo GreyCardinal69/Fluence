@@ -246,8 +246,8 @@ namespace Fluence
         /// </summary>
         private void ConstructAndThrowException(FluenceException ex)
         {
-            OnOutputLine("Error:");
-            OnOutputLine(ex.ToString());
+            OnErrorOutput("Error:");
+            OnErrorOutput(ex.ToString());
         }
     }
 }

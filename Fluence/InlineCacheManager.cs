@@ -1692,7 +1692,6 @@ namespace Fluence
             var functionToCall = function;
             var destinationRegister = (TempValue)insn.Lhs;
             var argCount = function.Parameters.Count;
-            var parameterNames = function.Parameters.ToArray();
 
             return (instruction, vm) =>
             {

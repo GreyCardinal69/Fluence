@@ -1908,6 +1908,7 @@ namespace Fluence
                     NumberValue.NumberType.Integer => new RuntimeValue((int)num.Value),
                     NumberValue.NumberType.Float => new RuntimeValue((float)num.Value),
                     NumberValue.NumberType.Double => new RuntimeValue((double)num.Value),
+                    NumberValue.NumberType.Long => new RuntimeValue((long)num.Value),
                     _ => throw new FluenceRuntimeException($"Internal VM Error: Unrecognized NumberType '{num.Type}' in bytecode.")
                 },
                 BooleanValue boolean => new RuntimeValue(boolean.Value),

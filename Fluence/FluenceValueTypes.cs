@@ -91,16 +91,30 @@
             Long,
         }
 
-        internal object Value { get; init; }
-        internal NumberType Type { get; init; }
+        internal object Value { get; private set; }
+        internal NumberType Type { get; private set; }
 
-        internal NumberValue(object literal, NumberType type = NumberType.Integer)
+        internal NumberValue(object literal)
         {
             Value = literal;
 
+            AssignNumberType(literal);
+        }
+
+        internal NumberValue(object literal, NumberType type)
+        {
+            Value = literal;
+            Type = type;
+        }
+
+        internal override object GetValue() => Value;
+        internal override string ToFluenceString() => Value.ToString()!;
+
+        private void AssignNumberType(object literal)
+        {
             if (literal is int)
             {
-                Type = type;
+                Type = NumberType.Integer;
                 return;
             }
 
@@ -109,10 +123,13 @@
             if (literal is long) Type = NumberType.Long;
         }
 
-        internal override object GetValue() => Value;
-        internal override string ToFluenceString() => Value.ToString()!;
+        internal void ReAssign(object newValue)
+        {
+            Value = newValue;
+            AssignNumberType(newValue);
+        }
 
-        public static NumberValue FromToken(Token token)
+        internal static NumberValue FromToken(Token token)
         {
             string lexeme = token.Text;
             if (lexeme.EndsWith('f') && float.TryParse(lexeme[..^1], out float floatVal))

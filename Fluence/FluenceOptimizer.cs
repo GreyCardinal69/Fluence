@@ -18,12 +18,16 @@ namespace Fluence
         /// <param name="startIndex">The index in the bytecode list from which to start scanning for optimizations.</param>
         internal static void OptimizeChunk(ref List<InstructionLine> bytecode, ParseState parseState, int startIndex)
         {
-            FuseGotoConditionals(ref bytecode, startIndex);
-            FuseCompoundAssignments(ref bytecode, startIndex);
-            FuseSimpleAssignments(ref bytecode, startIndex);
-            FuseTwoPushParams(ref bytecode, startIndex);
+            bool byteCodeChanged = false;
+            FuseGotoConditionals(ref bytecode, startIndex, ref byteCodeChanged);
+            FuseCompoundAssignments(ref bytecode, startIndex, ref byteCodeChanged);
+            FuseSimpleAssignments(ref bytecode, startIndex, ref byteCodeChanged);
+            FuseTwoPushParams(ref bytecode, startIndex, ref byteCodeChanged);
 
-            CompactAndRealignFromBottomUp(ref bytecode, parseState);
+            if (byteCodeChanged)
+            {
+                CompactAndRealignFromBottomUp(ref bytecode, parseState);   
+            }
         }
 
         /// <summary>
@@ -32,7 +36,7 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>
         /// <param name="startIndex">The index from which to begin scanning.</param>
-        private static void FuseCompoundAssignments(ref List<InstructionLine> bytecode, int startIndex)
+        private static void FuseCompoundAssignments(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
             for (int i = startIndex; i < bytecode.Count - 1; i++)
             {
@@ -54,6 +58,7 @@ namespace Fluence
                     line2.Rhs is TempValue l2Rhs &&
                     l1Lhs.TempName == l2Rhs.TempName)
                 {
+                    byteCodeChanged = true;
                     bytecode[i].Instruction = opCode;
                     bytecode[i].Lhs = line2.Lhs;
                     bytecode[i].Rhs = line1.Rhs;
@@ -69,7 +74,7 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>
         /// <param name="startIndex">The index from which to begin scanning.</param>
-        private static void FuseTwoPushParams(ref List<InstructionLine> bytecode, int startIndex)
+        private static void FuseTwoPushParams(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
             for (int i = startIndex; i < bytecode.Count - 1; i++)
             {
@@ -79,6 +84,7 @@ namespace Fluence
 
                 if (line1.Instruction == InstructionCode.PushParam && line2.Instruction == InstructionCode.PushParam)
                 {
+                    byteCodeChanged = true;
                     bytecode[i].Instruction = InstructionCode.PushTwoParams;
                     bytecode[i].Rhs = line2.Lhs;
                     bytecode[i + 1] = null!;
@@ -92,7 +98,7 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>
         /// <param name="startIndex">The index from which to begin scanning.</param>
-        private static void FuseSimpleAssignments(ref List<InstructionLine> bytecode, int startIndex)
+        private static void FuseSimpleAssignments(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
             for (int i = startIndex; i < bytecode.Count - 1; i++)
             {
@@ -102,6 +108,7 @@ namespace Fluence
 
                 if (line1.Instruction == InstructionCode.Assign && line2.Instruction == InstructionCode.Assign && line2.Rhs != line1.Lhs)
                 {
+                    byteCodeChanged = true;
                     bytecode[i].Instruction = InstructionCode.AssignTwo;
                     bytecode[i].Lhs = line1.Lhs;
                     bytecode[i].Rhs = line1.Rhs;
@@ -119,7 +126,7 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>
         /// <param name="startIndex">The index from which to begin scanning.</param>
-        private static void FuseGotoConditionals(ref List<InstructionLine> bytecode, int startIndex)
+        private static void FuseGotoConditionals(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
             for (int i = startIndex; i < bytecode.Count - 1; i++)
             {
@@ -139,6 +146,7 @@ namespace Fluence
                     line2.Rhs is TempValue jCond &&
                     cResult.TempName == jCond.TempName)
                 {
+                    byteCodeChanged = true;
                     bytecode[i].Instruction = op;
                     bytecode[i].Lhs = line2.Lhs;
                     bytecode[i].Rhs = line1.Rhs;
@@ -226,7 +234,7 @@ namespace Fluence
 
                 if (IsJumpInstruction(insn.Instruction) && insn.Lhs is NumberValue targetAddr)
                 {
-                    insn.Lhs = new NumberValue(MapAddr((int)targetAddr.Value));
+                    targetAddr.ReAssign(MapAddr((int)targetAddr.Value));
                 }
                 if (insn.Rhs is FunctionValue fvRhs) PatchFunctionValue(fvRhs);
                 if (insn.Rhs2 is FunctionValue fvRhs2) PatchFunctionValue(fvRhs2);

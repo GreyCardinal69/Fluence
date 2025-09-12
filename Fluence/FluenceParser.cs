@@ -3166,7 +3166,6 @@ namespace Fluence
             InstructionCode comparisonOp = GetInstructionCodeForCollectiveOp(opToken.Type);
             InstructionCode logicalOp = IsOrCollectiveOperator(opToken.Type) ? InstructionCode.Or : InstructionCode.And;
 
-            // Perform the first comparison to establish the initial result.
             TempValue finalResult = new TempValue(_currentParseState.NextTempNumber++);
             _currentParseState.AddCodeInstruction(new InstructionLine(
                 comparisonOp,
@@ -3175,10 +3174,8 @@ namespace Fluence
                 resolvedRhs
             ));
 
-            // Loop through the rest of the expressions and combine them.
             for (int i = 1; i < lhsExprs.Count; i++)
             {
-                // Perform the comparison for the next item.
                 TempValue nextComparisonResult = new TempValue(_currentParseState.NextTempNumber++);
                 _currentParseState.AddCodeInstruction(new InstructionLine(
                     comparisonOp,
@@ -3192,7 +3189,7 @@ namespace Fluence
                 _currentParseState.AddCodeInstruction(new InstructionLine(
                     logicalOp,
                     combinedResult,
-                    finalResult, // The result of the previous operations
+                    finalResult,
                     nextComparisonResult
                 ));
 
@@ -3821,7 +3818,7 @@ namespace Fluence
 
             AdvanceAndExpect(TokenType.R_BRACKET, "Expected a closing ']' for the index accessor.");
 
-            // Create a descriptor for the access. This will be resolved into a GetElement
+            // Creates a descriptor for the access. This will be resolved into a GetElement
             // or SetElement instruction by a higher-level parsing method.
             return new ElementAccessValue(left, index);
         }

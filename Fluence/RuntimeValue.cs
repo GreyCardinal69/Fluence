@@ -147,7 +147,6 @@ namespace Fluence
 
             if (Class.Functions.TryGetValue(fieldName, out FunctionValue? method))
             {
-                // Create a new BoundMethodObject that pairs this instance ('self') with the method blueprint.
                 BoundMethodObject boundMethod = new BoundMethodObject(this, method);
                 return new RuntimeValue(boundMethod);
             }

@@ -6,6 +6,7 @@ using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceInterpreter;
 using static Fluence.FluenceParser;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Fluence
 {
@@ -60,6 +61,8 @@ namespace Fluence
 
         /// <summary>Gets the registers for the current call frame via the cached reference.</summary>
         internal Dictionary<string, RuntimeValue> CurrentRegisters => _cachedRegisters;
+
+        internal int CurrentInstructionPointer => _ip;
 
         /// <summary>
         /// The current state of the Virtual Machine.
@@ -1562,10 +1565,34 @@ namespace Fluence
             _operandStack.Push(GetRuntimeValue(instruction.Rhs));
         }
 
+        internal void PrepareFunctionCall(CallFrame frame, FunctionObject function)
+        {
+            _callStack.Push(frame);
+            _cachedRegisters = frame.Registers;
+            _ip = function.StartAddress;
+
+        }
+
+        internal RuntimeValue PopStack() => _operandStack.Pop();
+
         /// <summary>
         /// Handles the CALL_FUNCTION instruction, which invokes a standalone function.
         /// </summary>
         private void ExecuteCallFunction(InstructionLine instruction)
+        {
+            if (instruction.SpecializedHandler != null)
+            {
+                instruction.SpecializedHandler(instruction, this);
+                return;
+            }
+
+            ExecuteGenericCallFunction(instruction);
+        }
+
+        /// <summary>
+        /// Handles the CALL_FUNCTION instruction, which invokes a standalone function.
+        /// </summary>
+        internal void ExecuteGenericCallFunction(InstructionLine instruction)
         {
             RuntimeValue functionVal = GetRuntimeValue(instruction.Rhs);
             if (functionVal.As<FunctionObject>() is not FunctionObject function)
@@ -1576,7 +1603,6 @@ namespace Fluence
 
             int argCount = GetRuntimeValue(instruction.Rhs2).IntValue;
 
-            // Intrinsic functions that have arity of -100 accept a dynamic amount of arguments.
             if (function.Arity != argCount && function.Arity != -100)
             {
                 ConstructAndThrowException($"Internal VM Error: Mismatched arguments for function '{function.Name}'. Expected {function.Arity}, but got {argCount}.");
@@ -1593,6 +1619,14 @@ namespace Fluence
 
                 Value resultValue = function.IntrinsicBody(args);
                 SetRegister((TempValue)instruction.Lhs, GetRuntimeValue(resultValue));
+                return;
+            }
+
+            var handler = InlineCacheManager.CreateSpecializedCallFunctionHandler(instruction, function);
+            if (handler != null)
+            {
+                instruction.SpecializedHandler = handler;
+                handler(instruction, this);
                 return;
             }
 
@@ -2143,7 +2177,7 @@ namespace Fluence
         /// <summary>
         /// Gets a detailed, user-friendly type name for a runtime value.
         /// </summary>
-        private static string GetDetailedTypeName(RuntimeValue value)
+        internal static string GetDetailedTypeName(RuntimeValue value)
         {
             if (value.Type == RuntimeValueType.Object && value.ObjectReference != null)
             {

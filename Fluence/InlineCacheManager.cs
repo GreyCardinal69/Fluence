@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
+using static Fluence.FluenceVirtualMachine;
 
 namespace Fluence
 {
@@ -1684,6 +1685,29 @@ namespace Fluence
             }
 
             return null;
+        }
+
+        internal static SpecializedOpcodeHandler? CreateSpecializedCallFunctionHandler(InstructionLine insn, FunctionObject function)
+        {
+            var functionToCall = function;
+            var destinationRegister = (TempValue)insn.Lhs;
+            var argCount = function.Parameters.Count;
+            var parameterNames = function.Parameters.ToArray();
+
+            return (instruction, vm) =>
+            {
+                var newFrame = new CallFrame(functionToCall, vm.CurrentInstructionPointer, destinationRegister);
+
+                for (int i = argCount - 1; i >= 0; i--)
+                {
+                    string paramName = function.Parameters[i];
+                    RuntimeValue argValue = vm.PopStack();
+                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
+                    valueRef = argValue;
+                }
+
+                vm.PrepareFunctionCall(newFrame, function);
+            };
         }
     }
 }

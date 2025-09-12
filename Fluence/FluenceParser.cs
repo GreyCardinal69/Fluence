@@ -1816,9 +1816,6 @@ namespace Fluence
                     }
 
                     Value returnedValue = _currentParseState.CodeInstructions[^1].Lhs;
-
-                    // Parseblock ends with a return statement, but we don't want to exit function, just the block,
-                    // so we replace it with an assign instruction instead.
                     _currentParseState.CodeInstructions[^1] = new InstructionLine(InstructionCode.Assign, result, returnedValue);
                 }
 
@@ -3121,7 +3118,7 @@ namespace Fluence
                 _currentParseState.AddCodeInstruction(new InstructionLine(
                     logicalOp,
                     combinedResult,
-                    result, // The result of the previous operation
+                    result,
                     nextCondition
                 ));
 

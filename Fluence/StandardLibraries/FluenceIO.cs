@@ -17,33 +17,32 @@ namespace Fluence
                 string message = (args.Count < 1) ? "" : args[0]?.ToFluenceString() ?? "nil";
                 outputLine(message);
                 return new NilValue();
-            }));
+            }, null!, ioNamespace));
 
             ioNamespace.Declare("print", new FunctionSymbol("print", 1, (args) =>
             {
                 string message = (args.Count < 1) ? "" : args[0]?.ToFluenceString() ?? "nil";
                 output(message);
                 return new NilValue();
-            }));
+            }, null!, ioNamespace));
 
             ioNamespace.Declare("input", new FunctionSymbol("input", 0, (args) =>
             {
                 return new StringValue(input() ?? "");
-            }));
+            }, null!, ioNamespace));
 
             ioNamespace.Declare("readAndClear", new FunctionSymbol("readAndClear", 0, (args) =>
             {
                 Console.ReadLine();
                 Console.Clear();
                 return new NilValue();
-            }));
+            }, null!, ioNamespace));
 
             ioNamespace.Declare("clear", new FunctionSymbol("clear", 0, (args) =>
             {
                 Console.Clear();
                 return new NilValue();
-            }));
-
+            }, null!, ioNamespace));
 
             //
             //      The "File" static struct managing File creation, read/write and other miscellanea operations.
@@ -59,7 +58,7 @@ namespace Fluence
 
                 File.WriteAllText(path.Value, content.Value);
                 return new NilValue();
-            }));
+            }, null!, ioNamespace));
 
             file.StaticIntrinsics.Add("appendText", new FunctionSymbol("appendText", 2, (args) =>
             {
@@ -68,7 +67,7 @@ namespace Fluence
 
                 File.AppendAllText(path.Value, content.Value);
                 return new NilValue();
-            }));
+            }, null!, ioNamespace));
 
             file.StaticIntrinsics.Add("move", new FunctionSymbol("move", 2, (args) =>
             {
@@ -77,7 +76,7 @@ namespace Fluence
 
                 File.Move(path.Value, path2.Value);
                 return new NilValue();
-            }));
+            }, null!, ioNamespace));
 
             file.StaticIntrinsics.Add("read", new FunctionSymbol("read", 1, (args) =>
             {
@@ -85,7 +84,7 @@ namespace Fluence
                     throw new FluenceRuntimeException("File.read() expects one argument, a path (string).");
 
                 return new StringValue(File.ReadAllText(path.Value));
-            }));
+            }, null!, ioNamespace));
 
             file.StaticIntrinsics.Add("create", new FunctionSymbol("create", 1, (args) =>
             {
@@ -94,7 +93,7 @@ namespace Fluence
 
                 File.Create(path.Value);
                 return new NilValue();
-            }));
+            }, null!, ioNamespace));
 
             file.StaticIntrinsics.Add("delete", new FunctionSymbol("delete", 1, (args) =>
             {
@@ -103,7 +102,7 @@ namespace Fluence
 
                 File.Delete(path.Value);
                 return new NilValue();
-            }));
+            }, null!, ioNamespace));
 
             file.StaticIntrinsics.Add("exists", new FunctionSymbol("exists", 1, (args) =>
             {
@@ -111,7 +110,7 @@ namespace Fluence
                     throw new FluenceRuntimeException("File.exists() expects one argument, a path (string).");
 
                 return new BooleanValue(File.Exists(path.Value));
-            }));
+            }, null!, ioNamespace));
         }
     }
 }

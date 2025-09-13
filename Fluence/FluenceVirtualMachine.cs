@@ -1618,7 +1618,7 @@ namespace Fluence
                 return;
             }
 
-            if (_allowedIntrinsicLibraries.Count != 0 && !_allowedIntrinsicLibraries.Contains(function.DefiningScope.Name))
+            if (_allowedIntrinsicLibraries.Count != 0 && !string.Equals(function.DefiningScope.Name, "Global", StringComparison.Ordinal) && !_allowedIntrinsicLibraries.Contains(function.DefiningScope.Name))
             {
                 ConstructAndThrowException($"Internal VM Error: The library \"{function.DefiningScope.Name}\" is not an allowed library for this Virtual Machine instance.");
             }

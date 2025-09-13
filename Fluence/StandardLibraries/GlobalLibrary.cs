@@ -13,12 +13,12 @@ namespace Fluence
             globalScope.Declare("to_int", new FunctionSymbol("to_int", 1, (args) =>
             {
                 return new NumberValue(Convert.ToInt32(args[0].GetValue()));
-            }));
+            }, null!, globalScope));
 
             globalScope.Declare("str", new FunctionSymbol("str", 1, (args) =>
             {
                 return new StringValue(args[0].ToFluenceString());
-            }));
+            }, null!, globalScope));
         }
     }
 }

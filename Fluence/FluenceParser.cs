@@ -56,6 +56,8 @@ namespace Fluence
         /// </summary>
         public List<InstructionLine> CompiledCode => _currentParseState.CodeInstructions;
 
+        internal FluenceIntrinsics Intrinsics => _intrinsicsManager;
+
         internal ParseState CurrentParseState => _currentParseState;
 
         /// <summary>
@@ -265,7 +267,7 @@ namespace Fluence
                     break;
 
                 case FunctionSymbol functionSymbol:
-                    string scope = functionSymbol.DefiningScope == null || functionSymbol.Arguments.Count == 0 ? $"None {(functionSymbol.IsIntrinsic ? "(Intrinsic)" : "Global?")}" : functionSymbol.DefiningScope.Name;
+                    string scope = functionSymbol.DefiningScope == null || functionSymbol.Arguments == null ? $"None {(functionSymbol.IsIntrinsic ? "(Intrinsic)" : "Global?")}" : functionSymbol.DefiningScope.Name;
                     string args = functionSymbol.Arguments == null ? "None" : string.Join(",", functionSymbol.Arguments);
                     if (string.IsNullOrEmpty(args)) args = "None";
 
@@ -1559,7 +1561,7 @@ namespace Fluence
             int functionStartAddress = _currentParseState.CodeInstructions.Count;
 
             FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress, parameters);
-
+            func.SetScope(_currentParseState.CurrentScope);
             UpdateFunctionSymbolsAndGenerateDeclaration(func, nameToken, inStruct, isInit, structName);
 
             // Either => for one line, or => {...} for a block.

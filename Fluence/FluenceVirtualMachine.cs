@@ -46,6 +46,14 @@ namespace Fluence
         private readonly Stack<RuntimeValue> _operandStack = new();
 
         /// <summary>
+        /// A collection of the standard library names that are permitted to be loaded by a script.
+        /// If this set is empty, all standard libraries are allowed. If it is populated, only the
+        /// libraries whose names are in this set can be imported via the 'use' statement.
+        /// This acts as a security whitelist for sandboxing script execution.
+        /// </summary>
+        private HashSet<string> _allowedIntrinsicLibraries = new HashSet<string>();
+
+        /// <summary>
         /// A cache to store the readonly status of variables in the global scope.
         /// </summary>
         internal readonly Dictionary<string, bool> GlobalWritableCache = new();
@@ -413,6 +421,15 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Sets the whitelist of allowed libraries.
+        /// </summary>
+        /// <param name="libs">A collection of library names to allow (e.g., "FluenceIO", "FluenceMath").</param>
+        internal void SetAllowedIntrinsicLibraries(HashSet<string> libs)
+        {
+            _allowedIntrinsicLibraries = libs;
+        }
+
+        /// <summary>
         /// Runs the loaded bytecode for a specified duration.
         /// The main execution loop of the virtual machine.
         /// </summary>
@@ -617,34 +634,34 @@ namespace Fluence
 
             if (left.ObjectReference is StringObject strLeft && right.Type == RuntimeValueType.Number)
             {
-                SetRegister((TempValue)instruction.Lhs, HandleStringRepetition(strLeft, right));
+                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(strLeft, right));
                 return;
             }
             if (left.Type == RuntimeValueType.Number && right.ObjectReference is StringObject strRight)
             {
-                SetRegister((TempValue)instruction.Lhs, HandleStringRepetition(strRight, left));
+                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(strRight, left));
                 return;
             }
 
             if (left.ObjectReference is CharObject charLeft && right.Type == RuntimeValueType.Number)
             {
-                SetRegister((TempValue)instruction.Lhs, HandleStringRepetition(new StringObject(charLeft.Value.ToString()), right));
+                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(new StringObject(charLeft.Value.ToString()), right));
                 return;
             }
             if (left.Type == RuntimeValueType.Number && right.ObjectReference is CharObject charRight)
             {
-                SetRegister((TempValue)instruction.Lhs, HandleStringRepetition(new StringObject(charRight.Value.ToString()), left));
+                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(new StringObject(charRight.Value.ToString()), left));
                 return;
             }
 
             if (left.ObjectReference is ListObject listLeft && right.Type == RuntimeValueType.Number)
             {
-                SetRegister((TempValue)instruction.Lhs, HandleListRepetition(listLeft, right));
+                SetVariableOrRegister(instruction.Lhs, HandleListRepetition(listLeft, right));
                 return;
             }
             if (left.Type == RuntimeValueType.Number && right.ObjectReference is ListObject listRight)
             {
-                SetRegister((TempValue)instruction.Lhs, HandleListRepetition(listRight, left));
+                SetVariableOrRegister(instruction.Lhs, HandleListRepetition(listRight, left));
                 return;
             }
 
@@ -1601,6 +1618,11 @@ namespace Fluence
                 return;
             }
 
+            if (_allowedIntrinsicLibraries.Count != 0 && !_allowedIntrinsicLibraries.Contains(function.DefiningScope.Name))
+            {
+                ConstructAndThrowException($"Internal VM Error: The library \"{function.DefiningScope.Name}\" is not an allowed library for this Virtual Machine instance.");
+            }
+
             int argCount = GetRuntimeValue(instruction.Rhs2).IntValue;
 
             if (function.Arity != argCount && function.Arity != -100)
@@ -1977,9 +1999,8 @@ namespace Fluence
             {
                 return new RuntimeValue(
                     funcSymbol2.IsIntrinsic
-                        ? new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.IntrinsicBody, null!)
-                        : new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.Arguments, funcSymbol2.StartAddress, funcSymbol2.DefiningScope
-                        )
+                        ? new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.IntrinsicBody, funcSymbol2.DefiningScope)
+                        : new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.Arguments, funcSymbol2.StartAddress, funcSymbol2.DefiningScope)
                     );
             }
             else if (symbol is VariableSymbol variable)

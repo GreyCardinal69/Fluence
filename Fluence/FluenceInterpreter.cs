@@ -11,6 +11,7 @@ namespace Fluence
     public sealed class FluenceInterpreter
     {
         private ParseState _parseState;
+        private FluenceIntrinsics _intrinsicsInstance;
         private List<InstructionLine> _byteCode;
         private FluenceVirtualMachine _vm;
 
@@ -45,6 +46,14 @@ namespace Fluence
         public TextInputMethod OnInput { get; set; } = Console.ReadLine!;
 
         /// <summary>
+        /// A collection of the standard library names that are permitted to be loaded by a script.
+        /// If this set is empty, all standard libraries are allowed. If it is populated, only the
+        /// libraries whose names are in this set can be imported via the 'use' statement.
+        /// This acts as a security whitelist for sandboxing script execution.
+        /// </summary>
+        public HashSet<string> AllowedLibraries { get; private set; } = new HashSet<string>();
+
+        /// <summary>
         /// Gets or sets the output method to report errors and exceptions.
         /// </summary>
         public TextOutputMethod OnErrorOutput { get; set; } = Console.WriteLine;
@@ -67,6 +76,35 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Adds one or more standard library names to the whitelist of allowed libraries.
+        /// </summary>
+        /// <param name="libs">A collection of library names to allow (e.g., "FluenceIO", "FluenceMath").</param>
+        public void AddAllowedIntrinsicLibraries(IEnumerable<string> libs)
+        {
+            foreach (var lib in libs)
+            {
+                AllowedLibraries.Add(lib);
+            }
+        }
+
+        /// <summary>
+        /// Removes one or more standard library names from the whitelist of allowed libraries.
+        /// </summary>
+        /// <param name="libs">A collection of library names to disallow.</param>
+        public void RemoveAllowedIntrinsicLibraries(IEnumerable<string> libs)
+        {
+            foreach (var lib in libs)
+            {
+                AllowedLibraries.Remove(lib);
+            }
+        }
+
+        /// <summary>
+        /// Clears the whitelist of allowed intrinsic libraries, effectively allowing all standard libraries to be used.
+        /// </summary>
+        public void ClearAllowedIntrinsicLibraries() => AllowedLibraries.Clear();
+
+        /// <summary>
         /// Compiles a Fluence source code script into executable bytecode.
         /// This must be called before any of the Run methods.
         /// </summary>
@@ -81,6 +119,7 @@ namespace Fluence
             {
                 FluenceLexer lexer = new FluenceLexer(sourceCode);
                 FluenceParser parser = new FluenceParser(lexer, OnOutputLine, OnOutput, OnInput);
+                _intrinsicsInstance = parser.Intrinsics;
                 parser.Parse(partialCode);
 #if DEBUG
                 parser.DumpSymbolTables();
@@ -113,6 +152,7 @@ namespace Fluence
             try
             {
                 FluenceParser parser = new FluenceParser(rootDir, OnOutputLine, OnOutput, OnInput);
+                _intrinsicsInstance = parser.Intrinsics;
                 parser.Parse(partialCode);
 #if DEBUG
                 parser.DumpSymbolTables();
@@ -166,7 +206,7 @@ namespace Fluence
                 {
                     _vm = new FluenceVirtualMachine(_byteCode, _parseState, OnOutput, OnOutputLine, OnInput);
                 }
-
+                _vm.SetAllowedIntrinsicLibraries(AllowedLibraries);
                 _vm.RunFor(duration);
 #if DEBUG
                 _vm.DumpPerformanceProfile();

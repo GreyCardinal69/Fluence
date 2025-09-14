@@ -1585,6 +1585,62 @@ namespace Fluence
                     };
                 }
 
+                if (collectionOperand is TempValue collVar5 && indexOperand is VariableValue indexVar5)
+                {
+                    string collName = collVar5.TempName;
+                    string indexName = indexVar5.Name;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
+                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
+
+                        if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is ListObject list &&
+                            !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
+                        {
+                            int idx = indexRef.IntValue;
+                            if (idx >= 0 && idx < list.Elements.Count)
+                            {
+                                vm.SetRegister(destRegister, list.Elements[idx]);
+                            }
+                            else { vm.ConstructAndThrowException("Index out of range."); }
+                        }
+                        else
+                        {
+                            instruction.SpecializedHandler = null;
+                            vm.ExecuteGenericGetElement(instruction);
+                        }
+                    };
+                }
+
+                if (collectionOperand is TempValue collVar6 && indexOperand is TempValue indexVar6)
+                {
+                    string collName = collVar6.TempName;
+                    string indexName = indexVar6.TempName;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
+                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
+
+                        if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is ListObject list &&
+                            !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
+                        {
+                            int idx = indexRef.IntValue;
+                            if (idx >= 0 && idx < list.Elements.Count)
+                            {
+                                vm.SetRegister(destRegister, list.Elements[idx]);
+                            }
+                            else { vm.ConstructAndThrowException("Index out of range."); }
+                        }
+                        else
+                        {
+                            instruction.SpecializedHandler = null;
+                            vm.ExecuteGenericGetElement(instruction);
+                        }
+                    };
+                }
+
                 if (collectionOperand is VariableValue collVar2 && indexOperand is TempValue indextemp)
                 {
                     string collName = collVar2.Name;

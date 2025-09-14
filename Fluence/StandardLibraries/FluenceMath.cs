@@ -1,6 +1,4 @@
-﻿using System.Xml.Linq;
-
-namespace Fluence
+﻿namespace Fluence
 {
     /// <summary>
     /// The default intrinsic namespace for common mathematical operations.
@@ -20,247 +18,310 @@ namespace Fluence
 
             mathNamespace.Declare("Tau", new VariableSymbol("Tau", new NumberValue(Math.Tau, NumberValue.NumberType.Double), true));
 
-            mathNamespace.Declare("cos", new FunctionSymbol("cos", 1, (args) =>
+            mathNamespace.Declare("cos", new FunctionSymbol("cos", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("cos() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("cos() expects one numerical argument.");
 
                 return new NumberValue(Math.Cos(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("sin", new FunctionSymbol("sin", 1, (args) =>
+            mathNamespace.Declare("sin", new FunctionSymbol("sin", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("sin() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("sin() expects one numerical argument.");
 
                 return new NumberValue(Math.Sin(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("abs", new FunctionSymbol("abs", 1, (args) =>
+            mathNamespace.Declare("abs", new FunctionSymbol("abs", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("abs() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("abs() expects one numerical argument.");
 
                 return num.Type switch
                 {
                     NumberValue.NumberType.Integer => new NumberValue(Math.Abs(Convert.ToInt32(num.Value))),
+                    NumberValue.NumberType.Long => new NumberValue(Math.Abs(Convert.ToInt64(num.Value))),
                     NumberValue.NumberType.Float => new NumberValue(Math.Abs(Convert.ToSingle(num.Value)), NumberValue.NumberType.Float),
                     _ => new NumberValue(Math.Abs(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double),
                 };
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("acos", new FunctionSymbol("acos", 1, (args) =>
+            mathNamespace.Declare("acos", new FunctionSymbol("acos", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("acos() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("acos() expects one numerical argument.");
 
                 return new NumberValue(Math.Acos(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("acosh", new FunctionSymbol("acosh", 1, (args) =>
+            mathNamespace.Declare("acosh", new FunctionSymbol("acosh", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("acosh() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("acosh() expects one numerical argument.");
 
                 return new NumberValue(Math.Acosh(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("asin", new FunctionSymbol("asin", 1, (args) =>
+            mathNamespace.Declare("asin", new FunctionSymbol("asin", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("asin() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("asin() expects one numerical argument.");
 
                 return new NumberValue(Math.Asin(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("asinh", new FunctionSymbol("asinh", 1, (args) =>
+            mathNamespace.Declare("asinh", new FunctionSymbol("asinh", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("asinh() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("asinh() expects one numerical argument.");
 
                 return new NumberValue(Math.Asinh(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("atan", new FunctionSymbol("atan", 1, (args) =>
+            mathNamespace.Declare("atan", new FunctionSymbol("atan", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("atan() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("atan() expects one numerical argument.");
 
                 return new NumberValue(Math.Atan(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("atan2", new FunctionSymbol("atan2", 2, (args) =>
+            mathNamespace.Declare("atan2", new FunctionSymbol("atan2", 2, (vm, argCount) =>
             {
-                if (args.Count < 2 || args[0] is not NumberValue num || args[1] is not NumberValue num2)
-                    throw new FluenceRuntimeException("atan2() expects two numerical argumenta.");
+                if (argCount != 2) throw new FluenceRuntimeException("atan2() expects two numerical arguments.");
+                var val2 = vm.ToValue(vm.PopStack());
+                var val1 = vm.ToValue(vm.PopStack());
+                if (val1 is not NumberValue num1 || val2 is not NumberValue num2)
+                    throw new FluenceRuntimeException("atan2() expects two numerical arguments.");
 
-                return new NumberValue(Math.Atan2(Convert.ToDouble(num.Value), Convert.ToDouble(num2)), NumberValue.NumberType.Double);
+                return new NumberValue(Math.Atan2(Convert.ToDouble(num1.Value), Convert.ToDouble(num2.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("atanh", new FunctionSymbol("atanh", 1, (args) =>
+            mathNamespace.Declare("atanh", new FunctionSymbol("atanh", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("atanh() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("atanh() expects one numerical argument.");
 
                 return new NumberValue(Math.Atanh(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("ceil", new FunctionSymbol("ceil", 1, (args) =>
+            mathNamespace.Declare("ceil", new FunctionSymbol("ceil", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("ceil() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("ceil() expects one numerical argument.");
 
                 return num.Type switch
                 {
                     NumberValue.NumberType.Integer => num,
+                    NumberValue.NumberType.Long => num,
                     NumberValue.NumberType.Float => new NumberValue(Math.Ceiling(Convert.ToSingle(num.Value)), NumberValue.NumberType.Float),
                     _ => new NumberValue(Math.Ceiling(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double),
                 };
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("clamp", new FunctionSymbol("clamp", 3, (args) =>
+            mathNamespace.Declare("clamp", new FunctionSymbol("clamp", 3, (vm, argCount) =>
             {
-                if (args.Count < 3 || args[0] is not NumberValue num || args[1] is not NumberValue num2 || args[2] is not NumberValue num3)
-                    throw new FluenceRuntimeException("clamp() expects three numerical argumenta.");
+                if (argCount != 3) throw new FluenceRuntimeException("clamp() expects three numerical arguments.");
+                var val3 = vm.ToValue(vm.PopStack());
+                var val2 = vm.ToValue(vm.PopStack());
+                var val1 = vm.ToValue(vm.PopStack());
+                if (val1 is not NumberValue num1 || val2 is not NumberValue num2 || val3 is not NumberValue num3)
+                    throw new FluenceRuntimeException("clamp() expects three numerical arguments.");
 
-                return num.Type switch
+                return num1.Type switch
                 {
-                    NumberValue.NumberType.Integer => new NumberValue(Math.Clamp(Convert.ToInt32(num.Value), Convert.ToInt32(num2.Value), Convert.ToInt32(num3.Value))),
-                    NumberValue.NumberType.Float => new NumberValue(Math.Clamp(Convert.ToSingle(num.Value), Convert.ToSingle(num2.Value), Convert.ToSingle(num3.Value)), NumberValue.NumberType.Float),
-                    _ => new NumberValue(Math.Clamp(Convert.ToDouble(num.Value), Convert.ToDouble(num2.Value), Convert.ToDouble(num3.Value)), NumberValue.NumberType.Double),
+                    NumberValue.NumberType.Integer => new NumberValue(Math.Clamp(Convert.ToInt32(num1.Value), Convert.ToInt32(num2.Value), Convert.ToInt32(num3.Value))),
+                    NumberValue.NumberType.Long => new NumberValue(Math.Clamp(Convert.ToInt64(num1.Value), Convert.ToInt64(num2.Value), Convert.ToInt64(num3.Value))),
+                    NumberValue.NumberType.Float => new NumberValue(Math.Clamp(Convert.ToSingle(num1.Value), Convert.ToSingle(num2.Value), Convert.ToSingle(num3.Value)), NumberValue.NumberType.Float),
+                    _ => new NumberValue(Math.Clamp(Convert.ToDouble(num1.Value), Convert.ToDouble(num2.Value), Convert.ToDouble(num3.Value)), NumberValue.NumberType.Double),
                 };
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("cosh", new FunctionSymbol("cosh", 1, (args) =>
+            mathNamespace.Declare("cosh", new FunctionSymbol("cosh", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("cosh() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("cosh() expects one numerical argument.");
 
                 return new NumberValue(Math.Cosh(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("exp", new FunctionSymbol("exp", 1, (args) =>
+            mathNamespace.Declare("exp", new FunctionSymbol("exp", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("exp() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("exp() expects one numerical argument.");
 
                 return new NumberValue(Math.Exp(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("floor", new FunctionSymbol("floor", 1, (args) =>
+            mathNamespace.Declare("floor", new FunctionSymbol("floor", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("floor() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("floor() expects one numerical argument.");
 
                 return new NumberValue(Math.Floor(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("log", new FunctionSymbol("log", 1, (args) =>
+            mathNamespace.Declare("log", new FunctionSymbol("log", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("log() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("log() expects one numerical argument.");
 
                 return new NumberValue(Math.Log(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("log10", new FunctionSymbol("log10", 1, (args) =>
+            mathNamespace.Declare("log10", new FunctionSymbol("log10", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("log10() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("log10() expects one numerical argument.");
 
                 return new NumberValue(Math.Log10(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("log2", new FunctionSymbol("log2", 1, (args) =>
+            mathNamespace.Declare("log2", new FunctionSymbol("log2", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("log2() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("log2() expects one numerical argument.");
 
                 return new NumberValue(Math.Log2(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("max", new FunctionSymbol("max", 2, (args) =>
+            mathNamespace.Declare("max", new FunctionSymbol("max", 2, (vm, argCount) =>
             {
-                if (args.Count < 2 || args[0] is not NumberValue num || args[1] is not NumberValue num2)
-                    throw new FluenceRuntimeException("max() expects three numerical argumenta.");
+                if (argCount != 2) throw new FluenceRuntimeException("max() expects two numerical arguments.");
+                var val2 = vm.ToValue(vm.PopStack());
+                var val1 = vm.ToValue(vm.PopStack());
+                if (val1 is not NumberValue num1 || val2 is not NumberValue num2)
+                    throw new FluenceRuntimeException("max() expects two numerical arguments.");
 
-                return num.Type switch
+                return num1.Type switch
                 {
-                    NumberValue.NumberType.Integer => new NumberValue(Math.Max(Convert.ToInt32(num.Value), Convert.ToInt32(num2.Value))),
-                    NumberValue.NumberType.Long => new NumberValue(Math.Max(Convert.ToInt64(num.Value), Convert.ToInt64(num2.Value))),
-                    NumberValue.NumberType.Float => new NumberValue(Math.Max(Convert.ToSingle(num.Value), Convert.ToSingle(num2.Value)), NumberValue.NumberType.Float),
-                    _ => new NumberValue(Math.Max(Convert.ToDouble(num.Value), Convert.ToDouble(num2.Value)), NumberValue.NumberType.Double),
+                    NumberValue.NumberType.Integer => new NumberValue(Math.Max(Convert.ToInt32(num1.Value), Convert.ToInt32(num2.Value))),
+                    NumberValue.NumberType.Long => new NumberValue(Math.Max(Convert.ToInt64(num1.Value), Convert.ToInt64(num2.Value))),
+                    NumberValue.NumberType.Float => new NumberValue(Math.Max(Convert.ToSingle(num1.Value), Convert.ToSingle(num2.Value)), NumberValue.NumberType.Float),
+                    _ => new NumberValue(Math.Max(Convert.ToDouble(num1.Value), Convert.ToDouble(num2.Value)), NumberValue.NumberType.Double),
                 };
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("min", new FunctionSymbol("min", 2, (args) =>
+            mathNamespace.Declare("min", new FunctionSymbol("min", 2, (vm, argCount) =>
             {
-                if (args.Count < 2 || args[0] is not NumberValue num || args[1] is not NumberValue num2)
-                    throw new FluenceRuntimeException("min() expects two numerical argumenta.");
+                if (argCount != 2) throw new FluenceRuntimeException("min() expects two numerical arguments.");
+                var val2 = vm.ToValue(vm.PopStack());
+                var val1 = vm.ToValue(vm.PopStack());
+                if (val1 is not NumberValue num1 || val2 is not NumberValue num2)
+                    throw new FluenceRuntimeException("min() expects two numerical arguments.");
 
-                return num.Type switch
+                return num1.Type switch
                 {
-                    NumberValue.NumberType.Integer => new NumberValue(Math.Min(Convert.ToInt32(num.Value), Convert.ToInt32(num2.Value))),
-                    NumberValue.NumberType.Long => new NumberValue(Math.Min(Convert.ToInt64(num.Value), Convert.ToInt64(num2.Value))),
-                    NumberValue.NumberType.Float => new NumberValue(Math.Min(Convert.ToSingle(num.Value), Convert.ToSingle(num2.Value)), NumberValue.NumberType.Float),
-                    _ => new NumberValue(Math.Min(Convert.ToDouble(num.Value), Convert.ToDouble(num2.Value)), NumberValue.NumberType.Double),
+                    NumberValue.NumberType.Integer => new NumberValue(Math.Min(Convert.ToInt32(num1.Value), Convert.ToInt32(num2.Value))),
+                    NumberValue.NumberType.Long => new NumberValue(Math.Min(Convert.ToInt64(num1.Value), Convert.ToInt64(num2.Value))),
+                    NumberValue.NumberType.Float => new NumberValue(Math.Min(Convert.ToSingle(num1.Value), Convert.ToSingle(num2.Value)), NumberValue.NumberType.Float),
+                    _ => new NumberValue(Math.Min(Convert.ToDouble(num1.Value), Convert.ToDouble(num2.Value)), NumberValue.NumberType.Double),
                 };
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("min3", new FunctionSymbol("min3", 3, (args) =>
+            mathNamespace.Declare("min3", new FunctionSymbol("min3", 3, (vm, argCount) =>
             {
-                if (args.Count < 3 || args[0] is not NumberValue num || args[1] is not NumberValue num2 || args[2] is not NumberValue num3)
-                    throw new FluenceRuntimeException("min3() expects three numerical argumenta.");
+                if (argCount != 3) throw new FluenceRuntimeException("min3() expects three numerical arguments.");
+                var val3 = vm.ToValue(vm.PopStack());
+                var val2 = vm.ToValue(vm.PopStack());
+                var val1 = vm.ToValue(vm.PopStack());
+                if (val1 is not NumberValue num1 || val2 is not NumberValue num2 || val3 is not NumberValue num3)
+                    throw new FluenceRuntimeException("min3() expects three numerical arguments.");
 
-                return num.Type switch
+                return num1.Type switch
                 {
-                    NumberValue.NumberType.Integer => new NumberValue(Math.Min(Math.Min(Convert.ToInt32(num.Value), Convert.ToInt32(num2.Value)), Convert.ToInt32(num3.Value))),
-                    NumberValue.NumberType.Float => new NumberValue(Math.Min(Math.Min(Convert.ToSingle(num.Value), Convert.ToSingle(num2.Value)), Convert.ToSingle(num3.Value))),
-                    NumberValue.NumberType.Long => new NumberValue(Math.Min(Math.Min(Convert.ToInt64(num.Value), Convert.ToInt64(num2.Value)), Convert.ToInt64(num3.Value))),
-                    _ => new NumberValue(Math.Min(Math.Min(Convert.ToDouble(num.Value), Convert.ToDouble(num2.Value)), Convert.ToDouble(num3.Value))),
+                    NumberValue.NumberType.Integer => new NumberValue(Math.Min(Math.Min(Convert.ToInt32(num1.Value), Convert.ToInt32(num2.Value)), Convert.ToInt32(num3.Value))),
+                    NumberValue.NumberType.Long => new NumberValue(Math.Min(Math.Min(Convert.ToInt64(num1.Value), Convert.ToInt64(num2.Value)), Convert.ToInt64(num3.Value))),
+                    NumberValue.NumberType.Float => new NumberValue(Math.Min(Math.Min(Convert.ToSingle(num1.Value), Convert.ToSingle(num2.Value)), Convert.ToSingle(num3.Value)), NumberValue.NumberType.Float),
+                    _ => new NumberValue(Math.Min(Math.Min(Convert.ToDouble(num1.Value), Convert.ToDouble(num2.Value)), Convert.ToDouble(num3.Value))),
                 };
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("round", new FunctionSymbol("round", 1, (args) =>
+            mathNamespace.Declare("round", new FunctionSymbol("round", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("round() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("round() expects one numerical argument.");
 
                 return num.Type switch
                 {
                     NumberValue.NumberType.Integer => num,
+                    NumberValue.NumberType.Long => num,
                     NumberValue.NumberType.Float => new NumberValue(Math.Round(Convert.ToSingle(num.Value)), NumberValue.NumberType.Float),
                     _ => new NumberValue(Math.Round(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double),
                 };
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("sinh", new FunctionSymbol("sinh", 1, (args) =>
+            mathNamespace.Declare("sinh", new FunctionSymbol("sinh", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("sinh() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("sinh() expects one numerical argument.");
 
                 return new NumberValue(Math.Sinh(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("sqrt", new FunctionSymbol("sqrt", 1, (args) =>
+            mathNamespace.Declare("sqrt", new FunctionSymbol("sqrt", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("sqrt() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("sqrt() expects one numerical argument.");
 
                 return new NumberValue(Math.Sqrt(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("tan", new FunctionSymbol("tan", 1, (args) =>
+            mathNamespace.Declare("tan", new FunctionSymbol("tan", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("tan() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("tan() expects one numerical argument.");
 
                 return new NumberValue(Math.Tan(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);
             }, null!, mathNamespace));
 
-            mathNamespace.Declare("tanh", new FunctionSymbol("tanh", 1, (args) =>
+            mathNamespace.Declare("tanh", new FunctionSymbol("tanh", 1, (vm, argCount) =>
             {
-                if (args.Count < 1 || args[0] is not NumberValue num)
+                if (argCount != 1) throw new FluenceRuntimeException("tanh() expects one numerical argument.");
+                var val = vm.ToValue(vm.PopStack());
+                if (val is not NumberValue num)
                     throw new FluenceRuntimeException("tanh() expects one numerical argument.");
 
                 return new NumberValue(Math.Tanh(Convert.ToDouble(num.Value)), NumberValue.NumberType.Double);

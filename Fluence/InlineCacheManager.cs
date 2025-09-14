@@ -1440,7 +1440,7 @@ namespace Fluence
             return null;
         }
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedBranchHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right, bool target)
+        internal static SpecializedOpcodeHandler? CreateSpecializedBranchHandler(InstructionLine insn, RuntimeValue right, bool target)
         {
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;

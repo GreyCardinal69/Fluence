@@ -1046,7 +1046,7 @@ namespace Fluence
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
-            instruction.SpecializedHandler = InlineCacheManager.CreateSpecializedBranchHandler(instruction, this, left, right, target);
+            instruction.SpecializedHandler = InlineCacheManager.CreateSpecializedBranchHandler(instruction, right, target);
             bool result = left.Equals(right);
 
             if (result == target)

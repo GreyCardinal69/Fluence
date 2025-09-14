@@ -133,7 +133,7 @@
         {
             string lexeme = token.Text;
             if (lexeme.EndsWith('f') && float.TryParse(lexeme[..^1], out float floatVal))
-            { 
+            {
                 return new NumberValue(floatVal, NumberType.Float);
             }
             if (lexeme.Contains('.', StringComparison.OrdinalIgnoreCase) && double.TryParse(lexeme, out double doubleVal))

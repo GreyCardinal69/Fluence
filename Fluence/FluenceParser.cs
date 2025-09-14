@@ -2105,15 +2105,18 @@ namespace Fluence
                 return;
             }
 
-            if (IsTruthyGuardPipeCall())
+            if (IsPipeCallAhead(out TokenType pipeType))
             {
-                ParseTruthyGuardChain(firstLhs);
-                return;
-            }
-
-            if (IsGuardChainCall())
-            {
-                ParseGuardChain(firstLhs);
+                switch (pipeType)
+                {
+                    case TokenType.GUARD_PIPE:
+                        ParseTruthyGuardChain(firstLhs);
+                        break;
+                    case TokenType.GUARD_CHAIN:
+                    case TokenType.OR_GUARD_CHAIN:
+                        ParseGuardChain(firstLhs);
+                        break;
+                }
                 return;
             }
 
@@ -2252,10 +2255,11 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Checks if after an assignment of a value comes a truthy guard pipe chain.
+        /// Checks if special pipe call operator is up ahead in the expression.
         /// </summary>
-        /// <returns></returns>
-        private bool IsGuardChainCall()
+        /// <param name="pipeType">Returns the type of the pipe if true, else <see cref="TokenType.UNKNOWN"/>.</param>
+        /// <returns>True if a special pipe operator is ahead.</returns>
+        private bool IsPipeCallAhead(out TokenType pipeType)
         {
             int lookahead = 1;
 
@@ -2265,42 +2269,21 @@ namespace Fluence
 
                 if (type == TokenType.EOL)
                 {
+                    pipeType = TokenType.UNKNOWN;
                     return false;
                 }
 
-                if (type is TokenType.GUARD_CHAIN or TokenType.OR_GUARD_CHAIN)
+                if (type is TokenType.GUARD_PIPE or TokenType.GUARD_CHAIN or TokenType.OR_GUARD_CHAIN)
                 {
+                    pipeType = type;
                     return true;
                 }
 
-                if (type == TokenType.EOF) return false;
-                lookahead++;
-            }
-        }
-
-        /// <summary>
-        /// Checks if after an assignment of a value comes a truthy guard pipe chain.
-        /// </summary>
-        /// <returns></returns>
-        private bool IsTruthyGuardPipeCall()
-        {
-            int lookahead = 1;
-
-            while (true)
-            {
-                TokenType type = _lexer.PeekTokenTypeAheadByN(lookahead);
-
-                if (type == TokenType.EOL)
+                if (type == TokenType.EOF)
                 {
+                    pipeType = TokenType.UNKNOWN;
                     return false;
                 }
-
-                if (type == TokenType.GUARD_PIPE)
-                {
-                    return true;
-                }
-
-                if (type == TokenType.EOF) return false;
                 lookahead++;
             }
         }

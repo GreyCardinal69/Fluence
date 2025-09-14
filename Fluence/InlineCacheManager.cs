@@ -1612,9 +1612,67 @@ namespace Fluence
                         }
                     };
                 }
+
+                return null;
             }
 
-            // TO DO, for strings.
+            // If we get here then we are accessing an element of a string.
+
+            if (collectionOperand is VariableValue collVar3 && indexOperand is VariableValue indexVar3)
+            {
+                string collName = collVar3.Name;
+                string indexName = indexVar3.Name;
+
+                return (instruction, vm) =>
+                {
+                    ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
+                    ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
+
+                    if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is StringObject str &&
+                        !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
+                    {
+                        int idx = indexRef.IntValue;
+                        if (idx >= 0 && idx < str.Value.Length)
+                        {
+                            vm.SetRegister(destRegister, new RuntimeValue(new CharValue(str.Value[idx])));
+                        }
+                        else { vm.ConstructAndThrowException("Index out of range."); }
+                    }
+                    else
+                    {
+                        instruction.SpecializedHandler = null;
+                        vm.ExecuteGenericGetElement(instruction);
+                    }
+                };
+            }
+
+            if (collectionOperand is VariableValue collVar4 && indexOperand is TempValue indextemp4)
+            {
+                string collName = collVar4.Name;
+                string indexName = indextemp4.TempName;
+
+                return (instruction, vm) =>
+                {
+                    ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
+                    ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
+
+                    if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is StringObject str &&
+                        !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
+                    {
+                        int idx = indexRef.IntValue;
+                        if (idx >= 0 && idx < str.Value.Length)
+                        {
+                            vm.SetRegister(destRegister, new RuntimeValue(new CharValue(str.Value[idx])));
+                        }
+                        else { vm.ConstructAndThrowException("Index out of range."); }
+                    }
+                    else
+                    {
+                        instruction.SpecializedHandler = null;
+                        vm.ExecuteGenericGetElement(instruction);
+                    }
+                };
+            }
 
             return null;
         }
@@ -1695,7 +1753,8 @@ namespace Fluence
 
             return (instruction, vm) =>
             {
-                var newFrame = new CallFrame(functionToCall, vm.CurrentInstructionPointer, destinationRegister);
+                CallFrame newFrame = vm.GetCallframe();
+                newFrame.Initialize(function, vm.CurrentInstructionPointer, (TempValue)instruction.Lhs);
 
                 for (int i = argCount - 1; i >= 0; i--)
                 {

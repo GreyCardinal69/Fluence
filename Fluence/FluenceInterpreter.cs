@@ -123,7 +123,7 @@ namespace Fluence
                 parser.Parse(partialCode);
 #if DEBUG
                 parser.DumpSymbolTables();
-                DumpByteCodeInstructions(parser.CompiledCode);
+                FluenceDebug.DumpByteCodeInstructions(parser.CompiledCode);
 #endif
 
                 _byteCode = parser.CompiledCode;
@@ -156,7 +156,7 @@ namespace Fluence
                 parser.Parse(partialCode);
 #if DEBUG
                 parser.DumpSymbolTables();
-                DumpByteCodeInstructions(parser.CompiledCode);
+                FluenceDebug.DumpByteCodeInstructions(parser.CompiledCode);
 #endif
 
                 _byteCode = parser.CompiledCode;

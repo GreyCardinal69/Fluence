@@ -6,7 +6,6 @@ using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceInterpreter;
 using static Fluence.FluenceParser;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Fluence
 {
@@ -52,6 +51,26 @@ namespace Fluence
         /// This acts as a security whitelist for sandboxing script execution.
         /// </summary>
         private HashSet<string> _allowedIntrinsicLibraries = new HashSet<string>();
+
+        /// <summary>
+        /// A pool of CallFrame objects to reuse.
+        /// </summary>
+        private readonly ObjectPool<CallFrame> _callFramePool;
+
+        /// <summary>
+        /// A pool of IteratorObject-s to reuse.
+        /// </summary>
+        private readonly ObjectPool<IteratorObject> _iteratorObjectPool;
+
+        /// <summary>
+        /// A pool of CharObject-s objects to reuse.
+        /// </summary>
+        private readonly ObjectPool<CharObject> _charObjectPool;
+
+        /// <summary>
+        /// A pool of FunctionObject-s objects to reuse.
+        /// </summary>
+        private readonly ObjectPool<FunctionObject> _functionObjectPool;
 
         /// <summary>
         /// A cache to store the readonly status of variables in the global scope.
@@ -159,16 +178,52 @@ namespace Fluence
         }
 #endif
 
+        internal sealed class ObjectPool<T> where T : class, new()
+        {
+            private readonly Stack<T> _pool = new Stack<T>();
+            private readonly Action<T> _resetAction;
+
+            internal ObjectPool(Action<T> resetAction = null!, int initialCapacity = 16)
+            {
+                _resetAction = resetAction;
+                for (int i = 0; i < initialCapacity; i++)
+                {
+                    _pool.Push(new T());
+                }
+            }
+
+            /// <summary>
+            /// Gets an object from the pool. If the pool is empty, a new object is created.
+            /// </summary>
+            internal T Get()
+            {
+                if (_pool.TryPop(out T? item))
+                {
+                    return item;
+                }
+                return new T();
+            }
+
+            /// <summary>
+            /// Returns an object to the pool for reuse.
+            /// </summary>
+            internal void Return(T item)
+            {
+                _resetAction.Invoke(item);
+                _pool.Push(item);
+            }
+        }
+
         /// <summary>
         /// Represents the state of a single function call on the stack. It contains the function being executed,
         /// its local variables (registers), the return address, and the destination for the return value.
         /// </summary>
-        internal readonly record struct CallFrame
+        internal sealed record class CallFrame
         {
             internal Dictionary<string, RuntimeValue> Registers { get; } = new();
-            internal readonly TempValue DestinationRegister;
-            internal readonly FunctionObject Function;
-            internal readonly int ReturnAddress;
+            internal TempValue DestinationRegister { get; private set; }
+            internal FunctionObject Function { get; private set; }
+            internal int ReturnAddress { get; private set; }
 
             /// <summary>
             /// A cache to store the readonly status of variables in this scope.
@@ -176,7 +231,20 @@ namespace Fluence
             /// </summary>
             internal readonly Dictionary<string, bool> WritableCache = new();
 
-            internal CallFrame(FunctionObject function, int returnAddress, TempValue destination)
+            public CallFrame()
+            {
+            }
+
+            public void Reset()
+            {
+                Registers.Clear();
+                WritableCache.Clear();
+                DestinationRegister = null!;
+                Function = null!;
+                ReturnAddress = 0;
+            }
+
+            public void Initialize(FunctionObject function, int returnAddress, TempValue destination)
             {
                 Function = function;
                 ReturnAddress = returnAddress;
@@ -272,6 +340,11 @@ namespace Fluence
         /// <param name="input">The delegate to handle user input.</param>
         internal FluenceVirtualMachine(List<InstructionLine> bytecode, ParseState parseState, TextOutputMethod? output, TextOutputMethod? outputLine, TextInputMethod? input)
         {
+            _callFramePool = new ObjectPool<CallFrame>(frame => frame.Reset());
+            _iteratorObjectPool = new ObjectPool<IteratorObject>(iter => iter.Reset());
+            _charObjectPool = new ObjectPool<CharObject>(chr => chr.Reset());
+            _functionObjectPool = new ObjectPool<FunctionObject>(func => func.Reset());
+
             _byteCode = bytecode;
             _globalScope = parseState.GlobalScope;
             _globals = new Dictionary<string, RuntimeValue>();
@@ -285,7 +358,10 @@ namespace Fluence
 
             // This represents the top-level global execution context.
             FunctionObject mainScriptFunc = new FunctionObject("<script>", 0, new List<string>(), 0, _globalScope);
-            CallFrame initialFrame = new CallFrame(mainScriptFunc, _byteCode.Count, null!);
+
+            CallFrame initialFrame = new CallFrame();
+            initialFrame.Initialize(mainScriptFunc, _byteCode.Count, null!);
+            
             _callStack.Push(initialFrame);
 
             _cachedRegisters = initialFrame.Registers;
@@ -384,6 +460,12 @@ namespace Fluence
         /// <param name="val">When this method returns, contains the value of the global variable, if found; otherwise, the default value.</param>
         /// <returns>True if the global variable was found; otherwise, false.</returns>
         internal bool TryGetGlobalVariable(string name, out RuntimeValue val) => _globals.TryGetValue(name, out val);
+
+        /// <summary>
+        /// Returns a reusable CallFrame insitance from the CallFrame pool or creates one if non are available.
+        /// </summary>
+        /// <returns></returns>
+        internal CallFrame GetCallframe() => _callFramePool.Get();
 
         /// <summary>
         /// Sets a global variable in the VM's global scope, converting from a standard C# type.
@@ -1429,8 +1511,9 @@ namespace Fluence
                         }
 
                         char charAsString = str.Value[index];
-                        CharObject resultStringObject = new CharObject(charAsString);
-                        SetRegister((TempValue)instruction.Lhs, new RuntimeValue(resultStringObject));
+                        CharObject resultChar = _charObjectPool.Get();
+                        resultChar.Initialize(charAsString);
+                        SetRegister((TempValue)instruction.Lhs, new RuntimeValue(resultChar));
                         break;
                     }
                 // Not an indexable type.
@@ -1479,7 +1562,8 @@ namespace Fluence
 
             if (iterable.ObjectReference is ListObject or RangeObject)
             {
-                IteratorObject iterator = new IteratorObject(iterable.ObjectReference);
+                IteratorObject iterator = _iteratorObjectPool.Get();
+                iterator.Initialize(iterable.ObjectReference);
                 SetRegister((TempValue)instruction.Lhs, new RuntimeValue(iterator));
                 return;
             }
@@ -1612,7 +1696,7 @@ namespace Fluence
         internal void ExecuteGenericCallFunction(InstructionLine instruction)
         {
             RuntimeValue functionVal = GetRuntimeValue(instruction.Rhs);
-            if (functionVal.As<FunctionObject>() is not FunctionObject function)
+            if (functionVal.ObjectReference is not FunctionObject function)
             {
                 ConstructAndThrowException($"Internal VM Error: Attempted to call a value that is not a function (got type '{GetDetailedTypeName(functionVal)}').");
                 return;
@@ -1632,14 +1716,7 @@ namespace Fluence
 
             if (function.IsIntrinsic)
             {
-                List<Value> args = new List<Value>(argCount);
-                for (int i = 0; i < argCount; i++)
-                {
-                    args.Add(ToValue(_operandStack.Pop()));
-                }
-                args.Reverse();
-
-                Value resultValue = function.IntrinsicBody(args);
+                Value resultValue = function.IntrinsicBody(this, argCount);
                 SetRegister((TempValue)instruction.Lhs, GetRuntimeValue(resultValue));
                 return;
             }
@@ -1652,7 +1729,8 @@ namespace Fluence
                 return;
             }
 
-            CallFrame newFrame = new CallFrame(function, _ip, (TempValue)instruction.Lhs);
+            CallFrame newFrame = _callFramePool.Get();
+            newFrame.Initialize(function, _ip, (TempValue)instruction.Lhs);
 
             for (int i = function.Parameters.Count - 1; i >= 0; i--)
             {
@@ -1743,7 +1821,8 @@ namespace Fluence
                 return;
             }
 
-            CallFrame newFrame = new CallFrame(functionToExecute, _ip, (TempValue)instruction.Lhs);
+            CallFrame newFrame = _callFramePool.Get();
+            newFrame.Initialize(functionToExecute, _ip, (TempValue)instruction.Lhs);
 
             // Implicitly pass 'self'.
             newFrame.Registers["self"] = instanceVal;
@@ -1786,7 +1865,7 @@ namespace Fluence
                 }
                 args.Reverse();
 
-                Value resultValue = intrinsicSymbol.IntrinsicBody(args);
+                Value resultValue = intrinsicSymbol.IntrinsicBody(this, argCount);
                 SetRegister((TempValue)instruction.Lhs, GetRuntimeValue(resultValue));
                 return;
             }
@@ -1812,7 +1891,8 @@ namespace Fluence
                 return;
             }
 
-            CallFrame newFrame = new CallFrame(functionToExecute, _ip, (TempValue)instruction.Lhs);
+            CallFrame newFrame = _callFramePool.Get();
+            newFrame.Initialize(functionToExecute, _ip, (TempValue)instruction.Lhs);
 
             for (int i = functionToExecute.Parameters.Count - 1; i >= 0; i--)
             {
@@ -1840,7 +1920,7 @@ namespace Fluence
             {
                 // This means we are trying to return from the top-level script.
                 // In this case, we can treat it like a Terminate.
-                _ip = _byteCode.Count;
+                _ip = _byteCode.Count; _callFramePool.Return(finishedFrame);
                 return;
             }
 
@@ -1857,6 +1937,7 @@ namespace Fluence
                 ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, destination.TempName, out _);
                 valueRef2 = returnValue;
             }
+            _callFramePool.Return(finishedFrame);
         }
 
         internal void SetVariableOrRegister(Value target, RuntimeValue value)
@@ -1909,21 +1990,12 @@ namespace Fluence
             {
                 // A FunctionValue from the bytecode is just a blueprint.
                 // We must convert it into a live, runtime FunctionObject.
-                if (func.IsIntrinsic)
-                {
-                    // This handles global intrinsics like 'printl'.
-                    return new RuntimeValue(new FunctionObject(func.Name, func.Arity, func.IntrinsicBody, func.FunctionScope));
-                }
-                else
-                {
-                    // This handles user-defined functions like 'double' and 'Main'.
-                    return new RuntimeValue(new FunctionObject(func.Name, func.Arity, func.Arguments, func.StartAddress, func.FunctionScope));
-                }
+                return new RuntimeValue(CreateFunctionObject(func));
             }
 
             return val switch
             {
-                CharValue ch => new RuntimeValue(new CharObject(ch.Value)),
+                CharValue ch => ResolveCharObjectRuntimeValue(ch),
                 EnumValue enumVal => new RuntimeValue(enumVal.Value),
                 NumberValue num => num.Type switch
                 {
@@ -1939,6 +2011,13 @@ namespace Fluence
                 RangeValue range => new RuntimeValue(new RangeObject(GetRuntimeValue(range.Start), GetRuntimeValue(range.End))),
                 _ => throw new FluenceRuntimeException($"Internal VM Error: Unrecognized Value type '{val.GetType().Name}' during conversion.")
             };
+        }
+
+        private RuntimeValue ResolveCharObjectRuntimeValue(CharValue ch)
+        {
+            CharObject chr = _charObjectPool.Get();
+            chr.Initialize(ch.Value);
+            return new RuntimeValue(chr);
         }
 
         /// <summary>
@@ -1997,11 +2076,7 @@ namespace Fluence
         {
             if (symbol is FunctionSymbol funcSymbol2)
             {
-                return new RuntimeValue(
-                    funcSymbol2.IsIntrinsic
-                        ? new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.IntrinsicBody, funcSymbol2.DefiningScope)
-                        : new FunctionObject(funcSymbol2.Name, funcSymbol2.Arity, funcSymbol2.Arguments, funcSymbol2.StartAddress, funcSymbol2.DefiningScope)
-                    );
+                return new RuntimeValue(CreateFunctionObject(funcSymbol2));
             }
             else if (symbol is VariableSymbol variable)
             {
@@ -2028,6 +2103,44 @@ namespace Fluence
 
             // Won't reach here, but satisfies compiler.
             return new();
+        }
+
+        /// <summary>
+        /// Retrieves or creates a FunctionObject and initializes it from a given <see cref="FunctionSymbol"/> object.
+        /// </summary>
+        /// <param name="funcSymbol">The blueprint for the <see cref="FunctionSymbol"/> to create.</param>
+        /// <returns>The initialized <see cref="FunctionObject"/>.</returns>
+        private FunctionObject CreateFunctionObject(FunctionSymbol funcSymbol)
+        {
+            FunctionObject func = _functionObjectPool.Get();
+
+            if (funcSymbol.IsIntrinsic)
+            {
+                func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.IntrinsicBody, funcSymbol.DefiningScope);
+                return func;
+            }
+
+            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.StartAddress, funcSymbol.DefiningScope);
+            return func;
+        }
+        
+        /// <summary>
+        /// Retrieves or creates a FunctionObject and initializes it from a given <see cref="FunctionValue"/> object.
+        /// </summary>
+        /// <param name="funcSymbol">The blueprint for the <see cref="FunctionObject"/> to create.</param>
+        /// <returns>The initialized <see cref="FunctionObject"/>.</returns>
+        private FunctionObject CreateFunctionObject(FunctionValue funcSymbol)
+        {
+            FunctionObject func = _functionObjectPool.Get();
+
+            if (funcSymbol.IsIntrinsic)
+            {
+                func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.IntrinsicBody, funcSymbol.FunctionScope);
+                return func;
+            }
+
+            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.StartAddress, funcSymbol.FunctionScope);
+            return func;
         }
 
         /// <summary>
@@ -2214,7 +2327,7 @@ namespace Fluence
         /// Converts a <see cref="RuntimeValue"/> back into a compile-time <see cref="Value"/>.
         /// This is primarily used for passing arguments to intrinsic functions that expect the parser's types.
         /// </summary>
-        private Value ToValue(RuntimeValue rtValue)
+        internal Value ToValue(RuntimeValue rtValue)
         {
             return rtValue.Type switch
             {

@@ -45,27 +45,27 @@ namespace Fluence
     internal sealed record class FunctionObject
     {
         /// <summary>The name of the function.</summary>
-        internal string Name { get; }
+        internal string Name { get; private set; }
 
         /// <summary>The number of parameters the function expects.</summary>
-        internal int Arity { get; }
+        internal int Arity { get; private set; }
 
         /// <summary>The instruction pointer address where the function's bytecode begins.</summary>
-        internal int StartAddress { get; }
+        internal int StartAddress { get; private set; }
 
         /// <summary>The names of the function's parameters.</summary>
-        internal List<string> Parameters { get; }
+        internal List<string> Parameters { get; private set; }
 
         /// <summary>The lexical scope in which the function was defined, used for resolving non-local variables.</summary>
-        internal FluenceScope DefiningScope { get; }
+        internal FluenceScope DefiningScope { get; private set; }
 
         /// <summary>Indicates whether this function is implemented in C# or Fluence bytecode.</summary>
-        internal bool IsIntrinsic { get; }
+        internal bool IsIntrinsic { get; private set; }
 
         /// <summary>The C# delegate that implements the body of an intrinsic function.</summary>
-        internal IntrinsicMethod IntrinsicBody { get; }
+        internal IntrinsicMethod IntrinsicBody { get; private set; }
 
-        public FunctionObject(string name, int arity, List<string> parameters, int startAddress, FluenceScope definingScope)
+        internal FunctionObject(string name, int arity, List<string> parameters, int startAddress, FluenceScope definingScope)
         {
             Name = name;
             Arity = arity;
@@ -75,8 +75,41 @@ namespace Fluence
             IsIntrinsic = false;
         }
 
+        public FunctionObject()
+        {
+        }
+
+        internal void Initialize(string name, int arity, List<string> parameters, int startAddress, FluenceScope definingScope)
+        {
+            Name = name;
+            Arity = arity;
+            Parameters = parameters;
+            StartAddress = startAddress;
+            DefiningScope = definingScope;
+            IsIntrinsic = false;
+        }
+
+        internal void Initialize(string name, int arity, IntrinsicMethod body, FluenceScope definingScope)
+        {
+            IntrinsicBody = body;
+            Name = name;
+            Arity = arity;
+            DefiningScope = definingScope;
+            IsIntrinsic = true;
+        }
+
+        internal void Reset()
+        {
+            Name = null!;
+            Arity = 0;
+            Parameters = null!;
+            StartAddress = 0;
+            DefiningScope = null!;
+            IsIntrinsic = false;
+        }
+
         // Constructor for C# intrinsic functions.
-        public FunctionObject(string name, int arity, IntrinsicMethod body, FluenceScope definingScope)
+        internal FunctionObject(string name, int arity, IntrinsicMethod body, FluenceScope definingScope)
         {
             Name = name;
             Arity = arity;
@@ -228,9 +261,23 @@ namespace Fluence
     /// </summary>
     internal sealed record class CharObject : IFluenceObject
     {
-        internal readonly char Value;
+        internal char Value { get; private set; }
 
         internal CharObject(char value) { Value = value; }
+
+        public CharObject()
+        {
+        }
+
+        internal void Initialize(object value)
+        {
+            Value = (char)value;
+        }
+
+        internal void Reset()
+        {
+            Value = default;
+        }
 
         /// <inheritdoc/>
         public bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method)
@@ -326,7 +373,7 @@ namespace Fluence
     internal sealed record class IteratorObject
     {
         /// <summary>The object being iterated over.</summary>
-        internal object Iterable { get; }
+        internal object Iterable { get; private set; }
 
         /// <summary>The current position within the iteration./summary>
         internal int CurrentIndex { get; set; }
@@ -334,6 +381,22 @@ namespace Fluence
         internal IteratorObject(object iterable)
         {
             Iterable = iterable;
+            CurrentIndex = 0;
+        }
+
+        public IteratorObject()
+        {
+        }
+
+        internal void Reset()
+        {
+            Iterable = null!;
+            CurrentIndex = 0;
+        }
+
+        internal void Initialize(object iterator)
+        {
+            Iterable = iterator;
             CurrentIndex = 0;
         }
     }

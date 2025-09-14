@@ -52,34 +52,22 @@ namespace Fluence
         /// </summary>
         private HashSet<string> _allowedIntrinsicLibraries = new HashSet<string>();
 
-        /// <summary>
-        /// A pool of CallFrame objects to reuse.
-        /// </summary>
+        /// <summary> A pool of CallFrame objects to reuse. </summary>
         private readonly ObjectPool<CallFrame> _callFramePool;
 
-        /// <summary>
-        /// A pool of IteratorObject-s to reuse.
-        /// </summary>
+        /// <summary> A pool of IteratorObject-s to reuse. </summary>
         private readonly ObjectPool<IteratorObject> _iteratorObjectPool;
 
-        /// <summary>
-        /// A pool of CharObject-s objects to reuse.
-        /// </summary>
+        /// <summary> A pool of CharObject-s objects to reuse. </summary>
         private readonly ObjectPool<CharObject> _charObjectPool;
 
-        /// <summary>
-        /// A pool of FunctionObject-s objects to reuse.
-        /// </summary>
+        /// <summary> A pool of FunctionObject-s objects to reuse. </summary>
         private readonly ObjectPool<FunctionObject> _functionObjectPool;
 
-        /// <summary>
-        /// A pool of StringObject-s objects to reuse.
-        /// </summary>
+        /// <summary> A pool of StringObject-s objects to reuse. </summary>
         private readonly ObjectPool<StringObject> _stringObjectPool;
 
-        /// <summary>
-        /// A pool of RangeObject-s objects to reuse.
-        /// </summary>
+        /// <summary>  A pool of RangeObject-s objects to reuse. </summary>
         private readonly ObjectPool<RangeObject> _rangeObjectPool;
 
         /// <summary>
@@ -853,6 +841,7 @@ namespace Fluence
             AssignTo(instruction.Lhs, instruction.Rhs);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void AssignTo(Value left, Value right)
         {
             RuntimeValue sourceValue = GetRuntimeValue(right);
@@ -1721,8 +1710,8 @@ namespace Fluence
 
             if (function.IsIntrinsic)
             {
-                Value resultValue = function.IntrinsicBody(this, argCount);
-                SetRegister((TempValue)instruction.Lhs, GetRuntimeValue(resultValue));
+                RuntimeValue resultValue = function.IntrinsicBody(this, argCount);
+                SetRegister((TempValue)instruction.Lhs, resultValue);
                 return;
             }
 
@@ -1862,16 +1851,8 @@ namespace Fluence
                     return;
                 }
 
-                List<Value> args = new List<Value>(argCount);
-
-                for (int i = 0; i < argCount; i++)
-                {
-                    args.Add(ToValue(_operandStack.Pop()));
-                }
-                args.Reverse();
-
-                Value resultValue = intrinsicSymbol.IntrinsicBody(this, argCount);
-                SetRegister((TempValue)instruction.Lhs, GetRuntimeValue(resultValue));
+                RuntimeValue resultValue = intrinsicSymbol.IntrinsicBody(this, argCount);
+                SetRegister((TempValue)instruction.Lhs, resultValue);
                 return;
             }
 
@@ -2012,7 +1993,7 @@ namespace Fluence
                 },
                 BooleanValue boolean => new RuntimeValue(boolean.Value),
                 NilValue => RuntimeValue.Nil,
-                StringValue str => ResolveStringObjectRuntimeValue(str),
+                StringValue str => ResolveStringObjectRuntimeValue(str.Value),
                 RangeValue range => ResolveRangeObjectRuntimeValue(GetRuntimeValue(range.Start), GetRuntimeValue(range.End)),
                 _ => throw new FluenceRuntimeException($"Internal VM Error: Unrecognized Value type '{val.GetType().Name}' during conversion.")
             };
@@ -2025,10 +2006,10 @@ namespace Fluence
             return new RuntimeValue(chr);
         }
 
-        private RuntimeValue ResolveStringObjectRuntimeValue(StringValue strv)
+        internal RuntimeValue ResolveStringObjectRuntimeValue(string strv)
         {
             StringObject str = _stringObjectPool.Get();
-            str.Initialize(strv.Value);
+            str.Initialize(strv);
             return new RuntimeValue(str);
         }
 
@@ -2340,37 +2321,6 @@ namespace Fluence
 
             // For primitives.
             return value.Type.ToString();
-        }
-
-        /// <summary>
-        /// Converts a <see cref="RuntimeValue"/> back into a compile-time <see cref="Value"/>.
-        /// This is primarily used for passing arguments to intrinsic functions that expect the parser's types.
-        /// </summary>
-        internal Value ToValue(RuntimeValue rtValue)
-        {
-            return rtValue.Type switch
-            {
-                RuntimeValueType.Nil => new NilValue(),
-                RuntimeValueType.Boolean => new BooleanValue(rtValue.IntValue != 0),
-                RuntimeValueType.Number => new NumberValue(rtValue.NumberType switch
-                {
-                    RuntimeNumberType.Int => rtValue.IntValue,
-                    RuntimeNumberType.Long => rtValue.LongValue,
-                    RuntimeNumberType.Float => rtValue.FloatValue,
-                    _ => rtValue.DoubleValue
-                }, rtValue.NumberType switch
-                {
-                    RuntimeNumberType.Int => NumberValue.NumberType.Integer,
-                    RuntimeNumberType.Float => NumberValue.NumberType.Float,
-                    _ => NumberValue.NumberType.Double,
-                }),
-                RuntimeValueType.Object when rtValue.ObjectReference is StringObject str => new StringValue(str.Value),
-                RuntimeValueType.Object when rtValue.ObjectReference is ListObject list => new ListValue([.. list.Elements.Select(ToValue)]),
-                RuntimeValueType.Object when rtValue.ObjectReference is InstanceObject instance => new StructValue(instance.Class, instance._fields),
-                RuntimeValueType.Object when rtValue.ObjectReference is CharObject ch => new CharValue(ch.Value),
-                RuntimeValueType.Object when rtValue.ObjectReference is Value val => val,
-                _ => (Value)ConstructAndThrowException($"Internal VM Error: Cannot convert runtime object '{rtValue}' back to a bytecode value.")
-            };
         }
 
         /// <summary>

@@ -11,43 +11,49 @@ namespace Fluence
 
         internal static void Register(FluenceScope ioNamespace, TextOutputMethod outputLine, TextInputMethod input, TextOutputMethod output)
         {
+            RuntimeValue nilResult = RuntimeValue.Nil;
+
             // Basic console methods.
             ioNamespace.Declare("printl", new FunctionSymbol("printl", 1, (vm, argCount) =>
             {
-                RuntimeValue rv = vm.PopStack();
-                Value val = vm.ToValue(rv);
-
-                string message = (argCount < 1) ? "" : val?.ToFluenceString() ?? "nil";
-                outputLine(message);
-                return new NilValue();
+                if (argCount > 0)
+                {
+                    RuntimeValue rv = vm.PopStack();
+                    outputLine(rv.ToString());
+                }
+                else
+                {
+                    outputLine(Environment.NewLine);
+                }
+                return nilResult;
             }, null!, ioNamespace));
 
             ioNamespace.Declare("print", new FunctionSymbol("print", 1, (vm, argCount) =>
             {
-                RuntimeValue rv = vm.PopStack();
-                Value val = vm.ToValue(rv);
-
-                string message = (argCount < 1) ? "" : val?.ToFluenceString() ?? "nil";
-                output(message);
-                return new NilValue();
+                if (argCount > 0)
+                {
+                    RuntimeValue rv = vm.PopStack();
+                    output(rv.ToString());
+                }
+                return nilResult;
             }, null!, ioNamespace));
 
             ioNamespace.Declare("input", new FunctionSymbol("input", 0, (vm, argCount) =>
             {
-                return new StringValue(input() ?? "");
+                return vm.ResolveStringObjectRuntimeValue(input() ?? "");
             }, null!, ioNamespace));
 
             ioNamespace.Declare("readAndClear", new FunctionSymbol("readAndClear", 0, (vm, argCount) =>
             {
                 Console.ReadLine();
                 Console.Clear();
-                return new NilValue();
+                return nilResult;
             }, null!, ioNamespace));
 
             ioNamespace.Declare("clear", new FunctionSymbol("clear", 0, (vm, argCount) =>
             {
                 Console.Clear();
-                return new NilValue();
+                return nilResult;
             }, null!, ioNamespace));
 
             //
@@ -59,81 +65,90 @@ namespace Fluence
 
             file.StaticIntrinsics.Add("write", new FunctionSymbol("write", 2, (vm, argCount) =>
             {
-                Value contentVal = vm.ToValue(vm.PopStack());
-                Value pathVal = vm.ToValue(vm.PopStack());
+                if (argCount != 2) throw new FluenceRuntimeException("File.write() expects exactly two arguments: path (string) and content (string).");
 
-                if (argCount < 2 || pathVal is not StringValue path || contentVal is not StringValue content)
-                    throw new FluenceRuntimeException("File.write() expects two arguments: path (string) and content (string).");
+                RuntimeValue contentRv = vm.PopStack();
+                RuntimeValue pathRv = vm.PopStack();
 
-                File.WriteAllText(path.Value, content.Value);
-                return new NilValue();
+                if (pathRv.ObjectReference is not StringObject pathObj || contentRv.ObjectReference is not StringObject contentObj)
+                    throw new FluenceRuntimeException("File.write() expects two string arguments.");
+
+                File.WriteAllText(pathObj.Value, contentObj.Value);
+                return nilResult;
             }, null!, ioNamespace));
 
             file.StaticIntrinsics.Add("appendText", new FunctionSymbol("appendText", 2, (vm, argCount) =>
             {
-                Value contentVal = vm.ToValue(vm.PopStack());
-                Value pathVal = vm.ToValue(vm.PopStack());
+                if (argCount != 2) throw new FluenceRuntimeException("File.appendText() expects exactly two arguments: path (string) and content (string).");
 
-                if (argCount < 2 || pathVal is not StringValue path || contentVal is not StringValue content)
-                    throw new FluenceRuntimeException("File.appendText() expects two arguments: path (string) and content (string).");
+                RuntimeValue contentRv = vm.PopStack();
+                RuntimeValue pathRv = vm.PopStack();
 
-                File.AppendAllText(path.Value, content.Value);
-                return new NilValue();
+                if (pathRv.ObjectReference is not StringObject pathObj || contentRv.ObjectReference is not StringObject contentObj)
+                    throw new FluenceRuntimeException("File.appendText() expects two string arguments.");
+
+                File.AppendAllText(pathObj.Value, contentObj.Value);
+                return nilResult;
             }, null!, ioNamespace));
 
             file.StaticIntrinsics.Add("move", new FunctionSymbol("move", 2, (vm, argCount) =>
             {
-                Value newPathVal = vm.ToValue(vm.PopStack());
-                Value oldPathVal = vm.ToValue(vm.PopStack());
+                if (argCount != 2) throw new FluenceRuntimeException("File.move() expects exactly two arguments: old path (string) and new path (string).");
 
-                if (argCount < 2 || oldPathVal is not StringValue oldPath || newPathVal is not StringValue newPath)
-                    throw new FluenceRuntimeException("File.move() expects two arguments: old path (string) and new path (string).");
+                RuntimeValue newPathRv = vm.PopStack();
+                RuntimeValue oldPathRv = vm.PopStack();
 
-                File.Move(oldPath.Value, newPath.Value);
-                return new NilValue();
+                if (oldPathRv.ObjectReference is not StringObject oldPathObj || newPathRv.ObjectReference is not StringObject newPathObj)
+                    throw new FluenceRuntimeException("File.move() expects two string arguments.");
+
+                File.Move(oldPathObj.Value, newPathObj.Value);
+                return nilResult;
             }, null!, ioNamespace));
 
             file.StaticIntrinsics.Add("read", new FunctionSymbol("read", 1, (vm, argCount) =>
             {
-                Value pathVal = vm.ToValue(vm.PopStack());
+                if (argCount != 1) throw new FluenceRuntimeException("File.read() expects exactly one argument: path (string).");
+                RuntimeValue pathRv = vm.PopStack();
 
-                if (argCount < 1 || pathVal is not StringValue path)
-                    throw new FluenceRuntimeException("File.read() expects one argument: path (string).");
+                if (pathRv.ObjectReference is not StringObject pathObj)
+                    throw new FluenceRuntimeException("File.read() expects a string argument.");
 
-                return new StringValue(File.ReadAllText(path.Value));
+                return vm.ResolveStringObjectRuntimeValue(File.ReadAllText(pathObj.Value));
             }, null!, ioNamespace));
 
             file.StaticIntrinsics.Add("create", new FunctionSymbol("create", 1, (vm, argCount) =>
             {
-                Value pathVal = vm.ToValue(vm.PopStack());
+                if (argCount != 1) throw new FluenceRuntimeException("File.create() expects exactly one argument: path (string).");
+                RuntimeValue pathRv = vm.PopStack();
 
-                if (argCount < 1 || pathVal is not StringValue path)
-                    throw new FluenceRuntimeException("File.create() expects one argument: path (string).");
+                if (pathRv.ObjectReference is not StringObject pathObj)
+                    throw new FluenceRuntimeException("File.create() expects a string argument.");
 
-                // File.Create returns a FileStream which must be closed.
-                File.Create(path.Value).Close();
-                return new NilValue();
+                File.Create(pathObj.Value).Close();
+                return nilResult;
             }, null!, ioNamespace));
 
             file.StaticIntrinsics.Add("delete", new FunctionSymbol("delete", 1, (vm, argCount) =>
             {
-                Value pathVal = vm.ToValue(vm.PopStack());
+                if (argCount != 1) throw new FluenceRuntimeException("File.delete() expects exactly one argument: path (string).");
+                RuntimeValue pathRv = vm.PopStack();
 
-                if (argCount < 1 || pathVal is not StringValue path)
-                    throw new FluenceRuntimeException("File.delete() expects one argument: path (string).");
+                if (pathRv.ObjectReference is not StringObject pathObj)
+                    throw new FluenceRuntimeException("File.delete() expects a string argument.");
 
-                File.Delete(path.Value);
-                return new NilValue();
+                File.Delete(pathObj.Value);
+                return nilResult;
             }, null!, ioNamespace));
 
             file.StaticIntrinsics.Add("exists", new FunctionSymbol("exists", 1, (vm, argCount) =>
             {
-                Value pathVal = vm.ToValue(vm.PopStack());
+                if (argCount != 1) throw new FluenceRuntimeException("File.exists() expects exactly one argument: path (string).");
+                RuntimeValue pathRv = vm.PopStack();
 
-                if (argCount < 1 || pathVal is not StringValue path)
-                    throw new FluenceRuntimeException("File.exists() expects one argument: path (string).");
+                if (pathRv.ObjectReference is not StringObject pathObj)
+                    throw new FluenceRuntimeException("File.exists() expects a string argument.");
 
-                return new BooleanValue(File.Exists(path.Value));
+                return new RuntimeValue(File.Exists(pathObj.Value));
             }, null!, ioNamespace));
         }
     }

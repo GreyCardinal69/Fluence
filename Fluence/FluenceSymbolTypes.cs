@@ -130,9 +130,7 @@
     /// <summary>
     /// Defines the delegate signature for a native C# method that can be called from Fluence script.
     /// </summary>
-    /// <param name="args">A read-only list of <see cref="Value"/> objects passed as arguments to the function.</param>
-    /// <returns>The <see cref="Value"/> that the native method returns.</returns>
-    internal delegate Value IntrinsicMethod(FluenceVirtualMachine vm, int argCount);
+    internal delegate RuntimeValue IntrinsicMethod(FluenceVirtualMachine vm, int argCount);
 
     /// <summary>
     /// Represents a function or method declaration. It can be a user-defined Fluence function

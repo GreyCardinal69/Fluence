@@ -1401,7 +1401,7 @@ namespace Fluence
             _lexer.Advance(); // Consume return.
 
             Value result = _lexer.TokenTypeMatches(TokenType.EOL)
-                ? new NilValue() // Empty 'return';
+                ? NilValue.NilInstance // Empty 'return';
                 : ParseExpression();
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, ResolveValue(result)));
@@ -1502,7 +1502,7 @@ namespace Fluence
                                 InstructionCode.SetField,
                                 new VariableValue("self"),
                                 new StringValue(fieldName),
-                                new NilValue()
+                                NilValue.NilInstance
                             )
                         );
                         continue;
@@ -1570,7 +1570,7 @@ namespace Fluence
                 ParseBlockStatement();
                 if (_currentParseState.CodeInstructions[^1].Instruction != InstructionCode.Return)
                 {
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, new NilValue()));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, NilValue.NilInstance));
                 }
             }
             else
@@ -1643,13 +1643,13 @@ namespace Fluence
             if (_lexer.TokenTypeMatches(TokenType.R_BRACE))
             {
                 _lexer.Advance(); // Consume '}'.
-                return new NilValue(); // An empty match does nothing and returns nil.
+                return NilValue.NilInstance; // An empty match does nothing and returns nil.
             }
 
             if (IsSwitchStyleMatch())
             {
                 ParseMatchSwitchStyle(matchOn);
-                return new NilValue();
+                return NilValue.NilInstance;
             }
 
             return ParseMatchExpressionStyle(matchOn);
@@ -1918,7 +1918,7 @@ namespace Fluence
                     // If the loop finished without finding a match, the brace is unclosed.
                     Token errorToken = _lexer.PeekAheadByN(0);
                     ConstructAndThrowParserException("Unclosed expression in f-string.", errorToken);
-                    return new NilValue();
+                    return NilValue.NilInstance;
                 }
 
                 // Parse the expression inside the braces.
@@ -2331,7 +2331,7 @@ namespace Fluence
                         ConstructAndThrowParserException("Cannot use more than one `_` placeholder in a broadcast call.", token);
                     }
                     underscoreIndex = args.Count;
-                    args.Add(new NilValue());
+                    args.Add(NilValue.NilInstance);
                 }
                 else
                 {
@@ -2453,7 +2453,7 @@ namespace Fluence
                 if (isOptional)
                 {
                     TempValue isNil = new TempValue(_currentParseState.NextTempNumber++);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, rhs, new NilValue()));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, rhs, NilValue.NilInstance));
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null!, isNil));
                     skipOptionalAssign = _currentParseState.CodeInstructions.Count - 1;
                 }
@@ -2529,7 +2529,7 @@ namespace Fluence
                         if (isOptional)
                         {
                             TempValue isNil = new TempValue(_currentParseState.NextTempNumber + 1);
-                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, valueToAssign, new NilValue()));
+                            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, valueToAssign, NilValue.NilInstance));
                             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null!, isNil));
                             optionalSkipIndexes.Add(_currentParseState.CodeInstructions.Count - 1);
                         }
@@ -2591,7 +2591,7 @@ namespace Fluence
                 if (isOptional)
                 {
                     TempValue isNil = new TempValue(_currentParseState.NextTempNumber++);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, valueToAssign, new NilValue()));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, valueToAssign, NilValue.NilInstance));
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null!, isNil));
                     skipOptionalAssign = _currentParseState.CodeInstructions.Count - 1;
                 }
@@ -2659,7 +2659,7 @@ namespace Fluence
                     if (isOptional)
                     {
                         TempValue isNil = new TempValue(_currentParseState.NextTempNumber++);
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, resolvedRhs, new NilValue()));
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNil, resolvedRhs, NilValue.NilInstance));
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null!, isNil));
                         skipOptionalAssign = _currentParseState.CodeInstructions.Count - 1;
                     }
@@ -3789,7 +3789,7 @@ namespace Fluence
 
             if (token.Type == TokenType.NIL)
             {
-                return new NilValue();
+                return NilValue.NilInstance;
             }
 
             if (token.Type is TokenType.MINUS or TokenType.BANG or TokenType.TILDE)

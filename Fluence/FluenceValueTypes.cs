@@ -60,6 +60,8 @@
     /// <summary>Represents the nil value.</summary>
     internal sealed record class NilValue : Value
     {
+        internal static NilValue NilInstance = new NilValue();
+
         internal override object GetValue() => null!;
         internal override string ToFluenceString() => "nil";
 

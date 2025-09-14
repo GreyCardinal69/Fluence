@@ -489,8 +489,8 @@ namespace Fluence
 
                 bool boolVal => new RuntimeValue(boolVal),
 
-                string stringVal => new RuntimeValue(new StringObject(stringVal)),
-                char charVal => new RuntimeValue(new CharObject(charVal)),
+                string stringVal => ResolveStringObjectRuntimeValue(stringVal),
+                char charVal => ResolveCharObjectRuntimeValue(charVal),
 
                 // TO DO, lists.
 
@@ -1981,7 +1981,7 @@ namespace Fluence
 
             return val switch
             {
-                CharValue ch => ResolveCharObjectRuntimeValue(ch),
+                CharValue ch => ResolveCharObjectRuntimeValue(ch.Value),
                 EnumValue enumVal => new RuntimeValue(enumVal.Value),
                 NumberValue num => num.Type switch
                 {
@@ -1999,10 +1999,10 @@ namespace Fluence
             };
         }
 
-        private RuntimeValue ResolveCharObjectRuntimeValue(CharValue ch)
+        internal RuntimeValue ResolveCharObjectRuntimeValue(char ch)
         {
             CharObject chr = _charObjectPool.Get();
-            chr.Initialize(ch.Value);
+            chr.Initialize(ch);
             return new RuntimeValue(chr);
         }
 

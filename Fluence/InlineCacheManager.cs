@@ -1690,7 +1690,7 @@ namespace Fluence
                         int idx = indexRef.IntValue;
                         if (idx >= 0 && idx < str.Value.Length)
                         {
-                            vm.SetRegister(destRegister, new RuntimeValue(new CharValue(str.Value[idx])));
+                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(str.Value[idx]));
                         }
                         else { vm.ConstructAndThrowException("Index out of range."); }
                     }
@@ -1718,7 +1718,7 @@ namespace Fluence
                         int idx = indexRef.IntValue;
                         if (idx >= 0 && idx < str.Value.Length)
                         {
-                            vm.SetRegister(destRegister, new RuntimeValue(new CharValue(str.Value[idx])));
+                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(str.Value[idx]));
                         }
                         else { vm.ConstructAndThrowException("Index out of range."); }
                     }

@@ -73,6 +73,16 @@ namespace Fluence
         private readonly ObjectPool<FunctionObject> _functionObjectPool;
 
         /// <summary>
+        /// A pool of StringObject-s objects to reuse.
+        /// </summary>
+        private readonly ObjectPool<StringObject> _stringObjectPool;
+
+        /// <summary>
+        /// A pool of RangeObject-s objects to reuse.
+        /// </summary>
+        private readonly ObjectPool<RangeObject> _rangeObjectPool;
+
+        /// <summary>
         /// A cache to store the readonly status of variables in the global scope.
         /// </summary>
         internal readonly Dictionary<string, bool> GlobalWritableCache = new();
@@ -344,6 +354,8 @@ namespace Fluence
             _iteratorObjectPool = new ObjectPool<IteratorObject>(iter => iter.Reset());
             _charObjectPool = new ObjectPool<CharObject>(chr => chr.Reset());
             _functionObjectPool = new ObjectPool<FunctionObject>(func => func.Reset());
+            _stringObjectPool = new ObjectPool<StringObject>(str => str.Reset());
+            _rangeObjectPool = new ObjectPool<RangeObject>(range => range.Reset());
 
             _byteCode = bytecode;
             _globalScope = parseState.GlobalScope;
@@ -1514,7 +1526,7 @@ namespace Fluence
                     return;
             }
 
-            var handler = InlineCacheManager.CreateSpecializedGetElementHandler(instruction, collection, indexVal);
+            instruction.SpecializedHandler = InlineCacheManager.CreateSpecializedGetElementHandler(instruction, collection, indexVal);
         }
 
         /// <summary>
@@ -1665,7 +1677,6 @@ namespace Fluence
             _callStack.Push(frame);
             _cachedRegisters = frame.Registers;
             _ip = function.StartAddress;
-
         }
 
         internal RuntimeValue PopStack() => _operandStack.Pop();
@@ -2001,8 +2012,8 @@ namespace Fluence
                 },
                 BooleanValue boolean => new RuntimeValue(boolean.Value),
                 NilValue => RuntimeValue.Nil,
-                StringValue str => new RuntimeValue(new StringObject(str.Value)),
-                RangeValue range => new RuntimeValue(new RangeObject(GetRuntimeValue(range.Start), GetRuntimeValue(range.End))),
+                StringValue str => ResolveStringObjectRuntimeValue(str),
+                RangeValue range => ResolveRangeObjectRuntimeValue(GetRuntimeValue(range.Start), GetRuntimeValue(range.End)),
                 _ => throw new FluenceRuntimeException($"Internal VM Error: Unrecognized Value type '{val.GetType().Name}' during conversion.")
             };
         }
@@ -2012,6 +2023,20 @@ namespace Fluence
             CharObject chr = _charObjectPool.Get();
             chr.Initialize(ch.Value);
             return new RuntimeValue(chr);
+        }
+
+        private RuntimeValue ResolveStringObjectRuntimeValue(StringValue strv)
+        {
+            StringObject str = _stringObjectPool.Get();
+            str.Initialize(strv.Value);
+            return new RuntimeValue(str);
+        }
+
+        private RuntimeValue ResolveRangeObjectRuntimeValue(RuntimeValue start, RuntimeValue end)
+        {
+            RangeObject range = _rangeObjectPool.Get();
+            range.Initialize(start, end);
+            return new RuntimeValue(range);
         }
 
         /// <summary>

@@ -298,9 +298,17 @@ namespace Fluence
     /// </summary>
     internal sealed record class StringObject : IFluenceObject
     {
-        internal readonly string Value;
+        internal string Value { get; private set; }
 
         internal StringObject(string value) => Value = value;
+
+        public StringObject()
+        {
+        }
+
+        internal void Reset() => Value = null!;
+
+        internal void Initialize(string str) => Value = str;
 
         /// <summary>Implements the native length property for strings.</summary>
         private static RuntimeValue StringLengthIntrinsic(IReadOnlyList<RuntimeValue> args)
@@ -313,7 +321,8 @@ namespace Fluence
         private static RuntimeValue StringToUpperIntrinsic(IReadOnlyList<RuntimeValue> args)
         {
             StringObject self = (StringObject)args[0].ObjectReference;
-            return new RuntimeValue(new StringObject(self.Value.ToUpperInvariant()));
+            self.Value = self.Value.ToUpperInvariant();
+            return new RuntimeValue(self);
         }
 
         /// <summary>Implements the native IndexOf function for strings.</summary>
@@ -355,10 +364,26 @@ namespace Fluence
     /// </summary>
     internal sealed record class RangeObject
     {
-        internal RuntimeValue Start { get; }
-        internal RuntimeValue End { get; }
+        internal RuntimeValue Start { get; private set; }
+        internal RuntimeValue End { get; private set; }
 
         internal RangeObject(RuntimeValue start, RuntimeValue end)
+        {
+            Start = start;
+            End = end;
+        }
+
+        public RangeObject()
+        {
+        }
+
+        internal void Reset()
+        {
+            Start = default;
+            End = default;
+        }
+
+        internal void Initialize(RuntimeValue start, RuntimeValue end)
         {
             Start = start;
             End = end;

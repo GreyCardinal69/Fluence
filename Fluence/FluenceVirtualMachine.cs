@@ -1474,14 +1474,6 @@ namespace Fluence
             RuntimeValue collection = GetRuntimeValue(instruction.Rhs);
             RuntimeValue indexVal = GetRuntimeValue(instruction.Rhs2);
 
-            var handler = InlineCacheManager.CreateSpecializedGetElementHandler(instruction, collection, indexVal);
-            if (handler != null)
-            {
-                instruction.SpecializedHandler = handler;
-                handler(instruction, this);
-                return;
-            }
-
             switch (collection.ObjectReference)
             {
                 case ListObject list:
@@ -1521,6 +1513,8 @@ namespace Fluence
                     ConstructAndThrowException($"Runtime Error: Cannot apply index operator [...] to a non-indexable type '{GetDetailedTypeName(collection)}'.");
                     return;
             }
+
+            var handler = InlineCacheManager.CreateSpecializedGetElementHandler(instruction, collection, indexVal);
         }
 
         /// <summary>

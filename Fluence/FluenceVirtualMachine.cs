@@ -1923,6 +1923,8 @@ namespace Fluence
                 ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, destination.TempName, out _);
                 valueRef2 = returnValue;
             }
+
+            _functionObjectPool.Return(finishedFrame.Function);
             _callFramePool.Return(finishedFrame);
         }
 
@@ -2110,17 +2112,17 @@ namespace Fluence
         /// </summary>
         /// <param name="funcSymbol">The blueprint for the <see cref="FunctionSymbol"/> to create.</param>
         /// <returns>The initialized <see cref="FunctionObject"/>.</returns>
-        private FunctionObject CreateFunctionObject(FunctionSymbol funcSymbol)
+        internal FunctionObject CreateFunctionObject(FunctionSymbol funcSymbol)
         {
             FunctionObject func = _functionObjectPool.Get();
 
             if (funcSymbol.IsIntrinsic)
             {
-                func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.IntrinsicBody, funcSymbol.DefiningScope);
+                func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.IntrinsicBody, funcSymbol.DefiningScope, funcSymbol);
                 return func;
             }
 
-            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.StartAddress, funcSymbol.DefiningScope);
+            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.StartAddress, funcSymbol.DefiningScope, funcSymbol);
             return func;
         }
         
@@ -2135,11 +2137,11 @@ namespace Fluence
 
             if (funcSymbol.IsIntrinsic)
             {
-                func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.IntrinsicBody, funcSymbol.FunctionScope);
+                func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.IntrinsicBody, funcSymbol.FunctionScope, null!);
                 return func;
             }
 
-            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.StartAddress, funcSymbol.FunctionScope);
+            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.StartAddress, funcSymbol.FunctionScope, null!);
             return func;
         }
 

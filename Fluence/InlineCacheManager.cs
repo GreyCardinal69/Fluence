@@ -1801,14 +1801,15 @@ namespace Fluence
             return null;
         }
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedCallFunctionHandler(InstructionLine insn, FunctionObject function)
+        internal static SpecializedOpcodeHandler? CreateSpecializedCallFunctionHandler(InstructionLine insn, FunctionObject func)
         {
-            var functionToCall = function;
+            var functionBlueprint = func.BluePrint; // You'll need to add a property to FunctionObject to store its source symbol/value.
             var destinationRegister = (TempValue)insn.Lhs;
-            var argCount = function.Parameters.Count;
+            var argCount = functionBlueprint.Arguments.Count;
 
             return (instruction, vm) =>
             {
+                FunctionObject function = vm.CreateFunctionObject(functionBlueprint);
                 CallFrame newFrame = vm.GetCallframe();
                 newFrame.Initialize(function, vm.CurrentInstructionPointer, (TempValue)instruction.Lhs);
 

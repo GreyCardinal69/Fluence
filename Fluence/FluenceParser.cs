@@ -19,7 +19,7 @@ namespace Fluence
         private readonly ParseState _currentParseState;
 
         /// <summary>
-        /// Marks the index of the last bytecode instruction, up to which the bytecode has already been passed through
+        /// Marks the index of the last bytecode instruction, up to which the bytecode has already been passed through by
         /// the <see cref="FluenceOptimizer"/>.
         /// </summary>
         private int _lastOptimizationIndex;

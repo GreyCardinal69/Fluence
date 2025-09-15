@@ -59,6 +59,8 @@ namespace Fluence
         /// <summary>The lexical scope in which the function was defined, used for resolving non-local variables.</summary>
         internal FluenceScope DefiningScope { get; private set; }
 
+        internal FunctionSymbol BluePrint { get; private set; }
+
         /// <summary>Indicates whether this function is implemented in C# or Fluence bytecode.</summary>
         internal bool IsIntrinsic { get; private set; }
 
@@ -79,7 +81,7 @@ namespace Fluence
         {
         }
 
-        internal void Initialize(string name, int arity, List<string> parameters, int startAddress, FluenceScope definingScope)
+        internal void Initialize(string name, int arity, List<string> parameters, int startAddress, FluenceScope definingScope, FunctionSymbol symb)
         {
             Name = name;
             Arity = arity;
@@ -87,19 +89,24 @@ namespace Fluence
             StartAddress = startAddress;
             DefiningScope = definingScope;
             IsIntrinsic = false;
+            BluePrint = symb;
         }
 
-        internal void Initialize(string name, int arity, IntrinsicMethod body, FluenceScope definingScope)
+        internal void Initialize(string name, int arity, IntrinsicMethod body, FluenceScope definingScope, FunctionSymbol symb)
         {
             IntrinsicBody = body;
             Name = name;
             Arity = arity;
             DefiningScope = definingScope;
             IsIntrinsic = true;
+            BluePrint = symb;
         }
+
+        internal void SetBluePrint(FunctionSymbol symb) => BluePrint = symb;
 
         internal void Reset()
         {
+            BluePrint = null!;
             Name = null!;
             Arity = 0;
             Parameters = null!;

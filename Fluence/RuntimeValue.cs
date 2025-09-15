@@ -276,9 +276,9 @@ namespace Fluence
         {
         }
 
-        internal void Initialize(object value)
+        internal void Initialize(char value)
         {
-            Value = (char)value;
+            Value = value;
         }
 
         internal void Reset()

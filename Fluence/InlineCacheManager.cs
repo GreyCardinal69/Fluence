@@ -421,7 +421,7 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
                         RuntimeValue result = AddValues(val1, constValue);
-                        ModifyTarget(instruction.Lhs, vm, result);
+                        vm.SetRegister((TempValue)instruction.Lhs, result);
                     }
                     else
                     {
@@ -1687,6 +1687,8 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is StringObject str &&
                         !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
                     {
+                        vm.TryReturnRegisterReferenceToPool(instruction);
+
                         int idx = indexRef.IntValue;
                         if (idx >= 0 && idx < str.Value.Length)
                         {
@@ -1715,6 +1717,8 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is StringObject str &&
                         !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
                     {
+                        vm.TryReturnRegisterReferenceToPool(instruction);
+
                         int idx = indexRef.IntValue;
                         if (idx >= 0 && idx < str.Value.Length)
                         {

@@ -71,6 +71,12 @@ namespace Fluence
         private readonly ObjectPool<RangeObject> _rangeObjectPool;
 
         /// <summary>
+        /// The interval representing the amount of instructions per which executed we check the
+        /// elapsed time since the start of the Virtual Machine.
+        /// </summary>
+        private const int _timeCheckInterval = 10000;
+
+        /// <summary>
         /// A cache to store the readonly status of variables in the global scope.
         /// </summary>
         internal readonly Dictionary<string, bool> GlobalWritableCache = new();
@@ -361,7 +367,7 @@ namespace Fluence
 
             CallFrame initialFrame = new CallFrame();
             initialFrame.Initialize(mainScriptFunc, _byteCode.Count, null!);
-            
+
             _callStack.Push(initialFrame);
 
             _cachedRegisters = initialFrame.Registers;
@@ -523,13 +529,27 @@ namespace Fluence
             _stopRequested = false;
             State = FluenceVMState.Running;
             Stopwatch stopwatch = Stopwatch.StartNew();
+            int instructionsUntilNextCheck = _timeCheckInterval;
 
             while (_ip < _byteCode.Count)
             {
-                if (_stopRequested || stopwatch.Elapsed >= duration)
+                instructionsUntilNextCheck--;
+
+                if (_stopRequested)
                 {
                     State = FluenceVMState.Paused;
                     return;
+                }
+
+                if (instructionsUntilNextCheck == 0)
+                {
+                    instructionsUntilNextCheck = _timeCheckInterval;
+
+                    if (stopwatch.Elapsed >= duration)
+                    {
+                        State = FluenceVMState.Paused;
+                        return;
+                    }
                 }
 
                 InstructionLine instruction = _byteCode[_ip];
@@ -1256,6 +1276,8 @@ namespace Fluence
                 return;
             }
 
+            TryReturnRegisterReferenceToPool(instruction);
+
             RuntimeValue rangeRuntimeValue = GetRuntimeValue(instruction.Rhs);
             SetRegister((TempValue)instruction.Lhs, rangeRuntimeValue);
         }
@@ -1557,6 +1579,8 @@ namespace Fluence
 
             if (iterable.ObjectReference is ListObject or RangeObject)
             {
+                TryReturnRegisterReferenceToPool(instruction);
+
                 IteratorObject iterator = _iteratorObjectPool.Get();
                 iterator.Initialize(iterable.ObjectReference);
                 SetRegister((TempValue)instruction.Lhs, new RuntimeValue(iterator));
@@ -1712,6 +1736,7 @@ namespace Fluence
             {
                 RuntimeValue resultValue = function.IntrinsicBody(this, argCount);
                 SetRegister((TempValue)instruction.Lhs, resultValue);
+                ReturnFunctionObjectToPool(function);
                 return;
             }
 
@@ -2125,7 +2150,7 @@ namespace Fluence
             func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.StartAddress, funcSymbol.DefiningScope, funcSymbol);
             return func;
         }
-        
+
         /// <summary>
         /// Retrieves or creates a FunctionObject and initializes it from a given <see cref="FunctionValue"/> object.
         /// </summary>
@@ -2145,6 +2170,25 @@ namespace Fluence
             return func;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void TryReturnRegisterReferenceToPool(InstructionLine instruction)
+        {
+            RuntimeValue registerValue = GetRegisterValue(((TempValue)instruction.Lhs).TempName);
+
+            switch (registerValue.ObjectReference)
+            {
+                case RangeObject range:
+                    _rangeObjectPool.Return(range);
+                    break;
+                case IteratorObject iter:
+                    _iteratorObjectPool.Return(iter);
+                    break;
+                case CharObject chr:
+                    _charObjectPool.Return(chr);
+                    break;
+            }
+        }
+
         /// <summary>
         /// Writes a value to a specified temporary register in the current call frame.
         /// </summary>
@@ -2153,6 +2197,21 @@ namespace Fluence
             ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, destination.TempName, out _);
             valueRef = value;
         }
+
+        /// <summary>
+        /// Returns the current <see cref="RuntimeValue"/> of the given register of the local CallFrame.
+        /// </summary>
+        /// <param name="name">The name of the temporary register.</param>
+        internal RuntimeValue GetRegisterValue(string name)
+        {
+            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentFrame.Registers, name, out _);
+            return valueRef;
+        }
+
+        internal void ReturnCharObjectToPool(CharObject chr) => _charObjectPool.Return(chr);
+        internal void ReturnIteratorObjectToPool(IteratorObject iter) => _iteratorObjectPool.Return(iter);
+        internal void ReturnRangeObjectToPool(RangeObject range) => _rangeObjectPool.Return(range);
+        internal void ReturnFunctionObjectToPool(FunctionObject func) => _functionObjectPool.Return(func);
 
         /// <summary>
         /// Assigns a value to a variable.

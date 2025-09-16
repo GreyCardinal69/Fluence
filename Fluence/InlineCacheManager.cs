@@ -421,7 +421,7 @@ namespace Fluence
                     if (!Unsafe.IsNullRef(ref val1) && val1.NumberType == expectedLhsType)
                     {
                         RuntimeValue result = AddValues(val1, constValue);
-                        vm.SetRegister((TempValue)instruction.Lhs, result);
+                        ModifyTarget(instruction.Lhs, vm, result);
                     }
                     else
                     {

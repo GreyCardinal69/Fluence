@@ -60,7 +60,7 @@
     /// <summary>Represents the nil value.</summary>
     internal sealed record class NilValue : Value
     {
-        internal static NilValue NilInstance = new NilValue();
+        internal static readonly NilValue NilInstance = new NilValue();
 
         internal override object GetValue() => null!;
         internal override string ToFluenceString() => "nil";
@@ -265,7 +265,7 @@
         internal readonly string TempName;
 
         internal TempValue(int num) => TempName = $"__Temp{num}";
-        internal TempValue(int num, string name) => TempName = $"{name}{num}";
+        internal TempValue(int num, string name) => TempName = $"__{name}{num}";
 
         internal override string ToFluenceString() => "<internal: temp>";
 

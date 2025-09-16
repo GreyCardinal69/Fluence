@@ -2240,34 +2240,27 @@ namespace Fluence
             }
             else
             {
+                bool isVariableReadonly = false;
                 if (readOnly)
                 {
-                    cache[name] = true;
-                    if (CurrentFrame.ReturnAddress == _byteCode.Count)
-                    {
-                        GlobalWritableCache[name] = true;
-                    }
+                    isVariableReadonly = true;
                 }
-                else if (CurrentFrame.Function.DefiningScope.TryResolve(name, out Symbol symbol) &&
-                    symbol is VariableSymbol { IsReadonly: true })
+                else if (CurrentFrame.Function.DefiningScope.TryResolve(name, out Symbol symbol) && symbol is VariableSymbol { IsReadonly: true })
                 {
-                    cache[name] = true;
                     ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly or solid variable '{name}'.");
-                    return;
                 }
                 else if (_globalScope.TryResolve(name, out symbol) && symbol is VariableSymbol symb && symb.IsReadonly)
                 {
-                    GlobalWritableCache[name] = true;
                     ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly or solid variable '{name}'.");
-                    return;
                 }
-                else
+
+                ref bool cacheSlot = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentFrame.WritableCache, name, out _);
+                cacheSlot = isVariableReadonly;
+
+                if (CurrentFrame.ReturnAddress == _byteCode.Count)
                 {
-                    if (CurrentFrame.ReturnAddress == _byteCode.Count)
-                    {
-                        GlobalWritableCache[name] = false;
-                    }
-                    cache[name] = false;
+                    ref bool globalCacheSlot = ref CollectionsMarshal.GetValueRefOrAddDefault(GlobalWritableCache, name, out _);
+                    globalCacheSlot = isVariableReadonly;
                 }
             }
 

@@ -311,6 +311,15 @@ namespace Fluence
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;
 
+            if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num2)
+            {
+                return (instruction, vm) =>
+                {
+                    RuntimeValue result = AddValues(vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
+                    ModifyTarget(instruction.Lhs, vm, result);
+                };
+            }
+
             if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
             {
                 string leftName = varLeft.Name;
@@ -525,6 +534,15 @@ namespace Fluence
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;
 
+            if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num2)
+            {
+                return (instruction, vm) =>
+                {
+                    RuntimeValue result = SubValues(vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
+                    ModifyTarget(instruction.Lhs, vm, result);
+                };
+            }
+
             if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
             {
                 string leftName = varLeft.Name;
@@ -738,6 +756,15 @@ namespace Fluence
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;
 
+            if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num2)
+            {
+                return (instruction, vm) =>
+                {
+                    RuntimeValue result = DivValues(vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
+                    ModifyTarget(instruction.Lhs, vm, result);
+                };
+            }
+
             if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
             {
                 string leftName = varLeft.Name;
@@ -884,6 +911,15 @@ namespace Fluence
 
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;
+
+            if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num2)
+            {
+                return (instruction, vm) =>
+                {
+                    RuntimeValue result = MulValues(vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
+                    ModifyTarget(instruction.Lhs, vm, result);
+                };
+            }
 
             if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
             {
@@ -1163,6 +1199,15 @@ namespace Fluence
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;
 
+            if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num2)
+            {
+                return (instruction, vm) =>
+                {
+                    RuntimeValue result = ModuloValues(vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
+                    ModifyTarget(instruction.Lhs, vm, result);
+                };
+            }
+
             if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
             {
                 string leftName = varLeft.Name;
@@ -1308,6 +1353,15 @@ namespace Fluence
 
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;
+
+            if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num2)
+            {
+                return (instruction, vm) =>
+                {
+                    RuntimeValue result = PowerValues(vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
+                    ModifyTarget(instruction.Lhs, vm, result);
+                };
+            }
 
             if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
             {

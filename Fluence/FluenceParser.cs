@@ -379,7 +379,7 @@ namespace Fluence
                     InstructionCode.CallFunction,
                     new TempValue(_currentParseState.NextTempNumber++),
                     new VariableValue("Main"),
-                    new NumberValue(0)
+                    NumberValue.Zero
                 )
             );
 
@@ -1198,7 +1198,7 @@ namespace Fluence
                 TempValue collectionVar = new TempValue(_currentParseState.NextTempNumber++, "ForInCollectionCopy");
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, collectionVar, collectionExpr));
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, new NumberValue(0)));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, NumberValue.Zero));
 
                 int loopTopAddress = _currentParseState.CodeInstructions.Count;
 
@@ -1219,7 +1219,7 @@ namespace Fluence
 
                 int continueAddress = _currentParseState.CodeInstructions.Count;
                 TempValue incrementedIndex = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Add, incrementedIndex, indexVar, new NumberValue(1)));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Add, incrementedIndex, indexVar, NumberValue.One));
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, incrementedIndex));
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopTopAddress)));
@@ -3294,7 +3294,7 @@ namespace Fluence
             {
                 ParseMultiIncrementDecrementOperators();
                 // This operation does not return a value.
-                return new StatementCompleteValue();
+                return StatementCompleteValue.StatementCompleted;
             }
 
             Value left = ParseAccess();
@@ -3317,7 +3317,7 @@ namespace Fluence
                 {
                     InstructionCode operation = (op.Type == TokenType.INCREMENT) ? InstructionCode.Add : InstructionCode.Subtract;
 
-                    _currentParseState.AddCodeInstruction(new InstructionLine(operation, originalValue, originalValue, new NumberValue(1)));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(operation, originalValue, originalValue, NumberValue.One));
                     modifiedValue = originalValue;
                 }
 
@@ -3327,7 +3327,7 @@ namespace Fluence
                     return modifiedValue;
                 }
 
-                return new StatementCompleteValue();
+                return StatementCompleteValue.StatementCompleted;
             }
 
             return left;
@@ -3355,8 +3355,7 @@ namespace Fluence
                 Value currentValue = ResolveValue(targetDescriptor);
 
                 TempValue result = new TempValue(_currentParseState.NextTempNumber++);
-                NumberValue one = new NumberValue(1);
-                _currentParseState.AddCodeInstruction(new InstructionLine(operation, result, currentValue, one));
+                _currentParseState.AddCodeInstruction(new InstructionLine(operation, result, currentValue, NumberValue.One));
 
                 GenerateWriteBackInstruction(targetDescriptor, result);
             }
@@ -3718,7 +3717,7 @@ namespace Fluence
 
             TempValue truthy = new TempValue(_currentParseState.NextTempNumber++);
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, truthy, condition, new NumberValue(0)));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, truthy, condition, NumberValue.Zero));
             int loopStartIndex = _currentParseState.CodeInstructions.Count;
 
             LoopContext loopContext = new LoopContext();
@@ -3731,7 +3730,7 @@ namespace Fluence
 
             _lexer.InsertNextToken(TokenType.EOL);
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Subtract, condition, condition, new NumberValue(1)));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Subtract, condition, condition, NumberValue.One));
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex - 1)));
 
             int loopEndIndex = _currentParseState.CodeInstructions.Count;
@@ -3865,7 +3864,7 @@ namespace Fluence
                         if (_lexer.PeekNextTokenType() == TokenType.TIMES)
                         {
                             ParseTimesStatement(new VariableValue(name));
-                            return new StatementCompleteValue();
+                            return StatementCompleteValue.StatementCompleted;
                         }
 
                         // Otherwise, it's just a regular variable.
@@ -3878,18 +3877,15 @@ namespace Fluence
                     if (_lexer.PeekNextTokenType() == TokenType.TIMES)
                     {
                         ParseTimesStatement(NumberValue.FromToken(token));
-                        return new StatementCompleteValue();
+                        return StatementCompleteValue.StatementCompleted;
                     }
-
                     return NumberValue.FromToken(token);
                 case TokenType.STRING: return new StringValue(token.Literal.ToString()!);
                 case TokenType.TRUE: return new BooleanValue(true);
                 case TokenType.FALSE: return new BooleanValue(false);
                 case TokenType.F_STRING: return ParseFString(token.Literal);
                 case TokenType.CHARACTER: return new CharValue((char)token.Literal);
-                case TokenType.L_BRACKET:
-                    // We are in list, either initialization, or [..] access.
-                    return ParseList();
+                case TokenType.L_BRACKET: return ParseList();
                 case TokenType.MATCH: return ParseMatchStatement();
                 case TokenType.SELF:
                     if (_currentParseState.CurrentStructContext == null)
@@ -3900,9 +3896,7 @@ namespace Fluence
                     // At runtime, the VM will ensure the instance is available.
                     return new VariableValue("self");
                 case TokenType.L_PAREN:
-                    // Go back to the lowest precedence to parse the inner expression.
                     Value expr = ParseTernary();
-                    // Unclosed parentheses.
                     AdvanceAndExpect(TokenType.R_PAREN, "Expected: a closing ')' to match the opening parenthesis.");
                     return expr;
             }
@@ -3997,12 +3991,9 @@ namespace Fluence
         /// Checks if an assignment operator pipe is of the optional type.
         /// </summary>
         /// <param name="type"></param>
-        /// <returns></returns>
-        private static bool IsOptionalChainAssignmentOperator(TokenType type)
-        {
-            return type is TokenType.OPTIONAL_ASSIGN_N or TokenType.OPTIONAL_REST_ASSIGN or
-            TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN;
-        }
+        /// <returns>True if it is an optional assignment pipe operator.</returns>
+        private static bool IsOptionalChainAssignmentOperator(TokenType type) =>
+            type is TokenType.OPTIONAL_ASSIGN_N or TokenType.OPTIONAL_REST_ASSIGN or TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN;
 
         /// <summary>
         /// A helper debug function to print all tokens starting from the first token at the start index up to the token at the end index.
@@ -4100,7 +4091,6 @@ namespace Fluence
 
                 if (type is TokenType.L_BRACE or TokenType.THIN_ARROW or TokenType.EOF or TokenType.EOL)
                 {
-                    // Reached the end of the potential condition.
                     return false;
                 }
 
@@ -4138,7 +4128,6 @@ namespace Fluence
                 }
             }
 
-            // After the ')' at `lookahead`, the next token must be a chain operator.
             // The next token must be a chain assignment operator.
             return hasUnderscore && IsChainAssignmentOperator(_lexer.PeekTokenTypeAheadByN(lookahead + 1));
         }

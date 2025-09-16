@@ -1,4 +1,6 @@
-﻿namespace Fluence
+﻿using System.Collections.ObjectModel;
+
+namespace Fluence
 {
     /// <summary>
     /// The abstract base type for all values that can be represented in bytecode.
@@ -93,6 +95,9 @@
             Long,
         }
 
+        internal static readonly NumberValue One = new NumberValue(1);
+        internal static readonly NumberValue Zero = new NumberValue(0);
+
         internal object Value { get; private set; }
         internal NumberType Type { get; private set; }
 
@@ -166,6 +171,8 @@
     /// <summary>A special value indicating a statement completed but produced no result, or the result should be ignored.</summary>
     internal sealed record class StatementCompleteValue : Value
     {
+        internal static readonly StatementCompleteValue StatementCompleted = new StatementCompleteValue();
+
         internal override string ToFluenceString() => "<internal: statement_complete>";
 
         public override string ToString()

@@ -182,10 +182,8 @@
                 return Text;
             }
 
-            // Otherwise, provide a "pretty print" version for common operator types.
             return Type switch
             {
-                // Single characters
                 TokenType.L_PAREN => "(",
                 TokenType.R_PAREN => ")",
                 TokenType.L_BRACE => "{",
@@ -206,7 +204,6 @@
                 TokenType.TILDE => "~",
                 TokenType.QUESTION => "?",
 
-                // Multi-character operators.
                 TokenType.BANG => "!",
                 TokenType.BANG_EQUAL => "!=",
                 TokenType.EQUAL => "=",
@@ -250,12 +247,12 @@
         internal readonly string Text;
 
         /// <summary>
-        /// For literal tokens, this holds the actual value (e.g., the number 123, the string "hello").
+        /// For literal tokens, this holds the actual value.
         /// For other tokens, this is typically null.
         /// </summary>
         internal readonly object Literal;
 
-        // Line and Column indexes are stored as a short, to save some memory, this means that code length of a file
+        // Line and Column indexes are stored as a short, this means that code length of a file
         // Is limited to 32,767 lines, which is more than a reasonable amount.
 
         /// <summary>

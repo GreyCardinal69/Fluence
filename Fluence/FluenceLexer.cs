@@ -21,11 +21,9 @@ namespace Fluence
 
         private bool _hasReachedEndInternal => _currentPosition >= _sourceLength;
 
-        internal int CurrentLine => _currentLine;
         internal bool HasReachedEnd => _currentPosition >= _sourceLength & _tokenBuffer.HasReachedEnd;
         internal int TokenCount => _tokenBuffer.TokenCount;
         internal string SourceCode => _sourceCode;
-        internal int CurrentPosition => _currentPosition;
 
         internal FluenceLexer(string source, string fileName = null!)
         {
@@ -1073,7 +1071,7 @@ namespace Fluence
                         int level = 0; // We can have #* inside #*, to not read first *# as end of multiline, we keep track of level.
                         commentStartCol += 2;
                         skippedSomethingThisPass = true;
-                        AdvancePosition(2); // Consume '#*'
+                        AdvancePosition(2); // Consume '#*'.
                         bool didntEndMultiLineComment = true;
 
                         while (!_hasReachedEndInternal)
@@ -1104,7 +1102,7 @@ namespace Fluence
                             ConstructAndThrowLexerException(commentStartLine, commentStartCol, "Unterminated multi-line comment. The file ended before a closing '*#' was found.", truncatedLine, PeekNextToken(), _fileName);
                         }
                     }
-                    else // It's a single-line comment
+                    else // It's a single-line comment.
                     {
                         skippedSomethingThisPass = true;
                         while (!_hasReachedEndInternal && _sourceCode[_currentPosition] != '\n')

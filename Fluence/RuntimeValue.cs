@@ -5,12 +5,6 @@ using static Fluence.FluenceVirtualMachine;
 
 namespace Fluence
 {
-    //
-    //      ==!!==
-    //      Built-in types, if they have intrinsics, must return RuntimeValue and not Value
-    //      unlike normal namespace or global intrinsic functions.
-
-
     /// <summary>
     /// Represents a "closure" that binds an instance of an object (the receiver).
     /// </summary>
@@ -59,6 +53,7 @@ namespace Fluence
         /// <summary>The lexical scope in which the function was defined, used for resolving non-local variables.</summary>
         internal FluenceScope DefiningScope { get; private set; }
 
+        /// <summary> A direct reference to the immutable, compile-time symbol that defines this function. </summary>
         internal FunctionSymbol BluePrint { get; private set; }
 
         /// <summary>Indicates whether this function is implemented in C# or Fluence bytecode.</summary>
@@ -77,9 +72,22 @@ namespace Fluence
             IsIntrinsic = false;
         }
 
-        public FunctionObject()
+        // Constructor for C# intrinsic functions.
+        internal FunctionObject(string name, int arity, IntrinsicMethod body, FluenceScope definingScope)
         {
+            Name = name;
+            Arity = arity;
+            StartAddress = -1; // No bytecode address.
+            Parameters = new List<string>();
+            DefiningScope = definingScope;
+            IsIntrinsic = true;
+            IntrinsicBody = body;
         }
+
+        /// <summary>
+        /// Public parameterless constructor required for object pooling.
+        /// </summary>
+        public FunctionObject() { }
 
         internal void Initialize(string name, int arity, List<string> parameters, int startAddress, FluenceScope definingScope, FunctionSymbol symb)
         {
@@ -113,18 +121,6 @@ namespace Fluence
             StartAddress = 0;
             DefiningScope = null!;
             IsIntrinsic = false;
-        }
-
-        // Constructor for C# intrinsic functions.
-        internal FunctionObject(string name, int arity, IntrinsicMethod body, FluenceScope definingScope)
-        {
-            Name = name;
-            Arity = arity;
-            StartAddress = -1; // No bytecode address.
-            Parameters = new List<string>();
-            DefiningScope = definingScope;
-            IsIntrinsic = true;
-            IntrinsicBody = body;
         }
 
         public override string ToString() => $"<function {Name}/{Arity}>";
@@ -230,19 +226,17 @@ namespace Fluence
 
         /// <summary>Implements the native 'length()' method for lists.</summary>
         /// <remarks>The calling convention for intrinsics is that args[0] is always 'self'.</remarks>
-        private static RuntimeValue ListLengthIntrinsic(IReadOnlyList<RuntimeValue> args)
+        private static RuntimeValue ListLength(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            // For a method call, 'self' is always passed as the first argument.
-            ListObject? self = args[0].As<ListObject>();
-            return new RuntimeValue(self!.Elements.Count);
+            return new RuntimeValue(self.As<ListObject>()!.Elements.Count);
         }
 
         /// <summary>Implements the native 'push(element)' method for lists.</summary>
-        private static RuntimeValue ListPushElementIntrinsic(IReadOnlyList<RuntimeValue> args)
+        private static RuntimeValue ListPush(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            ListObject? self = args[0].As<ListObject>();
-            self!.Elements.Add(args[1]);
-            return new RuntimeValue(null!);
+            var element = vm.PopStack();
+            self.As<ListObject>()!.Elements.Add(element);
+            return RuntimeValue.Nil;
         }
 
         /// <inheritdoc/>
@@ -250,15 +244,9 @@ namespace Fluence
         {
             switch (name)
             {
-                case "push":
-                    method = ListPushElementIntrinsic;
-                    return true;
-                case "length":
-                    method = ListLengthIntrinsic;
-                    return true;
-                default:
-                    method = null!;
-                    return false;
+                case "push": method = ListPush; return true;
+                case "length": method = ListLength; return true;
+                default: method = null!; return false;
             }
         }
     }
@@ -318,29 +306,29 @@ namespace Fluence
         internal void Initialize(string str) => Value = str;
 
         /// <summary>Implements the native length property for strings.</summary>
-        private static RuntimeValue StringLengthIntrinsic(IReadOnlyList<RuntimeValue> args)
+        private static RuntimeValue StringLength(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            StringObject self = (StringObject)args[0].ObjectReference;
-            return new RuntimeValue(self.Value.Length);
+            return new RuntimeValue(self.As<StringObject>()!.Value.Length);
         }
 
         /// <summary>Implements the native ToUpper function for strings.</summary>
-        private static RuntimeValue StringToUpperIntrinsic(IReadOnlyList<RuntimeValue> args)
+        private static RuntimeValue StringToUpper(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            StringObject self = (StringObject)args[0].ObjectReference;
-            self.Value = self.Value.ToUpperInvariant();
-            return new RuntimeValue(self);
+            var strObj = self.As<StringObject>();
+            string upper = strObj!.Value.ToUpperInvariant();
+            return vm.ResolveStringObjectRuntimeValue(upper);
         }
 
         /// <summary>Implements the native IndexOf function for strings.</summary>
-        private static RuntimeValue StringIntrinsicFind(IReadOnlyList<RuntimeValue> args)
+        private static RuntimeValue StringFind(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            StringObject self = (StringObject)args[0].ObjectReference;
-            if (args.Count < 2 || args[1].ObjectReference is not CharObject charToFind)
+            var charToFind = vm.PopStack();
+            if (charToFind.ObjectReference is not CharObject charObj)
             {
-                throw new FluenceRuntimeException($"Runtime Error: string.find() expects a character as an argument.");
+                throw new FluenceRuntimeException("string.find() expects a character argument.");
             }
-            return new RuntimeValue(self.Value.IndexOf(charToFind.Value));
+            int index = self.As<StringObject>()!.Value.IndexOf(charObj.Value);
+            return new RuntimeValue(index);
         }
 
         /// <inheritdoc/>
@@ -348,18 +336,10 @@ namespace Fluence
         {
             switch (name)
             {
-                case "length":
-                    method = StringLengthIntrinsic;
-                    return true;
-                case "to_upper":
-                    method = StringToUpperIntrinsic;
-                    return true;
-                case "find":
-                    method = StringIntrinsicFind;
-                    return true;
-                default:
-                    method = null!;
-                    return false;
+                case "length": method = StringLength; return true;
+                case "to_upper": method = StringToUpper; return true;
+                case "find": method = StringFind; return true;
+                default: method = null!; return false;
             }
         }
 

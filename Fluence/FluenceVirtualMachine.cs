@@ -16,7 +16,7 @@ namespace Fluence
     internal sealed class FluenceVirtualMachine
     {
         /// <summary>A delegate for a natively implemented C# function that can be called from Fluence.</summary>
-        internal delegate RuntimeValue IntrinsicRuntimeMethod(IReadOnlyList<RuntimeValue> args);
+        internal delegate RuntimeValue IntrinsicRuntimeMethod(FluenceVirtualMachine vm, RuntimeValue self);
 
         /// <summary>A delegate representing the handler for a specific VM instruction.</summary>
         private delegate void OpcodeHandler(InstructionLine instruction);
@@ -1782,18 +1782,7 @@ namespace Fluence
             {
                 if (fluenceObject.TryGetIntrinsicMethod(methodName, out IntrinsicRuntimeMethod? intrinsicMethod))
                 {
-                    List<RuntimeValue> args = new List<RuntimeValue>();
-                    // The first argument to an intrinsic method is always 'self'.
-                    args.Add(instanceVal);
-
-                    int argCount = _operandStack.Count;
-                    for (int i = 0; i < argCount; i++)
-                    {
-                        args.Add(_operandStack.Pop());
-                    }
-                    args.Reverse(1, argCount);
-
-                    SetRegister((TempValue)instruction.Lhs, intrinsicMethod(args));
+                    SetRegister((TempValue)instruction.Lhs, intrinsicMethod(this, instanceVal));
                     return;
                 }
             }

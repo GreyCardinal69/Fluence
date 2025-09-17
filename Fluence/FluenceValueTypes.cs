@@ -5,7 +5,6 @@ namespace Fluence
     /// <summary>
     /// The abstract base type for all values that can be represented in bytecode.
     /// These objects are used by the parser to build an abstract representation of the code.
-    /// All value types are immutable records.
     /// </summary>
     internal abstract record class Value
     {
@@ -47,7 +46,7 @@ namespace Fluence
         }
     }
 
-    /// <summary>Represents a boolean literal (true or false).</summary>
+    /// <summary>Represents a boolean literal.</summary>
     internal sealed record class BooleanValue(bool Value) : Value
     {
         internal override object GetValue() => Value;
@@ -59,7 +58,7 @@ namespace Fluence
         }
     }
 
-    /// <summary>Represents the nil value.</summary>
+    /// <summary>Represents the nil (null) value.</summary>
     internal sealed record class NilValue : Value
     {
         internal static readonly NilValue NilInstance = new NilValue();
@@ -73,7 +72,7 @@ namespace Fluence
         }
     }
 
-    /// <summary>Represents a range literal, e.g., `1..10`.</summary>
+    /// <summary>Represents a range literal.</summary>
     internal sealed record class RangeValue(Value Start, Value End) : Value
     {
         internal override string ToFluenceString() => $"{Start.ToFluenceString()}..{End.ToFluenceString()}";
@@ -168,7 +167,7 @@ namespace Fluence
         }
     }
 
-    /// <summary>A special value indicating a statement completed but produced no result, or the result should be ignored.</summary>
+    /// <summary>A special value indicating a completed statement with no return value..</summary>
     internal sealed record class StatementCompleteValue : Value
     {
         internal static readonly StatementCompleteValue StatementCompleted = new StatementCompleteValue();
@@ -177,7 +176,7 @@ namespace Fluence
 
         public override string ToString()
         {
-            return $"StatementCompleteValue";
+            return $"StatementCompletedValue";
         }
     }
 
@@ -186,12 +185,12 @@ namespace Fluence
     /// </summary>
     internal sealed record class StaticStructAccess : Value
     {
-        internal readonly StructSymbol Struct;
+        internal StructSymbol Struct { get; init; }
 
         /// <summary>
         /// The name of the static solid field, or the static function.
         /// </summary>
-        internal readonly string Name;
+        internal string Name { get; init; }
 
         internal StaticStructAccess(StructSymbol structType, string name)
         {
@@ -269,7 +268,7 @@ namespace Fluence
     /// </summary>
     internal sealed record class TempValue : Value
     {
-        internal readonly string TempName;
+        internal string TempName { get; init; }
 
         internal TempValue(int num) => TempName = $"__Temp{num}";
         internal TempValue(int num, string name) => TempName = $"__{name}{num}";
@@ -287,7 +286,7 @@ namespace Fluence
     /// </summary>
     internal sealed record class ListValue : Value
     {
-        internal readonly List<Value> Elements;
+        internal List<Value> Elements { get; init; }
 
         internal ListValue()
         {
@@ -305,7 +304,6 @@ namespace Fluence
         /// <returns>A string in the format "[element1, element2, ...]".</returns>
         public override string ToString()
         {
-            // Limit the number of elements shown for very large lists to avoid flooding the console.
             const int maxElementsToShow = 20;
             IEnumerable<Value> elementsToShow = Elements.Take(maxElementsToShow);
             string formattedElements = string.Join(", ", elementsToShow);
@@ -328,7 +326,7 @@ namespace Fluence
     internal sealed record class FunctionValue : Value
     {
         /// <summary>
-        /// The name of the function (for debugging/stack traces).
+        /// The name of the function.
         /// </summary>
         internal string Name { get; init; }
 
@@ -355,7 +353,7 @@ namespace Fluence
         /// <summary>
         /// Is the function intrinsic?
         /// </summary>
-        internal readonly bool IsIntrinsic;
+        internal bool IsIntrinsic { get; init; }
 
         /// <summary>
         /// The scope (namespace) the function belongs to.
@@ -418,8 +416,8 @@ namespace Fluence
     /// </summary>
     internal sealed record class PropertyAccessValue : Value
     {
-        internal readonly Value Target;
-        internal readonly string FieldName;
+        internal Value Target { get; init; }
+        internal string FieldName { get; init; }
 
         internal PropertyAccessValue(Value target, string fieldName)
         {
@@ -440,8 +438,8 @@ namespace Fluence
     /// </summary>
     internal sealed record class VariableValue : Value
     {
-        internal readonly string Name;
-        internal bool IsReadOnly;
+        internal string Name { get; init; }
+        internal bool IsReadOnly { get; set; }
 
         internal VariableValue(string identifierValue, bool readOnly = false)
         {
@@ -461,8 +459,8 @@ namespace Fluence
     internal sealed record class EnumValue : Value
     {
         internal string EnumTypeName { get; init; }
-        internal readonly string MemberName;
-        internal readonly int Value;
+        internal string MemberName { get; init; }
+        internal int Value { get; init; }
 
         internal override object GetValue() => Value;
         internal override string ToFluenceString() => $"{EnumTypeName}.{MemberName}";
@@ -485,8 +483,8 @@ namespace Fluence
     /// </summary>
     internal sealed record class StructValue : Value
     {
-        internal readonly StructSymbol Struct;
-        internal readonly Dictionary<string, RuntimeValue> Fields;
+        internal StructSymbol Struct { get; init; }
+        internal Dictionary<string, RuntimeValue> Fields { get; init; }
 
         internal StructValue(StructSymbol structSym, Dictionary<string, RuntimeValue> fields)
         {

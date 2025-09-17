@@ -50,7 +50,7 @@
         /// <summary>
         /// The name of the enum.
         /// </summary>
-        internal string Name { get; }
+        internal string Name { get; init; }
 
         /// <summary>
         /// The dictionary mapping member names to their corresponding <see cref="EnumValue"/>s.
@@ -81,12 +81,12 @@
         /// <summary>
         /// The list of declared field names.
         /// </summary>
-        internal List<string> Fields { get; init; } = new();
+        internal List<string> Fields { get; } = new();
 
         /// <summary>
         /// The static and solid fields of a struct.
         /// </summary>
-        internal Dictionary<string, RuntimeValue> StaticFields { get; init; } = new();
+        internal Dictionary<string, RuntimeValue> StaticFields { get; } = new();
 
         /// <summary>
         /// Stores natively implemented static intrinsic methods.
@@ -96,13 +96,13 @@
         /// <summary>
         /// Gets a dictionary of methods defined within the struct, mapping method names to their <see cref="FunctionValue"/>s.
         /// </summary>
-        internal Dictionary<string, FunctionValue> Functions { get; init; } = new();
+        internal Dictionary<string, FunctionValue> Functions { get; } = new();
 
         /// <summary>
         /// Gets a dictionary mapping field names to the sequence of tokens representing their default value expression.
         /// This is populated during the pre-pass and used during the main pass to generate constructor bytecode.
         /// </summary>
-        internal Dictionary<string, List<Token>> DefaultFieldValuesAsTokens { get; init; } = new();
+        internal Dictionary<string, List<Token>> DefaultFieldValuesAsTokens { get; } = new();
 
         /// <summary>
         /// Gets or sets the constructor function (`init`) for this struct.

@@ -13,12 +13,12 @@ namespace Fluence
         /// <summary>
         /// The instance of the object that the method belongs to.
         /// </summary>
-        internal InstanceObject Receiver { get; }
+        internal InstanceObject Receiver { get; init; }
 
         /// <summary>
         /// The blueprint of the function to be called.
         /// </summary>
-        internal FunctionValue Method { get; }
+        internal FunctionValue Method { get; init; }
 
         public BoundMethodObject(InstanceObject receiver, FunctionValue method)
         {
@@ -150,12 +150,12 @@ namespace Fluence
         /// <summary>
         /// The compile-time "class" or blueprint that defines the structure and methods for this instance.
         /// </summary>
-        internal StructSymbol Class { get; }
+        internal StructSymbol Class { get; init; }
 
         /// <summary>
         /// A dictionary storing the state of this specific instance.
         /// </summary>
-        internal readonly Dictionary<string, RuntimeValue> _fields = new();
+        private readonly Dictionary<string, RuntimeValue> _fields = new();
 
         internal InstanceObject(StructSymbol symb)
         {
@@ -213,11 +213,14 @@ namespace Fluence
 
     /// <summary>
     /// Represents the runtime instance of a list, which can contain any <see cref="RuntimeValue"/>.
-    /// Implements <see cref="IFluenceObject"/> to provide fast, native C# methods.
+    /// Implements <see cref="IFluenceObject"/> to provide intrinsic functions.
     /// </summary>
     internal sealed record class ListObject : IFluenceObject
     {
-        internal readonly List<RuntimeValue> Elements = new();
+        /// <summary>
+        /// The elements of the list.
+        /// </summary>
+        internal List<RuntimeValue> Elements { get; } = new();
 
         public override string ToString()
         {
@@ -225,7 +228,6 @@ namespace Fluence
         }
 
         /// <summary>Implements the native 'length()' method for lists.</summary>
-        /// <remarks>The calling convention for intrinsics is that args[0] is always 'self'.</remarks>
         private static RuntimeValue ListLength(FluenceVirtualMachine vm, RuntimeValue self)
         {
             return new RuntimeValue(self.As<ListObject>()!.Elements.Count);
@@ -258,7 +260,10 @@ namespace Fluence
     {
         internal char Value { get; private set; }
 
-        internal CharObject(char value) { Value = value; }
+        internal CharObject(char value)
+        {
+            Value = value;
+        }
 
         public CharObject()
         {
@@ -305,13 +310,13 @@ namespace Fluence
 
         internal void Initialize(string str) => Value = str;
 
-        /// <summary>Implements the native length property for strings.</summary>
+        /// <summary>Implements the native '.length' property for strings.</summary>
         private static RuntimeValue StringLength(FluenceVirtualMachine vm, RuntimeValue self)
         {
             return new RuntimeValue(self.As<StringObject>()!.Value.Length);
         }
 
-        /// <summary>Implements the native ToUpper function for strings.</summary>
+        /// <summary>Implements the native 'ToUpper()' function for strings.</summary>
         private static RuntimeValue StringToUpper(FluenceVirtualMachine vm, RuntimeValue self)
         {
             var strObj = self.As<StringObject>();
@@ -319,7 +324,7 @@ namespace Fluence
             return vm.ResolveStringObjectRuntimeValue(upper);
         }
 
-        /// <summary>Implements the native IndexOf function for strings.</summary>
+        /// <summary>Implements the native 'IndexOf()' function for strings.</summary>
         private static RuntimeValue StringFind(FluenceVirtualMachine vm, RuntimeValue self)
         {
             var charToFind = vm.PopStack();
@@ -347,7 +352,7 @@ namespace Fluence
     }
 
     /// <summary>
-    /// Represents a heap-allocated range object, typically used in for-in loops.
+    /// Represents a heap-allocated range object, typically used in 'for-in' loops.
     /// </summary>
     internal sealed record class RangeObject
     {
@@ -380,7 +385,7 @@ namespace Fluence
     }
 
     /// <summary>
-    /// Represents the state of an ongoing iteration over an iterable object (like a list or range).
+    /// Represents the state of an ongoing iteration over an iterable object.
     /// </summary>
     internal sealed record class IteratorObject
     {

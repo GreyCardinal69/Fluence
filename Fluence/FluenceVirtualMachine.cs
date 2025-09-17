@@ -74,7 +74,10 @@ namespace Fluence
         /// The interval representing the amount of instructions per which executed we check the
         /// elapsed time since the start of the Virtual Machine.
         /// </summary>
-        private const int _timeCheckInterval = 10000;
+        // TO DO, the value of this needs to be tested, while the VM is very fast, the higher the value the less
+        // accurate the elapsed time check is. But the elapsed check is very expensive, so a golden middle needs
+        // to be identified.
+        private const int _timeCheckInterval = 100000;
 
         /// <summary>
         /// A cache to store the readonly status of variables in the global scope.
@@ -1959,6 +1962,7 @@ namespace Fluence
             {
                 ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, var.Name, out _);
                 valueRef = val;
+                return;
             }
 
             ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, var.Name, out _);

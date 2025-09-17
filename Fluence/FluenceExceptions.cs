@@ -3,7 +3,7 @@
 namespace Fluence
 {
     /// <summary>
-    /// Provides detailed, context-rich information about a compiler error.
+    /// Provides detailed, context-rich information about an error.
     /// </summary>
     internal abstract record ExceptionContext
     {
@@ -12,14 +12,6 @@ namespace Fluence
         /// </summary>
         /// <returns>A formatted string detailing the error context.</returns>
         internal abstract string Format();
-    }
-
-    internal sealed record RuntimeExceptionContext : ExceptionContext
-    {
-        internal override string Format()
-        {
-            throw new NotImplementedException();
-        }
     }
 
     /// <summary>
@@ -34,7 +26,7 @@ namespace Fluence
         internal int Column { get; init; }
 
         /// <summary>
-        /// The Fluence script file where the error occured.
+        /// The Fluence script file where the error occured, if given code as a string from an application, returns "script".
         /// </summary>
         internal required string FileName { get; init; }
 
@@ -119,7 +111,7 @@ namespace Fluence
     }
 
     /// <summary>
-    /// The base class for all exceptions thrown by the Fluence Interpreter.
+    /// The base class for all exceptions thrown by the Fluence VM.
     /// </summary>
     public class FluenceException : Exception
     {

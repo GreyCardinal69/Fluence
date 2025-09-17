@@ -407,13 +407,13 @@ namespace Fluence
                 _currentParsingFileName = path;
 
 #if DEBUG
-                _lexer.DumpTokenStream("Initial Token Stream (Before Pre-Parsing declarations)");
+                _lexer.DumpTokenStream("Initial Token Stream (Before Pre-Parsing declarations)", _outputLine);
 #endif
 
                 ParseDeclarations(0, _lexer.TokenCount);
 
 #if DEBUG
-                _lexer.DumpTokenStream("Token stream after parsing declarations.");
+                _lexer.DumpTokenStream("Token stream after parsing declarations.", _outputLine);
 #endif
 
                 while (!_lexer.HasReachedEnd)
@@ -436,13 +436,13 @@ namespace Fluence
             _lexer.RemoveLexerEOLS();
 
 #if DEBUG
-            _lexer.DumpTokenStream("Initial Token Stream (Before Pre-Parsing declarations)");
+            _lexer.DumpTokenStream("Initial Token Stream (Before Pre-Parsing declarations)", _outputLine);
 #endif
 
             ParseDeclarations(0, _lexer.TokenCount);
 
 #if DEBUG
-            _lexer.DumpTokenStream("Token stream after parsing declarations.");
+            _lexer.DumpTokenStream("Token stream after parsing declarations.", _outputLine);
 #endif
 
             while (!_lexer.HasReachedEnd)

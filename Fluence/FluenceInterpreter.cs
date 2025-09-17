@@ -4,9 +4,7 @@ using static Fluence.FluenceParser;
 namespace Fluence
 {
     /// <summary>
-    /// Provides the main public API for compiling and executing Fluence scripts.
-    /// This class is the primary entry point for embedding the Fluence language into a host application.
-    /// It manages the lifecycle of the parser, optimizer, and virtual machine.
+    /// Provides commands for the execution of Fluence scripts and control of the Virtual Machine.
     /// </summary>
     public sealed class FluenceInterpreter
     {
@@ -28,7 +26,7 @@ namespace Fluence
         public delegate string TextInputMethod();
 
         /// <summary>
-        /// Gets or sets the method used by the 'print' family of functions to write text.
+        /// Gets or sets the method used by the 'printl' family of functions to write text.
         /// Defaults to Console.WriteLine.
         /// </summary>
         public TextOutputMethod OnOutputLine { get; set; } = Console.WriteLine;
@@ -78,7 +76,7 @@ namespace Fluence
         /// <summary>
         /// Adds one or more standard library names to the whitelist of allowed libraries.
         /// </summary>
-        /// <param name="libs">A collection of library names to allow (e.g., "FluenceIO", "FluenceMath").</param>
+        /// <param name="libs">A collection of library names to allow.</param>
         public void AddAllowedIntrinsicLibraries(IEnumerable<string> libs)
         {
             foreach (var lib in libs)
@@ -100,7 +98,7 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Clears the whitelist of allowed intrinsic libraries, effectively allowing all standard libraries to be used.
+        /// Clears the whitelist of allowed intrinsic libraries, allowing all standard libraries to be used.
         /// </summary>
         public void ClearAllowedIntrinsicLibraries() => AllowedLibraries.Clear();
 
@@ -172,7 +170,7 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Runs the compiled script to completion in a single blocking call.
+        /// Runs the compiled script to completion.
         /// If the script was previously paused, execution will resume and run to completion.
         /// If the script was finished, it will be reset and run again from the beginning.
         /// </summary>
@@ -221,7 +219,7 @@ namespace Fluence
 
         /// <summary>
         /// Resets the interpreter, clearing the compiled bytecode and the virtual machine instance.
-        /// The interpreter must be re-initialized with a call to <see cref="Compile(string, bool)"/> before it can be run again.
+        /// The interpreter must be re-initialized.
         /// </summary>
         public void Reset()
         {
@@ -232,7 +230,6 @@ namespace Fluence
 
         /// <summary>
         /// Signals the running script to pause execution at the next available opportunity (before the next instruction).
-        /// This method returns immediately and does not block.
         /// </summary>
         public void Stop() => _vm.Stop();
 

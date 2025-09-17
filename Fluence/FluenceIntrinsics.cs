@@ -3,16 +3,17 @@
 namespace Fluence
 {
     /// <summary>
-    /// Manages the registration of standard library modules (intrinsics) for the Fluence language.
+    /// Manages the registration of standard library modules (intrinsics) for Fluence.
     /// It handles on-demand loading of libraries when 'use' statements are encountered by the parser.
     /// </summary>
     internal sealed class FluenceIntrinsics
     {
-        // A dictionary mapping namespace names to their registration actions.
+        /// <summary>
+        /// A dictionary mapping namespace names to their registration actions.
+        /// </summary>
         private readonly Dictionary<string, Action<FluenceScope>> _libraryRegistry = new();
         private readonly FluenceParser _parser;
 
-        // I/O handlers for global functions.
         private readonly TextOutputMethod _outputLine;
         private readonly TextOutputMethod _output;
         private readonly TextInputMethod _input;
@@ -65,7 +66,6 @@ namespace Fluence
             }
 
             // No standard library with that name was found.
-            // The parser will then proceed to look for a user-defined file.
             return null;
         }
     }

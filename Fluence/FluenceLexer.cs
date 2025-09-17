@@ -1,10 +1,11 @@
 ﻿using System.Text;
+using static Fluence.FluenceInterpreter;
 using static Fluence.Token;
 
 namespace Fluence
 {
     /// <summary>
-    /// The lexical analyzer for the Fluence language.
+    /// The lexical analyzer for Fluence.
     /// It scans the source code string and converts it into a stream of tokens.
     /// </summary>
     internal sealed class FluenceLexer
@@ -108,8 +109,6 @@ namespace Fluence
 
             /// <summary>
             /// Removes a range of tokens from the buffer.
-            /// This is an advanced operation used by a multi-pass parser to
-            /// remove declarative code after it has been processed in a first pass.
             /// </summary>
             /// <param name="startIndex">The absolute index in the buffer to start removing from.</param>
             /// <param name="count">The number of tokens to remove.</param>
@@ -142,7 +141,7 @@ namespace Fluence
             }
 
             /// <summary>
-            /// Removes consumed tokens from the beginning of the list to save memory.
+            /// Removes consumed tokens from the beginning of the list.
             /// </summary>
             private void Compact()
             {
@@ -309,15 +308,15 @@ namespace Fluence
         /// </summary>
         internal void RemoveLexerEOLS() => _tokenBuffer.RemoveLexerEOLS();
 
-        internal void DumpTokenStream(string title)
+        internal void DumpTokenStream(string title, TextOutputMethod outMethod)
         {
-            Console.WriteLine();
-            Console.WriteLine($"--- {title} ---");
-            Console.WriteLine();
+            outMethod(string.Empty);
+            outMethod($"--- {title} ---");
+            outMethod(string.Empty);
 
             string header = string.Format("{0,-35} {1,-40} {2,-30} {3, -10} {4, -10}", "TYPE", "TEXT", "LITERAL", "LINE", "COLUMN");
-            Console.WriteLine(header);
-            Console.WriteLine(new string('-', header.Length));
+            outMethod(header);
+            outMethod(new string('-', header.Length));
 
             int lookahead = 1;
             while (true)
@@ -327,7 +326,7 @@ namespace Fluence
                 // Stop when we hit the end of the file.
                 if (token.Type == TokenType.EOF)
                 {
-                    Console.WriteLine("{0,-35} {1,-40} {2,-30} {3, -10} {4, -10}", token.Type, "EOF", "EOF", "EOF", "EOF");
+                    outMethod(string.Format("{0,-35} {1,-40} {2,-30} {3, -10} {4, -10}", token.Type, "EOF", "EOF", "EOF", "EOF"));
                     break;
                 }
 
@@ -348,19 +347,19 @@ namespace Fluence
                     literalToDisplay = $"{literalToDisplay[..20]}...".Replace("\n", "\\n");
                 }
 
-                Console.WriteLine("{0,-35} {1,-40} {2,-30} {3, -10} {4, -10}",
+                outMethod(string.Format("{0,-35} {1,-40} {2,-30} {3, -10} {4, -10}",
                     token.Type,
                     textToDisplay,
                     literalToDisplay,
                     token.LineInSourceCode,
-                    token.ColumnInSourceCode);
+                    token.ColumnInSourceCode));
 
                 lookahead++;
             }
 
-            Console.WriteLine();
-            Console.WriteLine($"--- End of {title} ---");
-            Console.WriteLine();
+            outMethod(string.Empty);
+            outMethod($"--- End of {title} ---");
+            outMethod(string.Empty);
         }
 
         /// <summary>
@@ -526,7 +525,7 @@ namespace Fluence
                     {
                         if (CanLookAheadStartInclusive(2) && _sourceCode[_currentPosition + 1] == '\n')
                         {
-                            AdvancePosition(); // Consume the \n as part of the \r\n pair.
+                            AdvancePosition(); // Consume the '\n' as part of the '\r\n' pair.
                         }
                     }
                     AdvanceCurrentLine();
@@ -640,7 +639,7 @@ namespace Fluence
                         else break;
                     }
 
-                    // Check if the number ends with a dot
+                    // Check if the number ends with a dot.
                     if (_sourceCode[_currentPosition - 1] == '.')
                     {
                         faultyCodeLine = GetCodeLineFromSource(_sourceCode, _currentLine + 1).TrimStart();
@@ -951,7 +950,7 @@ namespace Fluence
 
                 if (Match("?|"))
                 {
-                    // We matched <n?|
+                    // We matched '<n?|'.
                     // Only assign the number as text/literal, the rest of the operator is in the TokenType.
                     return new Token(TokenType.OPTIONAL_ASSIGN_N, null!, n, (short)_currentLine, (short)_currentColumn);
                 }
@@ -970,9 +969,6 @@ namespace Fluence
                 {
                     return new Token(TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN, null!, n, (short)_currentLine, (short)_currentColumn);
                 }
-
-                // If we get here then we have an error.
-                // incomplete chain assignment.
 
                 string initialLineContent = GetCodeLineFromSource(_sourceCode, _currentLine).TrimStart();
                 string truncatedLine = FluenceDebug.TruncateLine(initialLineContent);
@@ -1005,7 +1001,6 @@ namespace Fluence
                 }
             }
 
-            // One character here.
             return MakeTokenAndTryAdvance(TokenType.LESS, 1);
         }
 
@@ -1065,7 +1060,7 @@ namespace Fluence
 
                 if (!_hasReachedEndInternal && _sourceCode[_currentPosition] == '#')
                 {
-                    // Check for multi-line comment: '#*'
+                    // Check for multi-line comment: '#*'.
                     if (CanLookAheadStartInclusive(2) && _sourceCode[_currentPosition + 1] == '*')
                     {
                         int level = 0; // We can have #* inside #*, to not read first *# as end of multiline, we keep track of level.

@@ -325,7 +325,6 @@ Fluence is still in its early stages of development. Many features are yet to be
     -   **Full Lambda Implementation:** Completing the implementation of first-class lambda expressions.
     -   **Pipe-Enabled Lambdas:** Implementing the full suite of functional pipeline operators that operate on lambdas, including `|?` (Optional Pipe), `|>>` (Map Pipe), `|>>=` (Reducer Pipe), and `|~>` (Scan Pipe).
     -   **Default Argument Values:** Allowing functions and methods to have default values for parameters, e.g., `func connect(host, port=8080) => ...`.
-    -   **Multiple Constructors:** Enabling structs to have multiple `init` methods with different arities for more flexible object creation.
 
 -   **Advanced Control Flow:**
     -   **`.returnmatch` Statement:** Implementing a powerful, single-statement conditional return mechanism to further reduce `if/else` boilerplate in functions.

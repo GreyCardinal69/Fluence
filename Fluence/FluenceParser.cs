@@ -3698,7 +3698,7 @@ namespace Fluence
                     InstructionCode.CallStatic,
                     result,
                     statAccess.Struct,
-                    new StringValue(statAccess.Name)
+                    new StringValue(Mangler.Mangle(statAccess.Name, arguments.Count))
                 ));
             }
             else
@@ -3706,23 +3706,10 @@ namespace Fluence
                 VariableValue var = (VariableValue)callable;
                 templated = Mangler.Mangle(var.Name, arguments.Count);
 
-                if (_currentParseState.CurrentScope.Contains(templated))
-                {
-                    // This is a direct function call: func(). Non intrinsic.
-                    _currentParseState.AddCodeInstruction(new InstructionLine(
-                        InstructionCode.CallFunction,
-                        result,
-                        new VariableValue(templated),
-                        new NumberValue(arguments.Count)
-                    ));
-                    return result;
-                }
-
-                // Direct intrinsic call.
                 _currentParseState.AddCodeInstruction(new InstructionLine(
                     InstructionCode.CallFunction,
                     result,
-                    var,
+                    new VariableValue(templated),
                     new NumberValue(arguments.Count)
                 ));
             }

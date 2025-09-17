@@ -9,7 +9,7 @@ namespace Fluence
     {
         internal static void Register(FluenceScope globalScope, TextOutputMethod outputLine, TextInputMethod input, TextOutputMethod output)
         {
-            globalScope.Declare("to_int", new FunctionSymbol("to_int", 1, (vm, argCount) =>
+            globalScope.Declare("to_int__1", new FunctionSymbol("to_int__1", 1, (vm, argCount) =>
             {
                 if (argCount != 1) throw new FluenceRuntimeException("to_int() expects one string argument.");
                 RuntimeValue val = vm.PopStack();

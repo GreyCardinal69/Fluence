@@ -25,7 +25,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Goto, new NumberValue(2)),
                 new(InstructionCode.Add, new VariableValue("a"), new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Goto, new NumberValue(5)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
 
@@ -55,7 +55,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Goto, new NumberValue(2)),
                 new(InstructionCode.Add, new VariableValue("a"), new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Goto, new NumberValue(5)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
 
@@ -115,7 +115,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Goto, new NumberValue(19)),
                 new(InstructionCode.Goto, new NumberValue(19)),
                 new(InstructionCode.Goto, new NumberValue(6)),
-                new(InstructionCode.CallFunction, new TempValue(9), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(9), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
 

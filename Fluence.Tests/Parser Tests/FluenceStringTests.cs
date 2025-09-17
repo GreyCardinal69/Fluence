@@ -17,7 +17,7 @@ namespace Fluence.ParserTests
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new StringValue("hello world")),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
 
@@ -33,7 +33,7 @@ namespace Fluence.ParserTests
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("d"), new StringValue("")),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
 
@@ -49,7 +49,7 @@ namespace Fluence.ParserTests
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("d"), new StringValue("")),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
 
@@ -72,7 +72,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.ToString, new TempValue(0), new VariableValue("b")),
                 new(InstructionCode.Add, new TempValue(1), new StringValue("hello "), new TempValue(0)),
                 new(InstructionCode.Assign, new VariableValue("c"), new TempValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
 
@@ -97,7 +97,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Add, new TempValue(4), new TempValue(3), new StringValue(" middle ")),
                 new(InstructionCode.Add, new TempValue(5), new TempValue(4), new TempValue(2)),
                 new(InstructionCode.Assign, new VariableValue("c"), new TempValue(5)),
-                new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);

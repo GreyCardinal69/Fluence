@@ -70,7 +70,6 @@ namespace Fluence.ParserTests
             parser.Parse(true);
             var symbolTree = GetSymbolTree(parser);
 
-            // --- Assertions for Global Scope ---
             Assert.True(symbolTree.GlobalScope.Contains("A_1"));
             Assert.True(symbolTree.GlobalScope.Contains("Globuloid_1"));
             Assert.True(symbolTree.GlobalScope.Contains("A_2"));
@@ -79,7 +78,6 @@ namespace Fluence.ParserTests
             Assert.True(symbolTree.GlobalScope.Contains("Globuloid_3"));
             Assert.False(symbolTree.GlobalScope.Contains("MyProgram_1"));
 
-            // --- Assertions for Namespaces ---
             Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_1"));
             Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_1"));
             Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_2"));
@@ -88,30 +86,27 @@ namespace Fluence.ParserTests
             Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_3"));
             Assert.True(symbolTree.NameSpaces.ContainsKey("FluenceMath"));
 
-            // --- Assertions for MyProgram_1 Scope ---
             var myProgram1Scope = symbolTree.NameSpaces["MyProgram_1"];
             Assert.True(myProgram1Scope.ContainsLocal("Number_1"));
             Assert.True(myProgram1Scope.ContainsLocal("Number_1Type"));
-            Assert.True(myProgram1Scope.ContainsLocal("Main_1"));
-            Assert.True(myProgram1Scope.ContainsLocal("Helper_1"));
+            Assert.True(myProgram1Scope.ContainsLocal("Main_1__0"));
+            Assert.True(myProgram1Scope.ContainsLocal("Helper_1__0"));
             Assert.True(myProgram1Scope.ContainsLocal("Vector3_1"));
-            Assert.True(myProgram1Scope.ContainsLocal("cos"));
+            Assert.True(myProgram1Scope.ContainsLocal("cos__1"));
             Assert.False(myProgram1Scope.ContainsLocal("Globuloid_1"));
 
-            // --- Assertions for MyMath_2 Scope ---
             var myMath2Scope = symbolTree.NameSpaces["MyMath_2"];
             Assert.True(myMath2Scope.ContainsLocal("Vector3_2"));
             Assert.False(myMath2Scope.ContainsLocal("Number_2"));
 
-            // --- Assertions for MyProgram_3 Scope ---
             var myProgram3Scope = symbolTree.NameSpaces["MyProgram_3"];
             Assert.True(myProgram3Scope.ContainsLocal("Number_3"));
-            Assert.True(myProgram3Scope.ContainsLocal("Main_3"));
+            Assert.True(myProgram3Scope.ContainsLocal("Main_3__0"));
             Assert.True(myProgram3Scope.ContainsLocal("Vector3_3"));
 
             Assert.IsType<StructSymbol>(myProgram1Scope.Symbols["Vector3_1"]);
             Assert.IsType<EnumSymbol>(myProgram1Scope.Symbols["Number_1Type"]);
-            Assert.IsType<FunctionSymbol>(myProgram1Scope.Symbols["Main_1"]);
+            Assert.IsType<FunctionSymbol>(myProgram1Scope.Symbols["Main_1__0"]);
         }
 
         [Fact]
@@ -123,8 +118,8 @@ namespace Fluence.ParserTests
             {
                 new(InstructionCode.Goto, new NumberValue(2)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Assign, new VariableValue("DoNothing"), new FunctionValue("DoNothing", 0, 2)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("DoNothing__0"), new FunctionValue("DoNothing", 0, 2)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -142,7 +137,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new TempValue(0), new VariableValue("a")),
                 new(InstructionCode.Assign, new VariableValue("a"), new VariableValue("b")),
                 new(InstructionCode.Assign, new VariableValue("b"), new TempValue(0)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -156,7 +151,7 @@ namespace Fluence.ParserTests
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new TempValue(0), new VariableValue("exitCode")),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -169,10 +164,10 @@ namespace Fluence.ParserTests
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("MyFunc"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("MyFunc__0"), new NumberValue(0)),
                 new(InstructionCode.GetElement, new TempValue(1), new TempValue(0), new NumberValue(230)),
                 new(InstructionCode.Assign, new VariableValue("x"), new TempValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -187,7 +182,7 @@ namespace Fluence.ParserTests
             {
                 new(InstructionCode.GetElement, new TempValue(0), new VariableValue("list"), new NumberValue(2)),
                 new(InstructionCode.Assign, new VariableValue("y"), new TempValue(0)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -201,7 +196,7 @@ namespace Fluence.ParserTests
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(2), new NumberValue(5)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -214,10 +209,10 @@ namespace Fluence.ParserTests
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("MyFunc"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("MyFunc__0"), new NumberValue(0)),
                 new(InstructionCode.GetElement, new TempValue(1), new TempValue(0), new NumberValue(230)),
                 new(InstructionCode.Assign, new VariableValue("x"), new TempValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -234,7 +229,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushElement, new TempValue(0), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("list"), new TempValue(0)),
                 new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(0), new NumberValue(5)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -258,10 +253,10 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("a"), new TempValue(0)),
                 new(InstructionCode.PushParam, new VariableValue("a")),
                 new(InstructionCode.PushParam, new VariableValue("b")),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main"), new NumberValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main__2"), new NumberValue(2)),
                 new(InstructionCode.Assign, new TempValue(2), new VariableValue("exitCode")),
                 new(InstructionCode.Assign, new VariableValue("exitCode"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -277,7 +272,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("flag"), new BooleanValue(true)),
                 new(InstructionCode.Not, new TempValue(0), new VariableValue("flag")),
                 new(InstructionCode.Assign, new VariableValue("flag"), new TempValue(0)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -295,7 +290,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.ToString, new TempValue(1), new TempValue(0)),
                 new(InstructionCode.Add, new TempValue(2), new StringValue("Value is "), new TempValue(1)),
                 new(InstructionCode.Assign, new VariableValue("b"), new TempValue(2)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -315,7 +310,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Goto, new NumberValue(6)),
                 new(InstructionCode.Assign, new TempValue(1), new NumberValue(-10)),
                 new(InstructionCode.Assign, new VariableValue("c"), new TempValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -335,7 +330,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Goto, new NumberValue(6)),
                 new(InstructionCode.Assign, new TempValue(1), new NumberValue(-10)),
                 new(InstructionCode.Assign, new VariableValue("d"), new TempValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -361,7 +356,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Goto, new NumberValue(12)),
                 new(InstructionCode.Assign, new TempValue(3), new NumberValue(-10)),
                 new(InstructionCode.Assign, new VariableValue("v"), new TempValue(3)),
-                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -379,8 +374,8 @@ namespace Fluence.ParserTests
                 new(InstructionCode.And, new TempValue(2), new TempValue(0), new TempValue(1)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print__1"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -398,8 +393,8 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Or, new TempValue(2), new TempValue(0), new TempValue(1)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print__1"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -417,8 +412,8 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Or, new TempValue(2), new TempValue(0), new TempValue(1)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print__1"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -454,8 +449,8 @@ namespace Fluence.ParserTests
                 new(InstructionCode.And, new TempValue(12), new TempValue(8), new TempValue(11)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(19), new TempValue(12)),
                 new(InstructionCode.PushParam, new StringValue("here")),
-                new(InstructionCode.CallFunction, new TempValue(13), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(14), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(13), new VariableValue("print__1"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(14), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -471,7 +466,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Add, new TempValue(0), new NumberValue(5), new NumberValue(5)),
                 new(InstructionCode.Multiply, new TempValue(1), new TempValue(0), new NumberValue(2)),
                 new(InstructionCode.Assign, new VariableValue("x"), new TempValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -484,9 +479,9 @@ namespace Fluence.ParserTests
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("MyFunc"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("MyFunc__0"), new NumberValue(0)),
                 new(InstructionCode.Assign, new VariableValue("x"), new TempValue(0)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -505,7 +500,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushElement, new TempValue(0), new NumberValue(3)),
                 new(InstructionCode.GetElement, new TempValue(1), new TempValue(0), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("x"), new TempValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -531,7 +526,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new TempValue(0), new EnumValue("Status", "Err", 1)),
                 new(InstructionCode.Goto, new NumberValue(6)),
                 new(InstructionCode.Assign, new VariableValue("result"), new TempValue(0)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -558,15 +553,15 @@ namespace Fluence.ParserTests
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Goto, new NumberValue(5)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("input"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("input__0"), new NumberValue(0)),
                 new(InstructionCode.PushParam, new TempValue(0)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("to_int"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("to_int__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new TempValue(1)),
                 new(InstructionCode.Goto, new NumberValue(53)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("input_int"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("input_int__0"), new NumberValue(0)),
                 new(InstructionCode.Assign, new TempValue(3), new TempValue(2)),
                 new(InstructionCode.AssignTwo, new VariableValue("num1"), new TempValue(3), new VariableValue("num2"), new TempValue(3)),
-                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("input"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("input__0"), new NumberValue(0)),
                 new(InstructionCode.Assign, new TempValue(5), new TempValue(4)),
                 new(InstructionCode.Assign, new VariableValue("op"), new TempValue(5)),
                 new(InstructionCode.NotEqual, new TempValue(6), new VariableValue("num1"), new NilValue()),
@@ -608,11 +603,11 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Add, new TempValue(26), new StringValue("Result: "), new TempValue(25)),
                 new(InstructionCode.Assign, new TempValue(24), new TempValue(26)),
                 new(InstructionCode.PushParam, new TempValue(24)),
-                new(InstructionCode.CallFunction, new TempValue(27), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(27), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Assign, new VariableValue("input_int"), new FunctionValue("input_int", 0, 1)),
-                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 6)),
-                new(InstructionCode.CallFunction, new TempValue(28), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("input_int__0"), new FunctionValue("input_int", 0, 1)),
+                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 6)),
+                new(InstructionCode.CallFunction, new TempValue(28), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -689,30 +684,30 @@ namespace Fluence.ParserTests
                 new(InstructionCode.CallMethod, new TempValue(8), new TempValue(7), new StringValue("init")),
                 new(InstructionCode.Assign, new VariableValue("number"), new TempValue(7)),
                 new(InstructionCode.PushParam, new VariableValue("number")),
-                new(InstructionCode.CallFunction, new TempValue(9), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(10), new VariableValue("Helper"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(9), new VariableValue("print__1"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(10), new VariableValue("Helper__0"), new NumberValue(0)),
                 new(InstructionCode.NewInstance, new TempValue(11), new StructSymbol("Vector3")),
                 new(InstructionCode.PushTwoParams, new NumberValue(1),new NumberValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(3)),
                 new(InstructionCode.CallMethod, new TempValue(12), new TempValue(11), new StringValue("init")),
                 new(InstructionCode.Assign, new VariableValue("position3D"), new TempValue(11)),
                 new(InstructionCode.PushParam, new VariableValue("position3D")),
-                new(InstructionCode.CallFunction, new TempValue(13), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(13), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(120)),
-                new(InstructionCode.CallFunction, new TempValue(14), new VariableValue("cos"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(14), new VariableValue("cos__1"), new NumberValue(1)),
                 new(InstructionCode.PushParam, new TempValue(14)),
-                new(InstructionCode.CallFunction, new TempValue(15), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(15), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
                 new(InstructionCode.Goto, new NumberValue(48)),
                 new(InstructionCode.PushParam, new StringValue("helper")),
-                new(InstructionCode.CallFunction, new TempValue(16), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(16), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
                 new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1)),
                 new(InstructionCode.Assign, new VariableValue("Number.Length"), new FunctionValue("Length", 0, 12)),
                 new(InstructionCode.Assign, new VariableValue("Number.init"), new FunctionValue("init", 2, 20)),
-                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 30)),
-                new(InstructionCode.Assign, new VariableValue("Helper"), new FunctionValue("Helper", 0, 52)),
-                new(InstructionCode.CallFunction, new TempValue(22), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 30)),
+                new(InstructionCode.Assign, new VariableValue("Helper__0"), new FunctionValue("Helper", 0, 52)),
+                new(InstructionCode.CallFunction, new TempValue(22), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -729,11 +724,11 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Add, new TempValue(0), new NumberValue(5), new NumberValue(5)),
                 new(InstructionCode.PushParam, new TempValue(0)),
                 new(InstructionCode.PushParam, new NumberValue(10)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("add"), new NumberValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("add__2"), new NumberValue(2)),
                 new(InstructionCode.PushParam, new TempValue(0)),
                 new(InstructionCode.PushParam, new NumberValue(20)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("add"), new NumberValue(2)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("add__2"), new NumberValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -808,30 +803,30 @@ namespace Fluence.ParserTests
                 new(InstructionCode.CallMethod, new TempValue(13), new TempValue(12), new StringValue("init")),
                 new(InstructionCode.Assign, new VariableValue("number"), new TempValue(12)),
                 new(InstructionCode.PushParam, new VariableValue("number")),
-                new(InstructionCode.CallFunction, new TempValue(14), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(15), new VariableValue("Helper"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(14), new VariableValue("print__1"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(15), new VariableValue("Helper__0"), new NumberValue(0)),
                 new(InstructionCode.NewInstance, new TempValue(16), new StructSymbol("Vector3")),
                 new(InstructionCode.PushTwoParams, new NumberValue(1),new NumberValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(3)),
                 new(InstructionCode.CallMethod, new TempValue(17), new TempValue(16), new StringValue("init")),
                 new(InstructionCode.Assign, new VariableValue("position3D"), new TempValue(16)),
                 new(InstructionCode.PushParam, new VariableValue("position3D")),
-                new(InstructionCode.CallFunction, new TempValue(18), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(18), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(120)),
-                new(InstructionCode.CallFunction, new TempValue(19), new VariableValue("cos"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(19), new VariableValue("cos__1"), new NumberValue(1)),
                 new(InstructionCode.PushParam, new TempValue(19)),
-                new(InstructionCode.CallFunction, new TempValue(20), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(20), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
                 new(InstructionCode.Goto, new NumberValue(48)),
                 new(InstructionCode.PushParam, new StringValue("helper")),
-                new(InstructionCode.CallFunction, new TempValue(21), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(21), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
                 new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1)),
                 new(InstructionCode.Assign, new VariableValue("Number.Length"), new FunctionValue("Length", 0, 12)),
                 new(InstructionCode.Assign, new VariableValue("Number.init"), new FunctionValue("init", 2, 20)),
-                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 30)),
-                new(InstructionCode.Assign, new VariableValue("Helper"), new FunctionValue("Helper", 0, 52)),
-                new(InstructionCode.CallFunction, new TempValue(22), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 30)),
+                new(InstructionCode.Assign, new VariableValue("Helper__0"), new FunctionValue("Helper", 0, 52)),
+                new(InstructionCode.CallFunction, new TempValue(22), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -862,9 +857,9 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Return, new NilValue()),
                 new(InstructionCode.Goto, new NumberValue(9)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 3)),
+                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 3)),
                 new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -895,9 +890,9 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Return, new NilValue()),
                 new(InstructionCode.Goto, new NumberValue(9)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 3)),
+                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 3)),
                 new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -934,8 +929,8 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("p"), new TempValue(2)),
                 new(InstructionCode.Return, new NilValue()),
                 new(InstructionCode.Assign, new VariableValue("Point.init"), new FunctionValue("init", 1, 1)),
-                new(InstructionCode.Assign, new VariableValue("Main"), new FunctionValue("Main", 0, 8)),
-                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 8)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -952,8 +947,8 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Multiply, new TempValue(0), new VariableValue("x"), new NumberValue(2)),
                 new(InstructionCode.Add, new TempValue(1), new TempValue(0), new NumberValue(5)),
                 new(InstructionCode.PushParam, new TempValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print__1"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -974,8 +969,8 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new TempValue(1), new NumberValue(0)),
                 new(InstructionCode.PushParam, new TempValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(99)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(2)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print__2"), new NumberValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -998,8 +993,8 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Equal, new TempValue(2), new TempValue(1), new NumberValue(2)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(11), new TempValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print__1"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1013,9 +1008,9 @@ namespace Fluence.ParserTests
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new NumberValue(5)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("add"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("add__1"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("result"), new TempValue(0)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1030,9 +1025,9 @@ namespace Fluence.ParserTests
             {
                 new(InstructionCode.PushParam, new NumberValue(5)),
                 new(InstructionCode.PushParam, new NumberValue(10)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("add"), new NumberValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("add__2"), new NumberValue(2)),
                 new(InstructionCode.Assign, new VariableValue("result"), new TempValue(0)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1046,10 +1041,10 @@ namespace Fluence.ParserTests
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(2)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print__1"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1063,12 +1058,12 @@ namespace Fluence.ParserTests
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new VariableValue("x")),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("getFive"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("print__1"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("getFive__0"), new NumberValue(0)),
                 new(InstructionCode.PushParam, new TempValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("result"), new TempValue(2)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1077,27 +1072,28 @@ namespace Fluence.ParserTests
         [Fact]
         public void ParsesBrutalChainedPipeCorrectly()
         {
-            string source = "result = add(x) |> add(_) |> mul(5, _) |> mul(_, 5) |> add(3) |> add2(3,_);";
+            string source = "result = add(x) |> add(_) |> mul(5, _) |> mul(_, 5) |> add2(_,3) |> add2(3,_);";
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new VariableValue("x")),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("add"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("add__1"), new NumberValue(1)),
                 new(InstructionCode.PushParam, new TempValue(0)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("add"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("add__1"), new NumberValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(5)),
                 new(InstructionCode.PushParam, new TempValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("mul"), new NumberValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("mul__2"), new NumberValue(2)),
                 new(InstructionCode.PushParam, new TempValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(5)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("mul"), new NumberValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("mul__2"), new NumberValue(2)),
+                new(InstructionCode.PushParam, new TempValue(3)),
                 new(InstructionCode.PushParam, new NumberValue(3)),
-                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("add"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("add2__2"), new NumberValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(3)),
                 new(InstructionCode.PushParam, new TempValue(4)),
-                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("add2"), new NumberValue(2)),
-                new(InstructionCode.Assign, new VariableValue("result"), new TempValue(5)),
-                new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("add2__2"), new NumberValue(2)),
+                new(InstructionCode.Assign, new VariableValue("result"),new TempValue(5)),
+                new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1116,7 +1112,7 @@ namespace Fluence.ParserTests
             {
                 new(InstructionCode.Assign, new VariableValue("enumy"), new EnumValue("Color", "Green", 1)),
                 new(InstructionCode.Assign, new VariableValue("enumy2"), new EnumValue("Color", "Red", 0)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1141,17 +1137,17 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Equal, new TempValue(0), new VariableValue("myColor"), new EnumValue("Color", "Red", 0)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(0)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Goto, new NumberValue(14)),
                 new(InstructionCode.Equal, new TempValue(2), new VariableValue("myColor"), new EnumValue("Color", "Green", 1)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(11), new TempValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(2)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Goto, new NumberValue(14)),
                 new(InstructionCode.PushParam, new NumberValue(3)),
-                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Goto, new NumberValue(14)),
-                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1195,9 +1191,9 @@ namespace Fluence.ParserTests
                 new(InstructionCode.And, new TempValue(20), new TempValue(18), new TempValue(19)),
                 new(InstructionCode.And, new TempValue(21), new TempValue(17), new TempValue(20)),
                 new(InstructionCode.PushParam, new NumberValue(0)),
-                new(InstructionCode.CallFunction, new TempValue(22), new VariableValue("Test"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(22), new VariableValue("Test__1"), new NumberValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(23), new VariableValue("Test"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(23), new VariableValue("Test__1"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(24), new VariableValue("a"), new TempValue(23)),
                 new(InstructionCode.Equal, new TempValue(25), new VariableValue("c"), new TempValue(23)),
                 new(InstructionCode.And, new TempValue(26), new TempValue(24), new TempValue(25)),
@@ -1209,7 +1205,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Or, new TempValue(32), new TempValue(6), new TempValue(31)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(40), new TempValue(32)),
                 new(InstructionCode.Assign, new VariableValue("c"), new NumberValue(3.14, NumberValue.NumberType.Double)),
-                new(InstructionCode.CallFunction, new TempValue(33), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(33), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1229,7 +1225,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.And, new TempValue(3), new TempValue(1), new TempValue(2)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(7), new TempValue(3)),
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(2)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1258,7 +1254,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.GetElement, new TempValue(5), new VariableValue("list"), new NumberValue(1)),
                 new(InstructionCode.Add, new TempValue(6), new TempValue(5), new TempValue(4)),
                 new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(1), new TempValue(6)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
 
@@ -1273,13 +1269,13 @@ namespace Fluence.ParserTests
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new VariableValue("x")),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("add"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("add__1"), new NumberValue(1)),
                 new(InstructionCode.PushParam, new VariableValue("x")),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("add"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("add__1"), new NumberValue(1)),
                 new(InstructionCode.PushParam, new TempValue(2)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("add"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("add__1"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("result"), new TempValue(3)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1308,8 +1304,8 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new TempValue(0), new NumberValue(5)),
                 new(InstructionCode.Goto, new NumberValue(9)),
                 new(InstructionCode.Return, new TempValue(0)),
-                new(InstructionCode.Assign, new VariableValue("GetYFromX"), new FunctionValue("GetYFromX", 3, 1)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.Assign, new VariableValue("GetYFromX__1"), new FunctionValue("GetYFromX", 3, 1)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1327,7 +1323,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.And, new TempValue(3), new TempValue(1), new TempValue(2)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(3)),
                 new(InstructionCode.Assign, new VariableValue("x"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1347,7 +1343,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Or, new TempValue(3), new TempValue(1), new TempValue(2)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(7), new TempValue(3)),
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(3)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1369,7 +1365,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.And, new TempValue(5), new TempValue(1), new TempValue(4)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(9), new TempValue(5)),
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(4)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1403,7 +1399,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Or, new TempValue(11), new TempValue(3), new TempValue(10)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(16), new TempValue(11)),
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(5)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1423,8 +1419,8 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Goto, new NumberValue(6)),
                 new(InstructionCode.Assign, new TempValue(2), new NumberValue(0)),
                 new(InstructionCode.PushParam, new TempValue(2)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print__1"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1451,17 +1447,17 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("x"), new NumberValue(1)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Goto, new NumberValue(7)),
                 new(InstructionCode.Equal, new TempValue(3), new VariableValue("x"), new NumberValue(2)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(10), new TempValue(3)),
                 new(InstructionCode.PushParam, new NumberValue(2)),
-                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Goto, new NumberValue(13)),
                 new(InstructionCode.PushParam, new NumberValue(3)),
-                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Goto, new NumberValue(13)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1483,17 +1479,17 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("x"), new NumberValue(1)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Goto, new NumberValue(13)),
                 new(InstructionCode.Equal, new TempValue(3), new VariableValue("x"), new NumberValue(2)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(10), new TempValue(3)),
                 new(InstructionCode.PushParam, new NumberValue(2)),
-                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Goto, new NumberValue(13)),
                 new(InstructionCode.PushParam, new NumberValue(3)),
-                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Goto, new NumberValue(13)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1507,12 +1503,12 @@ namespace Fluence.ParserTests
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(2)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(3)),
-                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print__1"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1553,7 +1549,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.GetElement, new TempValue(9), new TempValue(8), new NumberValue(0)),
                 new(InstructionCode.GetElement, new TempValue(10), new VariableValue("A"), new NumberValue(0)),
                 new(InstructionCode.SetElement, new TempValue(10), new NumberValue(2), new TempValue(9)),
-                new(InstructionCode.CallFunction, new TempValue(11), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(11), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1568,11 +1564,11 @@ namespace Fluence.ParserTests
             {
                 new(InstructionCode.PushParam, new NumberValue(5)),
                 new(InstructionCode.PushParam, new NumberValue(10)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("add"), new NumberValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("add__2"), new NumberValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(5)),
                 new(InstructionCode.PushParam, new NumberValue(20)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("add"), new NumberValue(2)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("add__2"), new NumberValue(2)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1586,22 +1582,22 @@ namespace Fluence.ParserTests
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(2)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(3), new NumberValue(3), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(8), new TempValue(3)),
                 new(InstructionCode.PushParam, new NumberValue(3)),
-                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(5), new NilValue(), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(12), new TempValue(5)),
                 new(InstructionCode.PushParam, new NilValue()),
-                new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(7), new NumberValue(4), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(16), new TempValue(7)),
                 new(InstructionCode.PushParam, new NumberValue(4)),
-                new(InstructionCode.CallFunction, new TempValue(8), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(8), new VariableValue("print__1"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1614,17 +1610,17 @@ namespace Fluence.ParserTests
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("input"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("input__0"), new NumberValue(0)),
                 new(InstructionCode.Assign, new TempValue(2), new TempValue(1)),
                 new(InstructionCode.Equal, new TempValue(3), new TempValue(2), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(6), new TempValue(3)),
                 new(InstructionCode.Assign, new VariableValue("a"), new TempValue(2)),
                 new(InstructionCode.Assign, new VariableValue("b"), new TempValue(2)),
-                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("input_int"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("input_int__0"), new NumberValue(0)),
                 new(InstructionCode.Assign, new TempValue(5), new TempValue(4)),
                 new(InstructionCode.Assign, new VariableValue("c"), new TempValue(5)),
                 new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(0), new TempValue(5)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1640,16 +1636,16 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Equal, new TempValue(1), new NumberValue(1), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(4), new TempValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(3), new NilValue(), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(8), new TempValue(3)),
                 new(InstructionCode.PushParam, new NilValue()),
-                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(5), new NumberValue(3), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(12), new TempValue(5)),
                 new(InstructionCode.PushParam, new NumberValue(3)),
-                new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("print__1"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1696,7 +1692,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("a"), new TempValue(9)),
                 new(InstructionCode.Add, new TempValue(10), new VariableValue("b"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("b"), new TempValue(10)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1712,7 +1708,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.NewList, new TempValue(1)),
                 new(InstructionCode.PushElement, new TempValue(1), new RangeValue(new NumberValue(1), new NumberValue(2))),
                 new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1726,7 +1722,7 @@ namespace Fluence.ParserTests
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("my_list"), new RangeValue(new NumberValue(0), new NumberValue(3))),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1740,8 +1736,8 @@ namespace Fluence.ParserTests
             var expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new RangeValue(new NumberValue(1), new NumberValue(3))),
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print"), new NumberValue(1)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print__1"), new NumberValue(1)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1760,7 +1756,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("i"), new TempValue(2)),
                 new(InstructionCode.IterNext, new TempValue(1), new TempValue(2), new TempValue(3)),
                 new(InstructionCode.GotoIfTrue, new NumberValue(3), new TempValue(3)),
-                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1800,7 +1796,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Add, new TempValue(8), new TempValue(1), new NumberValue(1)),
                 new(InstructionCode.Assign, new TempValue(1), new TempValue(8)),
                 new(InstructionCode.Goto, new NumberValue(6)),
-                new(InstructionCode.CallFunction, new TempValue(9), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(9), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1818,7 +1814,7 @@ namespace Fluence.ParserTests
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("MyFunc"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("MyFunc__0"), new NumberValue(0)),
                 new(InstructionCode.GetElement, new TempValue(2), new TempValue(1), new NumberValue(230)),
                 new(InstructionCode.Assign, new VariableValue("x"), new TempValue(2)),
                 new(InstructionCode.NewList, new TempValue(3)),
@@ -1826,17 +1822,17 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("list"), new TempValue(3)),
                 new(InstructionCode.GetElement, new TempValue(4), new VariableValue("list"), new NumberValue(2)),
                 new(InstructionCode.Assign, new VariableValue("y"), new TempValue(4)),
-                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("input"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("input__0"), new NumberValue(0)),
                 new(InstructionCode.Assign, new TempValue(6), new TempValue(5)),
                 new(InstructionCode.Equal, new TempValue(7), new TempValue(6), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(14), new TempValue(7)),
                 new(InstructionCode.Assign, new VariableValue("a"), new TempValue(6)),
                 new(InstructionCode.Assign, new VariableValue("b"), new TempValue(6)),
-                new(InstructionCode.CallFunction, new TempValue(8), new VariableValue("input_int"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(8), new VariableValue("input_int__0"), new NumberValue(0)),
                 new(InstructionCode.Assign, new TempValue(9), new TempValue(8)),
                 new(InstructionCode.Assign, new VariableValue("c"), new TempValue(9)),
                 new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(0), new TempValue(9)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1862,7 +1858,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Goto, new NumberValue(12)),
                 new(InstructionCode.Assign, new TempValue(4), new NumberValue(-10)),
                 new(InstructionCode.Assign, new VariableValue("c"), new TempValue(4)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1900,7 +1896,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Equal, new TempValue(5), new NumberValue(999), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(20), new TempValue(5)),
                 new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(1), new NumberValue(999)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1933,7 +1929,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Equal, new TempValue(5), new NumberValue(999), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(16), new TempValue(5)),
                 new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(1), new NumberValue(999)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);
@@ -1951,7 +1947,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(-10)),
                 new(InstructionCode.Assign, new VariableValue("c"), new StringValue("Hello world!")),
                 new(InstructionCode.Assign, new VariableValue("booly"), new BooleanValue(true)),
-                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main"), new NumberValue(0)),
+                new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
             AssertBytecodeEqual(expectedCode, compiledCode);

@@ -1,4 +1,5 @@
 ﻿using static Fluence.FluenceByteCode;
+using static Fluence.FluenceInterpreter;
 
 namespace Fluence
 {
@@ -10,7 +11,7 @@ namespace Fluence
         /// <summary>
         /// Formats a function's integer start address into a convenient string format. Limited to 1000 as of now.
         /// </summary>
-        /// <param name="startAddress"></param>
+        /// <param name="startAddress">The start address.</param>
         /// <returns>The formatted start address string.</returns>
         internal static string FormatByteCodeAddress(int startAddress)
         {
@@ -34,25 +35,25 @@ namespace Fluence
         /// Dumps a list of bytecode instructions to the console in a formatted table.
         /// </summary>
         /// <param name="instructions">The list of instructions to dump.</param>
-        internal static void DumpByteCodeInstructions(List<InstructionLine> instructions)
+        internal static void DumpByteCodeInstructions(List<InstructionLine> instructions, TextOutputMethod outMethod)
         {
-            Console.WriteLine("--- Compiled Bytecode ---\n");
-            Console.WriteLine(string.Format("{0,-5} {1,-20} {2,-50} {3,-45} {4,-40} {5, -25}", "", "TYPE", "LHS", "RHS", "RHS2", "RHS3"));
-            Console.WriteLine();
+            outMethod("--- Compiled Bytecode ---\n");
+            outMethod(string.Format("{0,-5} {1,-20} {2,-50} {3,-45} {4,-40} {5, -25}", "", "TYPE", "LHS", "RHS", "RHS2", "RHS3"));
+            outMethod("");
 
             if (instructions == null || instructions.Count == 0)
             {
-                Console.WriteLine("(No instructions generated)");
+                outMethod("(No instructions generated)");
                 return;
             }
 
             for (int i = 0; i < instructions.Count; i++)
             {
-                if (instructions[i] == null) Console.WriteLine($"{i:D4}: NULL");
-                else Console.WriteLine($"{i:D4}: {instructions[i].ToString().Replace("\n", "")}");
+                if (instructions[i] == null) outMethod($"{i:D4}: NULL");
+                else outMethod($"{i:D4}: {instructions[i].ToString().Replace("\n", "")}");
             }
 
-            Console.WriteLine("\n--- End of Bytecode ---");
+            outMethod("\n--- End of Bytecode ---");
         }
     }
 }

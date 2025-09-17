@@ -1,7 +1,7 @@
 ﻿namespace Fluence
 {
     /// <summary>
-    /// A static class containing definitions for Fluence bytecode, including the InstructionLine class and InstructionCode enum.
+    /// A static class containing definitions for Fluence bytecode.
     /// </summary>
     internal static class FluenceByteCode
     {
@@ -16,27 +16,23 @@
             /// </summary>
             internal enum InstructionCode
             {
-                // == Control Flow ==
                 Skip,           // No operation. Placeholder.
-                Goto,           // Unconditional jump to address in Lhs.
-                GotoIfTrue,     // Jump to Lhs if Rhs is true.
-                GotoIfFalse,    // Jump to Lhs if Rhs is false.
-                Return,         // Return a value (Lhs) from the current function.
+                Goto,
+                GotoIfTrue,
+                GotoIfFalse,
+                Return,
                 Terminate,      // Halt program execution.
 
-                // == State & Assignment ==
-                Assign,         // Assigns the value of Rhs to the variable/location in Lhs.
+                Assign,
 
-                // == Arithmetic & Unary Operations ==
                 Add,
                 Subtract,
                 Multiply,
                 Divide,
                 Modulo,
                 Power,
-                Negate,         // Unary negation, e.g., -(x).
+                Negate,         // Unary negation, '-(x)'.
 
-                // == Logical & Comparison Operations ==
                 Equal,
                 NotEqual,
                 LessThan,
@@ -47,7 +43,6 @@
                 Or,             // Logical ||
                 Not,            // Logical !
 
-                // == Bitwise Operations ==
                 BitwiseAnd,
                 BitwiseOr,
                 BitwiseXor,
@@ -58,30 +53,30 @@
                 NewIterator,
                 IterNext,
 
-                // == Function & Method Calls ==
-                PushParam,      // Pushes a value (Lhs) onto the argument stack for a subsequent call.
-                CallFunction,   // Calls a function (Rhs) with a specified number of arguments (Rhs2). Result stored in Lhs.
-                CallMethod,     // Calls a method (Rhs2) on an object (Rhs). Result stored in Lhs.
+                // Function & Method Calls.
+                PushParam,      // Pushes a value (Lhs) onto the argument stack.
+                CallFunction,
+                CallMethod,
 
-                // == Object & Struct Operations ==
-                NewInstance,    // Creates a new instance of a struct (Rhs). Result stored in Lhs.
-                GetField,       // Gets the value of a field (Rhs2) from an object (Rhs). Result stored in Lhs.
-                SetField,       // Sets the value of a field (Rhs2) on an object (Lhs) to a new value (Rhs).
+                // Object & Struct Operations.
+                NewInstance,
+                GetField,
+                SetField,
 
-                // == List & Collection Operations ==
-                NewList,        // Creates a new, empty list. Result stored in Lhs.
-                NewRange,   // Creates a new list from a range (Rhs to Rhs2). Result stored in Lhs.
-                PushElement,    // Pushes an element (Rhs) onto a list (Lhs).
-                GetElement,     // Gets an element at an index (Rhs2) from a list (Rhs). Result stored in Lhs.
-                SetElement,     // Sets an element at an index (Rhs) on a list (Lhs) to a new value (Rhs2).
-                GetLength,      // Gets the length of a collection (Rhs). Result stored in Lhs.
+                // List & Collection Operations.
+                NewList,
+                NewRange,
+                PushElement,
+                GetElement,
+                SetElement,
+                GetLength,
 
                 CallStatic,
                 GetStatic,
                 SetStatic,
 
-                // == Type Operations ==
-                ToString,       // Converts a value (Rhs) to its string representation. Result stored in Lhs.
+                // Type Operations.
+                ToString,
 
                 //      ==!!==
                 //      The following are special bytecode instructions generated solely by the Optimizer class after the parsing phase.
@@ -105,7 +100,7 @@
             internal InstructionCode Instruction;
 
             /// <summary>Gets the primary operand, often the destination or target of the operation.</summary>
-            internal Value Lhs; // Mutable for back-patching jumps.
+            internal Value Lhs;
 
             /// <summary>Gets the first source operand.</summary>
             internal Value Rhs;
@@ -117,16 +112,14 @@
             internal Value Rhs3;
 
             /// <summary>
-            /// Defines the signature for a fully specialized opcode handler that bypasses
-            /// the generic logic for maximum performance. It is responsible for all its
-            /// own work, including operand resolution and assignment.
+            /// Defines the signature for a specialized opcode handler that bypasses
+            /// the generic logic for improved performance on subsequent calls.
             /// </summary>
             internal delegate void SpecializedOpcodeHandler(InstructionLine instruction, FluenceVirtualMachine vm);
 
             /// <summary>
-            /// The cached, hyper-optimized "fast path" for this instruction.
-            /// If this is not null, it is executed by the generic opcode handler
-            /// instead of its default logic.
+            /// The cached, optimized "fast path" for this instruction.
+            /// If this is not null, it is executed by the generic opcode handler.
             /// </summary>
             internal SpecializedOpcodeHandler? SpecializedHandler { get; set; } = null!;
 

@@ -1,6 +1,4 @@
-﻿using System.Collections.ObjectModel;
-
-namespace Fluence
+﻿namespace Fluence
 {
     /// <summary>
     /// The abstract base type for all values that can be represented in bytecode.

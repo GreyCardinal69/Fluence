@@ -3,25 +3,28 @@
     /// <summary>
     /// Represents a named entity in the source code that is declared at a scope level.
     /// This is the abstract base class for functions, structs, and enums.
-    /// It inherits from <see cref="Value"/> to be storable in the bytecode stream if needed (e.g., for NewInstance).
+    /// It inherits from <see cref="Value"/> to be storable in the bytecode stream.
     /// </summary>
     internal abstract record class Symbol : Value { }
 
     /// <summary>
-    /// Represents a global variable of a scope with a complex expression value.
+    /// Represents a variable of a scope.
     /// </summary>
     internal sealed record class VariableSymbol : Symbol
     {
         /// <summary>
-        /// The name of the global variable.
+        /// The name of the variable.
         /// </summary>
         internal string Name { get; init; }
 
         /// <summary>
-        /// The dynamic value of the variable.
+        /// The value of the variable.
         /// </summary>
         internal Value Value { get; set; }
 
+        /// <summary>
+        /// Indicates that the variable is marked as 'solid' readonly variable.
+        /// </summary>
         internal bool IsReadonly { get; init; }
 
         internal VariableSymbol(string name, Value value, bool readOnly = false)
@@ -86,7 +89,7 @@
         internal Dictionary<string, RuntimeValue> StaticFields { get; init; } = new();
 
         /// <summary>
-        /// Stores natively implemented static methods (intrinsics).
+        /// Stores natively implemented static intrinsic methods.
         /// </summary>
         public Dictionary<string, FunctionSymbol> StaticIntrinsics { get; } = new();
 

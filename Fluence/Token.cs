@@ -7,7 +7,7 @@
     internal readonly record struct Token
     {
         /// <summary>
-        /// Defines all possible types of tokens in the Fluence language.
+        /// Defines all possible types of tokens in Fluence.
         /// Many of the members are ordered sequentially to be able to use >= && <= range checks.
         /// Which are considerably faster to do.
         /// </summary>
@@ -15,7 +15,6 @@
         {
             UNKNOWN = 0,
 
-            // == Single-Character Tokens ==
             L_PAREN,      // (
             R_PAREN,      // )
             L_BRACE,      // {
@@ -36,7 +35,6 @@
             TILDE,        // ~ (Bitwise NOT)
             QUESTION,     // ?
 
-            // == Multi-Character Operators ==
             BANG, BANG_EQUAL,       // !, !=
             EQUAL_EQUAL,            // ==
             GREATER, GREATER_EQUAL, // >, >=
@@ -50,7 +48,7 @@
             DECREMENT,              // --
             EXPONENT,               // **
 
-            // == Compound Assignment Operators ==
+            // Compound Assignment Operators.
             EQUAL,                  // =
             EQUAL_PLUS,             // +=
             EQUAL_MINUS,            // -=
@@ -59,14 +57,14 @@
             EQUAL_PERCENT,          // %=
             EQUAL_AMPERSAND,        // &=
 
-            // == Function and Block Arrows ==
+            // Function and Block Arrows.
             ARROW,      // =>
             THIN_ARROW, // ->
 
-            // == Literals & Identifiers ==
+            // Literals & Identifiers.
             IDENTIFIER,
             STRING,
-            F_STRING,       // Formatted String
+            F_STRING,       // Formatted String.
             CHARACTER,
             NUMBER,
 
@@ -98,7 +96,7 @@
             TIMES,  // N times do x.
             UNLESS, // Reverse of if, unless ( x ) do something.
 
-            // == Pipe Family Operators ==
+            // Pipe Family Operators.
             PIPE,               // |>
             OPTIONAL_PIPE,      // |?
             GUARD_PIPE,         // |??
@@ -107,7 +105,7 @@
             SCAN_PIPE,          // |~>
             COMPOSITION_PIPE,   // ~>
 
-            // == Chain Assignment & Broadcast Family Operators ==
+            // Chain Assignment & Broadcast Family Operators.
             CHAIN_ASSIGN_N,                      // <n|
             REST_ASSIGN,                         // <|
             OPTIONAL_ASSIGN_N,                   // <n?|
@@ -120,7 +118,7 @@
             GUARD_CHAIN,                         // <??|
             OR_GUARD_CHAIN,                      // <||??|
 
-            // == Dot-Prefixed Operators ==
+            // Dot-Prefixed Operators.
             DOT_AND_CHECK,      // .or(...)
             DOT_OR_CHECK,       // .and(....)
             DOT_INCREMENT,      // .++(...)
@@ -134,7 +132,7 @@
             TERNARY_JOINT,      // ?: same as ? ... : ... but instead ?: ... , ...
             BOOLEAN_FLIP,       // bool!!, x = !x.
 
-            // == Collective Comparison (AND variants) ==
+            // Collective Comparison (AND variants).
             COLLECTIVE_EQUAL,           // <==|
             COLLECTIVE_NOT_EQUAL,       // <!=|
             COLLECTIVE_LESS,            // <<|
@@ -142,7 +140,7 @@
             COLLECTIVE_GREATER,         // <>|
             COLLECTIVE_GREATER_EQUAL,   // <>=|
 
-            // == Collective Comparison (OR variants) ==
+            // Collective Comparison (OR variants).
             COLLECTIVE_OR_EQUAL,            // <||==|
             COLLECTIVE_OR_NOT_EQUAL,        // <||!=|
             COLLECTIVE_OR_LESS,             // <||<|
@@ -153,9 +151,8 @@
             TRAIN_PIPE,         // ->>
             TRAIN_PIPE_END,     // <<-
 
-            // == Special & Control Tokens ==
             UNDERSCORE,     // _
-            EOL,            // End Of Line (statement terminator, from ';')
+            EOL,            // End Of Line (statement terminator, from ';').
 
             /// <summary>
             /// An internal token representing a physical newline. Used by the lexer for accurate
@@ -163,20 +160,15 @@
             /// </summary>
             EOL_LEXER,
 
-            /// <summary>
-            /// Represents the end of the input file.
-            /// </summary>
+            /// <summary>Represents the end of the input file.</summary>
             EOF
         }
 
-        /// <summary>
-        /// Provides a user-friendly string representation of a token, prioritizing its raw text
-        /// but falling back to a representation of its type for tokens without text.
-        /// </summary>
+        /// <summary>Provides a user-friendly string representation of a token.</summary>
         /// <returns>A string representing the token.</returns>
         internal string ToDisplayString()
         {
-            // If the token has explicit text, that's the best representation.
+            // If the token has explicit text return that.
             if (!string.IsNullOrEmpty(Text))
             {
                 return Text;
@@ -227,8 +219,8 @@
                 TokenType.DOT_DECREMENT => ".--",
                 TokenType.DOT_INCREMENT => ".++",
 
-                // This method is called in the FluenceParser, in the parser
-                // EOL means only ';' semicolon.
+                // This method is called in the FluenceParser only, in the parser
+                // EOL means ';' semicolon.
                 TokenType.EOL => ";",
 
                 // For other token types without text, the type name is the best we can do.
@@ -242,7 +234,7 @@
         internal readonly TokenType Type;
 
         /// <summary>
-        /// The raw string of characters from the source code that this token represent.
+        /// The raw string of characters from the source code that this token represents.
         /// </summary>
         internal readonly string Text;
 

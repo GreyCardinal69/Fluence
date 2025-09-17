@@ -11,12 +11,12 @@ namespace Fluence
     internal sealed record class BoundMethodObject
     {
         /// <summary>
-        /// The instance of the object that the method belongs to. This will be passed as 'self'.
+        /// The instance of the object that the method belongs to.
         /// </summary>
         internal InstanceObject Receiver { get; }
 
         /// <summary>
-        /// The compile-time blueprint of the function to be called.
+        /// The blueprint of the function to be called.
         /// </summary>
         internal FunctionValue Method { get; }
 
@@ -34,7 +34,7 @@ namespace Fluence
 
     /// <summary>
     /// Represents the runtime instance of a function, containing all information needed
-    /// to execute it, including its bytecode address and lexical scope.
+    /// to execute it.
     /// </summary>
     internal sealed record class FunctionObject
     {
@@ -53,10 +53,10 @@ namespace Fluence
         /// <summary>The lexical scope in which the function was defined, used for resolving non-local variables.</summary>
         internal FluenceScope DefiningScope { get; private set; }
 
-        /// <summary> A direct reference to the immutable, compile-time symbol that defines this function. </summary>
+        /// <summary> A direct reference to the immutable, function symbol that defines this function. </summary>
         internal FunctionSymbol BluePrint { get; private set; }
 
-        /// <summary>Indicates whether this function is implemented in C# or Fluence bytecode.</summary>
+        /// <summary>Indicates whether this function is implemented in C# (intrinsic) or Fluence bytecode.</summary>
         internal bool IsIntrinsic { get; private set; }
 
         /// <summary>The C# delegate that implements the body of an intrinsic function.</summary>
@@ -127,8 +127,8 @@ namespace Fluence
     }
 
     /// <summary>
-    /// Defines an interface for native C# objects that can expose their own methods
-    /// directly to the Fluence VM, bypassing the standard bytecode call mechanism for performance.
+    /// An interface for built-in object types in Fluence which feature
+    /// built-in intrinsic functions.
     /// </summary>
     internal interface IFluenceObject
     {
@@ -153,13 +153,13 @@ namespace Fluence
         internal StructSymbol Class { get; }
 
         /// <summary>
-        /// A dictionary storing the state of this specific instance. Each instance gets its own fields.
+        /// A dictionary storing the state of this specific instance.
         /// </summary>
         internal readonly Dictionary<string, RuntimeValue> _fields = new();
 
-        internal InstanceObject(StructSymbol @class)
+        internal InstanceObject(StructSymbol symb)
         {
-            Class = @class;
+            Class = symb;
         }
 
         /// <summary>

@@ -2779,9 +2779,11 @@ namespace Fluence
             Value left = ParseExpression();
 
             // While we see a pipe, parse it and try again.
+            bool first = true;
             while (ConsumeTokenIfMatch(TokenType.PIPE))
             {
-                left = ParsePipedFunctionCall(left);
+                left = ParsePipedFunctionCall(left, first);
+                first = false;
             }
 
             return left;
@@ -2792,17 +2794,19 @@ namespace Fluence
         /// It finds the `_` placeholder and injects the piped value.
         /// </summary>
         /// <param name="leftSidePipedValue">The value from the left-hand side of the pipe.</param>
-        private TempValue ParsePipedFunctionCall(Value leftSidePipedValue)
+        private TempValue ParsePipedFunctionCall(Value leftSidePipedValue, bool firstArg)
         {
             Value targetFunction = ParsePrimary();
             AdvanceAndExpect(TokenType.L_PAREN, "Expected a function call with `(` after a pipe `|>` operator.");
 
             List<Value> args = new List<Value>();
+            bool foundUnderscore = false;
 
             while (ConsumeTokenIfMatch(TokenType.COMMA) || !_lexer.TokenTypeMatches(TokenType.R_PAREN))
             {
                 if (_lexer.TokenTypeMatches(TokenType.UNDERSCORE))
                 {
+                    foundUnderscore = true;
                     _lexer.Advance();
                     args.Add(leftSidePipedValue);
                 }
@@ -2810,6 +2814,11 @@ namespace Fluence
                 {
                     args.Add(ParsePipe());
                 }
+            }
+
+            if (!foundUnderscore && !firstArg)
+            {
+                ConstructAndThrowParserException("Only the first expression in a pipe call is allowed to not have the '_' argument, the rest must have it.", _lexer.PeekNextToken());
             }
 
             AdvanceAndExpect(TokenType.R_PAREN, "Expected a closing ')' for the function call in a pipe.");
@@ -2820,7 +2829,9 @@ namespace Fluence
             }
 
             TempValue result = new TempValue(_currentParseState.NextTempNumber++);
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, result, targetFunction, new NumberValue(args.Count)));
+            VariableValue var = (VariableValue)targetFunction;
+            VariableValue mangle = new VariableValue(Mangler.Mangle(var.Name, args.Count));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, result, mangle, new NumberValue(args.Count)));
 
             return result;
         }

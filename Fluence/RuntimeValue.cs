@@ -246,8 +246,8 @@ namespace Fluence
         {
             switch (name)
             {
-                case "push": method = ListPush; return true;
-                case "length": method = ListLength; return true;
+                case "push__1": method = ListPush; return true;
+                case "length__0": method = ListLength; return true;
                 default: method = null!; return false;
             }
         }
@@ -341,9 +341,9 @@ namespace Fluence
         {
             switch (name)
             {
-                case "length": method = StringLength; return true;
-                case "to_upper": method = StringToUpper; return true;
-                case "find": method = StringFind; return true;
+                case "length__0": method = StringLength; return true;
+                case "to_upper__0": method = StringToUpper; return true;
+                case "find__1": method = StringFind; return true;
                 default: method = null!; return false;
             }
         }

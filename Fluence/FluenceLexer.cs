@@ -101,6 +101,11 @@ namespace Fluence
                 return token;
             }
 
+            internal void ModifyTokenAt(int index, Token newToken)
+            {
+                _buffer[index] = newToken;
+            }
+
             internal bool TokenTypeMatches(TokenType type)
             {
                 EnsureFilled(1);
@@ -262,6 +267,8 @@ namespace Fluence
         /// Advances the token stream by one position without returning the consumed token.
         /// </summary>
         internal void Advance() => _tokenBuffer.Advance();
+
+        internal void ModifyTokenAt(int index, Token newToken) => _tokenBuffer.ModifyTokenAt(index, newToken);
 
         /// <summary>
         /// Peeks N tokens ahead in the stream without consuming them.

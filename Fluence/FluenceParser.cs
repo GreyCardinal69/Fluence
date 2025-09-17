@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using Fluence.Fluence;
+using System.Text;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceInterpreter;
@@ -302,16 +303,16 @@ namespace Fluence
 
                     if (structSymbol.DefaultFieldValuesAsTokens.Count == 0) sb.Append(" None.\n");
 
-                    FunctionValue constructor = structSymbol.Constructor;
-                    if (constructor != null)
+                    sb.Append(indent).Append(indent).Append($"Constructors: {(structSymbol.Functions.Count == 0 ? "None.\n" : "\n")}");
+                    foreach (var item in structSymbol.Constructors)
                     {
-                        sb.Append(innerIndent).Append($"Constructor: {constructor.Name} {{ Arity: {constructor.Arity}, Start Address: {FluenceDebug.FormatByteCodeAddress(constructor.StartAddress)} }}").AppendLine();
+                        sb.Append(indent).Append(indent).Append(indent).Append(item).AppendLine();
                     }
 
-                    sb.Append(indent).Append($"Functions: {(structSymbol.Functions.Count == 0 ? "None.\n" : "\n")}");
+                    sb.Append(indent).Append(indent).Append($"Functions: {(structSymbol.Functions.Count == 0 ? "None.\n" : "\n")}");
                     foreach (var item in structSymbol.Functions)
                     {
-                        sb.Append(indent).Append(indent).Append(item).AppendLine();
+                        sb.Append(indent).Append(indent).Append(indent).Append(item).AppendLine();
                     }
 
                     sb.Append(indent).Append($"Static Intrinsics: {(structSymbol.StaticIntrinsics.Count == 0 ? "None.\n" : "\n")}");
@@ -378,7 +379,7 @@ namespace Fluence
                 new InstructionLine(
                     InstructionCode.CallFunction,
                     new TempValue(_currentParseState.NextTempNumber++),
-                    new VariableValue("Main"),
+                    new VariableValue("Main__0"),
                     NumberValue.Zero
                 )
             );
@@ -490,6 +491,7 @@ namespace Fluence
             while (currentIndex < end)
             {
                 TokenType type = _lexer.PeekTokenTypeAheadByN(currentIndex + 1);
+
                 if (type == TokenType.EOF) break;
 
                 if (type == TokenType.SPACE)
@@ -715,9 +717,11 @@ namespace Fluence
                 currentIndex++;
             }
 
-            FunctionSymbol functionSymbol = new FunctionSymbol(funcName, arity, -1, paramaters, _currentParseState.CurrentScope);
+            string parsedName = funcName.EndsWith($"__{arity}", StringComparison.Ordinal) ? funcName : Mangler.Mangle(funcName, arity);
+            FunctionSymbol functionSymbol = new FunctionSymbol(parsedName, arity, -1, paramaters, _currentParseState.CurrentScope);
 
-            _currentParseState.CurrentScope.Declare(funcName, functionSymbol);
+            _lexer.ModifyTokenAt(startTokenIndex + 1, new Token(TokenType.IDENTIFIER, parsedName, nameToken.Literal, nameToken.LineInSourceCode, nameToken.ColumnInSourceCode));
+            _currentParseState.CurrentScope.Declare(parsedName, functionSymbol);
         }
 
         /// <summary>
@@ -818,19 +822,27 @@ namespace Fluence
 
                     FunctionValue functionValue = new FunctionValue(funcName, arity, -1, args);
                     functionValue.SetScope(_currentParseState.CurrentScope);
+                    string templated;
 
                     if (funcName == "init")
                     {
-                        if (structSymbol.Constructor != null)
+                        templated = Mangler.Mangle("init", args.Count);
+                        if (!structSymbol.Constructors.TryAdd(templated, functionValue))
                         {
-                            ConstructAndThrowParserException($"Struct '{structName}' can only have one 'init' constructor.", funcToken);
+                            ConstructAndThrowParserException($"Constructor with '{args.Count}' arity is already defined in the struct '{structName}'.", funcToken);
                         }
-                        structSymbol.Constructor = functionValue;
-                    }
 
-                    if (!structSymbol.Functions.TryAdd(funcName, functionValue))
+                        _lexer.ModifyTokenAt(currentIndex + 1, new Token(TokenType.IDENTIFIER, templated, nameToken.Literal, nameToken.LineInSourceCode, nameToken.ColumnInSourceCode));
+                    }
+                    else
                     {
-                        ConstructAndThrowParserException($"Method '{funcName}' is already defined in struct '{structName}'.", funcToken);
+                        templated = Mangler.Mangle(funcName, args.Count);
+                        if (!structSymbol.Functions.TryAdd(templated, functionValue))
+                        {
+                            ConstructAndThrowParserException($"Method '{funcName}' with '{args.Count}' arity is already defined in the struct '{structName}'.", funcToken);
+                        }
+
+                        _lexer.ModifyTokenAt(currentIndex + 1, new Token(TokenType.IDENTIFIER, templated, nameToken.Literal, nameToken.LineInSourceCode, nameToken.ColumnInSourceCode));
                     }
 
                     int functionBodyEndIndex = FindFunctionBodyEnd(headerEndIndex);
@@ -1045,7 +1057,7 @@ namespace Fluence
                 {
                     // It's a method or constructor, so we parse it fully.
                     // We can peek ahead to see if it's the special 'init' constructor.
-                    bool isInit = string.Equals(_lexer.PeekAheadByN(2).Text, "init", StringComparison.Ordinal);
+                    bool isInit = _lexer.PeekAheadByN(2).Text.StartsWith("init__", StringComparison.Ordinal);
                     ParseFunction(true, isInit, structName);
                 }
                 else
@@ -1472,9 +1484,9 @@ namespace Fluence
                 }
 
                 // Constructor init here.
-                if (structSymbol.Constructor == null)
+                if (structSymbol.Constructors.Count == 0)
                 {
-                    ConstructAndThrowParserException($"Internal error: Constructor for '{structName}' not found in symbol table.", nameToken);
+                    ConstructAndThrowParserException($"Internal error: No constructors found for struct '{structName}' in symbol table.", nameToken);
                 }
 
                 foreach (KeyValuePair<string, List<Token>> field in structSymbol.DefaultFieldValuesAsTokens)
@@ -1517,9 +1529,11 @@ namespace Fluence
                         )
                     );
                 }
-                structSymbol.Constructor!.SetStartAddress(functionStartAddress);
-                structSymbol.Constructor!.SetScope(_currentParseState.CurrentScope);
-                _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{structSymbol.Constructor.Name}"), structSymbol.Constructor));
+
+                FunctionValue constructor = structSymbol.Constructors[nameToken.Text];
+                constructor.SetStartAddress(functionStartAddress);
+                constructor.SetScope(_currentParseState.CurrentScope);
+                _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{constructor.Name}"), constructor));
             }
             // Standalone function.
             else
@@ -3489,16 +3503,18 @@ namespace Fluence
             AdvanceAndExpect(TokenType.R_PAREN, $"Expected closing ')' for the constructor call to '{structSymbol.Name}'.");
 
             // Check if an `init` method should be called.
-            if (structSymbol.Constructor != null)
+            if (structSymbol.Constructors.Count != 0)
             {
-                // A user-defined constructor exists. Check arity.
-                if (arguments.Count != structSymbol.Constructor.Arity)
+                foreach (var item in structSymbol.Constructors.Values)
                 {
-                    Token errorToken = _lexer.PeekNextToken();
-                    ConstructAndThrowParserException(
-                        $"Mismatched arguments for constructor '{structSymbol.Name}'. Expected {structSymbol.Constructor.Arity} arguments, but got {arguments.Count}.",
-                        errorToken
-                    );
+                    if (arguments.Count != item.Arity)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
 
                 foreach (Value arg in arguments)
@@ -3513,8 +3529,8 @@ namespace Fluence
                     InstructionCode.CallMethod,
                     ignoredResult,
                     instance,
-                    new StringValue("init")
-                ));
+                    new StringValue(Mangler.Mangle("init", arguments.Count)
+                )));
             }
             else if (arguments.Count > 0)
             {
@@ -3663,16 +3679,18 @@ namespace Fluence
             }
 
             TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+            string templated;
 
             if (callable is PropertyAccessValue propAccess)
             {
-                // This is a method call: instance.Method().
+                templated = Mangler.Mangle(propAccess.FieldName, arguments.Count);
+
                 _currentParseState.AddCodeInstruction(new InstructionLine(
-                       InstructionCode.CallMethod,
-                       result,
-                       ResolveValue(propAccess.Target),
-                       new StringValue(propAccess.FieldName)
-                   ));
+                   InstructionCode.CallMethod,
+                   result,
+                   ResolveValue(propAccess.Target),
+                   new StringValue(templated)
+               ));
             }
             else if (callable is StaticStructAccess statAccess)
             {
@@ -3685,11 +3703,26 @@ namespace Fluence
             }
             else
             {
-                // This is a direct function call: func().
+                VariableValue var = (VariableValue)callable;
+                templated = Mangler.Mangle(var.Name, arguments.Count);
+
+                if (_currentParseState.CurrentScope.Contains(templated))
+                {
+                    // This is a direct function call: func(). Non intrinsic.
+                    _currentParseState.AddCodeInstruction(new InstructionLine(
+                        InstructionCode.CallFunction,
+                        result,
+                        new VariableValue(templated),
+                        new NumberValue(arguments.Count)
+                    ));
+                    return result;
+                }
+
+                // Direct intrinsic call.
                 _currentParseState.AddCodeInstruction(new InstructionLine(
                     InstructionCode.CallFunction,
                     result,
-                    callable,
+                    var,
                     new NumberValue(arguments.Count)
                 ));
             }

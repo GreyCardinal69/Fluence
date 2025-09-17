@@ -108,7 +108,7 @@
         /// Gets or sets the constructor function (`init`) for this struct.
         /// This can be null if no explicit constructor is defined.
         /// </summary>
-        internal FunctionValue Constructor { get; set; }
+        internal Dictionary<string, FunctionValue> Constructors { get; } = new();
 
         internal StructSymbol()
         {

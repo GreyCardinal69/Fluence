@@ -1801,7 +1801,7 @@ namespace Fluence
             // <script> frame.
             if (CurrentFrame.ReturnAddress == _byteCode.Count)
             {
-                methodBlueprint = instance!.Class.Constructor;
+                methodBlueprint = instance!.Class.Constructors[methodNameVal.Value];
                 if (methodBlueprint == null)
                 {
                     SetRegister((TempValue)instruction.Lhs, instanceVal);
@@ -1810,7 +1810,7 @@ namespace Fluence
             }
             else
             {
-                if (!instance!.Class.Functions.TryGetValue(methodName, out methodBlueprint))
+                if (!instance!.Class.Functions.TryGetValue(methodName, out methodBlueprint) && !instance!.Class.Constructors.TryGetValue(methodName, out methodBlueprint))
                 {
                     ConstructAndThrowException($"Internal VM Error: Undefined method '{methodName}' on struct '{instance.Class.Name}'.");
                     return;

@@ -243,14 +243,28 @@ namespace Fluence
             foreach (Symbol symbol in state.GlobalScope.Symbols.Values)
             {
                 if (symbol is FunctionSymbol f) f.SetStartAddress(MapAddr(f.StartAddress));
-                else if (symbol is StructSymbol s) { PatchFunctionValue(s.Constructor); foreach (FunctionValue m in s.Functions.Values) PatchFunctionValue(m); }
+                else if (symbol is StructSymbol s)
+                {
+                    foreach (var item in s.Constructors)
+                    {
+                        PatchFunctionValue(item.Value);
+                    }
+                    foreach (FunctionValue m in s.Functions.Values) PatchFunctionValue(m);
+                }
             }
             foreach (FluenceScope scope in state.NameSpaces.Values)
             {
                 foreach (Symbol symbol in scope.Symbols.Values)
                 {
                     if (symbol is FunctionSymbol f) f.SetStartAddress(MapAddr(f.StartAddress));
-                    else if (symbol is StructSymbol s) { PatchFunctionValue(s.Constructor); foreach (FunctionValue m in s.Functions.Values) PatchFunctionValue(m); }
+                    else if (symbol is StructSymbol s)
+                    {
+                        foreach (var item in s.Constructors)
+                        {
+                            PatchFunctionValue(item.Value);
+                        }
+                        foreach (FunctionValue m in s.Functions.Values) PatchFunctionValue(m);
+                    }
                 }
             }
         }

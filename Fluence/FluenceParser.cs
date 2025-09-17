@@ -2686,7 +2686,7 @@ namespace Fluence
                             InstructionCode.CallStatic,
                             temp,
                             statAccess.Struct,
-                            new StringValue(statAccess.Name)
+                            new StringValue(Mangler.Mangle(statAccess.Name, broadcastCall.Arguments.Count))
                         ));
                     }
                     else if (broadcastCall.Callable is PropertyAccessValue propAccess)
@@ -2695,12 +2695,14 @@ namespace Fluence
                             InstructionCode.CallMethod,
                             temp,
                             propAccess.Target,
-                            new StringValue(propAccess.FieldName)
+                            new StringValue(Mangler.Mangle(propAccess.FieldName, broadcastCall.Arguments.Count))
                         ));
                     }
                     else
                     {
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, temp, broadcastCall.Callable, new NumberValue(broadcastCall.Arguments.Count)));
+                        VariableValue var = (VariableValue)broadcastCall.Callable;
+                        VariableValue mangle = new VariableValue(Mangler.Mangle(var.Name, broadcastCall.Arguments.Count));
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, temp, mangle, new NumberValue(broadcastCall.Arguments.Count)));
                     }
 
                     if (skipOptionalAssign != -1)

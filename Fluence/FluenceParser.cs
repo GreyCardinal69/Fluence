@@ -3264,7 +3264,6 @@ namespace Fluence
             while (_lexer.TokenTypeMatches(TokenType.EXPONENT))
             {
                 _lexer.Advance();
-                // For right-associativity, the right-hand side recursively calls the *same* precedence level.
                 Value right = ParseExponentiation();
 
                 TempValue result = new TempValue(_currentParseState.NextTempNumber++);
@@ -3308,7 +3307,6 @@ namespace Fluence
         /// </summary>
         private Value ParsePostFix()
         {
-            // Handle multi-target operators first as they are a complete statement.
             if (_lexer.TokenTypeMatches(TokenType.DOT_DECREMENT) || _lexer.TokenTypeMatches(TokenType.DOT_INCREMENT))
             {
                 ParseMultiIncrementDecrementOperators();
@@ -3318,7 +3316,6 @@ namespace Fluence
 
             Value left = ParseAccess();
 
-            // Check for a postfix operator.
             if (_lexer.TokenTypeMatches(TokenType.INCREMENT) || _lexer.TokenTypeMatches(TokenType.DECREMENT) || _lexer.TokenTypeMatches(TokenType.BOOLEAN_FLIP))
             {
                 Token op = _lexer.ConsumeToken();
@@ -3367,10 +3364,7 @@ namespace Fluence
 
             do
             {
-                // This gives us the original descriptor or variable.
                 Value targetDescriptor = ParseExpression();
-
-                // Resolve the *current value* of the target into a temporary variable.
                 Value currentValue = ResolveValue(targetDescriptor);
 
                 TempValue result = new TempValue(_currentParseState.NextTempNumber++);
@@ -3398,8 +3392,6 @@ namespace Fluence
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, variable, valueToAssign));
                     break;
                 case PropertyAccessValue propAccess:
-                    // Complex case: a.b.c = result
-                    // We must resolve the target object (a.b) before setting the field (c).
                     Value targetObject = ResolveValue(propAccess.Target);
                     _currentParseState.AddCodeInstruction(new InstructionLine(
                         InstructionCode.SetField,
@@ -3409,8 +3401,6 @@ namespace Fluence
                     ));
                     break;
                 case ElementAccessValue elementAccess:
-                    // Complex case: a[i][j] = result
-                    // We must resolve the target collection (a[i]) and the index (j) before setting the element.
                     Value targetCollection = ResolveValue(elementAccess.Target);
                     Value index = ResolveValue(elementAccess.Index);
                     _currentParseState.AddCodeInstruction(new InstructionLine(
@@ -3442,7 +3432,6 @@ namespace Fluence
         /// <returns>A simple Value that can be used as an operand in other instructions.</returns>
         private Value ResolveValue(Value val)
         {
-            // Base case: The value is already a simple type, not a descriptor. Return it directly.
             if (val is not (PropertyAccessValue or ElementAccessValue or StaticStructAccess))
             {
                 return val;
@@ -3463,8 +3452,6 @@ namespace Fluence
 
             if (val is PropertyAccessValue propAccess)
             {
-                // First, we must recursively resolve the object being accessed.
-                // This correctly handles chained accesses like `a.b.c`.
                 Value resolvedTarget = ResolveValue(propAccess.Target);
 
                 TempValue result = new TempValue(_currentParseState.NextTempNumber++);
@@ -3480,7 +3467,6 @@ namespace Fluence
 
             if (val is ElementAccessValue elementAccess)
             {
-                // Recursively resolve the collection and the index.
                 Value resolvedCollection = ResolveValue(elementAccess.Target);
                 Value resolvedIndex = ResolveValue(elementAccess.Index);
 
@@ -3500,7 +3486,7 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Parses a constructor call via parentheses, e.g., `MyStruct(arg1, arg2)`.
+        /// Parses a constructor call via parentheses.
         /// </summary>
         /// <param name="structSymbol">The symbol for the struct being instantiated.</param>
         /// <returns>A TempValue that will hold the new struct instance at runtime.</returns>
@@ -3534,7 +3520,6 @@ namespace Fluence
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, ResolveValue(arg)));
                 }
 
-                // The new instance is stored in 'instance'.
                 TempValue ignoredResult = new TempValue(_currentParseState.NextTempNumber++);
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(
@@ -3566,7 +3551,6 @@ namespace Fluence
         {
             AdvanceAndExpect(TokenType.L_BRACE, $"an opening '{{' for the direct initializer of '{structSymbol.Name}'.");
 
-            // Create the new instance. Default field values are set here.
             TempValue instance = CreateNewInstance(structSymbol);
             HashSet<string> initializedFields = new HashSet<string>();
 
@@ -3618,7 +3602,6 @@ namespace Fluence
         {
             Value left = ParsePrimary();
 
-            // Then, loop to handle any number of chained postfix operators.
             while (true)
             {
                 TokenType type = _lexer.PeekNextTokenType();
@@ -3778,7 +3761,6 @@ namespace Fluence
             {
                 do
                 {
-                    // Each argument is a full expression. We use the lowest precedence parser.
                     arguments.Add(ParseTernary());
                 } while (ConsumeTokenIfMatch(TokenType.COMMA));
             }
@@ -3862,8 +3844,6 @@ namespace Fluence
             {
                 case TokenType.IDENTIFIER:
                     string name = token.Text;
-
-                    // Check if it's a struct type, which could lead to a constructor call.
                     if (_currentParseState.CurrentScope.TryResolve(name, out Symbol symbol) && symbol is StructSymbol structSymbol)
                     {
                         // It's a struct, check if it's a constructor call Vec2(2,3).
@@ -3927,7 +3907,7 @@ namespace Fluence
             }
 
             // If we've fallen through the entire switch, we have an invalid token.
-            ConstructAndThrowParserException($"Unexpected token '{token.ToDisplayString()}' when expecting an expression. Expected a literal (e.g., number, string), variable, or '('.", token);
+            ConstructAndThrowParserException($"Unexpected token '{token.ToDisplayString()}' when expecting an expression. Expected a literal (number, string, etc.), variable, or '('.", token);
             return null!;
         }
 
@@ -4019,19 +3999,6 @@ namespace Fluence
         /// <returns>True if it is an optional assignment pipe operator.</returns>
         private static bool IsOptionalChainAssignmentOperator(TokenType type) =>
             type is TokenType.OPTIONAL_ASSIGN_N or TokenType.OPTIONAL_REST_ASSIGN or TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN;
-
-        /// <summary>
-        /// A helper debug function to print all tokens starting from the first token at the start index up to the token at the end index.
-        /// </summary>
-        /// <param name="start">The index of the first token.</param>
-        /// <param name="end">The index of the last token.</param>
-        private void DumpTokensFromTo(int start, int end)
-        {
-            for (int i = start; i < end; i++)
-            {
-                _outputLine(_lexer.PeekAheadByN(i).ToString());
-            }
-        }
 
         /// <summary>
         /// Checks if a token type is a multiplicative operator (*, /, %).
@@ -4145,7 +4112,6 @@ namespace Fluence
 
                 if (type == TokenType.UNDERSCORE) hasUnderscore = true;
 
-                // Skip the argument and a potential comma.
                 lookahead++;
                 if (_lexer.PeekTokenTypeAheadByN(lookahead) == TokenType.COMMA)
                 {

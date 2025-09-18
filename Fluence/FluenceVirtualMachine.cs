@@ -1956,6 +1956,11 @@ namespace Fluence
             SetRegister((TempValue)target, value);
         }
 
+        /// <summary>
+        /// Sets the value of a variable directly, avoiding extra checks.
+        /// </summary>
+        /// <param name="var">The Variable.</param>
+        /// <param name="val">The value to assign to.</param>
         internal void SetVariable(VariableValue var, RuntimeValue val)
         {
             if (CurrentFrame.ReturnAddress != _byteCode.Count)
@@ -1971,7 +1976,6 @@ namespace Fluence
 
         /// <summary>
         /// Converts a compile-time <see cref="Value"/> from bytecode into a runtime <see cref="RuntimeValue"/>.
-        /// This is the bridge between the parser's representation and the VM's execution values.
         /// </summary>
         internal RuntimeValue GetRuntimeValue(Value val)
         {
@@ -2089,9 +2093,9 @@ namespace Fluence
         /// <summary>
         /// Resolves complex symbols into RuntimeValues.
         /// </summary>
-        /// <param name="symbol"></param>
-        /// <param name="scope"></param>
-        /// <returns></returns>
+        /// <param name="symbol">The symbol to resolve from.</param>
+        /// <param name="scope">The scope of the symbol</param>
+        /// <returns>The <see cref="RuntimeValue"/> resolved from the symbol.</returns>
         private RuntimeValue ResolveVariableFromScopeSymbol(Symbol symbol, FluenceScope scope)
         {
             if (symbol is FunctionSymbol funcSymbol2)
@@ -2375,7 +2379,6 @@ namespace Fluence
         /// Creates and logs to the console a <see cref="VMDebugContext"/> with the current state of the virtual machine before throwing an exception.
         /// </summary>
         /// <param name="exception"></param>
-        /// <returns></returns>
         /// <exception cref="FluenceRuntimeException"></exception>
         internal object ConstructAndThrowException(string exception)
         {

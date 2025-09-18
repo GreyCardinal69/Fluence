@@ -55,5 +55,18 @@ namespace Fluence
 
             outMethod("\n--- End of Bytecode ---");
         }
+
+        /// <summary>
+        /// A helper debug function to print all tokens starting from the first token at the start index up to the token at the end index.
+        /// </summary>
+        /// <param name="start">The index of the first token.</param>
+        /// <param name="end">The index of the last token.</param>
+        internal static void DumpTokensFromTo(int start, int end, TextOutputMethod outMethod, FluenceLexer lexer)
+        {
+            for (int i = start; i < end; i++)
+            {
+                outMethod(lexer.PeekAheadByN(i).ToString());
+            }
+        }
     }
 }

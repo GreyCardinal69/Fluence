@@ -500,18 +500,11 @@ namespace Fluence
                     string namespaceName = _lexer.PeekAheadByN(namespaceNameIndex + 1).Text;
 
                     FluenceScope parentScope = _currentParseState.CurrentScope;
-                    FluenceScope namespaceScope;
+                    FluenceScope namespaceScope = _currentParseState.NameSpaces.TryGetValue(namespaceName, out FluenceScope scope)
+                        ? scope
+                        : new FluenceScope(parentScope, namespaceName);
 
-                    if (_currentParseState.NameSpaces.TryGetValue(namespaceName, out FluenceScope scope))
-                    {
-                        namespaceScope = scope;
-                    }
-                    else
-                    {
-                        namespaceScope = new FluenceScope(parentScope, namespaceName);
-                    }
-
-                    _currentParseState.NameSpaces.TryAdd(namespaceName, namespaceScope);
+                    _currentParseState.NameSpaces.Add(namespaceName, namespaceScope);
 
                     _currentParseState.CurrentScope = namespaceScope;
                     ParseDeclarations(namespaceNameIndex + 2, namespaceEndIndex + 1);
@@ -1024,7 +1017,6 @@ namespace Fluence
             // Now we only seek to generate bytecode of the functions and
             // Patch start addresses.
 
-            // TO DO, currently can't have functions with the same name, even if different arity.
             _lexer.Advance(); // Consume 'struct'.
             Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a name for the struct.");
 
@@ -1034,7 +1026,7 @@ namespace Fluence
             if (!_currentParseState.CurrentScope.TryResolve(structName, out Symbol symbol) || symbol is not StructSymbol structSymbol)
             {
                 ConstructAndThrowParserException($"Could not find the symbol for struct '{structName}'.", nameToken);
-                return; // Return to avoid further errors. `structSymbol` would be null.
+                return; // Satisfies compiler.
             }
 
             _currentParseState.CurrentStructContext = structSymbol;
@@ -1895,7 +1887,6 @@ namespace Fluence
                     break;
                 }
 
-                // Add the literal text before the expression.
                 if (exprStart > lastIndex)
                 {
                     string literalPart = fstringContent[lastIndex..exprStart];
@@ -1916,7 +1907,6 @@ namespace Fluence
                 int exprEnd;
                 if (braceDepth == 0)
                 {
-                    // We found the matching brace. Its index is one before the final scanIndex.
                     exprEnd = scanIndex - 1;
                 }
                 else
@@ -1927,7 +1917,6 @@ namespace Fluence
                     return NilValue.NilInstance;
                 }
 
-                // Parse the expression inside the braces.
                 string expressionSource = fstringContent.Substring(exprStart + 1, exprEnd - exprStart - 1);
                 Value expressionValue = ParseSubExpression(expressionSource);
 
@@ -1995,16 +1984,11 @@ namespace Fluence
 
             if (!_lexer.TokenTypeMatches(TokenType.R_BRACKET))
             {
-                // Non empty array.
                 List<Value> elements = ParseTokenSeparatedArguments(TokenType.COMMA);
 
                 foreach (Value element in elements)
                 {
-                    _currentParseState.AddCodeInstruction(new InstructionLine(
-                        InstructionCode.PushElement,
-                        list,
-                        ResolveValue(element)
-                    ));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushElement, list, ResolveValue(element)));
                 }
             }
 
@@ -2732,7 +2716,6 @@ namespace Fluence
 
             _lexer.Advance(); // Consume '?' or '?:'
 
-            // Immediately generate the conditional jump. We will back-patch its target.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, left));
             int falseJumpPatch = _currentParseState.CodeInstructions.Count - 1;
 
@@ -2747,7 +2730,7 @@ namespace Fluence
             int falsePathAddress = _currentParseState.CodeInstructions.Count;
             _currentParseState.CodeInstructions[falseJumpPatch].Lhs = new NumberValue(falsePathAddress);
 
-            // 7. Consume the ':' or ',' delimiter.
+            // Consume the ':' or ',' delimiter.
             if (type == TokenType.QUESTION)
             {
                 AdvanceAndExpect(TokenType.COLON, "Expected a ':' in the ternary expression.");
@@ -2843,7 +2826,7 @@ namespace Fluence
         /// <returns>The corresponding InstructionCode.</returns>
         private static InstructionCode GetInstructionCodeForBinaryOperator(TokenType type) => type switch
         {
-            // Arithmetic
+            // Arithmetic.
             TokenType.PLUS => InstructionCode.Add,
             TokenType.MINUS => InstructionCode.Subtract,
             TokenType.STAR => InstructionCode.Multiply,
@@ -2851,7 +2834,7 @@ namespace Fluence
             TokenType.PERCENT => InstructionCode.Modulo,
             TokenType.EXPONENT => InstructionCode.Power,
 
-            // Equality & Comparison (including `is` and `not` aliases)
+            // Equality & Comparison (including `is` and `not` aliases).
             TokenType.EQUAL_EQUAL => InstructionCode.Equal,
             TokenType.BANG_EQUAL => InstructionCode.NotEqual,
             TokenType.GREATER => InstructionCode.GreaterThan,
@@ -2869,7 +2852,7 @@ namespace Fluence
             TokenType.AND => InstructionCode.And,
             TokenType.OR => InstructionCode.Or,
 
-            // Bitwise
+            // Bitwise.
             TokenType.BITWISE_LEFT_SHIFT => InstructionCode.BitwiseLShift,
             TokenType.BITWISE_RIGHT_SHIFT => InstructionCode.BitwiseRShift,
             TokenType.CARET => InstructionCode.BitwiseXor,
@@ -2886,7 +2869,7 @@ namespace Fluence
         private Value ParseExpression() => ParseLogicalOr();
 
         /// <summary>
-        /// Parses logical OR expressions (||).
+        /// Parses logical OR expressions '||'.
         /// </summary>
         private Value ParseLogicalOr()
         {
@@ -2901,7 +2884,7 @@ namespace Fluence
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Or, result, ResolveValue(left), ResolveValue(right)));
 
-                left = result; // The result becomes the new left-hand side for the next loop.
+                left = result;
             }
 
             return left;
@@ -2923,7 +2906,7 @@ namespace Fluence
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.And, result, ResolveValue(left), ResolveValue(right)));
 
-                left = result; // The result becomes the new left-hand side for the next loop.
+                left = result;
             }
 
             return left;
@@ -2946,7 +2929,7 @@ namespace Fluence
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseOr, result, ResolveValue(left), ResolveValue(right)));
 
-                left = result; // The result becomes the new left-hand side for the next loop.
+                left = result;
             }
 
             return left;
@@ -2968,7 +2951,7 @@ namespace Fluence
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseXor, result, ResolveValue(left), ResolveValue(right)));
 
-                left = result; // The result becomes the new left-hand side for the next loop.
+                left = result;
             }
 
             return left;
@@ -2990,7 +2973,7 @@ namespace Fluence
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseAnd, result, ResolveValue(left), ResolveValue(right)));
 
-                left = result; // The result becomes the new left-hand side for the next loop.
+                left = result;
             }
 
             return left;
@@ -3015,7 +2998,7 @@ namespace Fluence
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(opcode, result, ResolveValue(left), ResolveValue(right)));
 
-                left = result; // The result becomes the new left-hand side for the next loop.
+                left = result;
             }
 
             return left;
@@ -3040,7 +3023,7 @@ namespace Fluence
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(opcode, result, ResolveValue(left), ResolveValue(right)));
 
-                left = result; // The result becomes the new left-hand side for the next loop.
+                left = result;
             }
 
             return left;
@@ -3100,13 +3083,13 @@ namespace Fluence
         /// <returns>A TempValue that will hold the final boolean result at runtime.</returns>
         private Value ParseDotAndOrOperators()
         {
-            Token opToken = _lexer.ConsumeToken(); // Consume .and or .or
+            Token opToken = _lexer.ConsumeToken(); // Consume '.and' or '.or'.
 
             AdvanceAndExpect(TokenType.L_PAREN, $"Expected an opening '(' after '{opToken.ToDisplayString()}'.");
 
             InstructionCode logicalOp = opToken.Type == TokenType.DOT_AND_CHECK ? InstructionCode.And : InstructionCode.Or;
 
-            // Handle empty call case.
+            // Empty call case.
             if (_lexer.TokenTypeMatches(TokenType.R_PAREN))
             {
                 ConstructAndThrowParserException("Argument list for .and()/.or() cannot be empty. Expected at least one boolean expression.", opToken);
@@ -3119,12 +3102,7 @@ namespace Fluence
                 Value nextCondition = ResolveValue(ParseExpression());
 
                 TempValue combinedResult = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(
-                    logicalOp,
-                    combinedResult,
-                    result,
-                    nextCondition
-                ));
+                _currentParseState.AddCodeInstruction(new InstructionLine(logicalOp, combinedResult, result, nextCondition));
 
                 result = combinedResult;
             }

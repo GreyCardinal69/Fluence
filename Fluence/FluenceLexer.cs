@@ -833,10 +833,7 @@ namespace Fluence
                 }
             }
 
-            if (currentLine == lineNumber && lineStart < span.Length)
-                return span[lineStart..].ToString();
-
-            return string.Empty;
+            return currentLine == lineNumber && lineStart < span.Length ? span[lineStart..].ToString() : string.Empty;
         }
 
         private Token ScanPipe()

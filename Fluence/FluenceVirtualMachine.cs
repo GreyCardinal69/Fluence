@@ -1983,12 +1983,7 @@ namespace Fluence
             {
                 ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentRegisters, temp.TempName);
 
-                if (!Unsafe.IsNullRef(ref valueRef))
-                {
-                    return valueRef;
-                }
-
-                return RuntimeValue.Nil;
+                return !Unsafe.IsNullRef(ref valueRef) ? valueRef : RuntimeValue.Nil;
             }
 
             if (val is VariableValue variable)

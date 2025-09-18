@@ -705,7 +705,6 @@ namespace Fluence
                 }
             }
 
-            // This should be the last match, otherwise TokenType.Unknown will be thrown.
             if (CanLookAheadStartInclusive(2) && isFString)
             {
                 AdvancePosition(2); // consume 'f' and '"'.
@@ -725,7 +724,7 @@ namespace Fluence
             {
                 FileName = _fileName,
                 LineNum = _currentLine,
-                Column = errorColumn + 1,
+                Column = errorColumn,
                 FaultyLine = faultyCodeLine,
                 Token = new Token(TokenType.UNKNOWN, _sourceCode[_currentPosition].ToString())
             };
@@ -794,7 +793,7 @@ namespace Fluence
                 ConstructAndThrowLexerException(stringInitialLine, stringOpenColumn, "Unclosed string literal. The file ended before a closing '\"' was found.", truncatedLine, PeekNextToken(), _fileName);
             }
 
-            AdvancePosition(); // Consume the closing quote.
+            AdvancePosition();
 
             TokenType type = isFString ? TokenType.F_STRING : TokenType.STRING;
 
@@ -824,7 +823,7 @@ namespace Fluence
                     if (currentLine == lineNumber)
                         return span[lineStart..i].ToString();
 
-                    // Handle \r\n as a single newline.
+                    // Handles \r\n as a single newline.
                     if (span[i] == '\r' && i + 1 < span.Length && span[i + 1] == '\n')
                         i++;
 
@@ -880,7 +879,6 @@ namespace Fluence
                 }
             }
 
-            // If we fall through all the fast-paths, it must be the single-character operator.
             return MakeTokenAndTryAdvance(TokenType.PIPE_CHAR, 1);
         }
 
@@ -1047,7 +1045,7 @@ namespace Fluence
 
         private bool CanLookAheadStartInclusive(int numberOfChars = 1) => _currentPosition + numberOfChars <= _sourceLength;
 
-        internal void SkipWhiteSpaceAndComments()
+        private void SkipWhiteSpaceAndComments()
         {
             int commentStartLine = _currentLine;
             int commentStartCol = _currentColumn + 1;

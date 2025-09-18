@@ -283,7 +283,6 @@ namespace Fluence
         /// </summary>
         private void ConstructAndThrowException(FluenceException ex)
         {
-            OnErrorOutput("Error:");
             OnErrorOutput(ex.ToString());
         }
     }

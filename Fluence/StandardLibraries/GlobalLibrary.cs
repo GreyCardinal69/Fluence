@@ -12,7 +12,7 @@ namespace Fluence
         {
             RuntimeValue nilResult = RuntimeValue.Nil;
 
-            globalScope.Declare("printl__0", new FunctionSymbol("printl__0", 0, (vm, argCount) =>
+            globalScope.Declare("printl__0", new FunctionSymbol("printl__0", 0,(vm, argCount) =>
             {
                 outputLine("");
                 return nilResult;

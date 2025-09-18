@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using static Fluence.FluenceVirtualMachine;
 
 namespace Fluence
 {
@@ -44,11 +45,13 @@ namespace Fluence
 
             if (LineNum > 0 && FaultyLine != null && Column > 0)
             {
+                int lineNumLen = LineNum.ToString().Length;
                 stringBuilder
                     .AppendLine($"\nException occured in: {(string.IsNullOrEmpty(FileName) ? "Script" : FileName)}.")
-                    .AppendLine($"Exception at line {LineNum}, Column {Column}")
-                    .AppendLine($"{LineNum}. {FaultyLine}")
-                    .AppendLine($"{new string(' ', Column + 1)}^");
+                    .AppendLine($"LEXER ERROR at: line {LineNum}, Column {Column}")
+                    .AppendLine($"\n{LineNum}.│ {FaultyLine}")
+                    .AppendLine($"{new string(' ', lineNumLen + 1)}│{new string(' ', Column - 1)}^")
+                    .AppendLine($"{new string('─', lineNumLen + 1)}┴{new string('─', Column - lineNumLen)}┴{new string('─', FaultyLine.Length)}");
             }
 
             string tokenText = (Token.Text is "\r" or "\n" or "\r\n" or ";\r\n") ? "NewLine" : Token.Text;
@@ -62,6 +65,13 @@ namespace Fluence
             return stringBuilder.ToString();
         }
     }
+
+    //internal sealed record RuntimeExceptionContext : ExceptionContext
+    //{
+    //    internal required string ExceptionMessage { get; init; }
+    //    internal required VMDebugContext DebugContext { get; init; }
+    //    internal 
+    //}
 
     /// <summary>
     /// Provides context for an error that occurred during the parsing phase.
@@ -91,13 +101,14 @@ namespace Fluence
 
             if (LineNum > 0 && FaultyLine != null && Column > 0)
             {
+                int lineNumLen = LineNum.ToString().Length;
                 string linePrefix = $"{LineNum}.";
                 stringBuilder
                     .AppendLine($"\nException occured in: {(string.IsNullOrEmpty(FileName) ? "Script" : FileName)}.")
-                    .AppendLine($"Parser Error at line {LineNum}, Column {Column}")
-                    .AppendLine(linePrefix + FaultyLine);
-
-                stringBuilder.AppendLine(new string(' ', linePrefix.Length + Column - 1) + "^");
+                    .AppendLine($"PARSER ERROR at: line {LineNum}, Column {Column}")
+                    .AppendLine($"\n{LineNum}.│ {FaultyLine}")
+                    .AppendLine($"{new string(' ', lineNumLen + 1)}│{new string(' ', Column - 1)}^")
+                    .AppendLine($"{new string('─', lineNumLen + 1)}┴{new string('─', Column - lineNumLen)}┴{new string('─', FaultyLine.Length)}");
             }
 
             string tokenText = (UnexpectedToken.Text is "\r" or "\n")

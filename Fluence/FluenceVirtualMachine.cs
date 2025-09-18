@@ -2106,6 +2106,7 @@ namespace Fluence
                 {
                     return namespaceRuntimeValue;
                 }
+
                 ref RuntimeValue namespaceRuntimeValue2 = ref CollectionsMarshal.GetValueRefOrNullRef(_globals, variable.Name);
                 if (!Unsafe.IsNullRef(ref namespaceRuntimeValue2))
                 {
@@ -2211,8 +2212,7 @@ namespace Fluence
         /// </summary>
         private void AssignVariable(string name, RuntimeValue value, bool readOnly = false)
         {
-            Dictionary<string, bool> cache = CurrentFrame.WritableCache;
-            ref bool isReadonlyRef = ref CollectionsMarshal.GetValueRefOrNullRef(cache, name);
+            ref bool isReadonlyRef = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentFrame.WritableCache, name);
             ref bool isReadOnlyGlobalRef = ref CollectionsMarshal.GetValueRefOrNullRef(GlobalWritableCache, name);
 
             if (!Unsafe.IsNullRef(ref isReadonlyRef))
@@ -2262,6 +2262,7 @@ namespace Fluence
             {
                 ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, name, out _);
                 valueRef = value;
+                return;
             }
 
             ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, name, out _);

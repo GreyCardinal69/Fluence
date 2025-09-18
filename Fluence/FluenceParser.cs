@@ -3884,7 +3884,7 @@ namespace Fluence
             }
 
             // If we've fallen through the entire switch, we have an invalid token.
-            ConstructAndThrowParserException($"Unexpected token '{token.ToDisplayString()}' when expecting an expression. Expected a literal (number, string, etc.), variable, or '('.", token);
+            ConstructAndThrowParserException($"Expected an expression, a literal (number, string, etc.), a variable, or '('.", token);
             return null!;
         }
 
@@ -3951,7 +3951,7 @@ namespace Fluence
         {
             if (!_lexer.TokenTypeMatches(expectedType))
             {
-                ConstructAndThrowParserException(errorMessage, _lexer.PeekNextToken());
+                ConstructAndThrowParserException(errorMessage, _lexer.PeekCurrentToken());
             }
             _lexer.Advance();
         }

@@ -163,8 +163,6 @@ namespace Fluence
             /// </summary>
             internal Token Peek(int lookahead = 1)
             {
-                ArgumentOutOfRangeException.ThrowIfNegativeOrZero(lookahead);
-
                 EnsureFilled(lookahead);
 
                 int index = _head + lookahead - 1;
@@ -262,6 +260,8 @@ namespace Fluence
         /// Peeks at the next token in the stream without consuming it.
         /// </summary>
         internal Token PeekNextToken() => _tokenBuffer.Peek();
+
+        internal Token PeekCurrentToken() => _tokenBuffer.Peek(0);
 
         /// <summary>
         /// Advances the token stream by one position without returning the consumed token.
@@ -693,6 +693,7 @@ namespace Fluence
                 ReadOnlySpan<char> identifierSpan = _sourceCode.AsSpan(startPos, _currentPosition - startPos);
 
                 TokenType type = FluenceKeywords.GetKeywordType(identifierSpan);
+                _currentColumnBeforeWhiteSpace = _currentColumn - identifierSpan.Length;
 
                 if (type != TokenType.IDENTIFIER)
                 {

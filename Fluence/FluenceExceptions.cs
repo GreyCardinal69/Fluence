@@ -102,7 +102,6 @@ namespace Fluence
             if (LineNum > 0 && FaultyLine != null && Column > 0)
             {
                 int lineNumLen = LineNum.ToString().Length;
-                string linePrefix = $"{LineNum}.";
                 stringBuilder
                     .AppendLine($"\nException occured in: {(string.IsNullOrEmpty(FileName) ? "Script" : FileName)}.")
                     .AppendLine($"PARSER ERROR at: line {LineNum}, Column {Column}")
@@ -111,7 +110,7 @@ namespace Fluence
                     .AppendLine($"{new string('─', lineNumLen + 1)}┴{new string('─', Column - lineNumLen)}┴{new string('─', FaultyLine.Length)}");
             }
 
-            string tokenText = (UnexpectedToken.Text is "\r" or "\n")
+            string tokenText = (UnexpectedToken.Text is "\r" or "\n" or "\r\n" or ";\r\n")
                 ? "NewLine"
                 : UnexpectedToken.ToDisplayString();
 

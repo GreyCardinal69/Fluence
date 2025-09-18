@@ -79,7 +79,7 @@ namespace Fluence
         /// <param name="libs">A collection of library names to allow.</param>
         public void AddAllowedIntrinsicLibraries(IEnumerable<string> libs)
         {
-            foreach (var lib in libs)
+            foreach (string lib in libs)
             {
                 AllowedLibraries.Add(lib);
             }
@@ -91,7 +91,7 @@ namespace Fluence
         /// <param name="libs">A collection of library names to disallow.</param>
         public void RemoveAllowedIntrinsicLibraries(IEnumerable<string> libs)
         {
-            foreach (var lib in libs)
+            foreach (string lib in libs)
             {
                 AllowedLibraries.Remove(lib);
             }
@@ -200,7 +200,7 @@ namespace Fluence
                     _vm = new FluenceVirtualMachine(_byteCode, _parseState, OnOutput, OnOutputLine, OnInput);
                 }
 
-                if (_vm.State == FluenceVMState.Finished || _vm.State == FluenceVMState.Error)
+                if (_vm.State is FluenceVMState.Finished or FluenceVMState.Error)
                 {
                     _vm = new FluenceVirtualMachine(_byteCode, _parseState, OnOutput, OnOutputLine, OnInput);
                 }

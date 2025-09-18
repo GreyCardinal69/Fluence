@@ -236,7 +236,7 @@ namespace Fluence
         /// <summary>Implements the native 'push(element)' method for lists.</summary>
         private static RuntimeValue ListPush(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            var element = vm.PopStack();
+            RuntimeValue element = vm.PopStack();
             self.As<ListObject>()!.Elements.Add(element);
             return RuntimeValue.Nil;
         }
@@ -319,7 +319,7 @@ namespace Fluence
         /// <summary>Implements the native 'ToUpper()' function for strings.</summary>
         private static RuntimeValue StringToUpper(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            var strObj = self.As<StringObject>();
+            StringObject? strObj = self.As<StringObject>();
             string upper = strObj!.Value.ToUpperInvariant();
             return vm.ResolveStringObjectRuntimeValue(upper);
         }
@@ -327,7 +327,7 @@ namespace Fluence
         /// <summary>Implements the native 'IndexOf()' function for strings.</summary>
         private static RuntimeValue StringFind(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            var charToFind = vm.PopStack();
+            RuntimeValue charToFind = vm.PopStack();
             if (charToFind.ObjectReference is not CharObject charObj)
             {
                 throw new FluenceRuntimeException("string.find() expects a character argument.");

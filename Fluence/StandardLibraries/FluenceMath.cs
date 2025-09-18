@@ -110,8 +110,8 @@
 
             mathNamespace.Declare("clamp__3", new FunctionSymbol("clamp__3", 3, (vm, argCount) =>
             {
-                var max = vm.PopStack();
-                var min = vm.PopStack();
+                RuntimeValue max = vm.PopStack();
+                RuntimeValue min = vm.PopStack();
                 RuntimeValue val = vm.PopStack();
 
                 return val.NumberType switch

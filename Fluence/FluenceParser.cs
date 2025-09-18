@@ -127,7 +127,7 @@ namespace Fluence
             internal FluenceScope CurrentScope { get; set; }
 
             /// <summary>A dictionary of all declared namespaces.</summary>
-            internal Dictionary<string, FluenceScope> NameSpaces { get; }
+            internal Dictionary<string, FluenceScope> NameSpaces { get; } = new Dictionary<string, FluenceScope>();
 
             /// <summary>A counter for generating unique temporary variable names.</summary>
             internal int NextTempNumber;
@@ -159,7 +159,6 @@ namespace Fluence
                 IsParsingFunctionBody = false;
                 GlobalScope = new FluenceScope(null!, "Global");
                 CurrentScope = GlobalScope;
-                NameSpaces = new Dictionary<string, FluenceScope>();
             }
 
             /// <summary>
@@ -178,7 +177,7 @@ namespace Fluence
             _multiFileProject = true;
             _fileStack = new Stack<string>();
 
-            foreach (var item in Directory.GetFiles(root, "*", SearchOption.AllDirectories))
+            foreach (string item in Directory.GetFiles(root, "*", SearchOption.AllDirectories))
             {
                 _fileStack.Push(item);
             }
@@ -304,25 +303,25 @@ namespace Fluence
                     if (structSymbol.DefaultFieldValuesAsTokens.Count == 0) sb.Append(" None.\n");
 
                     sb.Append(indent).Append(indent).Append($"Constructors: {(structSymbol.Functions.Count == 0 ? "None.\n" : "\n")}");
-                    foreach (var item in structSymbol.Constructors)
+                    foreach (KeyValuePair<string, FunctionValue> item in structSymbol.Constructors)
                     {
                         sb.Append(indent).Append(indent).Append(indent).Append(item).AppendLine();
                     }
 
                     sb.Append(indent).Append(indent).Append($"Functions: {(structSymbol.Functions.Count == 0 ? "None.\n" : "\n")}");
-                    foreach (var item in structSymbol.Functions)
+                    foreach (KeyValuePair<string, FunctionValue> item in structSymbol.Functions)
                     {
                         sb.Append(indent).Append(indent).Append(indent).Append(item).AppendLine();
                     }
 
                     sb.Append(indent).Append($"Static Intrinsics: {(structSymbol.StaticIntrinsics.Count == 0 ? "None.\n" : "\n")}");
-                    foreach (var item in structSymbol.StaticIntrinsics)
+                    foreach (KeyValuePair<string, FunctionSymbol> item in structSymbol.StaticIntrinsics)
                     {
                         sb.Append(indent).Append(indent).Append(item).AppendLine();
                     }
 
                     sb.Append(indent).Append($"Static Fields: {(structSymbol.StaticFields.Count == 0 ? "None.\n" : "\n")}");
-                    foreach (var item in structSymbol.StaticFields)
+                    foreach (KeyValuePair<string, RuntimeValue> item in structSymbol.StaticFields)
                     {
                         sb.Append(indent).Append(indent).Append(item).AppendLine();
                     }
@@ -978,7 +977,7 @@ namespace Fluence
                     break;
                 default:
                     ParseAssignment();
-                    if (_lexer.PeekNextTokenType() == TokenType.TRAIN_PIPE || _lexer.PeekNextTokenType() == TokenType.TRAIN_PIPE_END) return;
+                    if (_lexer.PeekNextTokenType() is TokenType.TRAIN_PIPE or TokenType.TRAIN_PIPE_END) return;
                     AdvanceAndExpect(TokenType.EOL, "Expected a ';' to terminate the statement.");
                     break;
             }
@@ -3518,7 +3517,7 @@ namespace Fluence
             // Check if an `init` method should be called.
             if (structSymbol.Constructors.Count != 0)
             {
-                foreach (var item in structSymbol.Constructors.Values)
+                foreach (FunctionValue item in structSymbol.Constructors.Values)
                 {
                     if (arguments.Count != item.Arity)
                     {

@@ -51,7 +51,7 @@ namespace Fluence
                     .AppendLine($"{new string(' ', Column + 1)}^");
             }
 
-            string tokenText = (Token.Text == "\r" || Token.Text == "\n" || Token.Text == "\r\n" || Token.Text == ";\r\n") ? "NewLine" : Token.Text;
+            string tokenText = (Token.Text is "\r" or "\n" or "\r\n" or ";\r\n") ? "NewLine" : Token.Text;
             string tokenLiteral = (string)((Token.Literal is (object)"\r" or (object)"\n" or (object)"\r\n") ? "NewLine" : Token.Literal);
 
             tokenText ??= "Null";

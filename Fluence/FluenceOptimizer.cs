@@ -245,7 +245,7 @@ namespace Fluence
                 if (symbol is FunctionSymbol f) f.SetStartAddress(MapAddr(f.StartAddress));
                 else if (symbol is StructSymbol s)
                 {
-                    foreach (var item in s.Constructors)
+                    foreach (KeyValuePair<string, FunctionValue> item in s.Constructors)
                     {
                         PatchFunctionValue(item.Value);
                     }
@@ -259,7 +259,7 @@ namespace Fluence
                     if (symbol is FunctionSymbol f) f.SetStartAddress(MapAddr(f.StartAddress));
                     else if (symbol is StructSymbol s)
                     {
-                        foreach (var item in s.Constructors)
+                        foreach (KeyValuePair<string, FunctionValue> item in s.Constructors)
                         {
                             PatchFunctionValue(item.Value);
                         }

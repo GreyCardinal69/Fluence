@@ -1631,7 +1631,7 @@ namespace Fluence
                 return;
             }
 
-            var handler = InlineCacheManager.CreateSpecializedIterNextHandler(instruction, iterator);
+            SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedIterNextHandler(instruction, iterator);
             if (handler != null)
             {
                 instruction.SpecializedHandler = handler;
@@ -1743,7 +1743,7 @@ namespace Fluence
                 return;
             }
 
-            var handler = InlineCacheManager.CreateSpecializedCallFunctionHandler(instruction, function);
+            SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedCallFunctionHandler(instruction, function);
             if (handler != null)
             {
                 instruction.SpecializedHandler = handler;

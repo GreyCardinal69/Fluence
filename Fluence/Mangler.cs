@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace Fluence.Fluence
+namespace Fluence
 {
     /// <summary> Provides static helper methods for name mangling and demangling. </summary>
     internal static class Mangler

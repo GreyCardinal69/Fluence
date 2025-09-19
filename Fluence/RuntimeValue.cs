@@ -47,6 +47,11 @@ namespace Fluence
         /// <summary>The instruction pointer address where the function's bytecode begins.</summary>
         internal int StartAddress { get; private set; }
 
+        /// <summary>
+        /// Sets the bytecode start address for this function. Called by the parser during the second pass.
+        /// </summary>
+        internal int StartAddressInSource { get; private set; }
+
         /// <summary>The names of the function's parameters.</summary>
         internal List<string> Parameters { get; private set; }
 
@@ -89,8 +94,9 @@ namespace Fluence
         /// </summary>
         public FunctionObject() { }
 
-        internal void Initialize(string name, int arity, List<string> parameters, int startAddress, FluenceScope definingScope, FunctionSymbol symb)
+        internal void Initialize(string name, int arity, List<string> parameters, int startAddress, FluenceScope definingScope, FunctionSymbol symb, int lineInSource)
         {
+            StartAddressInSource = lineInSource;
             Name = name;
             Arity = arity;
             Parameters = parameters;
@@ -102,6 +108,7 @@ namespace Fluence
 
         internal void Initialize(string name, int arity, IntrinsicMethod body, FluenceScope definingScope, FunctionSymbol symb)
         {
+            StartAddressInSource = symb != null ? symb.StartAddressInSource : 0;
             IntrinsicBody = body;
             Name = name;
             Arity = arity;
@@ -114,6 +121,7 @@ namespace Fluence
 
         internal void Reset()
         {
+            StartAddressInSource = 0;
             BluePrint = null!;
             Name = null!;
             Arity = 0;
@@ -169,7 +177,7 @@ namespace Fluence
         /// <param name="fieldName">The name of the property or method to access.</param>
         /// <returns>The <see cref="RuntimeValue"/> of the field or a <see cref="BoundMethodObject"/> for a method.</returns>
         /// <exception cref="FluenceRuntimeException">Thrown if the property or method is not defined.</exception>
-        internal RuntimeValue GetField(string fieldName)
+        internal RuntimeValue GetField(string fieldName, FluenceVirtualMachine vm)
         {
             if (_fields.TryGetValue(fieldName, out RuntimeValue value))
             {
@@ -187,7 +195,7 @@ namespace Fluence
                 return new RuntimeValue(boundMethod);
             }
 
-            throw new FluenceRuntimeException($"Undefined property or method '{fieldName}' on struct '{Class.Name}'.");
+            throw vm.ConstructRuntimeException($"Undefined property or method '{fieldName}' on struct '{Class.Name}'.");
         }
 
         /// <summary>
@@ -330,7 +338,7 @@ namespace Fluence
             RuntimeValue charToFind = vm.PopStack();
             if (charToFind.ObjectReference is not CharObject charObj)
             {
-                throw new FluenceRuntimeException("string.find() expects a character argument.");
+                throw vm.ConstructRuntimeException("string.find() expects a character argument.");
             }
             int index = self.As<StringObject>()!.Value.IndexOf(charObj.Value);
             return new RuntimeValue(index);

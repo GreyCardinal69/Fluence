@@ -162,6 +162,11 @@
         internal bool IsIntrinsic { get; init; }
 
         /// <summary>
+        /// The line in the source file where the function is defined, pointing to the line where the function name is declared.
+        /// </summary>
+        internal int StartAddressInSource { get; init; }
+
+        /// <summary>
         /// If this is an intrinsic function, gets the C# delegate that implements its logic.
         /// </summary>
         internal IntrinsicMethod IntrinsicBody { get; init; }
@@ -201,8 +206,9 @@
         /// <param name="name">The name of the function.</param>
         /// <param name="arity">The number of arguments the function expects.</param>
         /// <param name="startAddress">The initial start address (usually -1, resolved later).</param>
-        internal FunctionSymbol(string name, int arity, int startAddress, List<string> arguments = null!, FluenceScope definingScope = null!)
+        internal FunctionSymbol(string name, int arity, int startAddress, int lineInSource, List<string> arguments = null!, FluenceScope definingScope = null!)
         {
+            StartAddressInSource = lineInSource;
             Name = name;
             Arity = arity;
             StartAddress = startAddress;
@@ -214,7 +220,7 @@
         public override string ToString()
         {
             string args = (Arguments == null || Arguments.Count == 0) ? "None" : string.Join(",", Arguments);
-            return $"FunctionSymbol: {Name}, Intrinsic:{IsIntrinsic}, {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} args: {args}.";
+            return $"FunctionSymbol: {Name}, Intrinsic:{IsIntrinsic}, {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} args: {args}, LocationInSource: {StartAddressInSource}.";
         }
 
         internal override string ToFluenceString()

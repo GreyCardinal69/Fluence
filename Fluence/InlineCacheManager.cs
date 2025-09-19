@@ -9,7 +9,7 @@ namespace Fluence
     internal static class InlineCacheManager
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static RuntimeValue AddValues(RuntimeValue left, RuntimeValue right)
+        private static RuntimeValue AddValues(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
             return left.NumberType switch
             {
@@ -19,7 +19,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.IntValue + right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.IntValue + right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.IntValue + right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Add."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Add."),
                 },
                 RuntimeNumberType.Long => right.NumberType switch
                 {
@@ -27,7 +27,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.LongValue + right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.LongValue + right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.LongValue + right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Add."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Add."),
                 },
                 RuntimeNumberType.Float => right.NumberType switch
                 {
@@ -35,7 +35,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.FloatValue + right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.FloatValue + right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.FloatValue + right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Add."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Add."),
                 },
                 RuntimeNumberType.Double => right.NumberType switch
                 {
@@ -43,14 +43,14 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.DoubleValue + right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.DoubleValue + right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.DoubleValue + right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Add."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Add."),
                 },
-                _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported left-hand number type in specialized Add."),
+                _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported left-hand number type in specialized Add."),
             };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static RuntimeValue SubValues(RuntimeValue left, RuntimeValue right)
+        private static RuntimeValue SubValues(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
             return left.NumberType switch
             {
@@ -60,7 +60,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.IntValue - right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.IntValue - right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.IntValue - right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Sub."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Sub."),
                 },
                 RuntimeNumberType.Long => right.NumberType switch
                 {
@@ -68,7 +68,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.LongValue - right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.LongValue - right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.LongValue - right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Sub."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Sub."),
                 },
                 RuntimeNumberType.Float => right.NumberType switch
                 {
@@ -76,7 +76,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.FloatValue - right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.FloatValue - right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.FloatValue - right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Sub."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Sub."),
                 },
                 RuntimeNumberType.Double => right.NumberType switch
                 {
@@ -84,14 +84,14 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.DoubleValue - right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.DoubleValue - right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.DoubleValue - right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Sub."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Sub."),
                 },
-                _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported left-hand number type in specialized Sub."),
+                _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported left-hand number type in specialized Sub."),
             };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static RuntimeValue DivValues(RuntimeValue left, RuntimeValue right)
+        private static RuntimeValue DivValues(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
             return left.NumberType switch
             {
@@ -101,7 +101,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.IntValue / right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.IntValue / right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.IntValue / right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right/hand number type in specialized Div."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right/hand number type in specialized Div."),
                 },
                 RuntimeNumberType.Long => right.NumberType switch
                 {
@@ -109,7 +109,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.LongValue / right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.LongValue / right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.LongValue / right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right/hand number type in specialized Div."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right/hand number type in specialized Div."),
                 },
                 RuntimeNumberType.Float => right.NumberType switch
                 {
@@ -117,7 +117,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.FloatValue / right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.FloatValue / right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.FloatValue / right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right/hand number type in specialized Div."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right/hand number type in specialized Div."),
                 },
                 RuntimeNumberType.Double => right.NumberType switch
                 {
@@ -125,14 +125,14 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.DoubleValue / right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.DoubleValue / right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.DoubleValue / right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right/hand number type in specialized Div."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right/hand number type in specialized Div."),
                 },
-                _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported left/hand number type in specialized Div."),
+                _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported left/hand number type in specialized Div."),
             };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static RuntimeValue MulValues(RuntimeValue left, RuntimeValue right)
+        private static RuntimeValue MulValues(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
             return left.NumberType switch
             {
@@ -142,7 +142,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.IntValue * right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.IntValue * right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.IntValue * right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right*hand number type in specialized Mul."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right*hand number type in specialized Mul."),
                 },
                 RuntimeNumberType.Long => right.NumberType switch
                 {
@@ -150,7 +150,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.LongValue * right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.LongValue * right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.LongValue * right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right*hand number type in specialized Mul."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right*hand number type in specialized Mul."),
                 },
                 RuntimeNumberType.Float => right.NumberType switch
                 {
@@ -158,7 +158,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.FloatValue * right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.FloatValue * right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.FloatValue * right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right*hand number type in specialized Mul."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right*hand number type in specialized Mul."),
                 },
                 RuntimeNumberType.Double => right.NumberType switch
                 {
@@ -166,14 +166,14 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.DoubleValue * right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.DoubleValue * right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.DoubleValue * right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right*hand number type in specialized Mul."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right*hand number type in specialized Mul."),
                 },
-                _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported left*hand number type in specialized Mul."),
+                _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported left*hand number type in specialized Mul."),
             };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static RuntimeValue ModuloValues(RuntimeValue left, RuntimeValue right)
+        private static RuntimeValue ModuloValues(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
             return left.NumberType switch
             {
@@ -183,7 +183,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.IntValue % right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.IntValue % right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.IntValue % right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right%hand number type in specialized Modulo."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right%hand number type in specialized Modulo."),
                 },
                 RuntimeNumberType.Long => right.NumberType switch
                 {
@@ -191,7 +191,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.LongValue % right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.LongValue % right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.LongValue % right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right%hand number type in specialized Modulo."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right%hand number type in specialized Modulo."),
                 },
                 RuntimeNumberType.Float => right.NumberType switch
                 {
@@ -199,7 +199,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.FloatValue % right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.FloatValue % right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.FloatValue % right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right%hand number type in specialized Modulo."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right%hand number type in specialized Modulo."),
                 },
                 RuntimeNumberType.Double => right.NumberType switch
                 {
@@ -207,14 +207,14 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(left.DoubleValue % right.LongValue),
                     RuntimeNumberType.Float => new RuntimeValue(left.DoubleValue % right.FloatValue),
                     RuntimeNumberType.Double => new RuntimeValue(left.DoubleValue % right.DoubleValue),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right%hand number type in specialized Modulo."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right%hand number type in specialized Modulo."),
                 },
-                _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported left%hand number type in specialized Modulo."),
+                _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported left%hand number type in specialized Modulo."),
             };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static RuntimeValue PowerValues(RuntimeValue left, RuntimeValue right)
+        private static RuntimeValue PowerValues(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
             return left.NumberType switch
             {
@@ -224,7 +224,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(Math.Pow(left.IntValue, right.LongValue)),
                     RuntimeNumberType.Float => new RuntimeValue(Math.Pow(left.IntValue, right.FloatValue)),
                     RuntimeNumberType.Double => new RuntimeValue(Math.Pow(left.IntValue, right.DoubleValue)),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Power."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Power."),
                 },
                 RuntimeNumberType.Long => right.NumberType switch
                 {
@@ -232,7 +232,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(Math.Pow(left.LongValue, right.LongValue)),
                     RuntimeNumberType.Float => new RuntimeValue(Math.Pow(left.LongValue, right.FloatValue)),
                     RuntimeNumberType.Double => new RuntimeValue(Math.Pow(left.LongValue, right.DoubleValue)),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Power."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Power."),
                 },
                 RuntimeNumberType.Float => right.NumberType switch
                 {
@@ -240,7 +240,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(Math.Pow(left.FloatValue, right.LongValue)),
                     RuntimeNumberType.Float => new RuntimeValue(Math.Pow(left.FloatValue, right.FloatValue)),
                     RuntimeNumberType.Double => new RuntimeValue(Math.Pow(left.FloatValue, right.DoubleValue)),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Power."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Power."),
                 },
                 RuntimeNumberType.Double => right.NumberType switch
                 {
@@ -248,9 +248,9 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(Math.Pow(left.DoubleValue, right.LongValue)),
                     RuntimeNumberType.Float => new RuntimeValue(Math.Pow(left.DoubleValue, right.FloatValue)),
                     RuntimeNumberType.Double => new RuntimeValue(Math.Pow(left.DoubleValue, right.DoubleValue)),
-                    _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Power."),
+                    _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type in specialized Power."),
                 },
-                _ => throw new FluenceRuntimeException("Internal VM Error: Unsupported left-hand number type in specialized Power."),
+                _ => throw vm.ConstructRuntimeException("Internal VM Error: Unsupported left-hand number type in specialized Power."),
             };
         }
 
@@ -315,7 +315,7 @@ namespace Fluence
             {
                 return (instruction, vm) =>
                 {
-                    RuntimeValue result = AddValues(vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
+                    RuntimeValue result = AddValues(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -330,7 +330,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    RuntimeValue result = AddValues(val1, val2);
+                    RuntimeValue result = AddValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -344,7 +344,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = AddValues(val1, constValue);
+                    RuntimeValue result = AddValues(vm, val1, constValue);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -358,7 +358,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = AddValues(constValue, val2);
+                    RuntimeValue result = AddValues(vm, constValue, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -373,7 +373,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    RuntimeValue result = AddValues(val1, val2);
+                    RuntimeValue result = AddValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -387,7 +387,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = AddValues(val1, constValue);
+                    RuntimeValue result = AddValues(vm, val1, constValue);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -401,7 +401,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = AddValues(constValue, val2);
+                    RuntimeValue result = AddValues(vm, constValue, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -416,7 +416,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = AddValues(val1, val2);
+                    RuntimeValue result = AddValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -431,7 +431,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = AddValues(val1, val2);
+                    RuntimeValue result = AddValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -459,7 +459,7 @@ namespace Fluence
             {
                 return (instruction, vm) =>
                 {
-                    RuntimeValue result = SubValues(vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
+                    RuntimeValue result = SubValues(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -474,7 +474,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    RuntimeValue result = SubValues(val1, val2);
+                    RuntimeValue result = SubValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -488,7 +488,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = SubValues(val1, constValue);
+                    RuntimeValue result = SubValues(vm, val1, constValue);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -502,7 +502,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = SubValues(constValue, val2);
+                    RuntimeValue result = SubValues(vm, constValue, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -517,7 +517,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    RuntimeValue result = SubValues(val1, val2);
+                    RuntimeValue result = SubValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -531,7 +531,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = SubValues(val1, constValue);
+                    RuntimeValue result = SubValues(vm, val1, constValue);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -545,7 +545,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = SubValues(constValue, val2);
+                    RuntimeValue result = SubValues(vm, constValue, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -560,7 +560,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = SubValues(val1, val2);
+                    RuntimeValue result = SubValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -575,7 +575,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = SubValues(val1, val2);
+                    RuntimeValue result = SubValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -603,7 +603,7 @@ namespace Fluence
             {
                 return (instruction, vm) =>
                 {
-                    RuntimeValue result = DivValues(vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
+                    RuntimeValue result = DivValues(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -618,7 +618,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    RuntimeValue result = DivValues(val1, val2);
+                    RuntimeValue result = DivValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -632,7 +632,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = DivValues(val1, constValue);
+                    RuntimeValue result = DivValues(vm, val1, constValue);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -647,7 +647,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = DivValues(constValue, val2);
+                    RuntimeValue result = DivValues(vm, constValue, val2);
                     vm.SetVariableOrRegister(instruction.Lhs, result);
                 };
             }
@@ -662,7 +662,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    RuntimeValue result = DivValues(val1, val2);
+                    RuntimeValue result = DivValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -676,7 +676,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = DivValues(val1, constValue);
+                    RuntimeValue result = DivValues(vm, val1, constValue);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -690,7 +690,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = DivValues(constValue, val2);
+                    RuntimeValue result = DivValues(vm, constValue, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -705,7 +705,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = DivValues(val1, val2);
+                    RuntimeValue result = DivValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -720,7 +720,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = DivValues(val1, val2);
+                    RuntimeValue result = DivValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -748,7 +748,7 @@ namespace Fluence
             {
                 return (instruction, vm) =>
                 {
-                    RuntimeValue result = MulValues(vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
+                    RuntimeValue result = MulValues(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -763,7 +763,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    RuntimeValue result = MulValues(val1, val2);
+                    RuntimeValue result = MulValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -776,7 +776,7 @@ namespace Fluence
                 return (instruction, vm) =>
                 {
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-                    RuntimeValue result = MulValues(val1, constValue);
+                    RuntimeValue result = MulValues(vm, val1, constValue);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -790,7 +790,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = MulValues(constValue, val2);
+                    RuntimeValue result = MulValues(vm, constValue, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -805,7 +805,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    RuntimeValue result = MulValues(val1, val2);
+                    RuntimeValue result = MulValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -819,7 +819,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = MulValues(val1, constValue);
+                    RuntimeValue result = MulValues(vm, val1, constValue);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -833,7 +833,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = MulValues(constValue, val2);
+                    RuntimeValue result = MulValues(vm, constValue, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -848,7 +848,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = MulValues(val1, val2);
+                    RuntimeValue result = MulValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -863,7 +863,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = MulValues(val1, val2);
+                    RuntimeValue result = MulValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -891,7 +891,7 @@ namespace Fluence
             {
                 return (instruction, vm) =>
                 {
-                    RuntimeValue result = ModuloValues(vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
+                    RuntimeValue result = ModuloValues(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -906,7 +906,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    RuntimeValue result = ModuloValues(val1, val2);
+                    RuntimeValue result = ModuloValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -920,7 +920,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = ModuloValues(val1, constValue);
+                    RuntimeValue result = ModuloValues(vm, val1, constValue);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -934,7 +934,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = ModuloValues(constValue, val2);
+                    RuntimeValue result = ModuloValues(vm, constValue, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -949,7 +949,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    RuntimeValue result = ModuloValues(val1, val2);
+                    RuntimeValue result = ModuloValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -963,7 +963,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = ModuloValues(val1, constValue);
+                    RuntimeValue result = ModuloValues(vm, val1, constValue);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -977,7 +977,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = ModuloValues(constValue, val2);
+                    RuntimeValue result = ModuloValues(vm, constValue, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -992,7 +992,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = ModuloValues(val1, val2);
+                    RuntimeValue result = ModuloValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -1007,7 +1007,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = ModuloValues(val1, val2);
+                    RuntimeValue result = ModuloValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -1035,7 +1035,7 @@ namespace Fluence
             {
                 return (instruction, vm) =>
                 {
-                    RuntimeValue result = PowerValues(vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
+                    RuntimeValue result = PowerValues(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -1050,7 +1050,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    RuntimeValue result = PowerValues(val1, val2);
+                    RuntimeValue result = PowerValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -1064,7 +1064,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = PowerValues(val1, constValue);
+                    RuntimeValue result = PowerValues(vm, val1, constValue);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -1078,7 +1078,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = PowerValues(constValue, val2);
+                    RuntimeValue result = PowerValues(vm, constValue, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -1093,7 +1093,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                    RuntimeValue result = PowerValues(val1, val2);
+                    RuntimeValue result = PowerValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -1107,7 +1107,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = PowerValues(val1, constValue);
+                    RuntimeValue result = PowerValues(vm, val1, constValue);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -1121,7 +1121,7 @@ namespace Fluence
                 {
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = PowerValues(constValue, val2);
+                    RuntimeValue result = PowerValues(vm, constValue, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -1136,7 +1136,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                    RuntimeValue result = PowerValues(val1, val2);
+                    RuntimeValue result = PowerValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }
@@ -1151,7 +1151,7 @@ namespace Fluence
                     ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
                     ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
 
-                    RuntimeValue result = PowerValues(val1, val2);
+                    RuntimeValue result = PowerValues(vm, val1, val2);
                     ModifyTarget(instruction.Lhs, vm, result);
                 };
             }

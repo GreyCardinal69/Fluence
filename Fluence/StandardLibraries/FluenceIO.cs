@@ -26,7 +26,7 @@ namespace Fluence
                 RuntimeValue pathRv = vm.PopStack();
 
                 if (pathRv.ObjectReference is not StringObject pathObj || contentRv.ObjectReference is not StringObject contentObj)
-                    throw new FluenceRuntimeException("File.write() expects two string arguments.");
+                    throw vm.ConstructRuntimeException("File.write() expects two string arguments.");
 
                 File.WriteAllText(pathObj.Value, contentObj.Value);
                 return nilResult;
@@ -38,7 +38,7 @@ namespace Fluence
                 RuntimeValue pathRv = vm.PopStack();
 
                 if (pathRv.ObjectReference is not StringObject pathObj || contentRv.ObjectReference is not StringObject contentObj)
-                    throw new FluenceRuntimeException("File.appendText() expects two string arguments.");
+                    throw vm.ConstructRuntimeException("File.appendText() expects two string arguments.");
 
                 File.AppendAllText(pathObj.Value, contentObj.Value);
                 return nilResult;
@@ -50,7 +50,7 @@ namespace Fluence
                 RuntimeValue oldPathRv = vm.PopStack();
 
                 if (oldPathRv.ObjectReference is not StringObject oldPathObj || newPathRv.ObjectReference is not StringObject newPathObj)
-                    throw new FluenceRuntimeException("File.move() expects two string arguments.");
+                    throw vm.ConstructRuntimeException("File.move() expects two string arguments.");
 
                 File.Move(oldPathObj.Value, newPathObj.Value);
                 return nilResult;
@@ -61,7 +61,7 @@ namespace Fluence
                 RuntimeValue pathRv = vm.PopStack();
 
                 if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw new FluenceRuntimeException("File.read() expects a string argument.");
+                    throw vm.ConstructRuntimeException("File.read() expects a string argument.");
 
                 return vm.ResolveStringObjectRuntimeValue(File.ReadAllText(pathObj.Value));
             }, null!, ioNamespace));
@@ -71,7 +71,7 @@ namespace Fluence
                 RuntimeValue pathRv = vm.PopStack();
 
                 if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw new FluenceRuntimeException("File.create() expects a string argument.");
+                    throw vm.ConstructRuntimeException("File.create() expects a string argument.");
 
                 File.Create(pathObj.Value).Close();
                 return nilResult;
@@ -82,7 +82,7 @@ namespace Fluence
                 RuntimeValue pathRv = vm.PopStack();
 
                 if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw new FluenceRuntimeException("File.delete() expects a string argument.");
+                    throw vm.ConstructRuntimeException("File.delete() expects a string argument.");
 
                 File.Delete(pathObj.Value);
                 return nilResult;
@@ -93,7 +93,7 @@ namespace Fluence
                 RuntimeValue pathRv = vm.PopStack();
 
                 if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw new FluenceRuntimeException("File.exists() expects a string argument.");
+                    throw vm.ConstructRuntimeException("File.exists() expects a string argument.");
 
                 return new RuntimeValue(File.Exists(pathObj.Value));
             }, null!, ioNamespace));

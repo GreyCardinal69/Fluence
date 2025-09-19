@@ -1,5 +1,4 @@
-﻿using System.Xml.Linq;
-using static Fluence.FluenceInterpreter;
+﻿using static Fluence.FluenceInterpreter;
 
 namespace Fluence
 {
@@ -12,7 +11,7 @@ namespace Fluence
         {
             RuntimeValue nilResult = RuntimeValue.Nil;
 
-            globalScope.Declare("printl__0", new FunctionSymbol("printl__0", 0,(vm, argCount) =>
+            globalScope.Declare("printl__0", new FunctionSymbol("printl__0", 0, (vm, argCount) =>
             {
                 outputLine("");
                 return nilResult;
@@ -58,7 +57,7 @@ namespace Fluence
             // Remove later maybe.
             globalScope.Declare("to_int__1", new FunctionSymbol("to_int__1", 1, (vm, argCount) =>
             {
-                if (argCount != 1) throw new FluenceRuntimeException("to_int() expects one string argument.");
+                if (argCount != 1) throw vm.ConstructRuntimeException("to_int() expects one string argument.");
                 RuntimeValue val = vm.PopStack();
                 return new RuntimeValue(Convert.ToInt32(((StringObject)val.ObjectReference).Value));
             }, null!, globalScope));

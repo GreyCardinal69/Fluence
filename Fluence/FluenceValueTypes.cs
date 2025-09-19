@@ -354,6 +354,11 @@
         internal bool IsIntrinsic { get; init; }
 
         /// <summary>
+        /// Sets the bytecode start address for this function. Called by the parser during the second pass.
+        /// </summary>
+        internal int StartAddressInSource { get; init; }
+
+        /// <summary>
         /// The scope (namespace) the function belongs to.
         /// </summary>
         internal FluenceScope FunctionScope { get; private set; }
@@ -362,12 +367,13 @@
         {
         }
 
-        internal FunctionValue(string name, int arity, int startAddress, List<string> arguments = null!)
+        internal FunctionValue(string name, int arity, int startAddress, int lineInSource, List<string> arguments = null!)
         {
             Name = name;
             Arity = arity;
             StartAddress = startAddress;
             Arguments = arguments;
+            StartAddressInSource = lineInSource;
         }
 
         public FunctionValue(string name, int arity, IntrinsicMethod body)

@@ -92,7 +92,7 @@ namespace Fluence
             }
             else
             {
-                faultyLine = Parser.Lexer.SourceCode.Split(Environment.NewLine)[InstructionLine.LineInSourceCode];
+                faultyLine = Parser.Lexer.SourceCode.Split(Environment.NewLine)[InstructionLine.LineInSourceCode - 1];
             }
 
             int errorlLineNum = InstructionLine.LineInSourceCode;

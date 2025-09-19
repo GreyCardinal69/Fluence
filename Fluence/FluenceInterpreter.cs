@@ -120,7 +120,7 @@ namespace Fluence
                 _intrinsicsInstance = parser.Intrinsics;
                 parser.Parse(partialCode);
 #if DEBUG
-                parser.DumpSymbolTables();
+                FluenceDebug.DumpSymbolTables(parser.CurrentParseState, OnOutputLine);
                 FluenceDebug.DumpByteCodeInstructions(parser.CompiledCode, OnOutputLine);
 #endif
 
@@ -153,7 +153,7 @@ namespace Fluence
                 _intrinsicsInstance = parser.Intrinsics;
                 parser.Parse(partialCode);
 #if DEBUG
-                parser.DumpSymbolTables();
+                FluenceDebug.DumpSymbolTables(parser.CurrentParseState, OnOutputLine);
                 FluenceDebug.DumpByteCodeInstructions(parser.CompiledCode, OnOutputLine);
 #endif
 

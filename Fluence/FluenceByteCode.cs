@@ -117,6 +117,25 @@
             /// </summary>
             internal delegate void SpecializedOpcodeHandler(InstructionLine instruction, FluenceVirtualMachine vm);
 
+            /// <summary>The approximate line location the instruction points to in the source file.</summary>
+            internal int LineInSourceCode { get; private set; }
+
+            /// <summary>The approximate column location the instruction points to in the source file.</summary>
+            internal int ColumnInSourceCode { get; private set; }
+
+            /// <summary>
+            /// In a multi-file project, this is the index into the project's file path table
+            /// that identifies the source file for this instruction.
+            /// </summary>
+            internal int ProjectFileIndex { get; private set; }
+
+            internal void SetDebugInfo(int column, int line, int fileIndex)
+            {
+                ColumnInSourceCode = column;
+                LineInSourceCode = line;
+                ProjectFileIndex = fileIndex;
+            }
+
             /// <summary>
             /// The cached, optimized "fast path" for this instruction.
             /// If this is not null, it is executed by the generic opcode handler.

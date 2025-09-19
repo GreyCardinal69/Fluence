@@ -60,6 +60,10 @@ namespace Fluence
 
         internal ParseState CurrentParseState => _currentParseState;
 
+        internal FluenceLexer Lexer => _lexer;
+
+        internal bool IsMultiFileProject => _multiFileProject;
+
         /// <summary>
         /// Manages the context for a `loop`, `while`, or `for` statement, tracking all `break` and `continue`
         /// instructions that need to be back-patched.
@@ -105,6 +109,12 @@ namespace Fluence
             /// <summary>A temporary list that collects all function/method `Assign` instructions during parsing.</summary>
             internal readonly List<InstructionLine> FunctionVariableDeclarations = new List<InstructionLine>();
 
+            /// <summary>If in a multi-line project, stores the file paths of the project's .fl Fluence scripts.</summary>
+            internal readonly List<string> ProjectFilePaths = new List<string>();
+
+            /// <summary> Holds the reference to the parser. </summary>
+            internal readonly FluenceParser ParserInstance;
+
             /// <summary>
             /// A temporary list that collects bytecode instructions for the initialization of scope global variables.
             /// Those bytecodes are placed before call to main, but after functions have been assigned.
@@ -144,6 +154,10 @@ namespace Fluence
 
             internal void AddCodeInstruction(InstructionLine instructionLine)
             {
+                Token token = ParserInstance._lexer.PeekCurrentToken();
+
+                instructionLine.SetDebugInfo(token.ColumnInSourceCode, token.LineInSourceCode, ParserInstance._multiFileProject ? ProjectFilePaths.IndexOf(ParserInstance._currentParsingFileName) : -1);
+
                 if (!IsParsingFunctionBody && !AllowTestCode)
                 {
                     ScriptInitializerCode.Add(instructionLine);
@@ -153,8 +167,9 @@ namespace Fluence
                 CodeInstructions.Add(instructionLine);
             }
 
-            public ParseState()
+            public ParseState(FluenceParser parser)
             {
+                ParserInstance = parser;
                 IsParsingFunctionBody = false;
                 GlobalScope = new FluenceScope(null!, "Global");
                 CurrentScope = GlobalScope;
@@ -172,12 +187,13 @@ namespace Fluence
 
         internal FluenceParser(string root, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input)
         {
-            _currentParseState = new ParseState();
+            _currentParseState = new ParseState(this);
             _multiFileProject = true;
             _fileStack = new Stack<string>();
 
             foreach (string item in Directory.GetFiles(root, "*", SearchOption.AllDirectories))
             {
+                _currentParseState.ProjectFilePaths.Add(item);
                 _fileStack.Push(item);
             }
 
@@ -188,146 +204,12 @@ namespace Fluence
 
         internal FluenceParser(FluenceLexer lexer, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input)
         {
-            _currentParseState = new ParseState();
+            _currentParseState = new ParseState(this);
             _lexer = lexer;
 
             _outputLine = outLine;
             _intrinsicsManager = new FluenceIntrinsics(this, outLine, input, outNormal);
             _intrinsicsManager.RegisterCoreGlobals();
-        }
-
-        internal void DumpSymbolTables()
-        {
-            StringBuilder sb = new StringBuilder("------------------------------------\n\nGenerated Symbol Hierarchy:\n\n");
-
-            DumpScope(sb, _currentParseState.GlobalScope, "Global Scope", 0);
-
-            // If there are any namespaces, dump them as separate top-level scopes.
-            if (_currentParseState.NameSpaces.Count != 0)
-            {
-                sb.AppendLine();
-                foreach (KeyValuePair<string, FluenceScope> ns in _currentParseState.NameSpaces)
-                {
-                    DumpScope(sb, ns.Value, $"Namespace: {ns.Key}", 0);
-                    _outputLine("\n");
-                }
-            }
-
-            sb.AppendLine("------------------------------------");
-            _outputLine(sb.ToString());
-        }
-
-        /// <summary>
-        /// A recursive helper to dump the contents of a single scope and its children.
-        /// </summary>
-        /// <param name="sb">The StringBuilder to append to.</param>
-        /// <param name="scope">The scope to dump.</param>
-        /// <param name="scopeName">The display name for this scope.</param>
-        /// <param name="indentationLevel">The current level of indentation.</param>
-        private static void DumpScope(StringBuilder sb, FluenceScope scope, string scopeName, int indentationLevel)
-        {
-            string indent = new string(' ', indentationLevel * 4);
-
-            sb.Append(indent).Append(scopeName).AppendLine(" {");
-
-            if (scope.Symbols.Count == 0)
-            {
-                sb.Append(indent).AppendLine("    (empty)");
-            }
-            else
-            {
-                // Dump all symbols within the current scope.
-                foreach (KeyValuePair<string, Symbol> item in scope.Symbols)
-                {
-                    DumpSymbol(sb, item.Key, item.Value, indentationLevel + 1);
-                }
-            }
-
-            sb.Append(indent).AppendLine("}").AppendLine();
-        }
-
-        /// <summary>
-        /// Helper to dump a single symbol's details with proper indentation.
-        /// </summary>
-        private static void DumpSymbol(StringBuilder sb, string symbolName, Symbol symbol, int indentationLevel)
-        {
-            string indent = new string(' ', indentationLevel * 4);
-            string innerIndent = new string(' ', (indentationLevel + 1) * 4);
-
-            switch (symbol)
-            {
-                case EnumSymbol enumSymbol:
-                    sb.Append(indent).Append($"Symbol: {symbolName}, type Enum {{").AppendLine();
-                    foreach (KeyValuePair<string, EnumValue> member in enumSymbol.Members)
-                    {
-                        sb.Append(innerIndent).Append(member.Value.MemberName).Append(", ").Append(member.Value.Value).AppendLine();
-                    }
-                    sb.Append(indent).AppendLine("}");
-                    break;
-
-                case FunctionSymbol functionSymbol:
-                    string scope = functionSymbol.DefiningScope == null || functionSymbol.Arguments == null ? $"None {(functionSymbol.IsIntrinsic ? "(Intrinsic)" : "Global?")}" : functionSymbol.DefiningScope.Name;
-                    string args = functionSymbol.Arguments == null ? "None" : string.Join(",", functionSymbol.Arguments);
-                    if (string.IsNullOrEmpty(args)) args = "None";
-
-                    sb.Append(indent).Append($"Symbol: {symbolName}, type: Function Header {{");
-                    sb.Append($" Arity: {functionSymbol.Arity}, Scope: {scope}, StartAddress: {FluenceDebug.FormatByteCodeAddress(functionSymbol.StartAddress)},");
-                    sb.Append($" Args: {args}.").AppendLine();
-                    break;
-                case VariableSymbol variableSymbol:
-                    sb.Append(indent).Append($"Symbol: {symbolName}, type VariableSymbol: {variableSymbol}.").AppendLine();
-                    break;
-                case StructSymbol structSymbol:
-                    sb.Append(indent).Append($"Symbol: {symbolName}, type Struct {{").AppendLine();
-                    sb.Append(innerIndent).Append("Fields: ").Append(structSymbol.Fields.Count != 0 ? string.Join(", ", structSymbol.Fields) : "None").AppendLine(".");
-
-                    if (structSymbol.Functions.Count != 0)
-                    {
-                        sb.Append(innerIndent).AppendLine("Functions: {");
-                        foreach (KeyValuePair<string, FunctionValue> function in structSymbol.Functions)
-                        {
-                            sb.Append(innerIndent).Append($"    Name: {function.Key}, Arity: {function.Value.Arity}, Start Address: {FluenceDebug.FormatByteCodeAddress(function.Value.StartAddress)}").AppendLine();
-                        }
-                        sb.Append(innerIndent).AppendLine("}");
-                    }
-
-                    sb.Append("\tDefault Values of Fields:");
-                    if (structSymbol.DefaultFieldValuesAsTokens.Count != 0) sb.Append('\n');
-
-                    foreach (KeyValuePair<string, List<Token>> item in structSymbol.DefaultFieldValuesAsTokens)
-                    {
-                        sb.Append($"\t\t{item.Key} : {(item.Value.Count == 0 ? "None (Nil)." : string.Join(", ", item.Value))}\n");
-                    }
-
-                    if (structSymbol.DefaultFieldValuesAsTokens.Count == 0) sb.Append(" None.\n");
-
-                    sb.Append(indent).Append(indent).Append($"Constructors: {(structSymbol.Functions.Count == 0 ? "None.\n" : "\n")}");
-                    foreach (KeyValuePair<string, FunctionValue> item in structSymbol.Constructors)
-                    {
-                        sb.Append(indent).Append(indent).Append(indent).Append(item).AppendLine();
-                    }
-
-                    sb.Append(indent).Append(indent).Append($"Functions: {(structSymbol.Functions.Count == 0 ? "None.\n" : "\n")}");
-                    foreach (KeyValuePair<string, FunctionValue> item in structSymbol.Functions)
-                    {
-                        sb.Append(indent).Append(indent).Append(indent).Append(item).AppendLine();
-                    }
-
-                    sb.Append(indent).Append($"Static Intrinsics: {(structSymbol.StaticIntrinsics.Count == 0 ? "None.\n" : "\n")}");
-                    foreach (KeyValuePair<string, FunctionSymbol> item in structSymbol.StaticIntrinsics)
-                    {
-                        sb.Append(indent).Append(indent).Append(item).AppendLine();
-                    }
-
-                    sb.Append(indent).Append($"Static Fields: {(structSymbol.StaticFields.Count == 0 ? "None.\n" : "\n")}");
-                    foreach (KeyValuePair<string, RuntimeValue> item in structSymbol.StaticFields)
-                    {
-                        sb.Append(indent).Append(indent).Append(item).AppendLine();
-                    }
-
-                    sb.Append(indent).AppendLine("}");
-                    break;
-            }
         }
 
         /// <summary>
@@ -709,7 +591,7 @@ namespace Fluence
             }
 
             string parsedName = funcName.EndsWith($"__{arity}", StringComparison.Ordinal) ? funcName : Mangler.Mangle(funcName, arity);
-            FunctionSymbol functionSymbol = new FunctionSymbol(parsedName, arity, -1, paramaters, _currentParseState.CurrentScope);
+            FunctionSymbol functionSymbol = new FunctionSymbol(parsedName, arity, -1, nameToken.LineInSourceCode, paramaters, _currentParseState.CurrentScope);
 
             _lexer.ModifyTokenAt(startTokenIndex + 1, new Token(TokenType.IDENTIFIER, parsedName, nameToken.Literal, nameToken.LineInSourceCode, nameToken.ColumnInSourceCode));
             _currentParseState.CurrentScope.Declare(parsedName, functionSymbol);
@@ -811,7 +693,7 @@ namespace Fluence
                         }
                     }
 
-                    FunctionValue functionValue = new FunctionValue(funcName, arity, -1, args);
+                    FunctionValue functionValue = new FunctionValue(funcName, arity, -1, nameToken.LineInSourceCode, args);
                     functionValue.SetScope(_currentParseState.CurrentScope);
                     string templated;
 
@@ -1557,7 +1439,7 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
             int functionStartAddress = _currentParseState.CodeInstructions.Count;
 
-            FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress, parameters);
+            FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress, nameToken.LineInSourceCode, parameters);
             func.SetScope(_currentParseState.CurrentScope);
             UpdateFunctionSymbolsAndGenerateDeclaration(func, nameToken, inStruct, isInit, structName);
 

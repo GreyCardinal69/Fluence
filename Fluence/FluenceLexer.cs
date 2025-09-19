@@ -163,10 +163,9 @@ namespace Fluence
             /// </summary>
             internal Token Peek(int lookahead = 1)
             {
-                EnsureFilled(lookahead);
+                EnsureFilled(lookahead != 0 ? lookahead : 1);
 
-                int index = _head + lookahead - 1;
-
+                int index = _head + lookahead - (lookahead == 0 ? 0 : 1);
                 if (index >= _buffer.Count)
                 {
                     return _buffer[^1];

@@ -42,13 +42,12 @@
             mathNamespace.Declare("sin__1", new FunctionSymbol("sin__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Sin(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["angle"], mathNamespace));
 
             mathNamespace.Declare("abs__1", new FunctionSymbol("abs__1", 1, (vm, argCount) =>
             {
                 RuntimeValue val = vm.PopStack();
                 if (val.Type != RuntimeValueType.Number) throw vm.ConstructRuntimeException("abs() expects a numerical argument.");
-
                 return val.NumberType switch
                 {
                     RuntimeNumberType.Int => new RuntimeValue(Math.Abs(val.IntValue)),
@@ -56,64 +55,62 @@
                     RuntimeNumberType.Float => new RuntimeValue(Math.Abs(val.FloatValue)),
                     _ => new RuntimeValue(Math.Abs(val.DoubleValue)),
                 };
-            }, null!, mathNamespace));
+            }, ["number"], mathNamespace));
 
             mathNamespace.Declare("acos__1", new FunctionSymbol("acos__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Acos(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["value"], mathNamespace));
 
             mathNamespace.Declare("acosh__1", new FunctionSymbol("acosh__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Acosh(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["value"], mathNamespace));
 
             mathNamespace.Declare("asin__1", new FunctionSymbol("asin__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Asin(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["value"], mathNamespace));
 
             mathNamespace.Declare("asinh__1", new FunctionSymbol("asinh__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Asinh(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["value"], mathNamespace));
 
             mathNamespace.Declare("atan__1", new FunctionSymbol("atan__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Atan(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["value"], mathNamespace));
 
             mathNamespace.Declare("atan2__2", new FunctionSymbol("atan2__2", 2, (vm, argCount) =>
             {
-                RuntimeValue val2 = vm.PopStack();
-                RuntimeValue val1 = vm.PopStack();
-                return new RuntimeValue(Math.Atan2(val1.AsDouble(vm), val2.AsDouble(vm)));
-            }, null!, mathNamespace));
+                RuntimeValue x = vm.PopStack(); // Note: Atan2(y, x)
+                RuntimeValue y = vm.PopStack();
+                return new RuntimeValue(Math.Atan2(y.AsDouble(vm), x.AsDouble(vm)));
+            }, ["y", "x"], mathNamespace));
 
             mathNamespace.Declare("atanh__1", new FunctionSymbol("atanh__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Atanh(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["value"], mathNamespace));
 
             mathNamespace.Declare("ceil__1", new FunctionSymbol("ceil__1", 1, (vm, argCount) =>
             {
                 RuntimeValue val = vm.PopStack();
                 if (val.Type != RuntimeValueType.Number) throw vm.ConstructRuntimeException("ceil() expects a numerical argument.");
-
                 return val.NumberType switch
                 {
                     RuntimeNumberType.Int => val,
                     RuntimeNumberType.Long => val,
                     _ => new RuntimeValue(Math.Ceiling(val.AsDouble(vm))),
                 };
-            }, null!, mathNamespace));
+            }, ["number"], mathNamespace));
 
             mathNamespace.Declare("clamp__3", new FunctionSymbol("clamp__3", 3, (vm, argCount) =>
             {
                 RuntimeValue max = vm.PopStack();
                 RuntimeValue min = vm.PopStack();
                 RuntimeValue val = vm.PopStack();
-
                 return val.NumberType switch
                 {
                     RuntimeNumberType.Int => new RuntimeValue(Math.Clamp(val.IntValue, min.IntValue, max.IntValue)),
@@ -121,43 +118,42 @@
                     RuntimeNumberType.Float => new RuntimeValue(Math.Clamp(val.FloatValue, min.FloatValue, max.FloatValue)),
                     _ => new RuntimeValue(Math.Clamp(val.DoubleValue, min.DoubleValue, max.DoubleValue)),
                 };
-            }, null!, mathNamespace));
+            }, ["value", "min", "max"], mathNamespace));
 
             mathNamespace.Declare("cosh__1", new FunctionSymbol("cosh__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Cosh(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["value"], mathNamespace));
 
             mathNamespace.Declare("exp__1", new FunctionSymbol("exp__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Exp(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["number"], mathNamespace));
 
             mathNamespace.Declare("floor__1", new FunctionSymbol("floor__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Floor(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["number"], mathNamespace));
 
             mathNamespace.Declare("log__1", new FunctionSymbol("log__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Log(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["number"], mathNamespace));
 
             mathNamespace.Declare("log10__1", new FunctionSymbol("log10__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Log10(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["number"], mathNamespace));
 
             mathNamespace.Declare("log2__1", new FunctionSymbol("log2__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Log2(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["number"], mathNamespace));
 
             mathNamespace.Declare("max__2", new FunctionSymbol("max__2", 2, (vm, argCount) =>
             {
                 RuntimeValue val2 = vm.PopStack();
                 RuntimeValue val1 = vm.PopStack();
-
                 return val1.NumberType switch
                 {
                     RuntimeNumberType.Int => new RuntimeValue(Math.Max(val1.IntValue, val2.IntValue)),
@@ -165,13 +161,12 @@
                     RuntimeNumberType.Float => new RuntimeValue(Math.Max(val1.FloatValue, val2.FloatValue)),
                     _ => new RuntimeValue(Math.Max(val1.DoubleValue, val2.DoubleValue)),
                 };
-            }, null!, mathNamespace));
+            }, ["val1", "val2"], mathNamespace));
 
             mathNamespace.Declare("min__2", new FunctionSymbol("min__2", 2, (vm, argCount) =>
             {
                 RuntimeValue val2 = vm.PopStack();
                 RuntimeValue val1 = vm.PopStack();
-
                 return val1.NumberType switch
                 {
                     RuntimeNumberType.Int => new RuntimeValue(Math.Min(val1.IntValue, val2.IntValue)),
@@ -179,14 +174,13 @@
                     RuntimeNumberType.Float => new RuntimeValue(Math.Min(val1.FloatValue, val2.FloatValue)),
                     _ => new RuntimeValue(Math.Min(val1.DoubleValue, val2.DoubleValue)),
                 };
-            }, null!, mathNamespace));
+            }, ["val1", "val2"], mathNamespace));
 
             mathNamespace.Declare("min__3", new FunctionSymbol("min__3", 3, (vm, argCount) =>
             {
                 RuntimeValue val3 = vm.PopStack();
                 RuntimeValue val2 = vm.PopStack();
                 RuntimeValue val1 = vm.PopStack();
-
                 return val1.NumberType switch
                 {
                     RuntimeNumberType.Int => new RuntimeValue(Math.Min(Math.Min(val1.IntValue, val2.IntValue), val3.IntValue)),
@@ -194,13 +188,12 @@
                     RuntimeNumberType.Long => new RuntimeValue(Math.Min(Math.Min(val1.LongValue, val2.LongValue), val3.LongValue)),
                     _ => new RuntimeValue(Math.Min(Math.Min(val1.DoubleValue, val2.DoubleValue), val3.DoubleValue)),
                 };
-            }, null!, mathNamespace));
+            }, ["val1", "val2", "val3"], mathNamespace));
 
             mathNamespace.Declare("round__1", new FunctionSymbol("round__1", 1, (vm, argCount) =>
             {
                 RuntimeValue val = vm.PopStack();
                 if (val.Type != RuntimeValueType.Number) throw vm.ConstructRuntimeException("round() expects a numerical argument.");
-
                 return val.NumberType switch
                 {
                     RuntimeNumberType.Int => val,
@@ -208,27 +201,27 @@
                     RuntimeNumberType.Float => new RuntimeValue(Math.Round(val.FloatValue)),
                     _ => new RuntimeValue(Math.Round(val.DoubleValue)),
                 };
-            }, null!, mathNamespace));
+            }, ["number"], mathNamespace));
 
             mathNamespace.Declare("sinh__1", new FunctionSymbol("sinh__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Sinh(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["value"], mathNamespace));
 
             mathNamespace.Declare("sqrt__1", new FunctionSymbol("sqrt__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Sqrt(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["number"], mathNamespace));
 
             mathNamespace.Declare("tan__1", new FunctionSymbol("tan__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Tan(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["angle"], mathNamespace));
 
             mathNamespace.Declare("tanh__1", new FunctionSymbol("tanh__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Tanh(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["value"], mathNamespace));
         }
     }
 }

@@ -92,18 +92,19 @@ namespace Fluence
                 {
                     string deMangledFunc = Mangler.Demangle(func.Name);
                     string deMangledVar = Mangler.Demangle(undefinedVarialbe);
+
                     if (string.Equals(deMangledFunc, deMangledVar, StringComparison.Ordinal) && func.Arity != deMangledArity)
                     {
                         if (!foundMatch)
                         {
                             foundMatch = true;
-                            stringBuilder.AppendLine($"Runtime Error: Function \"{deMangledFunc}\" does not accept {deMangledArity} arguments.");
+                            stringBuilder.AppendLine($"Runtime Error: Function \"{deMangledFunc}\" does not accept {deMangledArity} argument(s).");
                             stringBuilder.AppendLine($"{new string(' ', lineNumLen + 1)}│\tAvailable signatures are:");
-                            stringBuilder.Append($"{new string(' ', lineNumLen + 1)}│\t\t- func {Mangler.Demangle(func.Name)}({string.Join(", ", func.Arguments)})");
+                            stringBuilder.AppendLine($"{new string(' ', lineNumLen + 1)}│\t\t- func {Mangler.Demangle(func.Name)}({string.Join(", ", func.Arguments)})");
                         }
                         else
                         {
-                            stringBuilder.Append($"{new string(' ', lineNumLen + 1)}│\t\t- func {Mangler.Demangle(func.Name)}({string.Join(", ", func.Arguments)})");
+                            stringBuilder.AppendLine($"{new string(' ', lineNumLen + 1)}│\t\t- func {Mangler.Demangle(func.Name)}({string.Join(", ", func.Arguments)})");
                         }
                     }
                 }
@@ -141,7 +142,7 @@ namespace Fluence
                     break;
             }
 
-            stringBuilder.Append($"\n{new string(' ', lineNumLen + 1)}│");
+            stringBuilder.Append($"{new string(' ', lineNumLen + 1)}│");
             ExceptionMessage = stringBuilder.ToString();
         }
 

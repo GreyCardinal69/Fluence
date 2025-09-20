@@ -30,7 +30,7 @@ namespace Fluence
 
                 File.WriteAllText(pathObj.Value, contentObj.Value);
                 return nilResult;
-            }, null!, ioNamespace));
+            }, ["path", "content"], ioNamespace));
 
             file.StaticIntrinsics.Add("appendText__2", new FunctionSymbol("appendText__2", 2, (vm, argCount) =>
             {
@@ -42,7 +42,7 @@ namespace Fluence
 
                 File.AppendAllText(pathObj.Value, contentObj.Value);
                 return nilResult;
-            }, null!, ioNamespace));
+            }, ["path", "content"], ioNamespace));
 
             file.StaticIntrinsics.Add("move__2", new FunctionSymbol("move__2", 2, (vm, argCount) =>
             {
@@ -54,7 +54,7 @@ namespace Fluence
 
                 File.Move(oldPathObj.Value, newPathObj.Value);
                 return nilResult;
-            }, null!, ioNamespace));
+            }, ["old_path", "new_path"], ioNamespace));
 
             file.StaticIntrinsics.Add("read__1", new FunctionSymbol("read__1", 1, (vm, argCount) =>
             {
@@ -64,7 +64,7 @@ namespace Fluence
                     throw vm.ConstructRuntimeException("File.read() expects a string argument.");
 
                 return vm.ResolveStringObjectRuntimeValue(File.ReadAllText(pathObj.Value));
-            }, null!, ioNamespace));
+            }, ["path"], ioNamespace));
 
             file.StaticIntrinsics.Add("create__1", new FunctionSymbol("create__1", 1, (vm, argCount) =>
             {
@@ -75,7 +75,7 @@ namespace Fluence
 
                 File.Create(pathObj.Value).Close();
                 return nilResult;
-            }, null!, ioNamespace));
+            }, ["path"], ioNamespace));
 
             file.StaticIntrinsics.Add("delete__1", new FunctionSymbol("delete__1", 1, (vm, argCount) =>
             {
@@ -86,7 +86,7 @@ namespace Fluence
 
                 File.Delete(pathObj.Value);
                 return nilResult;
-            }, null!, ioNamespace));
+            }, ["path"], ioNamespace));
 
             file.StaticIntrinsics.Add("exists__1", new FunctionSymbol("exists__1", 1, (vm, argCount) =>
             {
@@ -96,7 +96,7 @@ namespace Fluence
                     throw vm.ConstructRuntimeException("File.exists() expects a string argument.");
 
                 return new RuntimeValue(File.Exists(pathObj.Value));
-            }, null!, ioNamespace));
+            }, ["path"], ioNamespace));
         }
     }
 }

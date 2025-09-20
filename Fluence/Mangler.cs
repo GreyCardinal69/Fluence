@@ -27,5 +27,17 @@ namespace Fluence
             arity = -1;
             return mangledName;
         }
+
+        /// <summary> Demangles a name, separating it back into its base name only.</summary>
+        public static string Demangle(string mangledName)
+        {
+            int sepIndex = mangledName.LastIndexOf(_separator, StringComparison.Ordinal);
+            if (sepIndex > 0 && int.TryParse(mangledName[(sepIndex + _separator.Length)..], out _))
+            {
+                return mangledName[..sepIndex];
+            }
+
+            return mangledName;
+        }
     }
 }

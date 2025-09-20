@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceVirtualMachine;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace Fluence
 {
@@ -69,11 +70,80 @@ namespace Fluence
 
     internal sealed record RuntimeExceptionContext : ExceptionContext
     {
-        internal required string ExceptionMessage { get; init; }
+        internal string ExceptionMessage { get; set; }
         internal required VMDebugContext DebugContext { get; init; }
         internal required List<StackFrameInfo> StackTraces { get; init; }
         internal required InstructionLine InstructionLine { get; init; }
         internal required FluenceParser Parser { get; init; }
+        internal required RuntimeExceptionType ExceptionType { get; init; }
+
+        private void ElaborateOnUndefinedFunction(FluenceScope scope, StringBuilder stringBuilder, out bool foundMatch)
+        {
+            string undefinedVarialbe = ExceptionMessage.Split('\'')[1];
+            Mangler.Demangle(undefinedVarialbe, out int deMangledArity);
+
+            int errorlLineNum = InstructionLine.LineInSourceCode;
+            int lineNumLen = errorlLineNum.ToString().Length;
+            foundMatch = false;
+
+            foreach (var symbol in scope.Symbols.Values)
+            {
+                if (symbol is FunctionSymbol func)
+                {
+                    string deMangledFunc = Mangler.Demangle(func.Name);
+                    string deMangledVar = Mangler.Demangle(undefinedVarialbe);
+                    if (string.Equals(deMangledFunc, deMangledVar, StringComparison.Ordinal) && func.Arity != deMangledArity)
+                    {
+                        if (!foundMatch)
+                        {
+                            foundMatch = true;
+                            stringBuilder.AppendLine($"Runtime Error: Function \"{deMangledFunc}\" does not accept {deMangledArity} arguments.");
+                            stringBuilder.AppendLine($"{new string(' ', lineNumLen + 1)}│\tAvailable signatures are:");
+                            stringBuilder.Append($"{new string(' ', lineNumLen + 1)}│\t\t- func {Mangler.Demangle(func.Name)}({string.Join(", ", func.Arguments)})");
+                        }
+                        else
+                        {
+                            stringBuilder.Append($"{new string(' ', lineNumLen + 1)}│\t\t- func {Mangler.Demangle(func.Name)}({string.Join(", ", func.Arguments)})");
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ElaborateOnContext(RuntimeExceptionType excType)
+        {
+            int errorlLineNum = InstructionLine.LineInSourceCode;
+            int lineNumLen = errorlLineNum.ToString().Length;
+
+            StringBuilder stringBuilder = new StringBuilder();
+
+            switch (excType)
+            {
+                case RuntimeExceptionType.UnknownVariable:
+                    bool foundMatch = false;
+
+                    foreach (var scope in Parser.CurrentParseState.NameSpaces.Values)
+                    {
+                        ElaborateOnUndefinedFunction(scope, stringBuilder, out foundMatch);
+                    }
+
+                    if (!foundMatch)
+                    {
+                        ElaborateOnUndefinedFunction(Parser.CurrentParserStateGlobalScope, stringBuilder, out foundMatch);
+                    }
+
+                    if (!foundMatch)
+                    {
+                        // if there is still no match, then it is just an undefined variable, or maybe struct?
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            stringBuilder.Append($"\n{new string(' ', lineNumLen + 1)}│");
+            ExceptionMessage = stringBuilder.ToString();
+        }
 
         internal override string Format()
         {
@@ -99,6 +169,11 @@ namespace Fluence
             int errorColumnNum = InstructionLine.ColumnInSourceCode;
             int lineNumLen = errorlLineNum.ToString().Length;
 
+            if (ExceptionType != RuntimeExceptionType.NonSpecific)
+            {
+                ElaborateOnContext(ExceptionType);
+            }
+
             if (errorlLineNum > 0 && faultyLine != null && errorColumnNum > 0)
             {
                 stringBuilder.AppendLine($"\nException occured in: {(string.IsNullOrEmpty(fileName) ? "Script" : fileName)}.");
@@ -113,10 +188,10 @@ namespace Fluence
                     .AppendLine($"\nMost likely line where the error occured:")
                     .AppendLine($"\n{new string(' ', lineNumLen + 1)}│")
                     .AppendLine($"{new string(' ', lineNumLen + 1)}│")
-                    .AppendLine($"{new string(' ', lineNumLen + 1)}│\t {ExceptionMessage}")
+                    .AppendLine($"{new string(' ', lineNumLen + 1)}│\t{ExceptionMessage}")
                     .AppendLine($"{new string(' ', lineNumLen + 1)}│")
                     .AppendLine($"{errorlLineNum}.│ {faultyLine}")
-                    .AppendLine($"{new string(' ', lineNumLen + 1)}│{new string(' ', errorColumnNum - 2)}^")
+                    .AppendLine($"{new string(' ', lineNumLen + 1)}│{new string(' ', errorColumnNum - lineNumLen)}^")
                     .AppendLine($"{new string('─', lineNumLen + 1)}┴{new string('─', errorColumnNum - lineNumLen)}┴{new string('─', faultyLine.Length)}");
             }
 
@@ -171,7 +246,7 @@ namespace Fluence
                     }
                     else
                     {
-                        stringBuilder.AppendLine($"                  │ [{item}]");
+                        stringBuilder.AppendLine($"                   │ [{item}]");
                     }
                 }
             }

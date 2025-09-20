@@ -2057,7 +2057,7 @@ namespace Fluence
                 }
             }
 
-            throw ConstructRuntimeException($"Runtime Error: Undefined variable '{name}'.");
+            throw ConstructRuntimeException($"Runtime Error: Undefined variable '{name}'.", RuntimeExceptionType.UnknownVariable);
         }
 
         /// <summary>
@@ -2362,6 +2362,12 @@ namespace Fluence
             }
         }
 
+        internal enum RuntimeExceptionType
+        {
+            NonSpecific,
+            UnknownVariable
+        }
+
         internal void ConstructAndThrowException(string message) => throw ConstructRuntimeException(message);
 
         /// <summary>
@@ -2369,7 +2375,7 @@ namespace Fluence
         /// </summary>
         /// <param name="exception"></param>
         /// <exception cref="FluenceRuntimeException"></exception>
-        internal FluenceRuntimeException ConstructRuntimeException(string exception)
+        internal FluenceRuntimeException ConstructRuntimeException(string exception, RuntimeExceptionType excType = RuntimeExceptionType.NonSpecific)
         {
             VMDebugContext debugCtx = new VMDebugContext(this);
             List<StackFrameInfo> stackFrames = new List<StackFrameInfo>();
@@ -2389,6 +2395,7 @@ namespace Fluence
                 InstructionLine = _byteCode[_ip],
                 StackTraces = stackFrames,
                 Parser = _parser,
+                ExceptionType = excType,
             };
 
             return new FluenceRuntimeException(exception, context);

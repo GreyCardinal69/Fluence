@@ -37,7 +37,7 @@
             mathNamespace.Declare("cos__1", new FunctionSymbol("cos__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Cos(vm.PopStack().AsDouble(vm)));
-            }, null!, mathNamespace));
+            }, ["angle"], mathNamespace));
 
             mathNamespace.Declare("sin__1", new FunctionSymbol("sin__1", 1, (vm, argCount) =>
             {

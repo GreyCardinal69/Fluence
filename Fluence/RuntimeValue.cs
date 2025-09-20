@@ -114,7 +114,7 @@ namespace Fluence
             Arity = arity;
             DefiningScope = definingScope;
             IsIntrinsic = true;
-            BluePrint = symb;
+            BluePrint = symb!;
         }
 
         internal void SetBluePrint(FunctionSymbol symb) => BluePrint = symb;

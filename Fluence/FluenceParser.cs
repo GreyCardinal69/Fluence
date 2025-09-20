@@ -1,5 +1,4 @@
-﻿using System.Text;
-using static Fluence.FluenceByteCode;
+﻿using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceInterpreter;
 using static Fluence.Token;

@@ -1,7 +1,6 @@
 ﻿using System.Text;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceVirtualMachine;
-using static System.Formats.Asn1.AsnWriter;
 
 namespace Fluence
 {
@@ -86,7 +85,7 @@ namespace Fluence
             int lineNumLen = errorlLineNum.ToString().Length;
             foundMatch = false;
 
-            foreach (var symbol in scope.Symbols.Values)
+            foreach (Symbol symbol in scope.Symbols.Values)
             {
                 if (symbol is FunctionSymbol func)
                 {
@@ -115,15 +114,14 @@ namespace Fluence
         {
             int errorlLineNum = InstructionLine.LineInSourceCode;
             int lineNumLen = errorlLineNum.ToString().Length;
-
+            bool foundMatch = false;
             StringBuilder stringBuilder = new StringBuilder();
 
             switch (excType)
             {
                 case RuntimeExceptionType.UnknownVariable:
-                    bool foundMatch = false;
 
-                    foreach (var scope in Parser.CurrentParseState.NameSpaces.Values)
+                    foreach (FluenceScope scope in Parser.CurrentParseState.NameSpaces.Values)
                     {
                         ElaborateOnUndefinedFunction(scope, stringBuilder, out foundMatch);
                     }
@@ -143,7 +141,10 @@ namespace Fluence
             }
 
             stringBuilder.Append($"{new string(' ', lineNumLen + 1)}│");
-            ExceptionMessage = stringBuilder.ToString();
+            if (foundMatch)
+            {
+                ExceptionMessage = stringBuilder.ToString();
+            }
         }
 
         internal override string Format()

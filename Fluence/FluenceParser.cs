@@ -159,7 +159,7 @@ namespace Fluence
 
                 instructionLine.SetDebugInfo(token.ColumnInSourceCode, token.LineInSourceCode, ParserInstance._multiFileProject ? ProjectFilePaths.IndexOf(ParserInstance._currentParsingFileName) : -1);
 
-                if (!IsParsingFunctionBody || IsParsingStaticSolid)
+                if (!AllowTestCode && (!IsParsingFunctionBody || IsParsingStaticSolid) )
                 {
                     ScriptInitializerCode.Add(instructionLine);
                     return;

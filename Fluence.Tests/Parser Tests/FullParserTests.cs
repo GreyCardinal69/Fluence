@@ -118,7 +118,7 @@ namespace Fluence.ParserTests
             {
                 new(InstructionCode.Goto, new NumberValue(2)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Assign, new VariableValue("DoNothing__0"), new FunctionValue("DoNothing", 0, 2)),
+                new(InstructionCode.Assign, new VariableValue("DoNothing__0"), new FunctionValue("DoNothing", 0, 2,0)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
@@ -605,8 +605,8 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushParam, new TempValue(24)),
                 new(InstructionCode.CallFunction, new TempValue(27), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Assign, new VariableValue("input_int__0"), new FunctionValue("input_int", 0, 1)),
-                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 6)),
+                new(InstructionCode.Assign, new VariableValue("input_int__0"), new FunctionValue("input_int", 0, 1,0)),
+                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 6,0)),
                 new(InstructionCode.CallFunction, new TempValue(28), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
@@ -702,11 +702,11 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushParam, new StringValue("helper")),
                 new(InstructionCode.CallFunction, new TempValue(16), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1)),
-                new(InstructionCode.Assign, new VariableValue("Number.Length"), new FunctionValue("Length", 0, 12)),
-                new(InstructionCode.Assign, new VariableValue("Number.init"), new FunctionValue("init", 2, 20)),
-                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 30)),
-                new(InstructionCode.Assign, new VariableValue("Helper__0"), new FunctionValue("Helper", 0, 52)),
+                new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1,0)),
+                new(InstructionCode.Assign, new VariableValue("Number.Length"), new FunctionValue("Length", 0, 12,0)),
+                new(InstructionCode.Assign, new VariableValue("Number.init"), new FunctionValue("init", 2, 20,0)),
+                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 30,0)),
+                new(InstructionCode.Assign, new VariableValue("Helper__0"), new FunctionValue("Helper", 0, 52,0)),
                 new(InstructionCode.CallFunction, new TempValue(22), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
@@ -821,11 +821,11 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushParam, new StringValue("helper")),
                 new(InstructionCode.CallFunction, new TempValue(21), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1)),
-                new(InstructionCode.Assign, new VariableValue("Number.Length"), new FunctionValue("Length", 0, 12)),
-                new(InstructionCode.Assign, new VariableValue("Number.init"), new FunctionValue("init", 2, 20)),
-                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 30)),
-                new(InstructionCode.Assign, new VariableValue("Helper__0"), new FunctionValue("Helper", 0, 52)),
+                new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1, 0)),
+                new(InstructionCode.Assign, new VariableValue("Number.Length"), new FunctionValue("Length", 0, 12, 0)),
+                new(InstructionCode.Assign, new VariableValue("Number.init"), new FunctionValue("init", 2, 20, 0)),
+                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 30, 0)),
+                new(InstructionCode.Assign, new VariableValue("Helper__0"), new FunctionValue("Helper", 0, 52, 0)),
                 new(InstructionCode.CallFunction, new TempValue(22), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
@@ -857,8 +857,8 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Return, new NilValue()),
                 new(InstructionCode.Goto, new NumberValue(9)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 3)),
-                new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1)),
+                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 3, 0)),
+                new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1,0)),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
@@ -890,8 +890,8 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Return, new NilValue()),
                 new(InstructionCode.Goto, new NumberValue(9)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 3)),
-                new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1)),
+                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 3, 0)),
+                new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1, 0)),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
@@ -928,8 +928,8 @@ namespace Fluence.ParserTests
                 new(InstructionCode.CallMethod, new TempValue(3), new TempValue(2), new StringValue("init")),
                 new(InstructionCode.Assign, new VariableValue("p"), new TempValue(2)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Assign, new VariableValue("Point.init"), new FunctionValue("init", 1, 1)),
-                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 8)),
+                new(InstructionCode.Assign, new VariableValue("Point.init"), new FunctionValue("init", 1, 1, 0)),
+                new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 8, 0)),
                 new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
@@ -1304,7 +1304,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new TempValue(0), new NumberValue(5)),
                 new(InstructionCode.Goto, new NumberValue(9)),
                 new(InstructionCode.Return, new TempValue(0)),
-                new(InstructionCode.Assign, new VariableValue("GetYFromX__1"), new FunctionValue("GetYFromX", 3, 1)),
+                new(InstructionCode.Assign, new VariableValue("GetYFromX__1"), new FunctionValue("GetYFromX", 3, 1, 0)),
                 new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };

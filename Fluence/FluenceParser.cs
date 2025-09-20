@@ -125,6 +125,8 @@ namespace Fluence
             /// </summary>
             internal bool IsParsingFunctionBody { get; set; }
 
+            internal bool IsParsingStaticSolid { get; set; }
+
             /// <summary>The struct symbol currently being parsed, or null.</summary>
             internal StructSymbol CurrentStructContext { get; set; }
 
@@ -157,7 +159,7 @@ namespace Fluence
 
                 instructionLine.SetDebugInfo(token.ColumnInSourceCode, token.LineInSourceCode, ParserInstance._multiFileProject ? ProjectFilePaths.IndexOf(ParserInstance._currentParsingFileName) : -1);
 
-                if (!IsParsingFunctionBody && !AllowTestCode)
+                if (!IsParsingFunctionBody || IsParsingStaticSolid)
                 {
                     ScriptInitializerCode.Add(instructionLine);
                     return;
@@ -344,14 +346,14 @@ namespace Fluence
         /// <returns>The FunctionSymbol for the entry point, or null if not found.</returns>
         private FunctionSymbol FindEntryPoint()
         {
-            if (_currentParseState.GlobalScope.TryResolve("Main", out Symbol? globalMainSymbol))
+            if (_currentParseState.GlobalScope.TryResolve("Main__0", out Symbol? globalMainSymbol))
             {
                 return (FunctionSymbol)globalMainSymbol;
             }
 
             foreach (FluenceScope scope in _currentParseState.NameSpaces.Values)
             {
-                if (scope.TryResolve("Main", out Symbol mainFunc))
+                if (scope.TryResolve("Main__0", out Symbol mainFunc))
                 {
                     return (FunctionSymbol)mainFunc;
                 }
@@ -1312,18 +1314,20 @@ namespace Fluence
                         string fieldName = field.Key;
                         List<Token> expressionTokens = field.Value;
 
-                        if (structSymbol.StaticFields.ContainsKey(fieldName))
+                        if (structSymbol.StaticFields.ContainsKey(fieldName) && !structSymbol.ParsedStaticFields.Contains(fieldName))
                         {
                             if (expressionTokens.Count == 0)
                             {
                                 ConstructAndThrowParserException($"Expected an assignment of a value to a solid static struct field, value can not be Nil: {structSymbol}__Field:{fieldName}.", new Token());
                                 return;
                             }
-
+                            structSymbol.ParsedStaticFields.Add(fieldName);
                             _fieldLexer = _lexer;
                             _lexer = new FluenceLexer(expressionTokens);
 
-                            defaultValueResult = ParseTernary();
+                            _currentParseState.IsParsingStaticSolid = true;
+                            defaultValueResult = ResolveValue(ParseExpression());
+                            _currentParseState.IsParsingStaticSolid = false;
 
                             _lexer = _fieldLexer; // Restore the main lexer.
 

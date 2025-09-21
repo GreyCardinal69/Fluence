@@ -95,6 +95,7 @@
             SOLID,  // immutable.
             TIMES,  // N times do x.
             UNLESS, // Reverse of if, unless ( x ) do something.
+            AS,     // Used with 'times', and maybe others in the future.
 
             // Pipe Family Operators.
             PIPE,               // |>

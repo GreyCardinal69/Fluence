@@ -3582,12 +3582,24 @@ namespace Fluence
         {
             _lexer.Advance(); // Consume 'times'.
 
-            TempValue condition = new TempValue(_currentParseState.NextTempNumber++);
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, condition, count));
+            Value condition;
+
+            if (_lexer.PeekNextTokenType() == TokenType.AS)
+            {
+                _lexer.Advance();
+                Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected an identifier for a 'x times as y' statement");
+                condition = new VariableValue(nameToken.Text);
+            }
+            else
+            {
+                condition = new TempValue(_currentParseState.NextTempNumber++);
+            }
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, condition, new NumberValue(0)));
 
             TempValue truthy = new TempValue(_currentParseState.NextTempNumber++);
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, truthy, condition, NumberValue.Zero));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, truthy, condition, count));
             int loopStartIndex = _currentParseState.CodeInstructions.Count;
 
             LoopContext loopContext = new LoopContext();
@@ -3600,7 +3612,7 @@ namespace Fluence
 
             _lexer.InsertNextToken(TokenType.EOL);
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Subtract, condition, condition, NumberValue.One));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Add, condition, condition, NumberValue.One));
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex - 1)));
 
             int loopEndIndex = _currentParseState.CodeInstructions.Count;

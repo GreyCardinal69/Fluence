@@ -37,6 +37,7 @@ namespace Fluence
                 TokenType.SOLID or
                 TokenType.TIMES or
                 TokenType.UNLESS or
+                TokenType.AS or
                 TokenType.REST => true,
                 _ => false,
             };
@@ -59,6 +60,7 @@ namespace Fluence
                         if (text.SequenceEqual("is")) return TokenType.EQUAL_EQUAL;
                     }
                     if (text.SequenceEqual("or")) return TokenType.OR;
+                    if (text.SequenceEqual("as")) return TokenType.AS;
                     break;
                 case 3:
                     if (text[0] == 'n')

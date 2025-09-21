@@ -23,11 +23,7 @@
     {
         internal override object GetValue() => Value;
         internal override string ToFluenceString() => Value.ToString();
-
-        public override string ToString()
-        {
-            return $"CharValue: {Value}";
-        }
+        public override string ToString() => $"CharValue: {Value}";
     }
 
     /// <summary>Represents a string literal.</summary>
@@ -49,11 +45,7 @@
     {
         internal override object GetValue() => Value;
         internal override string ToFluenceString() => Value ? "true" : "false";
-
-        public override string ToString()
-        {
-            return $"BooleanValue: {Value}";
-        }
+        public override string ToString() => $"BooleanValue: {Value}";
     }
 
     /// <summary>Represents the nil (null) value.</summary>
@@ -63,22 +55,14 @@
 
         internal override object GetValue() => null!;
         internal override string ToFluenceString() => "nil";
-
-        public override string ToString()
-        {
-            return $"NilValue";
-        }
+        public override string ToString() => $"NilValue";
     }
 
     /// <summary>Represents a range literal.</summary>
     internal sealed record class RangeValue(Value Start, Value End) : Value
     {
-        internal override string ToFluenceString() => $"{Start.ToFluenceString()}..{End.ToFluenceString()}";
-
-        public override string ToString()
-        {
-            return $"RangeValue: From {Start.ToFluenceString()} To {End}";
-        }
+        internal override string ToFluenceString() => $"<internal: range__{Start.ToFluenceString()}..{End.ToFluenceString()}>";
+        public override string ToString() => $"RangeValue: From {Start.ToFluenceString()} To {End}";
     }
 
     /// <summary>Represents a numerical literal, which can be an Integer, Float, Long, or Double.</summary>
@@ -110,9 +94,6 @@
             Value = literal;
             Type = type;
         }
-
-        internal override object GetValue() => Value;
-        internal override string ToFluenceString() => Value.ToString()!;
 
         private void AssignNumberType(object literal)
         {
@@ -159,10 +140,9 @@
             throw new FormatException($"Invalid number format: '{lexeme}'");
         }
 
-        public override string ToString()
-        {
-            return $"NumberValue ({Type}): {Value}";
-        }
+        internal override object GetValue() => Value;
+        internal override string ToFluenceString() => Value.ToString()!;
+        public override string ToString() => $"NumberValue ({Type}): {Value}";
     }
 
     /// <summary>A special value indicating a completed statement with no return value..</summary>
@@ -171,11 +151,7 @@
         internal static readonly StatementCompleteValue StatementCompleted = new StatementCompleteValue();
 
         internal override string ToFluenceString() => "<internal: statement_complete>";
-
-        public override string ToString()
-        {
-            return $"StatementCompletedValue";
-        }
+        public override string ToString() => $"StatementCompletedValue";
     }
 
     /// <summary>
@@ -196,15 +172,8 @@
             Name = name;
         }
 
-        internal override string ToFluenceString()
-        {
-            return $"<internal: static_struct> <{Struct}__{Name}>";
-        }
-
-        public override string ToString()
-        {
-            return $"StaticStructAccessValue: <{Struct}__{Name}>";
-        }
+        internal override string ToFluenceString() => $"<internal: static_struct__<{Struct}__{Name}>";
+        public override string ToString() => $"StaticStructAccessValue: <{Struct}__{Name}>";
     }
 
     /// <summary>
@@ -223,11 +192,7 @@
         }
 
         internal override string ToFluenceString() => "<internal: element_access>";
-
-        public override string ToString()
-        {
-            return $"ElementAccessValue";
-        }
+        public override string ToString() => $"ElementAccessValue";
     }
 
     /// <summary>A descriptor for a broadcast call template, used in chain assignments.</summary>
@@ -253,11 +218,7 @@
         }
 
         internal override string ToFluenceString() => "<internal: broadcast_template>";
-
-        public override string ToString()
-        {
-            return "BroadcastTemplateValue";
-        }
+        public override string ToString() => "BroadcastTemplateValue";
     }
 
     /// <summary>
@@ -271,12 +232,8 @@
         internal TempValue(int num) => TempName = $"__Temp{num}";
         internal TempValue(int num, string name) => TempName = $"__{name}{num}";
 
-        internal override string ToFluenceString() => "<internal: temp>";
-
-        public override string ToString()
-        {
-            return $"TempValue: {TempName}";
-        }
+        internal override string ToFluenceString() => "<internal: temp_register>";
+        public override string ToString() => $"TempValue: {TempName}";
     }
 
     /// <summary>
@@ -320,13 +277,23 @@
         }
     }
 
+    /// <summary>
+    /// Represents a lambda function, holding a reference to its function body.
+    /// </summary>
+    /// <param name="Function"></param>
+    internal sealed record class LambdaValue(FunctionValue Function) : Value
+    {
+        internal override string ToFluenceString() => $"<internal: lambda__{Function.Name}__{Function.Arity}>";
+        public override string ToString() => $"LambdaValue: {Function.Name}__{Function.Arity}";
+    }
+
     /// <summary>Represents a function's compile-time blueprint, including its bytecode address or native implementation.</summary>
     internal sealed record class FunctionValue : Value
     {
         /// <summary>
         /// The name of the function.
         /// </summary>
-        internal string Name { get; init; }
+        internal string Name { get; private set; }
 
         /// <summary>
         /// The number of parameters the function expects.
@@ -395,17 +362,13 @@
             Arguments = args;
         }
 
-        internal void SetScope(FluenceScope scope)
-        {
-            FunctionScope = scope;
-        }
+        internal void SetScope(FluenceScope scope) => FunctionScope = scope;
 
-        internal void SetStartAddress(int adr)
-        {
-            StartAddress = adr;
-        }
+        internal void SetStartAddress(int adr) => StartAddress = adr;
 
-        internal override string ToFluenceString() => $"<function {Name}/{Arity}>";
+        internal void SetName(string name) => Name = name;
+
+        internal override string ToFluenceString() => $"<internal: function__{Name}/{Arity}>";
 
         public override string ToString()
         {
@@ -430,11 +393,7 @@
         }
 
         internal override string ToFluenceString() => "<internal: property_access>";
-
-        public override string ToString()
-        {
-            return $"FieldAccess<{Target}:{FieldName}>";
-        }
+        public override string ToString() => $"FieldAccess<{Target}:{FieldName}>";
     }
 
     /// <summary>
@@ -452,11 +411,7 @@
         }
 
         internal override string ToFluenceString() => $"<internal: variable_{(IsReadOnly ? "solid" : "fluid")}>";
-
-        public override string ToString()
-        {
-            return $"VariableValue: {Name}:{(IsReadOnly ? "solid" : "fluid")}";
-        }
+        public override string ToString() => $"VariableValue: {Name}:{(IsReadOnly ? "solid" : "fluid")}";
     }
 
     /// <summary>Represents a specific member of an enum, holding both its name and integer value.</summary>
@@ -466,9 +421,6 @@
         internal string MemberName { get; init; }
         internal int Value { get; init; }
 
-        internal override object GetValue() => Value;
-        internal override string ToFluenceString() => $"{EnumTypeName}.{MemberName}";
-
         internal EnumValue(string enumTypeName, string memberName, int value)
         {
             EnumTypeName = enumTypeName;
@@ -476,10 +428,9 @@
             Value = value;
         }
 
-        public override string ToString()
-        {
-            return $"EnumValue: {EnumTypeName}.{MemberName}";
-        }
+        internal override object GetValue() => Value;
+        internal override string ToFluenceString() => $"{EnumTypeName}.{MemberName}";
+        public override string ToString() => $"EnumValue: {EnumTypeName}.{MemberName}";
     }
 
     /// <summary>
@@ -496,14 +447,7 @@
             Fields = fields;
         }
 
-        public override string ToString()
-        {
-            return $"{Struct} + {Fields}";
-        }
-
-        internal override string ToFluenceString()
-        {
-            return $"<internal: struct_value>";
-        }
+        internal override string ToFluenceString() => $"<internal: struct_value>";
+        public override string ToString() => $"{Struct} + {Fields}";
     }
 }

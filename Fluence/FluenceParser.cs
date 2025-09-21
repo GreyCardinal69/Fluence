@@ -1457,8 +1457,18 @@ namespace Fluence
             }
             else
             {
-                // func Test() =>, this format is just for returning something.
-                Value returnValue = ResolveValue(ParseExpression());
+                Value returnValue = NilValue.NilInstance;
+                // It is pleasant to do things like ... => self.x, self.t <~| ....
+                // But those are statements not expressions, to allow them we check for, as of now, only assignment pipes
+                // if found we parse a statement, and return nil.
+                if (IsChainAssignmentAhead(out _))
+                {
+                    ParseStatement();
+                }
+                else
+                {
+                    returnValue = ResolveValue(ParseExpression());
+                }
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, returnValue));
             }
 
@@ -2148,6 +2158,40 @@ namespace Fluence
                 }
 
                 if (type is TokenType.GUARD_PIPE or TokenType.GUARD_CHAIN or TokenType.OR_GUARD_CHAIN)
+                {
+                    pipeType = type;
+                    return true;
+                }
+
+                if (type == TokenType.EOF)
+                {
+                    pipeType = TokenType.UNKNOWN;
+                    return false;
+                }
+                lookahead++;
+            }
+        }
+
+        /// <summary>
+        /// Checks if a chain assignment operator is up ahead in the expression.
+        /// </summary>
+        /// <param name="pipeType">Returns the type of the pipe if true, else <see cref="TokenType.UNKNOWN"/>.</param>
+        /// <returns>True if a special chain assignment operator is ahead.</returns>
+        private bool IsChainAssignmentAhead(out TokenType pipeType)
+        {
+            int lookahead = 1;
+
+            while (true)
+            {
+                TokenType type = _lexer.PeekTokenTypeAheadByN(lookahead);
+
+                if (type == TokenType.EOL)
+                {
+                    pipeType = TokenType.UNKNOWN;
+                    return false;
+                }
+
+                if (type is >= TokenType.CHAIN_ASSIGN_N and <= TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN)
                 {
                     pipeType = type;
                     return true;
@@ -2937,7 +2981,6 @@ namespace Fluence
                 List<Value> args = new List<Value>() { left };
                 _lexer.Advance();
 
-                // We collect all comma separated arguments on the left.
                 do
                 {
                     args.Add(ParseRange());
@@ -3251,6 +3294,13 @@ namespace Fluence
             {
                 case VariableValue variable:
                     _currentParseState.CurrentScope.Declare(variable.Name, new VariableSymbol(variable.Name, valueToAssign));
+
+                    if (valueToAssign is LambdaValue)
+                    {
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewLambda, variable, valueToAssign));
+                        return;
+                    }
+
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, variable, valueToAssign));
                     break;
                 case PropertyAccessValue propAccess:
@@ -3558,6 +3608,15 @@ namespace Fluence
                     new StringValue(Mangler.Mangle(statAccess.Name, arguments.Count))
                 ));
             }
+            else if (callable is LambdaValue lambda)
+            {
+                _currentParseState.AddCodeInstruction(new InstructionLine(
+                    InstructionCode.CallFunction,
+                    result,
+                    lambda.Function,
+                    new NumberValue(arguments.Count)
+                ));
+            }
             else
             {
                 VariableValue var = (VariableValue)callable;
@@ -3595,7 +3654,7 @@ namespace Fluence
                 condition = new TempValue(_currentParseState.NextTempNumber++);
             }
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, condition, new NumberValue(0)));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, condition, NumberValue.Zero));
 
             TempValue truthy = new TempValue(_currentParseState.NextTempNumber++);
 
@@ -3622,6 +3681,71 @@ namespace Fluence
             _currentParseState.CodeInstructions[loopExitPatch].Lhs = new NumberValue(loopEndIndex);
 
             _currentParseState.ActiveLoopContexts.Pop();
+        }
+
+        /// <summary>
+        /// Parses the body of a lambda expression.
+        /// </summary>
+        /// <returns>The parsed lambda value.</returns>
+        private LambdaValue ParseLambda()
+        {
+            // '(' is already consumed.
+
+            int startAddressInSource = _lexer.PeekCurrentToken().LineInSourceCode;
+
+            List<string> args = new List<string>();
+
+            while (true)
+            {
+                TokenType type = _lexer.PeekNextTokenType();
+                if (type == TokenType.COMMA)
+                {
+                    _lexer.Advance();
+                }
+                else if (type == TokenType.IDENTIFIER)
+                {
+                    args.Add(_lexer.ConsumeToken().Text);
+                }
+                else if (type == TokenType.R_PAREN)
+                {
+                    break;
+                }
+                else
+                {
+                    ConstructAndThrowParserException($"Unidentified token inside lambda argument list: {_lexer.PeekNextToken()}, expected only identifiers", _lexer.PeekNextToken());
+                }
+            }
+
+            AdvanceAndExpect(TokenType.R_PAREN, "Expected a closing ')' for lambda declaration");
+            AdvanceAndExpect(TokenType.ARROW, "Expected an '=>' for the beginning of the lambda body");
+
+            int lambdaBodySkipIndex = _currentParseState.CodeInstructions.Count;
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
+
+            int lambdaCodeStartIndex = _currentParseState.CodeInstructions.Count;
+
+            if (_lexer.PeekNextTokenType() == TokenType.L_BRACE)
+            {
+                ParseBlockStatement();
+                _lexer.InsertNextToken(TokenType.EOL);
+                // If block doesnt end with return the VM will be stuck in an infinite loop.
+                if (_currentParseState.CodeInstructions[^1].Instruction != InstructionCode.Return)
+                {
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, NilValue.NilInstance));
+                }
+            }
+            else
+            {
+                Value ret = ResolveValue(ParseExpression());
+                _currentParseState.CodeInstructions.Add(new InstructionLine(InstructionCode.Return, ret));
+            }
+
+            _currentParseState.CodeInstructions[lambdaBodySkipIndex].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+
+            FunctionValue lambdaFunction = new FunctionValue($"lambda__{args.Count}", args.Count, lambdaCodeStartIndex, startAddressInSource, args);
+            lambdaFunction.SetScope(_currentParseState.CurrentScope);
+
+            return new LambdaValue(lambdaFunction);
         }
 
         /// <summary>
@@ -3775,7 +3899,11 @@ namespace Fluence
                     // At runtime, the VM will ensure the instance is available.
                     return new VariableValue("self");
                 case TokenType.L_PAREN:
-                    Value expr = ParseTernary();
+                    if (IsALambda())
+                    {
+                        return ParseLambda();
+                    }
+                    Value expr = ParseExpression();
                     AdvanceAndExpect(TokenType.R_PAREN, "Expected: a closing ')' to match the opening parenthesis.");
                     return expr;
             }
@@ -3864,6 +3992,32 @@ namespace Fluence
                 UnexpectedToken = token,
             };
             throw new FluenceParserException(errorMessage, context);
+        }
+
+        /// <summary>
+        /// Peeks ahead to see whether an expression that starts with a left parentheses is a lambda declaration.
+        /// </summary>
+        /// <returns>True if it is.</returns>
+        private bool IsALambda()
+        {
+            int lookAhead = 1;
+
+            while (true)
+            {
+                TokenType type = _lexer.PeekTokenTypeAheadByN(lookAhead);
+
+                if (type is not TokenType.COMMA and not TokenType.IDENTIFIER and not TokenType.R_PAREN)
+                {
+                    return false;
+                }
+
+                if (type == TokenType.R_PAREN && _lexer.PeekTokenTypeAheadByN(lookAhead + 1) == TokenType.ARROW)
+                {
+                    return true;
+                }
+
+                lookAhead++;
+            }
         }
 
         /// <summary>

@@ -444,6 +444,8 @@ namespace Fluence
             _dispatchTable[(int)InstructionCode.GotoIfFalse] = (inst) => ExecuteGotoIf(inst, false);
             _dispatchTable[(int)InstructionCode.GotoIfTrue] = (inst) => ExecuteGotoIf(inst, true);
 
+            _dispatchTable[(int)InstructionCode.NewLambda] = ExecuteNewLambda;
+
             //      ==!!==
             //      The following are unique opCodes generated only by the FluenceOptimizer.
             //      Some of these perfectly map to existing functions.
@@ -1682,6 +1684,7 @@ namespace Fluence
         internal void ExecuteGenericCallFunction(InstructionLine instruction)
         {
             RuntimeValue functionVal = GetRuntimeValue(instruction.Rhs);
+
             if (functionVal.ObjectReference is not FunctionObject function)
             {
                 throw ConstructRuntimeException($"Internal VM Error: Attempted to call a value that is not a function (got type '{GetDetailedTypeName(functionVal)}').");
@@ -1731,6 +1734,23 @@ namespace Fluence
             _ip = function.StartAddress;
         }
 
+        private void ExecuteNewLambda(InstructionLine instruction)
+        {
+            VariableValue destination = (VariableValue)instruction.Lhs;
+            LambdaValue lambdaValue = (LambdaValue)instruction.Rhs;
+
+            string baseName = destination.Name;
+            int arity = lambdaValue.Function.Arity;
+            string mangledName = Mangler.Mangle(baseName, arity);
+
+            lambdaValue.Function.SetName(mangledName);
+            FunctionObject lambdaObject = CreateFunctionObject(lambdaValue.Function);
+            lambdaObject.IsLambda = true;
+
+            AssignVariable(baseName, new RuntimeValue(lambdaObject), destination.IsReadOnly);
+            AssignVariable(mangledName, new RuntimeValue(lambdaObject), destination.IsReadOnly);
+        }
+
         /// <summary>
         /// Handles the CALL_METHOD instruction code, which invokes a method on an object instance.
         /// </summary>
@@ -1755,15 +1775,16 @@ namespace Fluence
 
             if (instanceVal.ObjectReference is not InstanceObject instance)
             {
-                throw ConstructRuntimeException($"Internal VM Error: Cannot call method '{methodName}' on a non-instance object.");
+                throw ConstructRuntimeException($"Internal VM Error: Cannot call method '{methodName}' on a non-instance object of type '{GetDetailedTypeName(instanceVal)}'.");
             }
 
-            FunctionValue methodBlueprint;
+            FunctionValue methodBlueprint = null!;
+            FunctionObject functionToExecute = null;
 
             // <script> frame.
             if (CurrentFrame.ReturnAddress == _byteCode.Count)
             {
-                methodBlueprint = instance!.Class.Constructors[methodNameVal.Value];
+                methodBlueprint = instance.Class.Constructors[methodNameVal.Value];
                 if (methodBlueprint == null)
                 {
                     SetRegister((TempValue)instruction.Lhs, instanceVal);
@@ -1772,19 +1793,28 @@ namespace Fluence
             }
             else
             {
-                if (!instance!.Class.Functions.TryGetValue(methodName, out methodBlueprint) && !instance!.Class.Constructors.TryGetValue(methodName, out methodBlueprint))
+                // A class field that is a function, that is currently a lambda.
+                if (instance.Class.Fields.Contains(Mangler.Demangle(methodName)))
                 {
-                    throw ConstructRuntimeException($"Internal VM Error: Undefined method '{methodName}' on struct '{instance.Class.Name}'.");
+                    functionToExecute = (FunctionObject)instance.GetField(Mangler.Demangle(methodName), this).ObjectReference;
+                    functionToExecute.IsLambda = true;
+                }
+                else if (!instance.Class.Functions.TryGetValue(methodName, out methodBlueprint) && !instance.Class.Constructors.TryGetValue(methodName, out methodBlueprint))
+                {
+                    throw ConstructRuntimeException($"Internal VM Error: Undefined method or lambda '{methodName}' on struct '{instance.Class.Name}'.");
                 }
             }
 
-            FunctionObject functionToExecute = new FunctionObject(
-                methodBlueprint.Name,
-                methodBlueprint.Arity,
-                methodBlueprint.Arguments,
-                methodBlueprint.StartAddress,
-                methodBlueprint.FunctionScope
-            );
+            if (functionToExecute == null)
+            {
+                functionToExecute = new FunctionObject(
+                    methodBlueprint.Name,
+                    methodBlueprint.Arity,
+                    methodBlueprint.Arguments,
+                    methodBlueprint.StartAddress,
+                    methodBlueprint.FunctionScope
+                );
+            }
 
             int argCountOnStack = _operandStack.Count;
             if (functionToExecute.Arity != argCountOnStack)
@@ -1897,7 +1927,11 @@ namespace Fluence
                 valueRef2 = returnValue;
             }
 
-            _functionObjectPool.Return(finishedFrame.Function);
+            // Lambdas don't return thier function object until their' parent call frame returns.
+            if (!finishedFrame.Function.IsLambda)
+            {
+                _functionObjectPool.Return(finishedFrame.Function);
+            }
             _callFramePool.Return(finishedFrame);
         }
 
@@ -1944,7 +1978,7 @@ namespace Fluence
 
             if (val is VariableValue variable)
             {
-                return ResolveVariable(variable.Name);
+                return ResolveVariable(variable.Name, val);
             }
 
             if (val is FunctionValue func)
@@ -1970,6 +2004,7 @@ namespace Fluence
                 NilValue => RuntimeValue.Nil,
                 StringValue str => ResolveStringObjectRuntimeValue(str.Value),
                 RangeValue range => ResolveRangeObjectRuntimeValue(GetRuntimeValue(range.Start), GetRuntimeValue(range.End)),
+                LambdaValue lambda => new RuntimeValue(CreateFunctionObject(lambda.Function)),
                 _ => throw ConstructRuntimeException($"Internal VM Error: Unrecognized Value type '{val.GetType().Name}' during conversion.")
             };
         }
@@ -2001,7 +2036,7 @@ namespace Fluence
         /// <param name="name">The name of the variable to resolve.</param>
         /// <returns>The <see cref="RuntimeValue"/> associated with the variable name.</returns>
         /// <exception cref="FluenceRuntimeException">Thrown if the variable is not defined in any accessible scope.</exception>
-        private RuntimeValue ResolveVariable(string name)
+        private RuntimeValue ResolveVariable(string name, Value val = null!)
         {
             ref RuntimeValue localValue = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentRegisters, name);
             if (!Unsafe.IsNullRef(ref localValue))
@@ -2028,13 +2063,18 @@ namespace Fluence
                 }
             }
 
-            // Last case, check in global scope.
             foreach (Symbol valSymbol in _globalScope.Symbols.Values)
             {
                 if (valSymbol is VariableSymbol varSymbol && string.Equals(varSymbol.Name, name, StringComparison.Ordinal))
                 {
                     return GetRuntimeValue(varSymbol.Value);
                 }
+            }
+
+            // Last case, a Lambda, and if not undefined.
+            if (val is not null and VariableValue)
+            {
+                return _cachedRegisters[Mangler.Demangle(name)];
             }
 
             throw ConstructRuntimeException($"Runtime Error: Undefined variable '{name}'.", RuntimeExceptionType.UnknownVariable);

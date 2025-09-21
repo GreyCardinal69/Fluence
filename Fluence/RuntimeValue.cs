@@ -52,6 +52,12 @@ namespace Fluence
         /// </summary>
         internal int StartAddressInSource { get; private set; }
 
+        /// <summary>
+        /// Does the current function object belong to a lambda variable, if true it is not
+        /// returned to a pool upon completion of its 'Return' instruction.
+        /// </summary>
+        internal bool IsLambda { get; set; }
+
         /// <summary>The names of the function's parameters.</summary>
         internal List<string> Parameters { get; private set; }
 
@@ -210,10 +216,10 @@ namespace Fluence
 
         public override string ToString()
         {
-            StringBuilder stringBuilder = new StringBuilder($"<instance of {Class.Name}>.");
+            StringBuilder stringBuilder = new StringBuilder($"<instance of {Class.Name}>. Fields:");
             foreach (KeyValuePair<string, RuntimeValue> item in _fields)
             {
-                stringBuilder.Append($"\n\t{item}");
+                stringBuilder.Append($"    {item}");
             }
             return stringBuilder.ToString();
         }

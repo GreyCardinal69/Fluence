@@ -1513,6 +1513,8 @@ namespace Fluence
 
         internal static SpecializedOpcodeHandler? CreateSpecializedCallFunctionHandler(InstructionLine insn, FunctionObject func)
         {
+            if (func.BluePrint == null) return null;
+
             FunctionSymbol functionBlueprint = func.BluePrint;
             TempValue destinationRegister = (TempValue)insn.Lhs;
             int argCount = functionBlueprint.Arguments.Count;

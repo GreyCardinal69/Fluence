@@ -237,6 +237,7 @@ namespace Fluence
                     targetAddr.ReAssign(MapAddr((int)targetAddr.Value));
                 }
                 if (insn.Rhs is FunctionValue fvRhs) PatchFunctionValue(fvRhs);
+                if (insn.Rhs is LambdaValue lambda) PatchFunctionValue(lambda.Function);
                 if (insn.Rhs2 is FunctionValue fvRhs2) PatchFunctionValue(fvRhs2);
             }
 

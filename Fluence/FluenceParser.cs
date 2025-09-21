@@ -2699,6 +2699,53 @@ namespace Fluence
             return left;
         }
 
+        private Value ParseReducerPipe(Value collection)
+        {
+            _lexer.Advance(); // Consume '|>>='.
+            AdvanceAndExpect(TokenType.L_PAREN, "Expected an opening '(' for Reducer Pipe arguments.");
+
+            Value initialValue = ParseExpression();
+            AdvanceAndExpect(TokenType.COMMA, "Expected a comma between initial value and lambda in Reducer Pipe.");
+            AdvanceAndExpect(TokenType.L_PAREN, "Expected an opening '(' for Reducer Pipe lambda.");
+
+            LambdaValue lambda = ParseLambda();
+
+            // Block body lambda.
+            if (_lexer.PeekNextTokenType() == TokenType.EOL)
+            {
+                _lexer.Advance();
+            }
+            if (lambda.Function.Arity != 2)
+            {
+                ConstructAndThrowParserException($"Reducer pipe lambda must take exactly 2 arguments (accumulator, element), but got {lambda.Function.Arity}.", _lexer.PeekNextToken());
+            }
+
+            AdvanceAndExpect(TokenType.R_PAREN, "Expected a closing ')' for Reducer Pipe arguments.");
+
+            TempValue accumulatorRegister = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, accumulatorRegister, initialValue));
+
+            TempValue iteratorRegister = new TempValue(_currentParseState.NextTempNumber++);
+            TempValue elementRegister = new TempValue(_currentParseState.NextTempNumber++);
+            TempValue continueFlagRegister = new TempValue(_currentParseState.NextTempNumber++);
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewIterator, iteratorRegister, collection));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
+            int gotoEndIndex = _currentParseState.CodeInstructions.Count - 1;
+
+            int loopBodyStartIndex = _currentParseState.CodeInstructions.Count;
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushTwoParams, accumulatorRegister, elementRegister));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, accumulatorRegister, lambda, new NumberValue(2)));
+
+            int conditionStartIndex = _currentParseState.CodeInstructions.Count;
+            _currentParseState.CodeInstructions[gotoEndIndex].Lhs = new NumberValue(conditionStartIndex);
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.IterNext, iteratorRegister, elementRegister, continueFlagRegister));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, new NumberValue(loopBodyStartIndex), continueFlagRegister));
+
+            return accumulatorRegister;
+        }
+
         /// <summary>
         /// Parses the right-hand side of a pipe expression, which must be a function call.
         /// It finds the `_` placeholder and injects the piped value.
@@ -2794,7 +2841,22 @@ namespace Fluence
         /// The main entry point for parsing any expression.
         /// It begins the chain of precedence by calling <see cref="ParseLogicalOr"/>.
         /// </summary>
-        private Value ParseExpression() => ParseLogicalOr();
+        private Value ParseExpression() => ParseReducerPipe();
+
+        /// <summary>
+        /// Parses a reducer pipe '|>>=' if there is one.
+        /// </summary>
+        private Value ParseReducerPipe()
+        {
+            Value left = ParseLogicalOr();
+
+            while (_lexer.TokenTypeMatches(TokenType.REDUCER_PIPE))
+            {
+                left = ParseReducerPipe(left);
+            }
+
+            return left;
+        }
 
         /// <summary>
         /// Parses logical OR expressions '||'.

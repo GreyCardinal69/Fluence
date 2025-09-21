@@ -868,6 +868,7 @@ namespace Fluence
         private void AssignTo(Value left, Value right)
         {
             RuntimeValue sourceValue = GetRuntimeValue(right);
+
             if (left is VariableValue destVar && sourceValue.ObjectReference is RangeObject range)
             {
                 ListObject list = new ListObject();

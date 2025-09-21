@@ -160,7 +160,7 @@ namespace Fluence
                 filepath = Parser.CurrentParseState.ProjectFilePaths[InstructionLine.ProjectFileIndex]; ;
                 fileName = Path.GetFileName(filepath);
                 string[] lines = File.ReadAllLines(filepath);
-                faultyLine = lines[InstructionLine.LineInSourceCode - 1];
+                faultyLine = lines[InstructionLine.LineInSourceCode == -1 ? 0 : InstructionLine.LineInSourceCode - 1];
             }
             else
             {
@@ -176,15 +176,15 @@ namespace Fluence
                 ElaborateOnContext(ExceptionType);
             }
 
+            stringBuilder.AppendLine($"\nException occured in: {(string.IsNullOrEmpty(fileName) ? "Script" : fileName)}.");
+
+            if (!string.IsNullOrEmpty(filepath))
+            {
+                stringBuilder.AppendLine($"Exact path: {filepath}");
+            }
+
             if (errorlLineNum > 0 && faultyLine != null && errorColumnNum > 0)
             {
-                stringBuilder.AppendLine($"\nException occured in: {(string.IsNullOrEmpty(fileName) ? "Script" : fileName)}.");
-
-                if (!string.IsNullOrEmpty(filepath))
-                {
-                    stringBuilder.AppendLine($"Exact path: {filepath}");
-                }
-
                 stringBuilder
                     .AppendLine($"RUNTIME ERROR at approximately: line {errorlLineNum}, Column {errorColumnNum}")
                     .AppendLine($"\nMost likely line where the error occured:")

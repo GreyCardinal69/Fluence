@@ -2372,7 +2372,7 @@ namespace Fluence
             {
                 DebugContext = debugCtx,
                 ExceptionMessage = exception,
-                InstructionLine = _byteCode[_ip],
+                InstructionLine = debugCtx.CurrentInstruction,
                 StackTraces = stackFrames,
                 Parser = _parser,
                 ExceptionType = excType,

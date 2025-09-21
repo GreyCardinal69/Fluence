@@ -80,6 +80,7 @@ namespace Fluence
         {
             string undefinedVarialbe = ExceptionMessage.Split('\'')[1];
             Mangler.Demangle(undefinedVarialbe, out int deMangledArity);
+            string deMangledVar = Mangler.Demangle(undefinedVarialbe);
 
             int errorlLineNum = InstructionLine.LineInSourceCode;
             int lineNumLen = errorlLineNum.ToString().Length;
@@ -90,7 +91,6 @@ namespace Fluence
                 if (symbol is FunctionSymbol func)
                 {
                     string deMangledFunc = Mangler.Demangle(func.Name);
-                    string deMangledVar = Mangler.Demangle(undefinedVarialbe);
 
                     if (string.Equals(deMangledFunc, deMangledVar, StringComparison.Ordinal) && func.Arity != deMangledArity)
                     {

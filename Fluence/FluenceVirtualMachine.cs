@@ -413,7 +413,8 @@ namespace Fluence
             _dispatchTable[(int)InstructionCode.NewRange] = ExecuteNewRange;
             _dispatchTable[(int)InstructionCode.GetLength] = ExecuteGetLength;
             _dispatchTable[(int)InstructionCode.ToString] = ExecuteToString;
-            _dispatchTable[(int)InstructionCode.Goto] = ExecuteGoto;
+            // Inlined directly in Run function.
+            // _dispatchTable[(int)InstructionCode.Goto] = ExecuteGoto;
             _dispatchTable[(int)InstructionCode.NewIterator] = ExecuteNewIterator;
             _dispatchTable[(int)InstructionCode.IterNext] = ExecuteIterNext;
             _dispatchTable[(int)InstructionCode.PushParam] = ExecutePushParam;
@@ -791,15 +792,12 @@ namespace Fluence
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
-            if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
+            SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedDivHandler(instruction, this, left, right);
+            if (handler != null)
             {
-                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedDivHandler(instruction, this, left, right);
-                if (handler != null)
-                {
-                    instruction.SpecializedHandler = handler;
-                    handler(instruction, this);
-                    return;
-                }
+                instruction.SpecializedHandler = handler;
+                handler(instruction, this);
+                return;
             }
 
             throw ConstructRuntimeException($"Runtime Error: Cannot apply operator '/' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
@@ -817,15 +815,12 @@ namespace Fluence
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
-            if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
+            SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedModuloHandler(instruction, this, left, right);
+            if (handler != null)
             {
-                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedModuloHandler(instruction, this, left, right);
-                if (handler != null)
-                {
-                    instruction.SpecializedHandler = handler;
-                    handler(instruction, this);
-                    return;
-                }
+                instruction.SpecializedHandler = handler;
+                handler(instruction, this);
+                return;
             }
 
             throw ConstructRuntimeException($"Runtime Error: Cannot apply operator '%' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
@@ -843,15 +838,12 @@ namespace Fluence
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
-            if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
+            SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedPowerHandler(instruction, this, left, right);
+            if (handler != null)
             {
-                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedPowerHandler(instruction, this, left, right);
-                if (handler != null)
-                {
-                    instruction.SpecializedHandler = handler;
-                    handler(instruction, this);
-                    return;
-                }
+                instruction.SpecializedHandler = handler;
+                handler(instruction, this);
+                return;
             }
 
             throw ConstructRuntimeException($"Runtime Error: Cannot apply operator '**' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
@@ -1080,18 +1072,6 @@ namespace Fluence
             {
                 _ip = (int)jmp.Value;
             }
-        }
-
-        /// <summary>
-        /// Handles the GOTO instruction for unconditional jumps.
-        /// </summary>
-        private void ExecuteGoto(InstructionLine instruction)
-        {
-            if (instruction.Lhs is not NumberValue target)
-            {
-                throw ConstructRuntimeException("Internal VM Error: The target of a GOTO instruction must be a NumberValue.");
-            }
-            _ip = (int)target.Value;
         }
 
         /// <summary>

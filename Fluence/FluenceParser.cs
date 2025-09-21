@@ -3903,7 +3903,7 @@ namespace Fluence
                     {
                         return ParseLambda();
                     }
-                    Value expr = ParseExpression();
+                    Value expr = ParseTernary();
                     AdvanceAndExpect(TokenType.R_PAREN, "Expected: a closing ')' to match the opening parenthesis.");
                     return expr;
             }

@@ -561,7 +561,7 @@ namespace Fluence
         /// <summary>
         /// Safely casts the internal <see cref="ObjectReference"/> to the specified type.
         /// </summary>
-        internal T? As<T>() where T : class
+        internal T As<T>() where T : class
         {
             return ObjectReference as T;
         }

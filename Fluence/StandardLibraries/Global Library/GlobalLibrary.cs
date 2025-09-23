@@ -1,6 +1,6 @@
 ﻿using static Fluence.FluenceInterpreter;
 
-namespace Fluence
+namespace Fluence.Global
 {
     /// <summary>
     /// Registers core global functions that are always available in any script.
@@ -61,6 +61,15 @@ namespace Fluence
                 RuntimeValue val = vm.PopStack();
                 return new RuntimeValue(Convert.ToInt32(((StringObject)val.ObjectReference).Value));
             }, ["Value"], globalScope));
+
+            // StringBuilder.
+            foreach (FunctionSymbol item in StringBuilderWrapper.CreateConstructors())
+            {
+                globalScope.Declare(item.Name, item);
+            }
+
+
+
         }
     }
 }

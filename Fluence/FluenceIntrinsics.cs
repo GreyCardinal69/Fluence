@@ -1,4 +1,5 @@
-﻿using static Fluence.FluenceInterpreter;
+﻿using Fluence.Global;
+using static Fluence.FluenceInterpreter;
 
 namespace Fluence
 {

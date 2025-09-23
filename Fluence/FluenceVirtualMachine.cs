@@ -445,6 +445,7 @@ namespace Fluence
             _dispatchTable[(int)InstructionCode.GotoIfTrue] = (inst) => ExecuteGotoIf(inst, true);
 
             _dispatchTable[(int)InstructionCode.NewLambda] = ExecuteNewLambda;
+            _dispatchTable[(int)InstructionCode.IncrementIntUnrestricted] = ExecuteIncrementIntUnrestricted;
 
             //      ==!!==
             //      The following are unique opCodes generated only by the FluenceOptimizer.
@@ -622,6 +623,13 @@ namespace Fluence
             }
 
             ExecuteGenericAdd(instruction);
+        }
+
+        private void ExecuteIncrementIntUnrestricted(InstructionLine instruction)
+        {
+            VariableValue var = (VariableValue)instruction.Lhs;
+
+            SetVariable(var, new RuntimeValue(GetRuntimeValue(var).IntValue + 1));
         }
 
         /// <summary>

@@ -90,6 +90,11 @@
                 DivAssign,
                 ModAssign,
 
+                /// <summary>
+                /// Increments an integer variable, even if it is readonly.
+                /// </summary>
+                IncrementIntUnrestricted,
+
                 AssignTwo,
 
                 BranchIfEqual,

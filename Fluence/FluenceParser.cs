@@ -1159,7 +1159,7 @@ namespace Fluence
             LoopContext whileContext = new LoopContext();
             _currentParseState.ActiveLoopContexts.Push(whileContext);
 
-            // the condition of the while, we must jump back here if loop reaches the end ( not terminated by break ).
+            // The condition of the while, we must jump back here if loop reaches the end ( not terminated by break ).
             // We'll patch this later.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
             int loopExitPatch = _currentParseState.CodeInstructions.Count - 1;
@@ -1171,7 +1171,6 @@ namespace Fluence
 
             int loopEndIndex = _currentParseState.CodeInstructions.Count;
 
-            // Patch our GoToIfFalse.
             _currentParseState.CodeInstructions[loopExitPatch].Lhs = new NumberValue(loopEndIndex);
 
             PatchLoopExits(whileContext, loopEndIndex, loopStartIndex);
@@ -3426,7 +3425,7 @@ namespace Fluence
             switch (descriptor)
             {
                 case VariableValue variable:
-                    _currentParseState.CurrentScope.Declare(variable.Name, new VariableSymbol(variable.Name, valueToAssign));
+                    _currentParseState.CurrentScope.Declare(variable.Name, new VariableSymbol(variable.Name, valueToAssign, variable.IsReadOnly));
 
                     if (valueToAssign is LambdaValue)
                     {
@@ -3548,18 +3547,6 @@ namespace Fluence
             // Check if an `init` method should be called.
             if (structSymbol.Constructors.Count != 0)
             {
-                foreach (FunctionValue item in structSymbol.Constructors.Values)
-                {
-                    if (arguments.Count != item.Arity)
-                    {
-                        continue;
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-
                 foreach (Value arg in arguments)
                 {
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, ResolveValue(arg)));
@@ -3577,7 +3564,7 @@ namespace Fluence
             else if (arguments.Count > 0)
             {
                 // No user-defined constructor, but arguments were provided. This is an error.
-                Token errorToken = _lexer.PeekNextToken();
+                Token errorToken = _lexer.PeekCurrentToken();
                 ConstructAndThrowParserException(
                     $"Invalid constructor call for '{structSymbol.Name}'. Struct '{structSymbol.Name}' has no 'init' constructor and cannot be called with arguments.",
                     errorToken
@@ -3779,19 +3766,26 @@ namespace Fluence
             if (_lexer.PeekNextTokenType() == TokenType.AS)
             {
                 _lexer.Advance();
+                bool isSolid = false;
+
+                if (_lexer.PeekNextTokenType() == TokenType.SOLID)
+                {
+                    isSolid = true;
+                    _lexer.Advance();
+                }
                 Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected an identifier for a 'x times as y' statement");
-                condition = new VariableValue(nameToken.Text);
+                condition = new VariableValue(nameToken.Text, isSolid);
             }
             else
             {
                 condition = new TempValue(_currentParseState.NextTempNumber++);
             }
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, condition, NumberValue.Zero));
+            GenerateWriteBackInstruction(condition, NumberValue.Zero);
 
             TempValue truthy = new TempValue(_currentParseState.NextTempNumber++);
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, truthy, condition, count));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GreaterEqual, truthy, condition, count));
             int loopStartIndex = _currentParseState.CodeInstructions.Count;
 
             LoopContext loopContext = new LoopContext();
@@ -3804,7 +3798,7 @@ namespace Fluence
 
             _lexer.InsertNextToken(TokenType.EOL);
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Add, condition, condition, NumberValue.One));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.IncrementIntUnrestricted, condition));
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex - 1)));
 
             int loopEndIndex = _currentParseState.CodeInstructions.Count;

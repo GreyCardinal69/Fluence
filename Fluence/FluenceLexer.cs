@@ -267,6 +267,17 @@ namespace Fluence
         /// </summary>
         internal void Advance() => _tokenBuffer.Advance();
 
+        /// <summary>
+        /// Advances the token stream by a given amount of positions without returning the consumed token. Advances by 1 by default.
+        /// </summary>
+        internal void AdvanceMany(int n = 1)
+        {
+            for (int i = 0; i < n; i++)
+            {
+                _tokenBuffer.Advance();
+            }
+        }
+
         internal void ModifyTokenAt(int index, Token newToken) => _tokenBuffer.ModifyTokenAt(index, newToken);
 
         /// <summary>

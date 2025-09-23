@@ -2682,7 +2682,7 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Parses a chain of pipe operators.
+        /// Dispatches the parsing of '|>' operator or a chain of it.
         /// </summary>
         private Value ParsePipe()
         {
@@ -2690,16 +2690,55 @@ namespace Fluence
 
             // While we see a pipe, parse it and try again.
             bool first = true;
-            while (ConsumeTokenIfMatch(TokenType.PIPE))
+            while (_lexer.PeekNextTokenType() == TokenType.PIPE)
             {
-                left = ParsePipedFunctionCall(left, first);
+                left = ParsePipe(left, first);
                 first = false;
             }
 
             return left;
         }
 
-        private Value ParseReducerPipe(Value collection)
+        /// <summary>
+        /// Parses a chain of '|>' pipe operators.
+        /// </summary>
+        private Value ParsePipe(Value left, bool first)
+        {
+            while (true)
+            {
+                TokenType pipeType = _lexer.PeekNextTokenType();
+
+                if (pipeType == TokenType.PIPE)
+                {
+                    if (_lexer.PeekTokenTypeAheadByN(2) == TokenType.DOT)
+                    {
+                        _lexer.AdvanceMany(2); // Consume '|>' and '.'
+                        // This is a method pipe call, like `|>.append()`
+                        left = ParseMethodPipeCall(left);
+                    }
+                    else
+                    {
+                        // This is a standard pipe call, like `|> printl()`
+                        _lexer.Advance(); // Consume `|>`.
+                        left = ParseStandardPipeCall(left, first);
+                    }
+                }
+                else
+                {
+                    // No more pipe operators, the chain is finished.
+                    break;
+                }
+            }
+
+            return left;
+        }
+
+        /// <summary>
+        /// Parses a '|>>=' reducer pipe
+        /// </summary>
+        /// <param name="collection">The collection to reduce.</param>
+        /// <returns>The reduced result.</returns>
+        private TempValue ParseReducerPipe(Value collection)
         {
             _lexer.Advance(); // Consume '|>>='.
             AdvanceAndExpect(TokenType.L_PAREN, "Expected an opening '(' for Reducer Pipe arguments.");
@@ -2747,11 +2786,43 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Parses a method call on the right-hand side of a method pipe `|>.`.
+        /// Assumes the `|>` and `.` tokens have already been consumed.
+        /// </summary>
+        /// <param name="pipedObject">The result of the previous expression (the object to call the method on).</param>
+        private TempValue ParseMethodPipeCall(Value pipedObject)
+        {
+            Token methodNameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a method name after '|>.'");
+            string methodName = methodNameToken.Text;
+
+            AdvanceAndExpect(TokenType.L_PAREN, "Expected '(' to begin method arguments.");
+            List<Value> arguments = ParseArgumentList();
+            AdvanceAndExpect(TokenType.R_PAREN, "Expected ')' to close method arguments.");
+
+            foreach (Value arg in arguments)
+            {
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, ResolveValue(arg)));
+            }
+
+            TempValue result = new TempValue(_currentParseState.NextTempNumber++);
+            string mangledMethodName = Mangler.Mangle(methodName, arguments.Count);
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(
+                InstructionCode.CallMethod,
+                result,
+                pipedObject,
+                new StringValue(mangledMethodName)
+            ));
+
+            return result;
+        }
+
+        /// <summary>
         /// Parses the right-hand side of a pipe expression, which must be a function call.
         /// It finds the `_` placeholder and injects the piped value.
         /// </summary>
         /// <param name="leftSidePipedValue">The value from the left-hand side of the pipe.</param>
-        private TempValue ParsePipedFunctionCall(Value leftSidePipedValue, bool firstArg)
+        private TempValue ParseStandardPipeCall(Value leftSidePipedValue, bool firstArg)
         {
             Value targetFunction = ParsePrimary();
             AdvanceAndExpect(TokenType.L_PAREN, "Expected a function call with `(` after a pipe `|>` operator.");

@@ -8,28 +8,9 @@ namespace Fluence
     /// <summary>
     /// Represents a "closure" that binds an instance of an object (the receiver).
     /// </summary>
-    internal sealed record class BoundMethodObject
+    internal sealed record class BoundMethodObject(InstanceObject Receiver, FunctionValue Method)
     {
-        /// <summary>
-        /// The instance of the object that the method belongs to.
-        /// </summary>
-        internal InstanceObject Receiver { get; init; }
-
-        /// <summary>
-        /// The blueprint of the function to be called.
-        /// </summary>
-        internal FunctionValue Method { get; init; }
-
-        public BoundMethodObject(InstanceObject receiver, FunctionValue method)
-        {
-            Receiver = receiver;
-            Method = method;
-        }
-
-        public override string ToString()
-        {
-            return $"<bound method {Method.Name} of {Receiver}>";
-        }
+        public override string ToString() => $"<bound method {Method.Name} of {Receiver}>";
     }
 
     /// <summary>
@@ -59,28 +40,28 @@ namespace Fluence
         internal bool IsLambda { get; set; }
 
         /// <summary>The names of the function's parameters.</summary>
-        internal List<string> Parameters { get; private set; }
+        internal List<string>? Parameters { get; private set; }
 
         /// <summary>The names of the function's parameters passed by reference.</summary>
         internal HashSet<string> ParametersByRef { get; set; }
 
         /// <summary>The lexical scope in which the function was defined, used for resolving non-local variables.</summary>
-        internal FluenceScope DefiningScope { get; private set; }
+        internal FluenceScope? DefiningScope { get; private set; }
 
         /// <summary> A direct reference to the immutable, function symbol that defines this function. </summary>
-        internal FunctionSymbol BluePrint { get; private set; }
+        internal FunctionSymbol? BluePrint { get; private set; }
 
         /// <summary>Indicates whether this function is implemented in C# (intrinsic) or Fluence bytecode.</summary>
         internal bool IsIntrinsic { get; private set; }
 
         /// <summary>The C# delegate that implements the body of an intrinsic function.</summary>
-        internal IntrinsicMethod IntrinsicBody { get; private set; }
+        internal IntrinsicMethod? IntrinsicBody { get; private set; }
 
         internal FunctionObject(string name, int arity, List<string> parameters, int startAddress, FluenceScope definingScope)
         {
             Name = name;
             Arity = arity;
-            Parameters = parameters;
+            Parameters = parameters ?? new List<string>();
             StartAddress = startAddress;
             DefiningScope = definingScope;
             IsIntrinsic = false;
@@ -108,7 +89,7 @@ namespace Fluence
             StartAddressInSource = lineInSource;
             Name = name;
             Arity = arity;
-            Parameters = parameters;
+            Parameters = parameters ?? new List<string>();
             StartAddress = startAddress;
             DefiningScope = definingScope;
             IsIntrinsic = false;
@@ -126,17 +107,17 @@ namespace Fluence
             BluePrint = symb!;
         }
 
-        internal void SetBluePrint(FunctionSymbol symb) => BluePrint = symb;
+        internal void SetBluePrint(FunctionSymbol? symb) => BluePrint = symb;
 
         internal void Reset()
         {
             StartAddressInSource = 0;
-            BluePrint = null!;
+            BluePrint = null;
             Name = null!;
             Arity = 0;
-            Parameters = null!;
+            Parameters = null;
             StartAddress = 0;
-            DefiningScope = null!;
+            DefiningScope = null;
             IsIntrinsic = false;
             ParametersByRef = null!;
         }
@@ -146,18 +127,18 @@ namespace Fluence
         internal string ToCodeLikeString()
         {
             StringBuilder sb = new StringBuilder($"func {Mangler.Demangle(Name)}(");
-
-            int i = 0;
-            foreach (string arg in Parameters)
+            for (int i = 0; i < Parameters?.Count; i++)
             {
+                string arg = Parameters[i];
                 if (ParametersByRef.Contains(arg))
                 {
-                    sb.Append($"ref {arg}").Append(i == Parameters.Count - 1 ? "" : ", ");
-                    i++;
-                    continue;
+                    sb.Append($"ref {arg}");
                 }
-                sb.Append(arg).Append(i == Parameters.Count - 1 ? "" : ", ");
-                i++;
+                else
+                {
+                    sb.Append(arg);
+                }
+                if (i < Parameters.Count - 1) sb.Append(", ");
             }
             sb.Append(") => ...");
             return sb.ToString();
@@ -235,17 +216,13 @@ namespace Fluence
         /// <param name="value">The new value for the field.</param>
         internal void SetField(string fieldName, RuntimeValue value)
         {
+            ArgumentNullException.ThrowIfNull(fieldName);
             _fields[fieldName] = value;
         }
 
         public override string ToString()
         {
-            StringBuilder stringBuilder = new StringBuilder($"<instance of {Class.Name}>. Fields:");
-            foreach (KeyValuePair<string, RuntimeValue> item in _fields)
-            {
-                stringBuilder.Append($"    {item}");
-            }
-            return stringBuilder.ToString();
+            return $"<instance of {Class.Name}>. Fields: {string.Join(", ", _fields.Select(kvp => $"{kvp.Key}: {kvp.Value}"))}";
         }
     }
 
@@ -255,40 +232,36 @@ namespace Fluence
     /// </summary>
     internal sealed record class ListObject : IFluenceObject
     {
-        /// <summary>
-        /// The elements of the list.
-        /// </summary>
+        /// <summary>The elements of the list.</summary>
         internal List<RuntimeValue> Elements { get; } = new();
 
-        public override string ToString()
-        {
-            return $"ListObject [{string.Join(", ", Elements)}]";
-        }
-
         /// <summary>Implements the native 'length()' method for lists.</summary>
-        private static RuntimeValue ListLength(FluenceVirtualMachine vm, RuntimeValue self)
+        private static RuntimeValue Length(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            return new RuntimeValue(self.As<ListObject>()!.Elements.Count);
+            return new RuntimeValue(self.As<ListObject>()?.Elements.Count ?? 0);
         }
 
         /// <summary>Implements the native 'push(element)' method for lists.</summary>
-        private static RuntimeValue ListPush(FluenceVirtualMachine vm, RuntimeValue self)
+        private static RuntimeValue Push(FluenceVirtualMachine vm, RuntimeValue self)
         {
             RuntimeValue element = vm.PopStack();
-            self.As<ListObject>()!.Elements.Add(element);
+            self.As<ListObject>()?.Elements.Add(element);
             return RuntimeValue.Nil;
         }
 
         /// <inheritdoc/>
         public bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method)
         {
-            switch (name)
+            method = name switch
             {
-                case "push__1": method = ListPush; return true;
-                case "length__0": method = ListLength; return true;
-                default: method = null!; return false;
-            }
+                "push__1" => Push,
+                "length__0" => Length,
+                _ => null!
+            };
+            return method != null;
         }
+
+        public override string ToString() => $"ListObject [{string.Join(", ", Elements)}]";
     }
 
     /// <summary>
@@ -298,34 +271,22 @@ namespace Fluence
     {
         internal char Value { get; private set; }
 
-        internal CharObject(char value)
-        {
-            Value = value;
-        }
+        internal CharObject(char value) => Value = value;
 
-        public CharObject()
-        {
-        }
+        public CharObject() { }
 
-        internal void Initialize(char value)
-        {
-            Value = value;
-        }
+        internal void Initialize(char value) => Value = value;
 
-        internal void Reset()
-        {
-            Value = default;
-        }
+        internal void Reset() => Value = default;
 
         /// <inheritdoc/>
         public bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method)
         {
-            switch (name)
+            method = name switch
             {
-                default:
-                    method = null!;
-                    return false;
-            }
+                _ => null!
+            };
+            return method != null;
         }
 
         public override string ToString() => Value.ToString();
@@ -336,54 +297,53 @@ namespace Fluence
     /// </summary>
     internal sealed record class StringObject : IFluenceObject
     {
-        internal string Value { get; private set; }
+        internal string? Value { get; private set; }
 
         internal StringObject(string value) => Value = value;
 
-        public StringObject()
-        {
-        }
+        public StringObject() { }
 
-        internal void Reset() => Value = null!;
+        internal void Reset() => Value = null;
 
-        internal void Initialize(string str) => Value = str;
+        internal void Initialize(string? str) => Value = str;
 
         /// <summary>Implements the native '.length' property for strings.</summary>
-        private static RuntimeValue StringLength(FluenceVirtualMachine vm, RuntimeValue self)
+        private static RuntimeValue Length(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            return new RuntimeValue(self.As<StringObject>()!.Value.Length);
+            return new RuntimeValue(self.As<StringObject>()?.Value?.Length ?? 0);
         }
 
         /// <summary>Implements the native 'ToUpper()' function for strings.</summary>
-        private static RuntimeValue StringToUpper(FluenceVirtualMachine vm, RuntimeValue self)
+        private static RuntimeValue ToUpper(FluenceVirtualMachine vm, RuntimeValue self)
         {
             StringObject? strObj = self.As<StringObject>();
-            string upper = strObj!.Value.ToUpperInvariant();
+            string upper = strObj?.Value?.ToUpperInvariant() ?? string.Empty;
             return vm.ResolveStringObjectRuntimeValue(upper);
         }
 
         /// <summary>Implements the native 'IndexOf()' function for strings.</summary>
-        private static RuntimeValue StringFind(FluenceVirtualMachine vm, RuntimeValue self)
+        private static RuntimeValue Find(FluenceVirtualMachine vm, RuntimeValue self)
         {
             RuntimeValue charToFind = vm.PopStack();
             if (charToFind.ObjectReference is not CharObject charObj)
             {
                 throw vm.ConstructRuntimeException("string.find() expects a character argument.");
             }
-            int index = self.As<StringObject>()!.Value.IndexOf(charObj.Value);
+            int index = self.As<StringObject>()?.Value?.IndexOf(charObj.Value) ?? -1;
             return new RuntimeValue(index);
         }
 
         /// <inheritdoc/>
         public bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method)
         {
-            switch (name)
+            method = name switch
             {
-                case "length__0": method = StringLength; return true;
-                case "to_upper__0": method = StringToUpper; return true;
-                case "find__1": method = StringFind; return true;
-                default: method = null!; return false;
-            }
+                "length__0" => Length,
+                "to_upper__0" => ToUpper,
+                "find__1" => Find,
+                _ => null!
+            };
+            return method != null;
         }
 
         public override string ToString() => Value;
@@ -403,9 +363,7 @@ namespace Fluence
             End = end;
         }
 
-        public RangeObject()
-        {
-        }
+        public RangeObject() { }
 
         internal void Reset()
         {
@@ -428,7 +386,7 @@ namespace Fluence
     internal sealed record class IteratorObject
     {
         /// <summary>The object being iterated over.</summary>
-        internal object Iterable { get; private set; }
+        internal object? Iterable { get; private set; }
 
         /// <summary>The current position within the iteration./summary>
         internal int CurrentIndex { get; set; }
@@ -439,17 +397,15 @@ namespace Fluence
             CurrentIndex = 0;
         }
 
-        public IteratorObject()
-        {
-        }
+        public IteratorObject() { }
 
         internal void Reset()
         {
-            Iterable = null!;
+            Iterable = null;
             CurrentIndex = 0;
         }
 
-        internal void Initialize(object iterator)
+        internal void Initialize(object? iterator)
         {
             Iterable = iterator;
             CurrentIndex = 0;
@@ -495,13 +451,13 @@ namespace Fluence
         internal readonly float FloatValue;
 
         [FieldOffset(8)]
-        internal readonly object ObjectReference;
+        internal readonly object? ObjectReference;
         [FieldOffset(16)]
         internal readonly RuntimeValueType Type;
         [FieldOffset(17)]
         internal readonly RuntimeNumberType NumberType;
 
-        internal static readonly RuntimeValue Nil = new(RuntimeValueType.Nil);
+        internal static readonly RuntimeValue Nil = new RuntimeValue(RuntimeValueType.Nil);
 
         private RuntimeValue(RuntimeValueType type)
         {
@@ -509,75 +465,57 @@ namespace Fluence
             Type = type;
         }
 
-        internal RuntimeValue(bool value)
+        public RuntimeValue(bool value) : this(RuntimeValueType.Boolean)
         {
-            this = default;
-            Type = RuntimeValueType.Boolean;
-            // Booleans can be stored in the IntValue field.
             IntValue = value ? 1 : 0;
         }
 
-        internal RuntimeValue(double value)
+        public RuntimeValue(double value) : this(RuntimeValueType.Number)
         {
-            this = default;
-            Type = RuntimeValueType.Number;
             NumberType = RuntimeNumberType.Double;
             DoubleValue = value;
         }
 
-        internal RuntimeValue(int value)
+        public RuntimeValue(int value) : this(RuntimeValueType.Number)
         {
-            this = default;
-            Type = RuntimeValueType.Number;
             NumberType = RuntimeNumberType.Int;
             IntValue = value;
         }
 
-        internal RuntimeValue(float value)
+        public RuntimeValue(float value) : this(RuntimeValueType.Number)
         {
-            this = default;
-            Type = RuntimeValueType.Number;
             NumberType = RuntimeNumberType.Float;
             FloatValue = value;
         }
 
-        internal RuntimeValue(long value)
+        public RuntimeValue(long value) : this(RuntimeValueType.Number)
         {
-            this = default;
-            Type = RuntimeValueType.Number;
             NumberType = RuntimeNumberType.Long;
             LongValue = value;
         }
 
-        internal RuntimeValue(object obj)
+        public RuntimeValue(object? obj) : this(RuntimeValueType.Object)
         {
-            this = default;
-            Type = RuntimeValueType.Object;
             ObjectReference = obj;
         }
 
-        internal bool Is<T>() => ObjectReference is T;
-        internal bool INot<T>() => ObjectReference is not T;
+        internal bool Is<T>() where T : class => ObjectReference is T;
 
-        internal bool Is<T>(out T? value)
+        internal bool IsNot<T>() where T : class => ObjectReference is not T;
+
+        internal bool Is<T>(out T? value) where T : class
         {
-            if (ObjectReference is T t)
-            {
-                value = t;
-                return true;
-            }
-            value = default;
-            return false;
+            value = ObjectReference as T;
+            return value != null;
         }
 
         internal bool IsNot<T>(out T? value) where T : class
         {
-            if (ObjectReference is T)
+            if (ObjectReference is T t)
             {
-                value = default;
+                value = null;
                 return false;
             }
-
             value = ObjectReference as T;
             return true;
         }
@@ -585,16 +523,7 @@ namespace Fluence
         /// <summary>
         /// Safely casts the internal <see cref="ObjectReference"/> to the specified type.
         /// </summary>
-        internal T As<T>() where T : class
-        {
-            return ObjectReference as T;
-        }
-
-        internal bool As<T>(out T? value) where T : class
-        {
-            value = ObjectReference as T;
-            return value != null;
-        }
+        internal T? As<T>() where T : class => ObjectReference as T;
 
         /// <summary>
         /// Gets a value indicating whether the <see cref="RuntimeValue"/> is "truthy".
@@ -608,7 +537,7 @@ namespace Fluence
             return Type switch
             {
                 RuntimeValueType.Nil => "nil",
-                RuntimeValueType.Boolean => (IntValue != 0).ToString().ToLower(CultureInfo.InvariantCulture),
+                RuntimeValueType.Boolean => IntValue != 0 ? "true" : "false",
                 RuntimeValueType.Number => NumberType switch
                 {
                     RuntimeNumberType.Int => IntValue.ToString(),

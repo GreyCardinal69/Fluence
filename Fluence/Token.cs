@@ -96,6 +96,7 @@
             TIMES,  // N times do x.
             UNLESS, // Reverse of if, unless ( x ) do something.
             AS,     // Used with 'times', and maybe others in the future.
+            REF,    // Passed by reference.
 
             // Pipe Family Operators.
             PIPE,               // |>

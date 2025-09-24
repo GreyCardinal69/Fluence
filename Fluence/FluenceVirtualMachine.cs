@@ -233,6 +233,7 @@ namespace Fluence
             internal TempValue DestinationRegister { get; private set; }
             internal FunctionObject Function { get; private set; }
             internal int ReturnAddress { get; private set; }
+            internal Dictionary<string, string> RefParameterMap { get; } = new();
 
             /// <summary>
             /// A cache to store the readonly status of variables in this scope.
@@ -246,6 +247,7 @@ namespace Fluence
 
             public void Reset()
             {
+                RefParameterMap.Clear();
                 Registers.Clear();
                 WritableCache.Clear();
                 DestinationRegister = null!;
@@ -446,6 +448,7 @@ namespace Fluence
 
             _dispatchTable[(int)InstructionCode.NewLambda] = ExecuteNewLambda;
             _dispatchTable[(int)InstructionCode.IncrementIntUnrestricted] = ExecuteIncrementIntUnrestricted;
+            _dispatchTable[(int)InstructionCode.LoadAddress] = ExecuteLoadAddress;
 
             //      ==!!==
             //      The following are unique opCodes generated only by the FluenceOptimizer.
@@ -630,6 +633,12 @@ namespace Fluence
             VariableValue var = (VariableValue)instruction.Lhs;
 
             SetVariable(var, new RuntimeValue(GetRuntimeValue(var).IntValue + 1));
+        }
+
+        private void ExecuteLoadAddress(InstructionLine instruction)
+        {
+            ReferenceValue reference = (ReferenceValue)instruction.Lhs;
+            _operandStack.Push(new RuntimeValue(reference));
         }
 
         /// <summary>
@@ -1733,9 +1742,26 @@ namespace Fluence
             for (int i = function.Parameters.Count - 1; i >= 0; i--)
             {
                 string paramName = function.Parameters[i];
-                RuntimeValue argValue = _operandStack.Pop();
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
-                valueRef = argValue;
+                bool isRefParam = function.ParametersByRef.Contains(paramName);
+                RuntimeValue argFromStack = _operandStack.Pop();
+
+                if (isRefParam)
+                {
+                    if (argFromStack.ObjectReference is not ReferenceValue)
+                    {
+                        throw ConstructRuntimeException($"Internal VM Error: Argument '{paramName}' in function: \"{function.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                    }
+
+                    VariableValue refVar = ((ReferenceValue)argFromStack.ObjectReference).Reference;
+                    newFrame.RefParameterMap[paramName] = refVar.Name;
+                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
+                    valueRef = GetRuntimeValue(refVar);
+                }
+                else // Pass by value.
+                {
+                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
+                    valueRef = argFromStack.ObjectReference is ReferenceValue refVal ? GetRuntimeValue(refVal.Reference) : argFromStack;
+                }
             }
 
             _callStack.Push(newFrame);
@@ -1822,7 +1848,10 @@ namespace Fluence
                     methodBlueprint.Arguments,
                     methodBlueprint.StartAddress,
                     methodBlueprint.FunctionScope
-                );
+                )
+                {
+                    ParametersByRef = methodBlueprint.ArgumentsByRef
+                };
             }
 
             int argCountOnStack = _operandStack.Count;
@@ -1840,8 +1869,25 @@ namespace Fluence
             for (int i = functionToExecute.Parameters.Count - 1; i >= 0; i--)
             {
                 string paramName = functionToExecute.Parameters[i];
-                RuntimeValue argValue = _operandStack.Pop();
-                newFrame.Registers[paramName] = argValue;
+                bool isRefParam = functionToExecute.ParametersByRef.Contains(paramName);
+                RuntimeValue argFromStack = _operandStack.Pop();
+
+                if (isRefParam)
+                {
+                    if (argFromStack.ObjectReference is not ReferenceValue)
+                    {
+                        throw ConstructRuntimeException($"Internal VM Error: Argument '{paramName}' in function: \"{functionToExecute.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                    }
+                    VariableValue refVar = ((ReferenceValue)argFromStack.ObjectReference).Reference;
+                    newFrame.RefParameterMap[paramName] = refVar.Name;
+                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
+                    valueRef = GetRuntimeValue(refVar);
+                }
+                else // Pass by value.
+                {
+                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
+                    valueRef = argFromStack.ObjectReference is ReferenceValue refVal ? GetRuntimeValue(refVal.Reference) : argFromStack;
+                }
             }
 
             _callStack.Push(newFrame);
@@ -1881,7 +1927,10 @@ namespace Fluence
                 methodBlueprint.Arguments,
                 methodBlueprint.StartAddress,
                 methodBlueprint.FunctionScope
-            );
+            )
+            {
+                ParametersByRef = methodBlueprint.ArgumentsByRef
+            };
 
             int argCountOnStack = _operandStack.Count;
             if (functionToExecute.Arity != argCountOnStack)
@@ -1895,8 +1944,25 @@ namespace Fluence
             for (int i = functionToExecute.Parameters.Count - 1; i >= 0; i--)
             {
                 string paramName = functionToExecute.Parameters[i];
-                RuntimeValue argValue = _operandStack.Pop();
-                newFrame.Registers[paramName] = argValue;
+                bool isRefParam = functionToExecute.ParametersByRef.Contains(paramName);
+                RuntimeValue argFromStack = _operandStack.Pop();
+
+                if (isRefParam)
+                {
+                    if (argFromStack.ObjectReference is not ReferenceValue)
+                    {
+                        throw ConstructRuntimeException($"Internal VM Error: Argument '{paramName}' in function: \"{functionToExecute.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                    }
+                    VariableValue refVar = ((ReferenceValue)argFromStack.ObjectReference).Reference;
+                    newFrame.RefParameterMap[paramName] = refVar.Name;
+                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
+                    valueRef = GetRuntimeValue(refVar);
+                }
+                else // Pass by value.
+                {
+                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
+                    valueRef = argFromStack.ObjectReference is ReferenceValue refVal ? GetRuntimeValue(refVal.Reference) : argFromStack;
+                }
             }
 
             _callStack.Push(newFrame);
@@ -1926,6 +1992,15 @@ namespace Fluence
             {
                 ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, finishedFrame.DestinationRegister.TempName, out _);
                 valueRef = returnValue;
+            }
+
+            foreach (KeyValuePair<string, string> mapping in finishedFrame.RefParameterMap)
+            {
+                string paramName = mapping.Key;
+                string originalVarName = mapping.Value;
+
+                RuntimeValue finalValue = finishedFrame.Registers[paramName];
+                _cachedRegisters[originalVarName] = finalValue;
             }
 
             _ip = finishedFrame.ReturnAddress;
@@ -2145,6 +2220,7 @@ namespace Fluence
             }
 
             func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.StartAddress, funcSymbol.DefiningScope, funcSymbol, funcSymbol.StartAddressInSource);
+            func.ParametersByRef = funcSymbol.ArgumentsByRef;
             return func;
         }
 

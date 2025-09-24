@@ -61,6 +61,9 @@ namespace Fluence
         /// <summary>The names of the function's parameters.</summary>
         internal List<string> Parameters { get; private set; }
 
+        /// <summary>The names of the function's parameters passed by reference.</summary>
+        internal HashSet<string> ParametersByRef { get; set; }
+
         /// <summary>The lexical scope in which the function was defined, used for resolving non-local variables.</summary>
         internal FluenceScope DefiningScope { get; private set; }
 
@@ -135,9 +138,30 @@ namespace Fluence
             StartAddress = 0;
             DefiningScope = null!;
             IsIntrinsic = false;
+            ParametersByRef = null!;
         }
 
         public override string ToString() => $"<function {Name}/{Arity}>";
+
+        internal string ToCodeLikeString()
+        {
+            StringBuilder sb = new StringBuilder($"func {Mangler.Demangle(Name)}(");
+
+            int i = 0;
+            foreach (string arg in Parameters)
+            {
+                if (ParametersByRef.Contains(arg))
+                {
+                    sb.Append($"ref {arg}").Append(i == Parameters.Count - 1 ? "" : ", ");
+                    i++;
+                    continue;
+                }
+                sb.Append(arg).Append(i == Parameters.Count - 1 ? "" : ", ");
+                i++;
+            }
+            sb.Append(") => ...");
+            return sb.ToString();
+        }
     }
 
     /// <summary>

@@ -155,6 +155,23 @@
     }
 
     /// <summary>
+    /// Represents a variable passed by reference.
+    /// </summary>
+    /// <param name="Reference">The variable to pass by reference.</param>
+    internal sealed record class ReferenceValue(VariableValue Reference) : Value
+    {
+        internal override string ToFluenceString()
+        {
+            return $"<internal: reference_value__{Reference}";
+        }
+
+        public override string ToString()
+        {
+            return $"ReferenceValue: {Reference}";
+        }
+    }
+
+    /// <summary>
     /// A descriptor representing an access to a struct's static function, or a static and solid field.
     /// </summary>
     internal sealed record class StaticStructAccess : Value
@@ -280,7 +297,7 @@
     /// <summary>
     /// Represents a lambda function, holding a reference to its function body.
     /// </summary>
-    /// <param name="Function"></param>
+    /// <param name="Function">The function body of the lambda.</param>
     internal sealed record class LambdaValue(FunctionValue Function) : Value
     {
         internal override string ToFluenceString() => $"<internal: lambda__{Function.Name}__{Function.Arity}>";
@@ -311,6 +328,11 @@
         internal List<string> Arguments { get; init; }
 
         /// <summary>
+        /// The arguments of the function passed by reference by name.
+        /// </summary>
+        internal HashSet<string> ArgumentsByRef { get; init; }
+
+        /// <summary>
         /// The C# intrinsic body of the function, if it is intrinsic.
         /// </summary>
         internal readonly IntrinsicMethod IntrinsicBody;
@@ -334,12 +356,13 @@
         {
         }
 
-        internal FunctionValue(string name, int arity, int startAddress, int lineInSource, List<string> arguments = null!)
+        internal FunctionValue(string name, int arity, int startAddress, int lineInSource, List<string> arguments = null!, HashSet<string> argsByRef = null!)
         {
             Name = name;
             Arity = arity;
             StartAddress = startAddress;
             Arguments = arguments;
+            ArgumentsByRef = argsByRef;
             StartAddressInSource = lineInSource;
         }
 
@@ -373,7 +396,8 @@
         public override string ToString()
         {
             string args = (Arguments == null || Arguments.Count == 0) ? "None" : string.Join(", ", Arguments);
-            return $"FunctionValue: {Name} {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} args: {args}.";
+            string argsRef = (ArgumentsByRef == null || ArgumentsByRef.Count == 0) ? "None" : string.Join(", ", ArgumentsByRef);
+            return $"FunctionValue: {Name} {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} args: {args}. refArgs: {argsRef}";
         }
     }
 

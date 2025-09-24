@@ -38,6 +38,7 @@ namespace Fluence
                 TokenType.TIMES or
                 TokenType.UNLESS or
                 TokenType.AS or
+                TokenType.REF or
                 TokenType.REST => true,
                 _ => false,
             };
@@ -69,6 +70,7 @@ namespace Fluence
                         if (text.SequenceEqual("not")) return TokenType.BANG_EQUAL;
                     }
                     if (text.SequenceEqual("for")) return TokenType.FOR;
+                    if (text.SequenceEqual("ref")) return TokenType.REF;
                     if (text.SequenceEqual("and")) return TokenType.AND;
                     if (text.SequenceEqual("use")) return TokenType.USE;
                     break;

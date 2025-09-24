@@ -572,14 +572,30 @@ namespace Fluence
             // aka `func Name (`.
             int currentIndex = startTokenIndex + 3;
             List<string> paramaters = new List<string>();
+            HashSet<string> paramatersByRef = new HashSet<string>();
+            bool paramByRef = false;
 
             while (currentIndex < endTokenIndex)
             {
                 TokenType currentTokenType = _lexer.PeekTokenTypeAheadByN(currentIndex + 1);
 
+                if (currentTokenType == TokenType.REF)
+                {
+                    paramByRef = true;
+
+                    if (_lexer.PeekTokenTypeAheadByN(currentIndex + 2) != TokenType.IDENTIFIER)
+                    {
+                        ConstructAndThrowParserException("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
+                    }
+                }
                 if (currentTokenType == TokenType.IDENTIFIER)
                 {
                     paramaters.Add(_lexer.PeekAheadByN(currentIndex + 1).Text);
+                    if (paramByRef)
+                    {
+                        paramatersByRef.Add(_lexer.PeekAheadByN(currentIndex + 1).Text);
+                        paramByRef = false;
+                    }
                     arity++;
                     currentIndex++;
                 }
@@ -593,6 +609,7 @@ namespace Fluence
 
             string parsedName = funcName.EndsWith($"__{arity}", StringComparison.Ordinal) ? funcName : Mangler.Mangle(funcName, arity);
             FunctionSymbol functionSymbol = new FunctionSymbol(parsedName, arity, -1, nameToken.LineInSourceCode, paramaters, _currentParseState.CurrentScope);
+            functionSymbol.SetRefArgs(paramatersByRef);
 
             _lexer.ModifyTokenAt(startTokenIndex + 1, new Token(TokenType.IDENTIFIER, parsedName, nameToken.Literal, nameToken.LineInSourceCode, nameToken.ColumnInSourceCode));
             _currentParseState.CurrentScope.Declare(parsedName, functionSymbol);
@@ -612,6 +629,7 @@ namespace Fluence
 
             int currentIndex = startTokenIndex + 3;
             bool solidField = false;
+            bool argByRef = false;
 
             while (currentIndex < endTokenIndex)
             {
@@ -640,6 +658,17 @@ namespace Fluence
                 if (token.Type == TokenType.SOLID)
                 {
                     solidField = true;
+                }
+
+                if (token.Type == TokenType.REF)
+                {
+                    argByRef = true;
+
+                    if (_lexer.PeekNextTokenType() != TokenType.IDENTIFIER)
+                    {
+                        ConstructAndThrowParserException("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
+                    }
+                    continue;
                 }
 
                 if (token.Type == TokenType.IDENTIFIER)
@@ -684,17 +713,34 @@ namespace Fluence
                     }
 
                     List<string> args = new List<string>();
+                    HashSet<string> argsByRef = new HashSet<string>();
+
                     int arity = 0;
                     for (int argScanIndex = currentIndex + 3; argScanIndex < headerEndIndex; argScanIndex++)
                     {
-                        if (_lexer.PeekTokenTypeAheadByN(argScanIndex + 1) == TokenType.IDENTIFIER)
+                        if (_lexer.PeekTokenTypeAheadByN(argScanIndex + 1) == TokenType.REF)
                         {
-                            args.Add(_lexer.PeekAheadByN(argScanIndex + 1).Text);
+                            argByRef = true;
+
+                            if (_lexer.PeekTokenTypeAheadByN(argScanIndex + 2) != TokenType.IDENTIFIER)
+                            {
+                                ConstructAndThrowParserException("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
+                            }
+                        }
+                        else if (_lexer.PeekTokenTypeAheadByN(argScanIndex + 1) == TokenType.IDENTIFIER)
+                        {
+                            Token argToken = _lexer.PeekAheadByN(argScanIndex + 1);
+                            args.Add(argToken.Text);
+                            if (argByRef)
+                            {
+                                argByRef = false;
+                                argsByRef.Add(argToken.Text);
+                            }
                             arity++;
                         }
                     }
 
-                    FunctionValue functionValue = new FunctionValue(funcName, arity, -1, nameToken.LineInSourceCode, args);
+                    FunctionValue functionValue = new FunctionValue(funcName, arity, -1, nameToken.LineInSourceCode, args, argsByRef);
                     functionValue.SetScope(_currentParseState.CurrentScope);
                     string templated;
 
@@ -1435,13 +1481,13 @@ namespace Fluence
         private void ParseFunction(bool inStruct = false, bool isInit = false, string structName = null!)
         {
             _currentParseState.IsParsingFunctionBody = true;
-            (Token nameToken, List<string> parameters) = ParseFunctionHeader();
+            (Token nameToken, List<string> parameters, HashSet<string> parametersByRef) = ParseFunctionHeader();
             string functionName = nameToken.Text;
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
             int functionStartAddress = _currentParseState.CodeInstructions.Count;
 
-            FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress, nameToken.LineInSourceCode, parameters);
+            FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress, nameToken.LineInSourceCode, parameters, parametersByRef);
             func.SetScope(_currentParseState.CurrentScope);
             UpdateFunctionSymbolsAndGenerateDeclaration(func, nameToken, inStruct, isInit, structName);
 
@@ -1485,27 +1531,49 @@ namespace Fluence
         /// Helper to parse the function header, from `func` up to the `=>`.
         /// </summary>
         /// <returns>A tuple containing the function's name token and a list of its parameter names.</returns>
-        private (Token nameToken, List<string> parameters) ParseFunctionHeader()
+        private (Token nameToken, List<string> parameters, HashSet<string> parametersByRef) ParseFunctionHeader()
         {
             AdvanceAndExpect(TokenType.FUNC, "Expected the 'func' keyword.");
             Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a function name after 'func'.");
             AdvanceAndExpect(TokenType.L_PAREN, $"Expected an opening '(' for function '{nameToken.Text}' parameters.");
 
+            HashSet<string> parametersByRef = new HashSet<string>();
             List<string> parameters = new List<string>();
+
             if (!_lexer.TokenTypeMatches(TokenType.R_PAREN))
             {
+                // TO DO, allow expressions for default values.
                 do
                 {
-                    // TO DO, allow expressions for default values.
-                    Token paramToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a parameter name.");
-                    parameters.Add(paramToken.Text);
+                    Token next = _lexer.ConsumeToken();
+
+                    if (next.Type == TokenType.REF)
+                    {
+                        bool paramByRef = true;
+                        if (_lexer.PeekNextTokenType() != TokenType.IDENTIFIER)
+                        {
+                            ConstructAndThrowParserException("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
+                        }
+
+                        Token paramToken = _lexer.ConsumeToken();
+
+                        if (paramByRef)
+                        {
+                            parametersByRef.Add(paramToken.Text);
+                        }
+                        parameters.Add(paramToken.Text);
+                    }
+                    else
+                    {
+                        parameters.Add(next.Text);
+                    }
                 } while (ConsumeTokenIfMatch(TokenType.COMMA));
             }
 
             AdvanceAndExpect(TokenType.R_PAREN, $"Expected a closing ')' after parameters for function '{nameToken.Text}'.");
             AdvanceAndExpect(TokenType.ARROW, $"Expected an '=>' to define the body of function '{nameToken.Text}'.");
 
-            return (nameToken, parameters);
+            return (nameToken, parameters, parametersByRef);
         }
 
         /// <summary>
@@ -2585,7 +2653,7 @@ namespace Fluence
 
                     foreach (Value item in broadcastCall.Arguments)
                     {
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, item));
+                        _currentParseState.AddCodeInstruction(new InstructionLine(item is ReferenceValue ? InstructionCode.LoadAddress : InstructionCode.PushParam, item));
                     }
 
                     TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
@@ -2800,7 +2868,7 @@ namespace Fluence
 
             foreach (Value arg in arguments)
             {
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, ResolveValue(arg)));
+                _currentParseState.AddCodeInstruction(new InstructionLine(arg is ReferenceValue ? InstructionCode.LoadAddress : InstructionCode.PushParam, ResolveValue(arg)));
             }
 
             TempValue result = new TempValue(_currentParseState.NextTempNumber++);
@@ -2852,7 +2920,7 @@ namespace Fluence
 
             foreach (Value arg in args)
             {
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, arg));
+                _currentParseState.AddCodeInstruction(new InstructionLine(arg is ReferenceValue ? InstructionCode.LoadAddress : InstructionCode.PushParam, arg));
             }
 
             TempValue result = new TempValue(_currentParseState.NextTempNumber++);
@@ -3549,7 +3617,7 @@ namespace Fluence
             {
                 foreach (Value arg in arguments)
                 {
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, ResolveValue(arg)));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(arg is ReferenceValue ? InstructionCode.LoadAddress : InstructionCode.PushParam, ResolveValue(arg)));
                 }
 
                 TempValue ignoredResult = new TempValue(_currentParseState.NextTempNumber++);
@@ -3702,7 +3770,7 @@ namespace Fluence
 
             foreach (Value arg in arguments)
             {
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, ResolveValue(arg)));
+                _currentParseState.AddCodeInstruction(new InstructionLine(arg is ReferenceValue ? InstructionCode.LoadAddress : InstructionCode.PushParam, ResolveValue(arg)));
             }
 
             TempValue result = new TempValue(_currentParseState.NextTempNumber++);
@@ -3821,6 +3889,8 @@ namespace Fluence
             int startAddressInSource = _lexer.PeekCurrentToken().LineInSourceCode;
 
             List<string> args = new List<string>();
+            HashSet<string> argsByRef = new HashSet<string>();
+            bool argByRef = false;
 
             while (true)
             {
@@ -3829,9 +3899,25 @@ namespace Fluence
                 {
                     _lexer.Advance();
                 }
+                else if (type == TokenType.REF)
+                {
+                    argByRef = true;
+
+                    if (_lexer.PeekNextTokenType() != TokenType.IDENTIFIER)
+                    {
+                        ConstructAndThrowParserException("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
+                    }
+                }
                 else if (type == TokenType.IDENTIFIER)
                 {
-                    args.Add(_lexer.ConsumeToken().Text);
+                    Token arg = _lexer.ConsumeToken();
+                    args.Add(arg.Text);
+
+                    if (argByRef)
+                    {
+                        argByRef = false;
+                        argsByRef.Add(arg.Text);
+                    }
                 }
                 else if (type == TokenType.R_PAREN)
                 {
@@ -3863,13 +3949,13 @@ namespace Fluence
             }
             else
             {
-                Value ret = ResolveValue(ParseExpression());
+                Value ret = ResolveValue(ParseTernary());
                 _currentParseState.CodeInstructions.Add(new InstructionLine(InstructionCode.Return, ret));
             }
 
             _currentParseState.CodeInstructions[lambdaBodySkipIndex].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
 
-            FunctionValue lambdaFunction = new FunctionValue($"lambda__{args.Count}", args.Count, lambdaCodeStartIndex, startAddressInSource, args);
+            FunctionValue lambdaFunction = new FunctionValue($"lambda__{args.Count}", args.Count, lambdaCodeStartIndex, startAddressInSource, args, argsByRef);
             lambdaFunction.SetScope(_currentParseState.CurrentScope);
 
             return new LambdaValue(lambdaFunction);
@@ -4017,6 +4103,7 @@ namespace Fluence
                 case TokenType.CHARACTER: return new CharValue((char)token.Literal);
                 case TokenType.L_BRACKET: return ParseList();
                 case TokenType.MATCH: return ParseMatchStatement();
+                case TokenType.REF: return new ReferenceValue((VariableValue)ParseExpression());
                 case TokenType.SELF:
                     if (_currentParseState.CurrentStructContext == null)
                     {

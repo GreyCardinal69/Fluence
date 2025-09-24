@@ -176,7 +176,15 @@
         /// </summary>
         internal IntrinsicMethod IntrinsicBody { get; init; }
 
+        /// <summary>
+        /// The arguments of the function by name.
+        /// </summary>
         internal List<string> Arguments { get; init; }
+
+        /// <summary>
+        /// The arguments of the function passed by reference by name.
+        /// </summary>
+        internal HashSet<string> ArgumentsByRef { get; private set; }
 
         /// <summary>
         /// Keeps track in which namespace the function is defined in.
@@ -187,6 +195,8 @@
         /// Sets the bytecode start address for this function. Called by the parser during the second pass.
         /// </summary>
         internal void SetStartAddress(int addr) => StartAddress = addr;
+
+        internal void SetRefArgs(HashSet<string> refArgs) => ArgumentsByRef = refArgs;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="FunctionSymbol"/> class for a native C# intrinsic.

@@ -128,6 +128,8 @@ namespace Fluence
             string indent = new string(' ', indentationLevel * 4);
             string innerIndent = new string(' ', (indentationLevel + 1) * 4);
 
+            string args, argsRef;
+
             switch (symbol)
             {
                 case EnumSymbol enumSymbol:
@@ -141,12 +143,14 @@ namespace Fluence
 
                 case FunctionSymbol functionSymbol:
                     string scope = functionSymbol.DefiningScope == null || functionSymbol.Arguments == null ? $"None {(functionSymbol.IsIntrinsic ? "(Intrinsic)" : "Global?")}" : functionSymbol.DefiningScope.Name;
-                    string args = functionSymbol.Arguments == null ? "None" : string.Join(",", functionSymbol.Arguments);
+                    args = functionSymbol.Arguments == null ? "None" : string.Join(",", functionSymbol.Arguments);
+                    argsRef = functionSymbol.ArgumentsByRef == null ? "None" : string.Join(",", functionSymbol.ArgumentsByRef);
+
                     if (string.IsNullOrEmpty(args)) args = "None";
 
                     sb.Append(indent).Append($"Symbol: {symbolName}, type: Function Header {{");
                     sb.Append($" Arity: {functionSymbol.Arity}, Scope: {scope}, StartAddress: {FluenceDebug.FormatByteCodeAddress(functionSymbol.StartAddress)},");
-                    sb.Append($" Args: {args}, ").Append($" LocationInSource: {functionSymbol.StartAddressInSource}").AppendLine();
+                    sb.Append($" Args: {args}, ").Append($" RefArgs: {argsRef}, ").Append($" LocationInSource: {functionSymbol.StartAddressInSource}").AppendLine();
                     break;
                 case VariableSymbol variableSymbol:
                     sb.Append(indent).Append($"Symbol: {symbolName}, type VariableSymbol: {variableSymbol}.").AppendLine();
@@ -160,7 +164,11 @@ namespace Fluence
                         sb.Append(innerIndent).AppendLine("Functions: {");
                         foreach (KeyValuePair<string, FunctionValue> function in structSymbol.Functions)
                         {
-                            sb.Append(innerIndent).Append($"    Name: {function.Key}, Arity: {function.Value.Arity}, Start Address: {FluenceDebug.FormatByteCodeAddress(function.Value.StartAddress)}").AppendLine();
+                            args = function.Value.Arguments == null ? "None" : string.Join(",", function.Value.Arguments);
+                            argsRef = function.Value.ArgumentsByRef == null ? "None" : string.Join(",", function.Value.ArgumentsByRef);
+
+                            sb.Append(innerIndent).Append($"    Name: {function.Key}, Arity: {function.Value.Arity}, Start Address: {FluenceDebug.FormatByteCodeAddress(function.Value.StartAddress)}")
+                                .Append($" Args: {args}, ").Append($" RefArgs: {argsRef}, ").AppendLine();
                         }
                         sb.Append(innerIndent).AppendLine("}");
                     }

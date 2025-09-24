@@ -1528,7 +1528,20 @@ namespace Fluence
                 for (int i = argCount - 1; i >= 0; i--)
                 {
                     string paramName = function.Parameters[i];
+                    bool isRefParam = function.ParametersByRef.Contains(paramName);
                     RuntimeValue argValue = vm.PopStack();
+
+                    if (isRefParam && argValue.ObjectReference is not ReferenceValue)
+                    {
+                        throw vm.ConstructRuntimeException($"Internal VM Error: Argument '{paramName}' in function: \"{function.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                    }
+
+                    if (argValue.ObjectReference is ReferenceValue reference)
+                    {
+                        newFrame.RefParameterMap[paramName] = reference.Reference.Name;
+                        argValue = vm.GetRuntimeValue(reference.Reference);
+                    }
+
                     ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
                     valueRef = argValue;
                 }

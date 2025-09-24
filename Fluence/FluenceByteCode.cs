@@ -79,6 +79,7 @@
                 ToString,
 
                 NewLambda,
+                LoadAddress,    // REF
 
                 //      ==!!==
                 //      The following are special bytecode instructions generated solely by the Optimizer class after the parsing phase.

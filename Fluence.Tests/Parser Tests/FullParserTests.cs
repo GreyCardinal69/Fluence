@@ -299,7 +299,7 @@ namespace Fluence.ParserTests
         [Fact]
         public void ParsesSimpleStandardTernaryCorrectly()
         {
-            string source = "a=1; c = a < 2 ? 10 : -10;";
+            string source = "a=1; c = a < 2 ? 10 : 10;";
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
@@ -308,7 +308,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(0)),
                 new(InstructionCode.Assign, new TempValue(1), new NumberValue(10)),
                 new(InstructionCode.Goto, new NumberValue(6)),
-                new(InstructionCode.Assign, new TempValue(1), new NumberValue(-10)),
+                new(InstructionCode.Assign, new TempValue(1), new NumberValue(10)),
                 new(InstructionCode.Assign, new VariableValue("c"), new TempValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
@@ -319,7 +319,7 @@ namespace Fluence.ParserTests
         [Fact]
         public void ParsesSimpleFluidStyleTernaryCorrectly()
         {
-            string source = "a=1; d = a < 2 ?: 10, -10;";
+            string source = "a=1; d = a < 2 ?: 10, 10;";
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
@@ -328,7 +328,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(0)),
                 new(InstructionCode.Assign, new TempValue(1), new NumberValue(10)),
                 new(InstructionCode.Goto, new NumberValue(6)),
-                new(InstructionCode.Assign, new TempValue(1), new NumberValue(-10)),
+                new(InstructionCode.Assign, new TempValue(1), new NumberValue(10)),
                 new(InstructionCode.Assign, new VariableValue("d"), new TempValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
@@ -339,7 +339,7 @@ namespace Fluence.ParserTests
         [Fact]
         public void ParsesNestedStandardTernaryCorrectly()
         {
-            string source = "c=10; d=10; v = c == 10 ? d == 10 ? 100 : -100 : -10;";
+            string source = "c=10; d=10; v = c == 10 ? d == 10 ? 100 : 100 : 10;";
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
@@ -351,10 +351,10 @@ namespace Fluence.ParserTests
                 new(InstructionCode.GotoIfFalse, new NumberValue(8), new TempValue(1)),
                 new(InstructionCode.Assign, new TempValue(2), new NumberValue(100)),
                 new(InstructionCode.Goto, new NumberValue(9)),
-                new(InstructionCode.Assign, new TempValue(2), new NumberValue(-100)),
+                new(InstructionCode.Assign, new TempValue(2), new NumberValue(100)),
                 new(InstructionCode.Assign, new TempValue(3), new TempValue(2)),
                 new(InstructionCode.Goto, new NumberValue(12)),
-                new(InstructionCode.Assign, new TempValue(3), new NumberValue(-10)),
+                new(InstructionCode.Assign, new TempValue(3), new NumberValue(10)),
                 new(InstructionCode.Assign, new VariableValue("v"), new TempValue(3)),
                 new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
@@ -424,7 +424,7 @@ namespace Fluence.ParserTests
         {
             string source = @"
                 x = 10; y = 10; booly = true;
-                if x,y <==| 10 and .and(x == 10, y == -10, !booly) && .or(x > 0, y > 0) {
+                if x,y <==| 10 and .and(x == 10, y == 10, !booly) && .or(x > 0, y > 0) {
                     print(""here"");
                 }
             ";
@@ -438,7 +438,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("y"), new NumberValue(10)),
                 new(InstructionCode.And, new TempValue(2), new TempValue(0), new TempValue(1)),
                 new(InstructionCode.Equal, new TempValue(3), new VariableValue("x"), new NumberValue(10)),
-                new(InstructionCode.Equal, new TempValue(4), new VariableValue("y"), new NumberValue(-10)),
+                new(InstructionCode.Equal, new TempValue(4), new VariableValue("y"), new NumberValue(10)),
                 new(InstructionCode.And, new TempValue(5), new TempValue(3), new TempValue(4)),
                 new(InstructionCode.Not, new TempValue(6), new VariableValue("booly")),
                 new(InstructionCode.And, new TempValue(7), new TempValue(5), new TempValue(6)),
@@ -1519,9 +1519,9 @@ namespace Fluence.ParserTests
         {
             string source = @"
                 A = [
-                    [2, -6, -2],
-                    [-2, 4, 1],
-                    [4, -4, 1]
+                    [2, 6, 2],
+                    [2, 4, 1],
+                    [4, 4, 1]
                 ];
                 A[0][2] = A[2][0];
             ";
@@ -1531,15 +1531,15 @@ namespace Fluence.ParserTests
                 new(InstructionCode.NewList, new TempValue(0)),
                 new(InstructionCode.NewList, new TempValue(1)),
                 new(InstructionCode.PushElement, new TempValue(1), new NumberValue(2)),
-                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(-6)),
-                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(-2)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(6)),
+                new(InstructionCode.PushElement, new TempValue(1), new NumberValue(2)),
                 new(InstructionCode.NewList, new TempValue(2)),
-                new(InstructionCode.PushElement, new TempValue(2), new NumberValue(-2)),
+                new(InstructionCode.PushElement, new TempValue(2), new NumberValue(2)),
                 new(InstructionCode.PushElement, new TempValue(2), new NumberValue(4)),
                 new(InstructionCode.PushElement, new TempValue(2), new NumberValue(1)),
                 new(InstructionCode.NewList, new TempValue(3)),
                 new(InstructionCode.PushElement, new TempValue(3), new NumberValue(4)),
-                new(InstructionCode.PushElement, new TempValue(3), new NumberValue(-4)),
+                new(InstructionCode.PushElement, new TempValue(3), new NumberValue(4)),
                 new(InstructionCode.PushElement, new TempValue(3), new NumberValue(1)),
                 new(InstructionCode.PushElement, new TempValue(0), new TempValue(1)),
                 new(InstructionCode.PushElement, new TempValue(0), new TempValue(2)),
@@ -1841,7 +1841,7 @@ namespace Fluence.ParserTests
         [Fact]
         public void ParsesNestedFluidStyleTernaryCorrectly()
         {
-            string source = "a=1; b=1; c = a == 1 ?: (b == 1 ?: 100, -100), -10;";
+            string source = "a=1; b=1; c = a == 1 ?: (b == 1 ?: 100, 100), 10;";
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
@@ -1853,10 +1853,10 @@ namespace Fluence.ParserTests
                 new(InstructionCode.GotoIfFalse, new NumberValue(8), new TempValue(2)),
                 new(InstructionCode.Assign, new TempValue(3), new NumberValue(100)),
                 new(InstructionCode.Goto, new NumberValue(9)),
-                new(InstructionCode.Assign, new TempValue(3), new NumberValue(-100)),
+                new(InstructionCode.Assign, new TempValue(3), new NumberValue(100)),
                 new(InstructionCode.Assign, new TempValue(4), new TempValue(3)),
                 new(InstructionCode.Goto, new NumberValue(12)),
-                new(InstructionCode.Assign, new TempValue(4), new NumberValue(-10)),
+                new(InstructionCode.Assign, new TempValue(4), new NumberValue(10)),
                 new(InstructionCode.Assign, new VariableValue("c"), new TempValue(4)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
@@ -1869,8 +1869,8 @@ namespace Fluence.ParserTests
         {
             string source = @"
                 list = [1,2];
-                a,b,c,booly <~| 10, -10, ""Hello world!"", true;
-                x,y,z, list[1] <~?| 10, -10, 0, 999;
+                a,b,c,booly <~| 10, 10, ""Hello world!"", true;
+                x,y,z, list[1] <~?| 10, 10, 0, 999;
             ";
 
             var compiledCode = Compile(source);
@@ -1881,15 +1881,15 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushElement, new TempValue(1), new NumberValue(2)),
                 new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(10)),
-                new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(-10)),
+                new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(10)),
                 new(InstructionCode.Assign, new VariableValue("c"), new StringValue("Hello world!")),
                 new(InstructionCode.Assign, new VariableValue("booly"), new BooleanValue(true)),
                 new(InstructionCode.Equal, new TempValue(2), new NumberValue(10), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(11), new TempValue(2)),
                 new(InstructionCode.Assign, new VariableValue("x"), new NumberValue(10)),
-                new(InstructionCode.Equal, new TempValue(3), new NumberValue(-10), new NilValue()),
+                new(InstructionCode.Equal, new TempValue(3), new NumberValue(10), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(14), new TempValue(3)),
-                new(InstructionCode.Assign, new VariableValue("y"), new NumberValue(-10)),
+                new(InstructionCode.Assign, new VariableValue("y"), new NumberValue(10)),
                 new(InstructionCode.Equal, new TempValue(4), new NumberValue(0), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(17), new TempValue(4)),
                 new(InstructionCode.Assign, new VariableValue("z"), new NumberValue(0)),
@@ -1907,7 +1907,7 @@ namespace Fluence.ParserTests
         {
             string source = @"
                 list = [1,2];
-                x,y,z, list[1] <~?| 10, -10, 0, 999;
+                x,y,z, list[1] <~?| 10, 10, 0, 999;
             ";
 
             var compiledCode = Compile(source);
@@ -1920,9 +1920,9 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Equal, new TempValue(2), new NumberValue(10), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(7), new TempValue(2)),
                 new(InstructionCode.Assign, new VariableValue("x"), new NumberValue(10)),
-                new(InstructionCode.Equal, new TempValue(3), new NumberValue(-10), new NilValue()),
+                new(InstructionCode.Equal, new TempValue(3), new NumberValue(10), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(10), new TempValue(3)),
-                new(InstructionCode.Assign, new VariableValue("y"), new NumberValue(-10)),
+                new(InstructionCode.Assign, new VariableValue("y"), new NumberValue(10)),
                 new(InstructionCode.Equal, new TempValue(4), new NumberValue(0), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(13), new TempValue(4)),
                 new(InstructionCode.Assign, new VariableValue("z"), new NumberValue(0)),
@@ -1943,8 +1943,9 @@ namespace Fluence.ParserTests
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
+                new(InstructionCode.Negate, new TempValue(0), new NumberValue(10)),
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(10)),
-                new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(-10)),
+                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(0)),
                 new(InstructionCode.Assign, new VariableValue("c"), new StringValue("Hello world!")),
                 new(InstructionCode.Assign, new VariableValue("booly"), new BooleanValue(true)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),

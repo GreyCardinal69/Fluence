@@ -91,6 +91,7 @@
             ENUM,
             MATCH,
             SELF,
+            UNTIL,
             REST,   // `rest` keyword in match statements.
             SOLID,  // immutable.
             TIMES,  // N times do x.

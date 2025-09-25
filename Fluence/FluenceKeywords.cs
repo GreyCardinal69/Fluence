@@ -39,6 +39,7 @@ namespace Fluence
                 TokenType.UNLESS or
                 TokenType.AS or
                 TokenType.REF or
+                TokenType.UNTIL or
                 TokenType.REST => true,
                 _ => false,
             };
@@ -92,6 +93,7 @@ namespace Fluence
                     break;
                 case 5:
                     if (text.SequenceEqual("break")) return TokenType.BREAK;
+                    if (text.SequenceEqual("until")) return TokenType.UNTIL;
                     if (text.SequenceEqual("false")) return TokenType.FALSE;
                     if (text.SequenceEqual("match")) return TokenType.MATCH;
                     if (text.SequenceEqual("space")) return TokenType.SPACE;

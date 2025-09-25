@@ -851,7 +851,8 @@ namespace Fluence
 
                 // Control Flow & Block Statements.
                 case TokenType.IF: ParseIfStatement(); break;
-                case TokenType.WHILE: ParseWhileStatement(); break;
+                case TokenType.WHILE: ParseWhileStatement(false); break;
+                case TokenType.UNTIL: ParseWhileStatement(true); break;
                 case TokenType.FOR: ParseForStatement(); break;
                 case TokenType.LOOP: ParseLoopStatement(); break;
                 case TokenType.MATCH: ParseMatchStatement(); break;
@@ -1196,9 +1197,9 @@ namespace Fluence
         /// <summary>
         /// Parses a while loop.
         /// </summary>
-        private void ParseWhileStatement()
+        private void ParseWhileStatement(bool parseAsUntil)
         {
-            _lexer.Advance(); // Consume 'while'.
+            _lexer.Advance(); // Consume 'while' or 'until'.
 
             int loopStartIndex = _currentParseState.CodeInstructions.Count;
             Value condition = ResolveValue(ParseExpression());
@@ -1208,10 +1209,10 @@ namespace Fluence
 
             // The condition of the while, we must jump back here if loop reaches the end ( not terminated by break ).
             // We'll patch this later.
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
+            _currentParseState.AddCodeInstruction(new InstructionLine(parseAsUntil ? InstructionCode.GotoIfTrue : InstructionCode.GotoIfFalse, null!, condition));
             int loopExitPatch = _currentParseState.CodeInstructions.Count - 1;
 
-            ParseStatementBody("Expected an '->' for a single-line while loop body.");
+            ParseStatementBody($"Expected an '->' for a single-line {(parseAsUntil ? "Until" : "While")} loop body.");
 
             // We jump to the start of the loop, which is the condition check.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex)));

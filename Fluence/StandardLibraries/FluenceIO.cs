@@ -15,320 +15,149 @@ namespace Fluence
             RuntimeValue nilResult = RuntimeValue.Nil;
 
             //
-            //      The "File" static struct.
+            // --- File Static Struct ---
             //
-
             StructSymbol file = new StructSymbol("File");
             ioNamespace.Declare("File", file);
 
             file.StaticIntrinsics.Add("write__2", new FunctionSymbol("write__2", 2, (vm, argCount) =>
             {
-                RuntimeValue contentRv = vm.PopStack();
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj || contentRv.ObjectReference is not StringObject contentObj)
-                    throw vm.ConstructRuntimeException("File.write() expects two string arguments.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                File.WriteAllText(pathObj.Value, contentObj.Value);
+                (string path, string content) = IntrinsicHelpers.GetTwoStringArgs(vm, "File.write()");
+                File.WriteAllText(path, content);
                 return nilResult;
             }, ["path", "content"], ioNamespace));
 
             file.StaticIntrinsics.Add("append_text__2", new FunctionSymbol("append_text__2", 2, (vm, argCount) =>
             {
-                RuntimeValue contentRv = vm.PopStack();
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj || contentRv.ObjectReference is not StringObject contentObj)
-                    throw vm.ConstructRuntimeException("File.append_text() expects two string arguments.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                File.AppendAllText(pathObj.Value, contentObj.Value);
+                (string path, string content) = IntrinsicHelpers.GetTwoStringArgs(vm, "File.append_text()");
+                File.AppendAllText(path, content);
                 return nilResult;
             }, ["path", "content"], ioNamespace));
 
             file.StaticIntrinsics.Add("move__2", new FunctionSymbol("move__2", 2, (vm, argCount) =>
             {
-                RuntimeValue newPathRv = vm.PopStack();
-                RuntimeValue oldPathRv = vm.PopStack();
-
-                if (oldPathRv.ObjectReference is not StringObject oldPathObj || newPathRv.ObjectReference is not StringObject newPathObj)
-                    throw vm.ConstructRuntimeException("File.move() expects two string arguments.");
-
-                if (string.IsNullOrEmpty(oldPathObj.Value) || string.IsNullOrEmpty(newPathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid new or old file path(s), can not be null or empty.");
-                }
-
-                File.Move(oldPathObj.Value, newPathObj.Value);
+                (string newPath, string oldPath) = IntrinsicHelpers.GetTwoStringArgs(vm, "File.move()");
+                File.Move(oldPath, newPath);
                 return nilResult;
             }, ["old_path", "new_path"], ioNamespace));
 
             file.StaticIntrinsics.Add("read__1", new FunctionSymbol("read__1", 1, (vm, argCount) =>
             {
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("File.read() expects a string argument.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                return vm.ResolveStringObjectRuntimeValue(File.ReadAllText(pathObj.Value));
+                string path = IntrinsicHelpers.GetStringArg(vm, "File.read()");
+                return vm.ResolveStringObjectRuntimeValue(File.ReadAllText(path));
             }, ["path"], ioNamespace));
 
             file.StaticIntrinsics.Add("create__1", new FunctionSymbol("create__1", 1, (vm, argCount) =>
             {
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("File.create() expects a string argument.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                File.Create(pathObj.Value).Close();
+                string path = IntrinsicHelpers.GetStringArg(vm, "File.create()");
+                File.Create(path).Close();
                 return nilResult;
             }, ["path"], ioNamespace));
 
             file.StaticIntrinsics.Add("delete__1", new FunctionSymbol("delete__1", 1, (vm, argCount) =>
             {
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("File.delete() expects a string argument.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                File.Delete(pathObj.Value);
+                string path = IntrinsicHelpers.GetStringArg(vm, "File.delete()");
+                File.Delete(path);
                 return nilResult;
             }, ["path"], ioNamespace));
 
             file.StaticIntrinsics.Add("exists__1", new FunctionSymbol("exists__1", 1, (vm, argCount) =>
             {
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("File.exists() expects a string argument.");
-
-                return new RuntimeValue(File.Exists(pathObj.Value));
+                string path = IntrinsicHelpers.GetStringArg(vm, "File.exists()");
+                return new RuntimeValue(File.Exists(path));
             }, ["path"], ioNamespace));
 
             //
-            //      The "Path" static struct.
+            // --- Path Static Struct ---
             //
+            StructSymbol pathStruct = new StructSymbol("Path");
+            ioNamespace.Declare("Path", pathStruct);
 
-            StructSymbol path = new StructSymbol("Path");
-            ioNamespace.Declare("Path", path);
-
-            path.StaticIntrinsics.Add("dir_sep_char__0", new FunctionSymbol("dir_sep_char__0", 0, (vm, argCount) =>
+            pathStruct.StaticIntrinsics.Add("dir_sep_char__0", new FunctionSymbol("dir_sep_char__0", 0, (vm, argCount) =>
             {
                 return vm.ResolveCharObjectRuntimeValue(Path.DirectorySeparatorChar);
             }, [], ioNamespace));
 
-            path.StaticIntrinsics.Add("has_extension__1", new FunctionSymbol("has_extension__1", 1, (vm, argCount) =>
+            pathStruct.StaticIntrinsics.Add("has_extension__1", new FunctionSymbol("has_extension__1", 1, (vm, argCount) =>
             {
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("Path.has_extension() expects a string argument.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                return new RuntimeValue(Path.HasExtension(pathObj.Value));
+                string path = IntrinsicHelpers.GetStringArg(vm, "Path.has_extension()");
+                return new RuntimeValue(Path.HasExtension(path));
             }, ["path"], ioNamespace));
 
-            path.StaticIntrinsics.Add("change_extension__2", new FunctionSymbol("change_extension__2", 2, (vm, argCount) =>
+            pathStruct.StaticIntrinsics.Add("change_extension__2", new FunctionSymbol("change_extension__2", 2, (vm, argCount) =>
             {
-                RuntimeValue newExtension = vm.PopStack();
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("Path.change_extension() expects a string path argument.");
-
-                if (newExtension.ObjectReference is not StringObject extObj)
-                    throw vm.ConstructRuntimeException("Path.change_extension() expects a string argument for the file extension.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                if (string.IsNullOrEmpty(extObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid extension, can not be null or empty.");
-                }
-
-                return vm.ResolveStringObjectRuntimeValue(Path.ChangeExtension(pathObj.Value, extObj.Value));
+                (string newExtension, string path) = IntrinsicHelpers.GetTwoStringArgs(vm, "Path.change_extension()");
+                return vm.ResolveStringObjectRuntimeValue(Path.ChangeExtension(path, newExtension));
             }, ["path", "new_extension"], ioNamespace));
 
-            path.StaticIntrinsics.Add("exists__1", new FunctionSymbol("exists__1", 1, (vm, argCount) =>
+            pathStruct.StaticIntrinsics.Add("exists__1", new FunctionSymbol("exists__1", 1, (vm, argCount) =>
             {
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("Path.exists() expects a string argument.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                return new RuntimeValue(Path.Exists(pathObj.Value));
+                string path = IntrinsicHelpers.GetStringArg(vm, "Path.exists()");
+                return new RuntimeValue(Path.Exists(path));
             }, ["path"], ioNamespace));
 
-            path.StaticIntrinsics.Add("get_dir_name__1", new FunctionSymbol("get_dir_name__1", 1, (vm, argCount) =>
+            pathStruct.StaticIntrinsics.Add("get_dir_name__1", new FunctionSymbol("get_dir_name__1", 1, (vm, argCount) =>
             {
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("Path.get_dir_name() expects a string argument.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                return vm.ResolveStringObjectRuntimeValue(Path.GetDirectoryName(pathObj.Value)!);
+                string path = IntrinsicHelpers.GetStringArg(vm, "Path.get_dir_name()");
+                string dirName = Path.GetDirectoryName(path);
+                return dirName is null ? RuntimeValue.Nil : vm.ResolveStringObjectRuntimeValue(dirName);
             }, ["path"], ioNamespace));
 
-            path.StaticIntrinsics.Add("get_file_name__1", new FunctionSymbol("get_file_name__1", 1, (vm, argCount) =>
+            pathStruct.StaticIntrinsics.Add("get_file_name__1", new FunctionSymbol("get_file_name__1", 1, (vm, argCount) =>
             {
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("Path.get_file_name() expects a string argument.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                return vm.ResolveStringObjectRuntimeValue(Path.GetFileName(pathObj.Value));
+                string path = IntrinsicHelpers.GetStringArg(vm, "Path.get_file_name()");
+                return vm.ResolveStringObjectRuntimeValue(Path.GetFileName(path));
             }, ["path"], ioNamespace));
 
-            path.StaticIntrinsics.Add("get_file_name_raw__1", new FunctionSymbol("get_file_name_raw__1", 1, (vm, argCount) =>
+            pathStruct.StaticIntrinsics.Add("get_file_name_raw__1", new FunctionSymbol("get_file_name_raw__1", 1, (vm, argCount) =>
             {
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("Path.get_file_name_raw() expects a string argument.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                return vm.ResolveStringObjectRuntimeValue(Path.GetFileNameWithoutExtension(pathObj.Value));
+                string path = IntrinsicHelpers.GetStringArg(vm, "Path.get_file_name_raw()");
+                return vm.ResolveStringObjectRuntimeValue(Path.GetFileNameWithoutExtension(path));
             }, ["path"], ioNamespace));
 
-            path.StaticIntrinsics.Add("get_full_path__1", new FunctionSymbol("get_full_path__1", 1, (vm, argCount) =>
+            pathStruct.StaticIntrinsics.Add("get_full_path__1", new FunctionSymbol("get_full_path__1", 1, (vm, argCount) =>
             {
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("Path.get_full_path() expects a string argument.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                return vm.ResolveStringObjectRuntimeValue(Path.GetFullPath(pathObj.Value!));
+                string path = IntrinsicHelpers.GetStringArg(vm, "Path.get_full_path()");
+                string fullPath = Path.GetFullPath(path);
+                return fullPath is null ? RuntimeValue.Nil : vm.ResolveStringObjectRuntimeValue(fullPath);
             }, ["path"], ioNamespace));
 
-            path.StaticIntrinsics.Add("get_temp_path__0", new FunctionSymbol("get_temp_path__0", 0, (vm, argCount) =>
+            pathStruct.StaticIntrinsics.Add("get_temp_path__0", new FunctionSymbol("get_temp_path__0", 0, (vm, argCount) =>
             {
                 return vm.ResolveStringObjectRuntimeValue(Path.GetTempPath());
             }, [], ioNamespace));
 
             //
-            //      The "Directory" static struct.
+            // --- Directory Static Struct ---
             //
-
             StructSymbol dir = new StructSymbol("Dir");
             ioNamespace.Declare("Dir", dir);
 
             dir.StaticIntrinsics.Add("create__1", new FunctionSymbol("create__1", 1, (vm, argCount) =>
             {
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("Dir.create() expects a string argument.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                Directory.CreateDirectory(pathObj.Value);
-                return RuntimeValue.Nil;
+                string path = IntrinsicHelpers.GetStringArg(vm, "Dir.create()");
+                Directory.CreateDirectory(path);
+                return nilResult;
             }, ["path"], ioNamespace));
 
             dir.StaticIntrinsics.Add("delete__1", new FunctionSymbol("delete__1", 1, (vm, argCount) =>
             {
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("Dir.delete() expects a string argument.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                Directory.Delete(pathObj.Value);
-                return RuntimeValue.Nil;
+                string path = IntrinsicHelpers.GetStringArg(vm, "Dir.delete()");
+                Directory.Delete(path);
+                return nilResult;
             }, ["path"], ioNamespace));
 
             dir.StaticIntrinsics.Add("exists__1", new FunctionSymbol("exists__1", 1, (vm, argCount) =>
             {
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("Dir.exists() expects a string argument.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                return new RuntimeValue(Directory.Exists(pathObj.Value));
+                string path = IntrinsicHelpers.GetStringArg(vm, "Dir.exists()");
+                return new RuntimeValue(Directory.Exists(path));
             }, ["path"], ioNamespace));
 
             dir.StaticIntrinsics.Add("get_dirs__1", new FunctionSymbol("get_dirs__1", 1, (vm, argCount) =>
             {
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("Dir.get_dirs() expects a string argument.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
+                string path = IntrinsicHelpers.GetStringArg(vm, "Dir.get_dirs()");
                 ListObject list = new ListObject();
-
-                foreach (var item in Directory.GetDirectories(pathObj.Value))
+                foreach (string item in Directory.GetDirectories(path))
                 {
                     list.Elements.Add(vm.ResolveStringObjectRuntimeValue(item));
                 }
@@ -337,19 +166,9 @@ namespace Fluence
 
             dir.StaticIntrinsics.Add("get_files__1", new FunctionSymbol("get_files__1", 1, (vm, argCount) =>
             {
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("Dir.get_files() expects a string argument.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
+                string path = IntrinsicHelpers.GetStringArg(vm, "Dir.get_files()");
                 ListObject list = new ListObject();
-
-                foreach (var item in Directory.GetFiles(pathObj.Value))
+                foreach (string item in Directory.GetFiles(path))
                 {
                     list.Elements.Add(vm.ResolveStringObjectRuntimeValue(item));
                 }
@@ -358,27 +177,9 @@ namespace Fluence
 
             dir.StaticIntrinsics.Add("move__2", new FunctionSymbol("move__2", 2, (vm, argCount) =>
             {
-                RuntimeValue newExtension = vm.PopStack();
-                RuntimeValue pathRv = vm.PopStack();
-
-                if (pathRv.ObjectReference is not StringObject pathObj)
-                    throw vm.ConstructRuntimeException("Path.move() expects a string path argument.");
-
-                if (newExtension.ObjectReference is not StringObject extObj)
-                    throw vm.ConstructRuntimeException("Path.move() expects a string argument for the move destination extension.");
-
-                if (string.IsNullOrEmpty(pathObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
-                }
-
-                if (string.IsNullOrEmpty(extObj.Value))
-                {
-                    throw vm.ConstructRuntimeException("Invalid move path, can not be null or empty.");
-                }
-
-                Directory.Move(pathObj.Value, extObj.Value);
-                return RuntimeValue.Nil;
+                (string newPath, string path) = IntrinsicHelpers.GetTwoStringArgs(vm, "Dir.move()");
+                Directory.Move(path, newPath);
+                return nilResult;
             }, ["path", "new_path"], ioNamespace));
 
             dir.StaticIntrinsics.Add("get_current__0", new FunctionSymbol("get_current__0", 0, (vm, argCount) =>

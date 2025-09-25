@@ -29,6 +29,11 @@ namespace Fluence
                 if (pathRv.ObjectReference is not StringObject pathObj || contentRv.ObjectReference is not StringObject contentObj)
                     throw vm.ConstructRuntimeException("File.write() expects two string arguments.");
 
+                if (string.IsNullOrEmpty(pathObj.Value))
+                {
+                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
+                }
+
                 File.WriteAllText(pathObj.Value, contentObj.Value);
                 return nilResult;
             }, ["path", "content"], ioNamespace));
@@ -40,6 +45,11 @@ namespace Fluence
 
                 if (pathRv.ObjectReference is not StringObject pathObj || contentRv.ObjectReference is not StringObject contentObj)
                     throw vm.ConstructRuntimeException("File.appendText() expects two string arguments.");
+
+                if (string.IsNullOrEmpty(pathObj.Value))
+                {
+                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
+                }
 
                 File.AppendAllText(pathObj.Value, contentObj.Value);
                 return nilResult;
@@ -53,6 +63,11 @@ namespace Fluence
                 if (oldPathRv.ObjectReference is not StringObject oldPathObj || newPathRv.ObjectReference is not StringObject newPathObj)
                     throw vm.ConstructRuntimeException("File.move() expects two string arguments.");
 
+                if (string.IsNullOrEmpty(oldPathObj.Value) || string.IsNullOrEmpty(newPathObj.Value))
+                {
+                    throw vm.ConstructRuntimeException("Invalid new or old file path(s), can not be null or empty.");
+                }
+
                 File.Move(oldPathObj.Value, newPathObj.Value);
                 return nilResult;
             }, ["old_path", "new_path"], ioNamespace));
@@ -64,6 +79,11 @@ namespace Fluence
                 if (pathRv.ObjectReference is not StringObject pathObj)
                     throw vm.ConstructRuntimeException("File.read() expects a string argument.");
 
+                if (string.IsNullOrEmpty(pathObj.Value))
+                {
+                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
+                }
+
                 return vm.ResolveStringObjectRuntimeValue(File.ReadAllText(pathObj.Value));
             }, ["path"], ioNamespace));
 
@@ -73,6 +93,11 @@ namespace Fluence
 
                 if (pathRv.ObjectReference is not StringObject pathObj)
                     throw vm.ConstructRuntimeException("File.create() expects a string argument.");
+
+                if (string.IsNullOrEmpty(pathObj.Value))
+                {
+                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
+                }
 
                 File.Create(pathObj.Value).Close();
                 return nilResult;
@@ -84,6 +109,11 @@ namespace Fluence
 
                 if (pathRv.ObjectReference is not StringObject pathObj)
                     throw vm.ConstructRuntimeException("File.delete() expects a string argument.");
+
+                if (string.IsNullOrEmpty(pathObj.Value))
+                {
+                    throw vm.ConstructRuntimeException("Invalid path, can not be null or empty.");
+                }
 
                 File.Delete(pathObj.Value);
                 return nilResult;

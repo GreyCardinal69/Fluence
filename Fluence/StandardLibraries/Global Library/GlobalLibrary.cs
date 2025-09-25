@@ -60,7 +60,7 @@ namespace Fluence.Global
             {
                 if (argCount != 1) throw vm.ConstructRuntimeException("to_int() expects one string argument.");
                 RuntimeValue val = vm.PopStack();
-                return new RuntimeValue(Convert.ToInt32(((StringObject)val.ObjectReference).Value));
+                return new RuntimeValue(Convert.ToInt32(val.As<StringObject>().Value));
             }, ["Value"], globalScope));
 
             // StringBuilder.

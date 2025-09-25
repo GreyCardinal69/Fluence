@@ -67,7 +67,7 @@ namespace Fluence.Global
 
             StringBuilder sb = (StringBuilder)self.As<ForeignObject>().Instance;
 
-            sb.Append(((CharObject)chr.ObjectReference).Value, count.IntValue);
+            sb.Append(chr.As<CharObject>().Value, count.IntValue);
             return self;
         }
 
@@ -89,7 +89,7 @@ namespace Fluence.Global
 
             StringBuilder sb = (StringBuilder)self.As<ForeignObject>().Instance;
 
-            sb.AppendJoin(separator, ((ListObject)list.ObjectReference).Elements);
+            sb.AppendJoin(separator, list.As<ListObject>().Elements);
             return self;
         }
 

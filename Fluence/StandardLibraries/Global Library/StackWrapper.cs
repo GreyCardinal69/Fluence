@@ -51,7 +51,6 @@ namespace Fluence.Global
         private static RuntimeValue IsEmpty(FluenceVirtualMachine vm, RuntimeValue self)
         {
             Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<ForeignObject>().Instance;
-            Console.WriteLine(stack.Count);
             return stack.Count == 0 ? RuntimeValue.True : RuntimeValue.False;
         }
 

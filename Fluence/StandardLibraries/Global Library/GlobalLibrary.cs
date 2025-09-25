@@ -128,7 +128,7 @@ namespace Fluence.Global
                 if (argCount != 1) throw vm.ConstructRuntimeException("to_string() expects one argument.");
                 RuntimeValue arg = vm.PopStack();
 
-                return new RuntimeValue(vm.ResolveStringObjectRuntimeValue(arg.ToString()));
+                return vm.ResolveStringObjectRuntimeValue(arg.ToString());
 
             }, ["Value"], globalScope));
 
@@ -156,9 +156,6 @@ namespace Fluence.Global
             {
                 globalScope.Declare(item.Name, item);
             }
-
-
-
         }
 
         private static bool TryConvertToNumeric<T>(ref RuntimeValue value, out T result) where T : struct, INumber<T>

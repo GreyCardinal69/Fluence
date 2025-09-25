@@ -293,63 +293,6 @@ namespace Fluence
     }
 
     /// <summary>
-    /// Represents a heap-allocated string object in the Fluence VM.
-    /// </summary>
-    internal sealed record class StringObject : IFluenceObject
-    {
-        internal string? Value { get; private set; }
-
-        internal StringObject(string value) => Value = value;
-
-        public StringObject() { }
-
-        internal void Reset() => Value = null;
-
-        internal void Initialize(string? str) => Value = str;
-
-        /// <summary>Implements the native '.length' property for strings.</summary>
-        private static RuntimeValue Length(FluenceVirtualMachine vm, RuntimeValue self)
-        {
-            return new RuntimeValue(self.As<StringObject>()?.Value?.Length ?? 0);
-        }
-
-        /// <summary>Implements the native 'ToUpper()' function for strings.</summary>
-        private static RuntimeValue ToUpper(FluenceVirtualMachine vm, RuntimeValue self)
-        {
-            StringObject? strObj = self.As<StringObject>();
-            string upper = strObj?.Value?.ToUpperInvariant() ?? string.Empty;
-            return vm.ResolveStringObjectRuntimeValue(upper);
-        }
-
-        /// <summary>Implements the native 'IndexOf()' function for strings.</summary>
-        private static RuntimeValue Find(FluenceVirtualMachine vm, RuntimeValue self)
-        {
-            RuntimeValue charToFind = vm.PopStack();
-            if (charToFind.ObjectReference is not CharObject charObj)
-            {
-                throw vm.ConstructRuntimeException("string.find() expects a character argument.");
-            }
-            int index = self.As<StringObject>()?.Value?.IndexOf(charObj.Value) ?? -1;
-            return new RuntimeValue(index);
-        }
-
-        /// <inheritdoc/>
-        public bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method)
-        {
-            method = name switch
-            {
-                "length__0" => Length,
-                "to_upper__0" => ToUpper,
-                "find__1" => Find,
-                _ => null!
-            };
-            return method != null;
-        }
-
-        public override string ToString() => Value;
-    }
-
-    /// <summary>
     /// Represents a heap-allocated range object, typically used in 'for-in' loops.
     /// </summary>
     internal sealed record class RangeObject
@@ -458,6 +401,8 @@ namespace Fluence
         internal readonly RuntimeNumberType NumberType;
 
         internal static readonly RuntimeValue Nil = new RuntimeValue(RuntimeValueType.Nil);
+        internal static readonly RuntimeValue True = new RuntimeValue(true);
+        internal static readonly RuntimeValue False = new RuntimeValue(false);
 
         private RuntimeValue(RuntimeValueType type)
         {
@@ -465,36 +410,36 @@ namespace Fluence
             Type = type;
         }
 
-        public RuntimeValue(bool value) : this(RuntimeValueType.Boolean)
+        internal RuntimeValue(bool value) : this(RuntimeValueType.Boolean)
         {
             IntValue = value ? 1 : 0;
         }
 
-        public RuntimeValue(double value) : this(RuntimeValueType.Number)
+        internal RuntimeValue(double value) : this(RuntimeValueType.Number)
         {
             NumberType = RuntimeNumberType.Double;
             DoubleValue = value;
         }
 
-        public RuntimeValue(int value) : this(RuntimeValueType.Number)
+        internal RuntimeValue(int value) : this(RuntimeValueType.Number)
         {
             NumberType = RuntimeNumberType.Int;
             IntValue = value;
         }
 
-        public RuntimeValue(float value) : this(RuntimeValueType.Number)
+        internal RuntimeValue(float value) : this(RuntimeValueType.Number)
         {
             NumberType = RuntimeNumberType.Float;
             FloatValue = value;
         }
 
-        public RuntimeValue(long value) : this(RuntimeValueType.Number)
+        internal RuntimeValue(long value) : this(RuntimeValueType.Number)
         {
             NumberType = RuntimeNumberType.Long;
             LongValue = value;
         }
 
-        public RuntimeValue(object? obj) : this(RuntimeValueType.Object)
+        internal RuntimeValue(object? obj) : this(RuntimeValueType.Object)
         {
             ObjectReference = obj;
         }
@@ -511,7 +456,7 @@ namespace Fluence
 
         internal bool IsNot<T>(out T? value) where T : class
         {
-            if (ObjectReference is T t)
+            if (ObjectReference is T)
             {
                 value = null;
                 return false;
@@ -523,7 +468,7 @@ namespace Fluence
         /// <summary>
         /// Safely casts the internal <see cref="ObjectReference"/> to the specified type.
         /// </summary>
-        internal T? As<T>() where T : class => ObjectReference as T;
+        internal T As<T>() where T : class => ObjectReference as T;
 
         /// <summary>
         /// Gets a value indicating whether the <see cref="RuntimeValue"/> is "truthy".

@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using Fluence.RuntimeTypes;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;

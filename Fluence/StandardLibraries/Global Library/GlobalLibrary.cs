@@ -63,8 +63,12 @@ namespace Fluence.Global
                 return new RuntimeValue(Convert.ToInt32(val.As<StringObject>().Value));
             }, ["Value"], globalScope));
 
-            // StringBuilder.
             foreach (FunctionSymbol item in StringBuilderWrapper.CreateConstructors())
+            {
+                globalScope.Declare(item.Name, item);
+            }
+
+            foreach (FunctionSymbol item in StackWrapper.CreateConstructors())
             {
                 globalScope.Declare(item.Name, item);
             }

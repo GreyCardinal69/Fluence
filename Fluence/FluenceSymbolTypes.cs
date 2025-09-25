@@ -1,4 +1,6 @@
-﻿namespace Fluence
+﻿using Fluence.RuntimeTypes;
+
+namespace Fluence
 {
     /// <summary>
     /// Represents a named entity in the source code that is declared at a scope level.

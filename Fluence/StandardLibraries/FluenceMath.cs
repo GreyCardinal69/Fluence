@@ -1,4 +1,6 @@
-﻿namespace Fluence
+﻿using Fluence.RuntimeTypes;
+
+namespace Fluence
 {
     /// <summary>
     /// The default intrinsic namespace for common mathematical operations.

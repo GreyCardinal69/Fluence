@@ -1200,9 +1200,9 @@ namespace Fluence
         {
             _lexer.Advance(); // Consume 'while'.
 
+            int loopStartIndex = _currentParseState.CodeInstructions.Count;
             Value condition = ResolveValue(ParseExpression());
 
-            int loopStartIndex = _currentParseState.CodeInstructions.Count;
             LoopContext whileContext = new LoopContext();
             _currentParseState.ActiveLoopContexts.Push(whileContext);
 
@@ -1214,7 +1214,7 @@ namespace Fluence
             ParseStatementBody("Expected an '->' for a single-line while loop body.");
 
             // We jump to the start of the loop, which is the condition check.
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex - 1)));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex)));
 
             int loopEndIndex = _currentParseState.CodeInstructions.Count;
 
@@ -3390,21 +3390,28 @@ namespace Fluence
         /// </summary>
         private Value ParseUnary()
         {
-            Value left = ParsePostFix();
-
-            while (IsUnaryOperator(_lexer.PeekNextTokenType()))
+            if (_lexer.TokenTypeMatches(TokenType.BANG) || _lexer.TokenTypeMatches(TokenType.MINUS) || _lexer.TokenTypeMatches(TokenType.TILDE))
             {
                 Token op = _lexer.ConsumeToken();
-                Value operand = ParseUnary();
 
-                Value result = new TempValue(_currentParseState.NextTempNumber++);
+                Value operand = ParseExpression();
+                Value resolvedOperand = ResolveValue(operand);
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCodeForBinaryOperator(op.Type), result, ResolveValue(left), ResolveValue(operand)));
+                TempValue result = new TempValue(_currentParseState.NextTempNumber++);
 
-                left = result;
+                InstructionCode opcode = op.Type switch
+                {
+                    TokenType.BANG => InstructionCode.Not,
+                    TokenType.MINUS => InstructionCode.Negate,
+                    TokenType.TILDE => InstructionCode.BitwiseNot,
+                };
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, result, resolvedOperand));
+
+                return result;
             }
 
-            return left;
+            return ParsePostFix();
         }
 
         /// <summary>
@@ -4039,12 +4046,6 @@ namespace Fluence
                 if (token.Type == TokenType.TILDE)
                 {
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseNot, temp, operand));
-                    return temp;
-                }
-
-                if (token.Type == TokenType.BANG)
-                {
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Not, temp, operand));
                     return temp;
                 }
 

@@ -14,7 +14,7 @@ namespace Fluence.Global
         {
             RuntimeValue nilResult = RuntimeValue.Nil;
 
-            ///
+            //
             //      ==!!==
             //      Console functions.
             //
@@ -62,7 +62,7 @@ namespace Fluence.Global
                 return nilResult;
             }, [], globalScope));
 
-            ///
+            //
             //      ==!!==
             //      Conversion functions.
             //

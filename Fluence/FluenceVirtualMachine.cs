@@ -2477,10 +2477,9 @@ namespace Fluence
         internal void ConstructAndThrowException(string message) => throw ConstructRuntimeException(message);
 
         /// <summary>
-        /// Creates and logs to the console a <see cref="VMDebugContext"/> with the current state of the virtual machine before throwing an exception.
+        /// Creates and logs to the console a highly detailed exception with the current state of the VM.
         /// </summary>
-        /// <param name="exception"></param>
-        /// <exception cref="FluenceRuntimeException"></exception>
+        /// <param name="exception">The exception message.</param>
         internal FluenceRuntimeException ConstructRuntimeException(string exception, RuntimeExceptionType excType = RuntimeExceptionType.NonSpecific)
         {
             VMDebugContext debugCtx = new VMDebugContext(this);

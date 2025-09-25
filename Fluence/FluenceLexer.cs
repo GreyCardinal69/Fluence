@@ -603,6 +603,8 @@ namespace Fluence
                 // Just '.' -> Token.Dot
                 // 1.000 Decimal
                 // 1.000f Float
+                // 1_000_000 type numbers, type doesnt matter, simply a cosmetic look.
+
                 startPos = _currentPosition;
 
                 // Can be 0.5 or just .5 
@@ -611,6 +613,8 @@ namespace Fluence
                 if (IsNumeric(Peek()) || dotOnlyFraction)
                 {
                     bool decimalPointAlreadyDefined = false;
+                    bool numberWithSeparators = false;
+
                     while (_currentPosition < _sourceLength)
                     {
                         char lastc = currChar;
@@ -653,6 +657,11 @@ namespace Fluence
                         {
                             AdvancePosition();
                         }
+                        else if (currChar == '_')
+                        {
+                            numberWithSeparators = true;
+                            AdvancePosition();
+                        }
                         else break;
                     }
 
@@ -674,6 +683,11 @@ namespace Fluence
                     }
 
                     string lexeme = _sourceCode[startPos.._currentPosition];
+
+                    if (numberWithSeparators)
+                    {
+                        lexeme = lexeme.Replace("_", string.Empty);
+                    }
 
                     if (dotOnlyFraction) lexeme = lexeme.Insert(0, "0");
 

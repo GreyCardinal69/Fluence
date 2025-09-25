@@ -1770,7 +1770,6 @@ namespace Fluence
                     int instructionCountBeforeBlock = _currentParseState.CodeInstructions.Count;
                     ParseBlockStatement();
 
-                    // Validation: The block MUST have generated at least one instruction, and it MUST be a Return.
                     if (_currentParseState.CodeInstructions.Count == instructionCountBeforeBlock ||
                         _currentParseState.CodeInstructions[^1].Instruction != InstructionCode.Return)
                     {
@@ -1874,8 +1873,7 @@ namespace Fluence
                 else
                 {
                     // If the loop finished without finding a match, the brace is unclosed.
-                    Token errorToken = _lexer.PeekAheadByN(1);
-                    ConstructAndThrowParserException("Unclosed expression in f-string.", errorToken);
+                    ConstructAndThrowParserException("Unclosed expression in f-string.", _lexer.PeekCurrentToken());
                     return NilValue.NilInstance;
                 }
 
@@ -1899,7 +1897,6 @@ namespace Fluence
                 return stringParts[0];
             }
 
-            // Chain `Add` instructions for multiple parts.
             Value finalResult = stringParts[0];
             for (int i = 1; i < stringParts.Count; i++)
             {
@@ -2158,10 +2155,7 @@ namespace Fluence
 
             if (lhsDescriptors.Count != rhsExpressions.Count)
             {
-                ConstructAndThrowParserException(
-                    $"Mismatched number of items for multi-compound assignment '{opToken.ToDisplayString()}'.",
-                    opToken
-                );
+                ConstructAndThrowParserException($"Mismatched number of items for multi-compound assignment '{opToken.ToDisplayString()}'.", opToken);
             }
 
             for (int i = 0; i < lhsDescriptors.Count; i++)

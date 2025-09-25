@@ -1833,7 +1833,7 @@ namespace Fluence
                 if (instance.Class.Fields.Contains(Mangler.Demangle(methodName)))
                 {
                     functionToExecute = (FunctionObject)instance.GetField(Mangler.Demangle(methodName), this).ObjectReference;
-                    functionToExecute.IsLambda = true;
+                    functionToExecute!.IsLambda = true;
                 }
                 else if (!instance.Class.Functions.TryGetValue(methodName, out methodBlueprint) && !instance.Class.Constructors.TryGetValue(methodName, out methodBlueprint))
                 {

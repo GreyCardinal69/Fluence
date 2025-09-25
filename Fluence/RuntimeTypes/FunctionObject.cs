@@ -44,7 +44,7 @@ namespace Fluence.RuntimeTypes
         internal bool IsIntrinsic { get; private set; }
 
         /// <summary>The C# delegate that implements the body of an intrinsic function.</summary>
-        internal IntrinsicMethod? IntrinsicBody { get; private set; }
+        internal IntrinsicMethod IntrinsicBody { get; private set; }
 
         internal FunctionObject(string name, int arity, List<string> parameters, int startAddress, FluenceScope definingScope)
         {

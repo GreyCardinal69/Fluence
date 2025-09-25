@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 
 namespace Fluence.RuntimeTypes
 {
-
     /// <summary>
     /// A discriminator to identify the fundamental type of data stored in a <see cref="RuntimeValue"/>.
     /// </summary>

@@ -1,16 +1,7 @@
-﻿using Fluence.RuntimeTypes;
-using static Fluence.FluenceVirtualMachine;
+﻿using static Fluence.FluenceVirtualMachine;
 
-namespace Fluence
+namespace Fluence.RuntimeTypes
 {
-    /// <summary>
-    /// Represents a "closure" that binds an instance of an object (the receiver).
-    /// </summary>
-    internal sealed record class BoundMethodObject(InstanceObject Receiver, FunctionValue Method)
-    {
-        public override string ToString() => $"<bound method {Method.Name} of {Receiver}>";
-    }
-
     /// <summary>
     /// Represents a heap-allocated char object in the Fluence VM.
     /// </summary>
@@ -38,5 +29,4 @@ namespace Fluence
 
         public override string ToString() => Value.ToString();
     }
-
 }

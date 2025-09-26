@@ -1093,7 +1093,7 @@ namespace Fluence
             {
                 TempValue tempRangeReg = new TempValue(_currentParseState.NextTempNumber++);
                 TempValue iteratorReg = new TempValue(_currentParseState.NextTempNumber++);
-                TempValue valueReg = new TempValue(_currentParseState.NextTempNumber++); // Will hold the loop variable's value.
+                TempValue valueReg = new TempValue(_currentParseState.NextTempNumber++);
                 TempValue continueReg = new TempValue(_currentParseState.NextTempNumber++);
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewRange, tempRangeReg, range));
@@ -1106,7 +1106,7 @@ namespace Fluence
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, loopVariable, valueReg));
 
-                ParseLoopBody();
+                ParseStatementBody($"Expected an '->' for a single-line 'for in' loop body.");
 
                 int loopCheckAddress = _currentParseState.CodeInstructions.Count;
                 _currentParseState.CodeInstructions[jumpToConditionPatchIndex].Lhs = new NumberValue(loopCheckAddress);
@@ -1141,7 +1141,7 @@ namespace Fluence
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetElement, currentElementVar, collectionVar, indexVar));
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, loopVariable, currentElementVar));
 
-                ParseLoopBody();
+                ParseStatementBody($"Expected an '->' for a single-line 'for in' loop body.");
 
                 int continueAddress = _currentParseState.CodeInstructions.Count;
                 TempValue incrementedIndex = new TempValue(_currentParseState.NextTempNumber++);
@@ -1156,26 +1156,6 @@ namespace Fluence
             }
 
             _currentParseState.ActiveLoopContexts.Pop();
-        }
-
-        /// <summary>
-        /// Helper method to avoid duplicating the body parsing logic.
-        /// </summary>
-        private void ParseLoopBody()
-        {
-            if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
-            {
-                ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
-            }
-            else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
-            {
-                ParseBlockStatement();
-            }
-            else
-            {
-                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected an '->' for a single-line for-in loop body.");
-                ParseStatement();
-            }
         }
 
         /// <summary>
@@ -1325,11 +1305,8 @@ namespace Fluence
         {
             _lexer.Advance(); // Consume 'return'.
 
-            Value result = _lexer.TokenTypeMatches(TokenType.EOL)
-                ? NilValue.NilInstance // Empty 'return';
-                : ParseExpression();
-
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, ResolveValue(result)));
+            bool nilReturn = _lexer.TokenTypeMatches(TokenType.EOL);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, nilReturn ? NilValue.NilInstance : ResolveValue(ParseExpression())));
         }
 
         /// <summary>
@@ -2728,10 +2705,8 @@ namespace Fluence
             }
             else
             {
-                AdvanceAndExpect(TokenType.COMMA, "Expected ',' in a Fluid-style ternary.");
+                AdvanceAndExpect(TokenType.COMMA, "Expected ',' in a Fluid-style ternary expression.");
             }
-
-            // Recursively parse the "false" path expression.
 
             Value falseExpr = ResolveValue(ParseTernary());
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, result, falseExpr));
@@ -2806,7 +2781,7 @@ namespace Fluence
             _lexer.Advance(); // Consume '|>>='.
             AdvanceAndExpect(TokenType.L_PAREN, "Expected an opening '(' for Reducer Pipe arguments.");
 
-            Value initialValue = ParseExpression();
+            Value initialValue = ResolveValue(ParseExpression());
             AdvanceAndExpect(TokenType.COMMA, "Expected a comma between initial value and lambda in Reducer Pipe.");
             AdvanceAndExpect(TokenType.L_PAREN, "Expected an opening '(' for Reducer Pipe lambda.");
 
@@ -2986,7 +2961,7 @@ namespace Fluence
 
             while (_lexer.TokenTypeMatches(TokenType.REDUCER_PIPE))
             {
-                left = ParseReducerPipe(left);
+                left = ParseReducerPipe(ResolveValue(left));
             }
 
             return left;
@@ -3190,11 +3165,11 @@ namespace Fluence
                 Token op = _lexer.ConsumeToken();
                 Value right = ParseRange();
 
-                Value result = new TempValue(_currentParseState.NextTempNumber++);
+                TempValue result = new TempValue(_currentParseState.NextTempNumber++);
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(GetInstructionCodeForBinaryOperator(op.Type), result, ResolveValue(left), ResolveValue(right)));
 
-                left = result; // The result becomes the new left-hand side for the next loop.
+                left = result;
             }
 
             return left;

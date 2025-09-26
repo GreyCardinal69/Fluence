@@ -2241,6 +2241,7 @@ namespace Fluence
             }
 
             func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.StartAddress, funcSymbol.FunctionScope, null!, funcSymbol.StartAddressInSource);
+            func.ParametersByRef = funcSymbol.ArgumentsByRef;
             return func;
         }
 

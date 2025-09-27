@@ -12,184 +12,375 @@
 Fluence is a dynamically-typed, Interpreted, multi-paradigm scripting language that rejects verbosity and boilerplate. The language provides a rich suite of unique operators and constructs that enable a declarative, pipeline-oriented style.
 
 
-- [Core Philosophy](#core-philosophy)
-- [Performance](#performance)
-- [Language Tour](#language-tour)
-  - [Fundamentals](#fundamentals)
-  - [Functions](#functions)
-  - [Control Flow](#control-flow)
-  - [Data Structures & Object Model](#data-structures--object-model)
-  - [Namespaces & Modules](#namespaces--modules)
-- [The Soul of Fluence: The Operator Suite](#the-soul-of-fluence-the-operator-suite)
-  - [Pipeline Operators](#pipeline-operators)
-  - [Advanced Assignment Operators](#advanced-assignment-operators)
-  - [Collective Comparison Operators](#collective-comparison-operators)
-  - [The "Dot Family" Operators](#the-dot-family-operators)
-  - [Syntactic Sugar & QoL](#syntactic-sugar--qol)
-- [Roadmap](#roadmap)
-- [Examples](#examples)
-
-## Performance
-
-- Fluence is designed for high performance.     The lexer, parser and the virtual machine are highly optimized and allocate minimum memory. The Interpreter also features an Optimizer that fuses common and redundant bytecode operations to reduce instruction count. 
----
-
-## Core Philosophy
-
-Fluence is guided by a simple principle: to express complex logic with minimum friction.
-
--   **Versatility:** Most constructs, including `if`, `match`, and even `loop`, can be used as expressions to produce a value.
--   **Readability:** Data flows naturally from left to right through a series of transformative pipes, minimizing intermediate variables and enhancing readability.
--   **Compactness:** The language comes with a vast array of shorthand operators, leading to a higher code density and ease of navigation.
--   **Embeddable:** Built to be a powerful scripting engine.
-
-## Language Tour
-
-### Fundamentals
 
 
--   **Variable Declaration:** Implicit. Variables are created upon their first assignment.
-    ```cs
-    my_var = 10;
-    ```
-    
--  #### Variables & The `solid` Keyword
-   The `solid` keyword creates a **readonly** binding.
-  
-    ```cs
-    # A mutable variable.
-    my_var = 10;
-    my_var = 20; // This is fine.
-    
-    # A readonly (immutable) variable.
-    solid immutable_var = "Hello";
-    immutable_var = "World"; # This will cause a compile-time or runtime error.
-    ```
--   **Comments:** Single-line (`#`) and multi-line, nestable (`#* ... *#`).
--   **Strings:** Simple (`"..."`) and formatted (`f"..."`) strings with `{expression}` interpolation.
-    ```cs
-    world = "World";
-    greeting = f"Hello, {world}!";
-    ```
--   **Ranges:** Inclusive ranges defined by `start..end` (e.g., `1..10`). If used outside a `for .. in ..` loop, the range operator returns a list of the elements from a to b.
 
-#### Data Types
-Fluence is dynamically typed. The core types include:
--   **Numbers:** Integers, doubles, long and floating-point numbers (`10`, `3.14`, `3.14f`).
--   **Strings:** Simple (`"..."`) and formatted (`f"..."`) strings with `{expression}` interpolation.
--   **Chars:** Simple (`'c'`) characters.
--   **Booleans:** `true` and `false`.
--   **Nil:** A null-like value.
--   **Lists:** There are no arrays in Fluence, only lists.
--   **Structs:** User defined and intrinsic.
--   **Enums:** Simple C-style enumerations.
--   **Ranges:** Inclusive ranges defined by `start..end` (e.g., `1..10`). When used in a `for n in a...b` loop, a special iterator object is created. Otherwise the range returns a list of values from a to b.
+# Fundamentals
 
-### Functions
+**Variable Declaration:**
 
-Functions are first-class citizens.
--   **Single-Expression Functions:** The `=>` arrow provides an implicit return.
-    ```cs
-    func square(x) => x ** 2;
-    ```
--   **Block-Body Functions:** Use `{}` for more complex logic. `return` is explicit; otherwise, the function implicitly returns `nil`.
-    ```cs
-    func get_status(code) => {
-        if code == 200 -> return "OK";
-        return "Unknown";
-    }
-    ```
-Lambdas are yet to be implemented.
+Implicit. Variables are created upon their first assignment.
+```cs
+my_var = 10;
+```
+If uninitialized, variables default to 'Nil', the null in Fluence.
+```cs
+my_var;
+printl(my_var); # prints 'nil'
+```
 
-### Control Flow
+**Read only variables**
 
-All control structures support a single-line `->` syntax for simple bodies.
--   **`if`/`else if`/`else`:** Standard conditional branching.
--   **`unless`:** The inverse of `if`. `unless condition` is equivalent to `if not condition`.
-    ```cs
-    unless user.is_authenticated -> redirectToLoginPage();
-    ```
--   **Loops:** A comprehensive suite for any use case.
-    -   `for item in collection -> ...`
-    -   `while condition -> ...`
-    -   `loop { ... if condition -> break; }` A special infinite loop, until it encounters a `break` statement.
-    -   `for i = 0; i < N; i++ -> ...`
-    -   **Natural Language Loop:** A way to loop a fixed number of times.
-        ```cs
-        5 times { printl("Hello!"); }
-        N = 10;
-        N times { create_enemy(); }
-        ```
-        
-#### `match` — Versatile Pattern Matching
+Declared using the 'solid' keyword, the variable will be set as read only.
+```
+solid my_var = 10;
+my_var = 1; # error.
+```
+
+**Comments**
+
+Single line comments with '#'
+```cs
+my_var = 5; # some comment.
+```
+
+Multi-line comments with '#*' -> '*#'.
+```cs
+my_var = 5;
+#* some comment line1
+line2
+line3
+*#
+```
+
+**Built-In core types**
+
+Fluence supports: Int, Double, Float and Long numeric types.
+```rust
+int = 5;
+double = 0.5;
+double2 = .5; # 0 can be omitted.
+float = 0.5f;
+
+int2 = 1_000_000; # Underscores can be used in numbers as a cosmetic separator.
+
+my_long = 9_223_372_036_854_775_807;
+
+scientific = 1.23e4; # scientific notation is also supported.
+```
+
+Strings:
+```rust
+str = "Hello World!";
+```
+F-Strings:
+```cs
+str1 = "Hello";
+str2 = " World!"
+printl(f"{str1}{str2}"); # prints 'Hello World!'.
+```
+
+Lists:
+```rust
+list = [....];
+
+list2 = [1..5]; # [1, 2, 3, 4, 5]
+```
+
+Ranges:
+Ranges are defined as \[Start\]..\[End\] where both start and end are inclusive. They support both numbers and variables, and expressions.
+```rust
+1..5; # 1,2,3,4,5
+
+a = 1;
+a..5; # 1,2,3,4,5
+
+b = 5;
+
+a..b; # 1,2,3,4,5
+```
+
+Chars and Booleans:
+```rust
+a = 'a';
+truthy = true;
+falsy = false;
+```
+
+Nil:
+The representation of null in Fluence;
+```rust
+my_var = nil;
+```
+
+# Functions
+Functions are first-class citizens. All functions start with the 'func' keyword and come in two formats.
+
+```rust
+# Expression bodied, returns the value result of an expression.
+func Square(a) => a ** 2; # since it expects an expression, it must end with a semicolon.
+
+# A block bodied function.
+func Square(a) => {
+  result = a ** 2;
+  return result;
+}
+```
+
+The entry point to the script or application is defined as:
+```rust
+func Main() => {
+  ...
+}
+
+# or, a one liner.
+func Main() => ....;
+```
+
+Block bodied functions must define an explicit 'return expr' to return a value, otherwise they will return 'nil' by default.
+When calling a function you always pass arguments by value, this means that any change to them does not affect them outside the function.
+
+## Reference Arguments
+To pass an argument by reference you may use the 'ref' keyword.
+```rust
+func ByRef(a, ref b) => {
+  b += 5;
+  return a + b;
+}
+
+func Main() => {
+  a = 1;
+  b = 2;
+  printl(b); # prints 2
+
+  # to pass by ref, you must use the ref keyword. 
+  printl(ByRef(a, ref b)); # prints 8.
+  printl(b); # prints 7.
+}
+```
+
+# Control Flow
+Control structures in Fluence do not require parentheses, for the most part.
+
+## `If` Statements
+Standard conditional branching. 
+```rust
+my_var = 5;
+
+# A single line statement.
+if my_var == 5 -> printl(my_var);
+
+# Block body.
+if my_var == 5 {
+  printl(my_var);
+}
+
+# Both types can be used together.
+if a == 5 -> printl(5);
+else if a == 6 -> printl(6);
+else {
+  printl(a);
+}
+```
+
+## Unless
+The inverse of `If`, doesnt not have else unless/else.
+
+```rust
+truthy = true;
+
+# Unless the condition is true, do something, neither of these will print anything.
+unless truthy -> printl("False");
+
+unless truthy {
+  printl("False");
+}
+```
+
+## Loops
+
+### For - In Loops
+Represents a loop over a list or a range. Supports both single line and block bodies.
+Format is: for `variable` in `expression/list/range`
+
+```rust
+list = [1..5];
+
+# Both of these will print 1 to 5 inclusively.
+
+for i in list -> printl(i);
+
+for i in 1..5 {
+  printl(i);
+}
+
+```
+
+### While
+A simple while loop.
+
+```rust
+while true -> ....
+
+while true {
+  ...
+}
+```
+
+### Until
+The inverse of `While`
+Until condition -> do something
+
+```rust
+a = 0;
+
+until a > 5 {
+  a++;
+  printl(a);
+}
+
+# Single line is supported
+until cond -> ....
+```
+
+### C-Style for loops.
+Supports both single line and block body, expects 3 expressions separated with a semicolon.
+
+```rust
+for i = 0; i < 10; i++; -> printl(i);
+
+for i = 0; i < 10; i++; {
+    printl(i);
+}
+```
+
+### `Loop` - loops.
+Represents an infinite loop which can be exited only using a `break` statement.
+Does not support a single line form.
+
+```rust
+a = 0;
+
+loop {
+  if a >= 10 -> break;
+  a++;
+  printl(a);
+}
+```
+
+### `Times` Loop.
+A fancy way to loop a certain amount of times.
+Supports one line and block bodies.
+Accepts only integer numbers and integer variables.
+
+```rust
+
+5 times -> printl(1); # prints '1' five times.
+5 times {
+  printl(1);
+}
+
+my_var = 10;
+
+my_var times -> ...
+```
+
+#### `Times As` loops.
+A slightly expanded way to do a `Times` loop.
+Supports one line and block bodies.
+
+```rust
+# defines a variable i as 0, increments until it reaches 5 ( exclusive ), aka 0,1,2,3,4.
+5 times as i -> printl(i);
+```
+By default this variable defined is mutable, you can modify it inside the loop but be careful or you will get an infinite loop.
+You can mark it as solid this way:
+```rust
+5 times as solid i {
+  printl(i);
+  i += 1; # error
+}
+```
+
+## Match
 The `match` statement is a flexible tool for handling complex conditional logic based on a value's identity. It can be used as a traditional statement (like a `switch`) or as an expression that returns a value.
 
-*   **Expression-Style `match` (`->`)**
+**Expression-Style**
+This is the most common form. It's an expression that evaluates to the value of the first matching case. It must be exhaustive, meaning a `rest` (default) case is required if all other possibilities aren't covered.
 
-    This is the most common form. It's an expression that evaluates to the value of the first matching case. It must be exhaustive, meaning a `rest` (default) case is required if all other possibilities aren't covered.
+```rust
+# Before: A clunky if/else if/else chain.
 
-    ```cs
-    # Before: A clunky if/else if/else chain.
-    icon = "";
-    if tile == Tile.Hit {
-        icon = "X";
-    } else if tile == Tile.Miss {
-        icon = "0";
-    } else {
-        icon = "?";
+icon = "";
+if tile == Tile.Hit {
+    icon = "X";
+} else if tile == Tile.Miss {
+    icon = "0";
+} else {
+    icon = "?";
+}
+
+# After: A clean, single match expression.
+row_str += match tile
+    {
+        Tile.Hit -> "X";
+        Tile.Miss -> "0";
+        rest -> "?";
+    }; # Since this form of match is an expression, it expects a semicolon.
+```
+
+ **Statement-Style `match` (`:`)**
+
+  For more complex logic, you can use a colon (`:`) to define a block of statements for each case. This form does **not** return a value and supports fallthrough and `break`.
+  This is basically a switch statement. Rest statement must end with a `break;`.
+
+  ```rust
+  # A statement-style match for handling different command types.
+  match command.type {
+      Command.MOVE:
+          handle_move(command.payload);
+          # Implicit fallthrough to the next case.
+      Command.UPDATE_UI:
+          ui.needs_redraw = true;
+          break; # Exit the match block.
+      Command.QUIT:
+          game.is_running = false;
+          break;
+      rest:
+          log_unknown_command(command);
+          break;
+  }
+  ```
+NOTE! That a switch style match does not require a semicolon after its closing brace!
+
+ **Block Bodies in `match` Expressions (`=>`)**
+
+  You can combine the power of an expression with multi-line logic. A case with a block arrow (`=>`) can contain multiple statements, but the block **must** end with a `return` to provide a value for the `match` expression.
+
+  ```rust
+  result_message = match player_grid.shoot(shot_point) {
+      Tile.Ship => {
+          player_grid.update_tile(shot_point, Tile.Hit);
+          game.score += 100;
+          return ">>> HIT! <<<"; # This block returns a value.
+      },
+      rest -> ">>> Miss. <<<";
+  };
+  printl(result_message);
+  ```
+
+# Data structures
+
+## Structs
+Simple data aggregates with instance fields, static fields, methods, and a special `init` constructor. `self` is used to refer to the instance.
+A field marked as `solid` is both readonly and static.
+
+```rust
+    struct Point {
+        x,y;
+        func init(x,y) => self.x,self.y <~| x,y; # will be explained later.
     }
-    row_str += f" {icon} ";
 
-    # After: A clean, single match expression.
-    row_str += f" {match tile {
-                   Tile.Hit -> "X";
-                   Tile.Miss -> "0";
-                   rest -> "?";
-               }} ";
-    ```
-
-*   **Statement-Style `match` (`:`)**
-
-    For more complex logic, you can use a colon (`:`) to define a block of statements for each case. This form does **not** return a value and supports fallthrough and `break`.
-
-    ```cs
-    # A statement-style match for handling different command types.
-    match command.type {
-        Command.MOVE:
-            handle_move(command.payload);
-            # Implicit fallthrough to the next case.
-        Command.UPDATE_UI:
-            ui.needs_redraw = true;
-            break; # Exit the match block.
-        Command.QUIT:
-            game.is_running = false;
-            break;
-        rest:
-            log_unknown_command(command);
-    }
-    ```
-
-*   **Block Bodies in `match` Expressions (`=>`)**
-
-    You can combine the power of an expression with multi-line logic. A case with a block arrow (`=>`) can contain multiple statements, but the block **must** end with a `return` to provide a value for the `match` expression.
-
-    ```cs
-    result_message = match player_grid.shoot(shot_point) {
-        Tile.Ship => {
-            player_grid.update_tile(shot_point, Tile.Hit);
-            game.score += 100;
-            return ">>> HIT! <<<"; # This block returns a value.
-        },
-        rest -> ">>> Miss. <<<";
-    };
-    printl(result_message);
-    ```
-
-  
-### Data Structures & Object Model
-
--   **Structs:** Simple data aggregates with instance fields, static fields, methods, and a special `init` constructor. `self` is used to refer to the instance.
-    ```cs
     struct Vector2 {
         # Instance fields with default values.
         x = 0; 
@@ -200,25 +391,59 @@ The `match` statement is a flexible tool for handling complex conditional logic 
         solid ORIGIN = Point(0, 0); 
         
         # Constructor.
-        func init(x, y) => { self.x, self.y <~| x, y; }
+        func init(x, y) => {
+          self.x = x;
+          self.y = y;
+        }
         
         # Instance Method.
         func length() => (self.x**2 + self.y**2)**0.5;
 
-        func from_angle(angle, magnitude) => { ... }
+        # Static function, can not have 'self' inside.
+        func length(x,y) => (x**2 + y**2) ** 0.5;
     }
-    v = Vector2(3, 4);      # Constructor call.
-    p = Point{x: 10, y: 20};  # Direct initializer.
-    origin = Vector2.ORIGIN;  # Accessing a static field.
-    ```
--   **Enums:** Simple, C-style enumerations for named constants.
-    ```cs
-    enum Status { Pending, Complete, Failed, }
-    task_status = Status.Pending;
-    ```
 
-### Namespaces & Modules
-Organize code with `space` and import with `use`. The `use` keyword can import multiple namespaces at once.
+  func Main() => {
+    
+    pos1 = Vector2(1,2);
+    printl(pos1.length()); # 2.236....
+
+    # Static functions are called with the struct name.
+    printl(Vector2.length(1,2)); # 2.236....
+
+  }
+```
+
+There are two ways to create a new instance. Constructor and Direct.
+```rust
+# constructor, requires a constructor with, in this case, 2 arguments.
+vector = Vector2(a,b); 
+
+# direct, Required fields by name, and their value after the colon, with a comma separator.
+vector = Vector2 { x:1, y:2 };
+```
+
+## Enums
+Simple C-style enumerations.
+
+```rust
+    enum Tile {
+        Empty,
+        Ship,
+        Hit,
+        Miss,
+    }
+```
+All enum members end with a comma.
+
+```rust
+a = Tile.Hit;
+
+if a == Tile.Hit -> printl("Hit!"); # true, prints.
+```
+
+## Namespaces & Modules
+Organize code with `space` keyword and import with `use`. The `use` keyword can import multiple namespaces at once.
 ```cs
 space MyGame {
     use FluenceIO, FluenceMath;
@@ -229,76 +454,400 @@ space MyGame {
 }
 ```
 
----
+Any code outside any space automatically belongs to the global namespace!
 
+# Operator Suite
+Operators can be considered the most distinct feature of Flunce. The operators are designed with ease of use and readability in mind.
 
-## Operators
+Starting Simple:
+```rust
+# generic operators
++ - * / %
 
-Operators can be considered Fluence its most distinct features. The operators are designed with ease of use and readability in mind.
+** (power aka exponentiation)
 
-### Pipeline Operators
-These operators create a linear, left-to-right flow of data, eliminating nested calls.
+# Decrement, Increment
+-- ++
 
-| Operator | Name | Description | Example |
-| :--- | :--- | :--- | :--- |
-| **`\|>`** | Pipe | Pipes the LHS result into an argument of the RHS function, marked by `_`. Implicit for single-argument functions. | `input() \|> trim(_) \|> to_upper(_)` | The pipe must be followed by an `_` in the function you pipe into.
-| **`\|?`** | Optional Pipe |  If LHS is `nil`, the chain stops and returns `nil`. | `user \|? _.get_profile() \|? _.name` |
-| **`\|??`**| Guard Pipe | If the current value is `false`, the chain stops and returns `false`. | `is_valid \|?? check_a() \|?? check_b()` |
-| **`\|>>`** | Map Pipe | Transforms each element of a list into a new list. | `[1,2,3] \|>> _ * 2` -> `[2,4,6]` |
-| **`\|>>=`**| Reducer Pipe | Reduces a list to a single value. Takes an `(initial, (acc, el) => ...)` lambda. | `[1,2,3] \|>>= (0, (s, n) => s + n)` -> `6` |
-| **`\|~>`** | Scan Pipe | Reduces a list but returns all intermediate results. Takes `(count, (el) => ...)` lambda. | `1 \|~> (4, (x) => x * 2)` -> `[1,2,4,8,16]` |
-| **`~>`** | Composition Pipe| Composes two functions into a new one. `f = g ~> h` is `(x) => h(g(x))`. | `add_one_sq = (_+1) ~> (_**2)` |
+# Bitwise operators
+<< (bitwise left shift)
+>> (bitwise right shift)
+& (AND)
+| (OR)
+^ (XOR)
+~ (NOT)
 
-As of now, the following are not yet implemented: Scan Pipe, Composition pipe, reducer pipe, map pipe, optional pipe.
+# Operator + assignment
++= -= /= *= %=
 
+# Bitwise + assignment
+&=
 
-### Advanced Assignment Operators
-Elevates assignment from a simple statement to a powerful expression tool for reducing boilerplate.
+# Unary negation
+-10
 
-| Operator | Name | Description | Example |
-| :--- | :--- | :--- | :--- |
-| **`<~\|`** | Sequential Assign | Assigns `n` distinct values to `n` variables. | `x, y, z <~\| 10, "hello", true` |
-| **`<\|`** | Rest Assign | Assigns a single value to all remaining variables in the list. | `x, y, z <\| 0` |
-| **`<?\|`** | Optional Rest Assign | Assigns the RHS to the rest of the variables, but only if the RHS is not `nil`. | `theme <?\| read_config()` |
-| **`<n\|`** | Chain N Assign | Assigns the same value to the next `n` variables in the chain. | `x,y,z <2\| 0 <\| "+"` -> `x=0, y=0, z="+"` |
-| **`<n!\|`** | Unique Chain Assign | Evaluates the RHS expression `n` times, assigning each unique result to the next `n` variables. | `a,b <2!\| input()` -> `a=input(), b=input()` |
-| **`<??\|`** | Guard Chain (AND) | Assigns `true` to a variable if a chain of comma-separated expressions are all truthy. Short-circuits. | `is_valid <??\| check1, check2` |
-| **`<\|\|??\|`**| Guard Chain (OR) | Assigns `true` to a variable if any expression in a chain is truthy. Short-circuits. | `has_flag <\|\|??\| cond1, cond2` |
+# Comparison
+== != < > <= >=
 
-### Collective Comparison Operators
-Check a condition against multiple variables at once, eliminating long `&&` or `||` chains.
+# Logical
+&& ||
+! ( !true, !false )
+is ( alias of == )
+not ( alias of != )
+```
 
-| Operator | Name | Description | Example |
-| :--- | :--- | :--- | :--- |
-| **`<==\|`** | Collective AND | Returns `true` if all variables on the left meet the condition. | `if x, y <>\| 5` (if x>5 AND y>5) |
-| **`<\|\|==\|`**| Collective OR | Returns `true` if any variable on the left meets the condition. | `if x, y <\|\|==\| nil` (if x is nil OR y is nil) |
-*(Variants exist for `!=`, `<`, `>`, `<=`, `>=` by changing the middle symbol, e.g., `<>=\|`, `<\|\|<\|`)*
+### Ternary Operator
+Supports two formats
+```rust
+# Standard ternary.
+a = true;
 
+b = a ? 1 : 2;
 
-### The "Dot Family" Operators
-These operators provide function-style syntax for common operations.
+# A more Fluence style
+b = a ?: 1, 2;
+```
 
-| Operator | Name | Description | Example |
-| :--- | :--- | :--- | :--- |
-| **`.and()`** | And Function | Function-call syntax for `&&`, useful for long, comma-separated lists of conditions. | `if .and(c1, c2, c3)` |
-| **`.or()`** | Or Function | Function-call syntax for `\|\|`. | `if .or(c1, c2, c3)` |
-| **`.++()`** | Multi-Increment | Increments multiple variables. | `.++(x, y)` |
-| **`.--()`** | Multi-Decrement | Decrements multiple variables. | `.--(x, y)` |
-| **`.-=`** | Multi-Op-Assign | Applies an op-assignment to multiple variables with corresponding values. | `a,b .+= 5,10` | 
-*(Variants exist for `+`, `-`, `/`, `*`, `%`, by changing the middle symbol, e.g., `.-=`, `.*=`)*
+## `DOT` family operators.
+A special set of operators that begin with a dot.
 
+### `.and()` and `.or()`
+```rust
+# Logical
+.or()  .and()
+```
+These represent a grouping of conditions with `&&` for .`and()` and `||` for `.or()`.
+```rust
+a = true;
+b = true;
 
+# instead of
+if a && b -> ...
+# you can do
+if .and(a,b) -> ....
 
-### Syntactic Sugar & QoL
+# Same for .or()
+```
 
-| Operator | Name | Description | Example |
-| :--- | :--- | :--- | :--- |
-| **`->>`** | Train Operator | Chains single-line statements sequentially without needing a block. Must end with a `<<-`. | `->> a=5 ->> b=10 ->> printl(a+b) <<-` |
-| **`><`** | Swap | Swaps two variables in-place. | `a >< b;` |
-| **`!!`** | Boolean Flip | Toggles a boolean value. | `is_active!!;` |
-| **`?:`** | Ternary Operator | A concise `if/else` expression. | `msg = ok ?: "Success", "Fail";` |
-| **`is`/`not`** | Aliases | `is` is an alias for `==`. `not` is an alias for `!=`. | `if x is 5 and y not 10` |
+### `.++()` and `.--()`
+These represent a grouping of increments, decrements.
+```rust
+a = 1;
+b = 1;
 
+.++(a,b);
+printl(f"{a},{b}"); # prints 2 for both.
+
+.--(a,b);
+
+printl(f"{a},{b}"); # prints 1 for both.
+```
+
+### `.op=`
+These represent a grouping of an operator + assignment.
+Only applicable for - + / *
+
+```rust
+.-= .+= ./= .*=
+```
+
+```rust
+a = 1;
+b = 1;
+
+a += 4;
+b += 4;
+
+printl(f"{a},{b}"); # prints 5 for both.a
+
+a, b .-= 4,4;
+
+printl(f"{a},{b}"); # prints 1 for both.a
+```
+
+## Miscellanea Operators
+A small set of small, special operators.
+
+#### `!!` - Boolean flip
+```rust
+a = true;
+a!!;
+printl(a); # prints false;
+```
+
+#### `><` - Swap operator
+```rust
+a = 1;
+b = 2;
+a >< b; 
+printl(a); # prints 2;
+printl(b); # prints 1;
+```
+
+### Train Operator
+Allows the chaining of expressions and statements without a semicolon.
+Starts with `->>` and must end with `<<-`
+
+```rust
+func Main() => {
+  ->> a = 5 
+      ->>
+      b = 10
+      ->> printl(a + b) <<- # prints 15.
+}
+```
+
+## Collective Comparison Operators
+These check a condition against multiple variables at once, eliminating long `&&` or `||` chains.
+```rust
+a = 1;
+b = 3;
+
+# This reads as such, "if both 'a' and 'b' are smaller than 10 then".
+if a, b <<| 10 -> printl(...);
+```
+The following collective comparison operators are supported
+```rust
+<==| # all equal to
+<!=| # all not equal to
+<<|  # all smaller than
+<<=| # all smaller or equal to
+<>|  # all greater than
+<>=| # all greater or equal to
+```
+
+Collective comparison operators also support OR variants
+```rust
+a = 1;
+b = 3;
+c = 5;
+
+# This reads as such, "if either 'a' or 'b' or 'c' are smaller than 10 then".
+if a, b, c <||<| 10 -> printl(...);
+```
+The following OR collective comparison operators are supported, simply add `||` to the standard ones.
+```rust
+<||==| # any equal to
+<||!=| # any not equal to
+<||<|  # any smaller than
+<||<=| # any smaller or equal to
+<||>|  # any greater than
+<||>=| # any greater or equal to
+```
+
+## Advanced Assignment Operators
+These elevate assignments from a simple statement to a powerful expression tool for reducing boilerplate.
+
+### Sequential Rest Assignment `<~|`
+Sequentially assign `N` distinct values to `N` variables.
+```rust
+a, b, c <~| 1, 2, 3; # a becomes 1, b becomes 2, c becomes 3.
+```
+
+#### Optional Sequential Rest Assignment `<~?|`
+Sequentially assign `N` distinct values to `N` variables, but only if those values are not `nil`.
+```rust
+b = 5;
+a, b, c <~?| 1, nil, 3; # a becomes 1, b stays as 5, because we attempt to assign 'nil' to it, c becomes 3.
+printl(f"{a},{b},{c}");
+```
+
+### Chain N Assignment `<N|`
+Assigns the same value to the next `N` variables in the chain.
+```rust
+a, b, c <2| 1 <1| 2;
+printl(f"{a},{b},{c}"); # a and b are '1', c is '2'.
+```
+To avoid using `<1|` Chain N Assignment is often paired with:
+### Rest Assignment `<|`
+Assigns a single value to all remaining variables on the left.
+```rust
+a, b, c <1| 1 <| 2;
+printl(f"{a},{b},{c}"); # a is '1', b and c become '2'.
+```
+NOTE! That not all special assignment operators can be used together!
+
+Both Chain N Assignment and Rest Assignment operators support an Optional variant: `<N?|` and `<?|`.
+These work identically to Optional Sequential Rest Assignment.
+
+### Unique Chain N Assignment `<N!|`
+Works identical to `<N|` But evaluates the values for each variable.
+For example:
+```rust
+# To avoid num1, num2 being assigned to the same value, we use Unique Chain N assignment
+# and not Chain N Assignment.
+num1, num2, op <2!| to_int(input()) <| input();
+```
+
+#### Optional Unique Chain N Assignment `<N!?|`
+Works identically to all other Optional variants.
+
+### Guard Chain `<??|`
+Assigns `true` to a variable if a chain of comma-separated expressions are all truthy. Short-circuits.
+```rust
+a, b, c <~| 1,2,3;
+
+truthy <||??| a < b, b > c, c > 10;
+
+printl(truthy); # true.
+```
+
+#### OR Guard Chain `<||??|`
+Assigns `true` to a variable if in a chain of comma-separated expressions at least one is truthy. Short-circuits.
+a, b, c <~| 1,2,3;
+
+truthy <??| a < b, b < c, c < 10;
+
+printl(truthy); # true.
+
+### Guard Pipe Truthy-propagating. `|??`
+An alternative to the Guard Chain. If the right-side expression is false, the pipeline breaks and returns false.
+```rust
+a, b, c <~| 1,2,3;
+
+truthy |?? a < b
+       |?? b < c
+       |?? c < 10;
+
+printl(truthy); # true.
+```
+
+### BroadCast Call `<|`
+An overload of the rest assignment operator, pipes multiple values into a function.
+```rust
+
+# The underscore is a special character, tells which argument is the value we are passing.
+printl(_) <| 1, 2, 3, "Hello World!";
+
+# prints
+1
+2
+3
+Hello World!
+```
+
+### The Pipe Operator `|>`
+Pipes a value into a chain of function calls. "Take the result of the expression on the left and feed it into the function on the right."
+There are to options when using the pipe:
+```rust
+# This calls a function that belongs to the type on the left. There is no need to write the variable name in this case.
+... |> .func()
+
+# This passes the value on the left to the spot defined by '_' of the function on the right,
+# if further pipes are present we pass the value of the, in this case 'printl' to the next pipe.
+... |> printl(_)
+```
+Examples:
+```rust
+text = "   hello";
+result = text 
+    |> .trim() 
+    |> .upper() 
+    |> .sub(2);
+
+printl(result); # Prints 'LLO'.
+```
+This is also valid
+```rust
+text = "   hello";
+# If a structs function returns the struct itself, you can chain it like this.
+result = text.trim().upper().sub(2);
+printl(result); # prints 'LLO'.
+```
+For this reason usually it is logical to use the pipe operator when also using its second form of use.
+
+Explicit Placeholder for Multi-Argument Functions.
+If the function on the right takes more than one argument, the _ placeholder is mandatory. It tells Fluence exactly where to insert the piped-in value.
+```rust
+func multiply_and_add(a, b, c) => a * b + c;
+ 
+func Main() => {
+    # This becomes multiply_and_add(5, 10, 2) = 52
+    result = 10 |> multiply_and_add(5, _, 2);
+    printl(result);
+}
+```
+```rust
+func subtract(a, b) => a - b;
+ 
+func Main() => {
+    result1 = 20 |> subtract(100, _); 
+    result2 = 20 |> subtract(_, 100);  
+
+    printl(f"{result1},{result2}"); # 80, -80
+}
+```
+
+# Lambdas
+Lambdas are defined as follows:
+```rust
+lambda = () => ...
+```
+A lambda can accept any number of arguments, and since it is a function it can come in a single line expression, or a block body.
+```rust
+lambda = (a,b) => a + b;
+
+lambda = (a,b) => {
+  result = a + b;
+  return result;
+}
+```
+Since lambdas are functions, if they have a block body they must explicitely return a value using the `return` statement, otherwise they will return `nil`.
+
+```rust
+    add = (a,b) => a + b;
+    printl(add(1,2)); # 3
+
+    add = (a,b) => {
+        a + b;
+    }
+
+    printl(add(1,2)); # nil
+```
+
+Lambdas can accept arguments passed by reference.
+```rust
+    add = (ref a, b) => {
+        a += 4;
+        return a + b;
+    }
+
+    a, b <~| 1, 2;
+
+    printl(add(ref a,b)); # 6
+    printl(a); # 5
+```
+
+## Lambda Pipes
+The following are pipe like operators that use lambdas.
+
+### Reducer Pipe `|>>=`
+Iterates over a collection, applying a function at each step to accumulate a final result.
+```rust
+numbers = [5, 2, 8];
+sum = numbers |>>= (0, (total, n) => total + n);
+printl(sum); # 15
+```
+How it Works in Fluence: The (initial_value, lambda) Pair
+
+The reducer pipe always takes two arguments on its right-hand side, enclosed in parentheses: (initial_value, lambda).
+
+  initial_value: This is the starting value for your accumulation. It's what the accumulator will be on the first iteration. This value must be a compile time constant, f.e empty list `[]` or `0` or `""`. Not a variable.
+
+  lambda: This is the function that performs the work at each step. It must take two arguments:
+      The Accumulator: The current accumulated value (e.g., total).
+      The Current Element: The current item from the collection being iterated over (e.g., n).
+      The lambda must return the new value for the accumulator, which will be passed into the next iteration.
+        
+Modified example with block body.
+```rust
+  numbers = [5, 2, 8];
+  sum = numbers |>>= (0, (total, n) => {
+      n++;
+      return total + n;
+  });
+  printl(sum);
+```
 
 ### Building from Source
 Fluence is built on .NET. To create a command-line executable for your platform:
@@ -313,28 +862,6 @@ Once the command is in your PATH, you can run scripts from any terminal:
 ```sh
 fluence -run my_script.fl
 ```
-
-# Roadmap
-Fluence is still in its early stages of development. Many features are yet to be implemented.
-
--   **Enhanced Type System:**
-    -   **Access Modifiers:** Introducing `private` and `public` keywords for fields and methods to provide robust encapsulation.
-    -   **Traits (`impl`):** Finalizing the trait-based system for structs (`struct Vector2 impl Vector`) to enable a powerful form of polymorphism and interface-driven design.
-
--   **Richer Functions & Lambdas:**
-    -   **Full Lambda Implementation:** Completing the implementation of first-class lambda expressions.
-    -   **Pipe-Enabled Lambdas:** Implementing the full suite of functional pipeline operators that operate on lambdas, including `|?` (Optional Pipe), `|>>` (Map Pipe), `|>>=` (Reducer Pipe), and `|~>` (Scan Pipe).
-    -   **Default Argument Values:** Allowing functions and methods to have default values for parameters, e.g., `func connect(host, port=8080) => ...`.
-
--   **Advanced Control Flow:**
-    -   **`.returnmatch` Statement:** Implementing a powerful, single-statement conditional return mechanism to further reduce `if/else` boilerplate in functions.
-
--   **Standard Library Expansion:**
-    -   **New Libraries:** Creating new intrinsic modules for common scripting needs, such as `FluenceHttp` (for web requests), `FluenceData` (for CSV/JSON parsing), and `FluenceOS` (for interacting with the operating system) and many others.
-
-
----
-
 
 # Examples:
 

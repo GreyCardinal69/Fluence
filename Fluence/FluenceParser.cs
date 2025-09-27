@@ -2087,8 +2087,7 @@ namespace Fluence
                 else if (firstLhs is VariableValue variable)
                 {
                     // The expression was just a variable. Force a read.
-                    TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, temp, variable));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, variable, NilValue.NilInstance));
                 }
             }
         }

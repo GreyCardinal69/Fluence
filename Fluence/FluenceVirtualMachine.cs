@@ -1,5 +1,6 @@
 using Fluence.RuntimeTypes;
 using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -1131,8 +1132,8 @@ namespace Fluence
         private void ExecuteToString(InstructionLine instruction)
         {
             RuntimeValue valueToConvert = GetRuntimeValue(instruction.Rhs);
-            string resultString = valueToConvert.ToString();
-            SetRegister((TempValue)instruction.Lhs, new RuntimeValue(new StringObject(resultString)));
+             
+            SetRegister((TempValue)instruction.Lhs, new RuntimeValue(new StringObject(IntrinsicHelpers.ConvertRuntimeValueToString(this, valueToConvert))));
         }
 
         /// <summary>
@@ -1894,6 +1895,70 @@ namespace Fluence
             _callStack.Push(newFrame);
             _cachedRegisters = newFrame.Registers;
             _ip = functionToExecute.StartAddress;
+        }
+
+        /// <summary>
+        /// Executes a manual method call from outside the virtual machine.
+        /// </summary>
+        /// <param name="instance">The instance of a struct to call the method on.</param>
+        /// <param name="func">The function of the instance to call.</param>
+        /// <returns>The result of the function's return.</returns>
+        internal RuntimeValue ExecuteManualMethodCall(InstanceObject instance, FunctionValue func)
+        {
+            int savedIp = _ip;
+            var savedRegisters = _cachedRegisters;
+
+            FunctionObject functionToExecute = CreateFunctionObject(func);
+            CallFrame newFrame = _callFramePool.Get();
+
+            newFrame.Initialize(functionToExecute, -1, null!);
+
+            newFrame.Registers["self"] = new RuntimeValue(instance);
+
+            _callStack.Push(newFrame);
+            _cachedRegisters = newFrame.Registers;
+            _ip = functionToExecute.StartAddress;
+
+            RuntimeValue returnValue = RuntimeValue.Nil;
+
+            while (true)
+            {
+                if (_callStack.Peek() != newFrame)
+                {
+                    break;
+                }
+
+                InstructionLine instruction = _byteCode[_ip];
+                _ip++;
+
+                if (instruction.Instruction == InstructionCode.Return)
+                {
+                    returnValue = GetRuntimeValue(instruction.Lhs);
+
+                    _callStack.Pop();
+                    _callFramePool.Return(newFrame);
+                    break;
+                }
+
+                if (instruction.SpecializedHandler != null)
+                {
+                    instruction.SpecializedHandler(instruction, this);
+                }
+                else
+                {
+                    if (instruction.Instruction is InstructionCode.Goto)
+                    {
+                        _ip = (int)((NumberValue)instruction.Lhs).Value;
+                        continue;
+                    }
+                    _dispatchTable[(int)instruction.Instruction](instruction);
+                }
+            }
+
+            _ip = savedIp;
+            _cachedRegisters = savedRegisters;
+
+            return returnValue;
         }
 
         private void ExecuteCallStatic(InstructionLine instruction)

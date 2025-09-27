@@ -22,7 +22,7 @@ namespace Fluence
             FuseGotoConditionals(ref bytecode, startIndex, ref byteCodeChanged);
             FuseCompoundAssignments(ref bytecode, startIndex, ref byteCodeChanged);
             FuseSimpleAssignments(ref bytecode, startIndex, ref byteCodeChanged);
-            FuseTwoPushParams(ref bytecode, startIndex, ref byteCodeChanged);
+            FusePushParams(ref bytecode, startIndex, ref byteCodeChanged);
 
             if (byteCodeChanged)
             {
@@ -74,15 +74,42 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>
         /// <param name="startIndex">The index from which to begin scanning.</param>
-        private static void FuseTwoPushParams(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
+        private static void FusePushParams(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
-            for (int i = startIndex; i < bytecode.Count - 1; i++)
+            for (int i = startIndex; i < bytecode.Count - 3; i++)
             {
                 InstructionLine line1 = bytecode[i];
                 InstructionLine line2 = bytecode[i + 1];
-                if (line1 == null || line2 == null) continue;
+                InstructionLine line3 = bytecode[i + 2];
+                InstructionLine line4 = bytecode[i + 3];
+                if (line1 == null || line2 == null || line3 == null || line4 == null) continue;
 
-                if (line1.Instruction == InstructionCode.PushParam && line2.Instruction == InstructionCode.PushParam)
+                if (line1.Instruction == InstructionCode.PushParam &&
+                    line2.Instruction == InstructionCode.PushParam &&
+                    line3.Instruction == InstructionCode.PushParam &&
+                    line4.Instruction == InstructionCode.PushParam)
+                {
+                    byteCodeChanged = true;
+                    bytecode[i].Instruction = InstructionCode.PushFourParams;
+                    bytecode[i].Rhs = line2.Lhs;
+                    bytecode[i].Rhs2 = line3.Lhs;
+                    bytecode[i].Rhs3 = line4.Lhs;
+                    bytecode[i + 1] = null!;
+                    bytecode[i + 2] = null!;
+                    bytecode[i + 3] = null!;
+                    i++;
+                }
+                if (line1.Instruction == InstructionCode.PushParam && line2.Instruction == InstructionCode.PushParam && line3.Instruction == InstructionCode.PushParam)
+                {
+                    byteCodeChanged = true;
+                    bytecode[i].Instruction = InstructionCode.PushThreeParams;
+                    bytecode[i].Rhs = line2.Lhs;
+                    bytecode[i].Rhs2 = line3.Lhs;
+                    bytecode[i + 1] = null!;
+                    bytecode[i + 2] = null!;
+                    i++;
+                }
+                else if (line1.Instruction == InstructionCode.PushParam && line2.Instruction == InstructionCode.PushParam)
                 {
                     byteCodeChanged = true;
                     bytecode[i].Instruction = InstructionCode.PushTwoParams;

@@ -281,6 +281,11 @@ namespace Fluence
                 return left.DoubleValue == right.DoubleValue;
             }
 
+            if (left.Type == RuntimeValueType.Boolean && right.Type == RuntimeValueType.Boolean)
+            {
+                return left.IntValue == right.IntValue;
+            }
+
             return left.Equals(right);
         }
 
@@ -1243,7 +1248,7 @@ namespace Fluence
             Value indexOperand = insn.Rhs2;
             TempValue destRegister = (TempValue)insn.Lhs;
 
-            if (collection.ObjectReference is ListObject)
+            if (collection.ObjectReference is ListObject list)
             {
                 if (collectionOperand is VariableValue collVar && indexOperand is VariableValue indexVar)
                 {
@@ -1255,21 +1260,12 @@ namespace Fluence
                         ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
                         ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
 
-                        if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is ListObject list &&
-                            !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
+                        int idx = indexRef.IntValue;
+                        if (idx >= 0 && idx < list.Elements.Count)
                         {
-                            int idx = indexRef.IntValue;
-                            if (idx >= 0 && idx < list.Elements.Count)
-                            {
-                                vm.SetRegister(destRegister, list.Elements[idx]);
-                            }
-                            else { vm.ConstructAndThrowException("Index out of range."); }
+                            vm.SetRegister(destRegister, list.Elements[idx]);
                         }
-                        else
-                        {
-                            instruction.SpecializedHandler = null;
-                            vm.ExecuteGenericGetElement(instruction);
-                        }
+                        else { vm.ConstructAndThrowException("Index out of range."); }
                     };
                 }
 
@@ -1283,21 +1279,12 @@ namespace Fluence
                         ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
                         ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
 
-                        if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is ListObject list &&
-                            !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
+                        int idx = indexRef.IntValue;
+                        if (idx >= 0 && idx < list.Elements.Count)
                         {
-                            int idx = indexRef.IntValue;
-                            if (idx >= 0 && idx < list.Elements.Count)
-                            {
-                                vm.SetRegister(destRegister, list.Elements[idx]);
-                            }
-                            else { vm.ConstructAndThrowException("Index out of range."); }
+                            vm.SetRegister(destRegister, list.Elements[idx]);
                         }
-                        else
-                        {
-                            instruction.SpecializedHandler = null;
-                            vm.ExecuteGenericGetElement(instruction);
-                        }
+                        else { vm.ConstructAndThrowException("Index out of range."); }
                     };
                 }
 
@@ -1311,21 +1298,12 @@ namespace Fluence
                         ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
                         ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
 
-                        if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is ListObject list &&
-                            !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
+                        int idx = indexRef.IntValue;
+                        if (idx >= 0 && idx < list.Elements.Count)
                         {
-                            int idx = indexRef.IntValue;
-                            if (idx >= 0 && idx < list.Elements.Count)
-                            {
-                                vm.SetRegister(destRegister, list.Elements[idx]);
-                            }
-                            else { vm.ConstructAndThrowException("Index out of range."); }
+                            vm.SetRegister(destRegister, list.Elements[idx]);
                         }
-                        else
-                        {
-                            instruction.SpecializedHandler = null;
-                            vm.ExecuteGenericGetElement(instruction);
-                        }
+                        else { vm.ConstructAndThrowException("Index out of range."); }
                     };
                 }
 
@@ -1339,21 +1317,12 @@ namespace Fluence
                         ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
                         ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
 
-                        if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is ListObject list &&
-                            !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
+                        int idx = indexRef.IntValue;
+                        if (idx >= 0 && idx < list.Elements.Count)
                         {
-                            int idx = indexRef.IntValue;
-                            if (idx >= 0 && idx < list.Elements.Count)
-                            {
-                                vm.SetRegister(destRegister, list.Elements[idx]);
-                            }
-                            else { vm.ConstructAndThrowException("Index out of range."); }
+                            vm.SetRegister(destRegister, list.Elements[idx]);
                         }
-                        else
-                        {
-                            instruction.SpecializedHandler = null;
-                            vm.ExecuteGenericGetElement(instruction);
-                        }
+                        else { vm.ConstructAndThrowException("Index out of range."); }
                     };
                 }
 
@@ -1361,6 +1330,8 @@ namespace Fluence
             }
 
             // If we get here then we are accessing an element of a string.
+
+            if (collection.ObjectReference is not StringObject str) return null;
 
             if (collectionOperand is VariableValue collVar3 && indexOperand is VariableValue indexVar3)
             {
@@ -1372,23 +1343,14 @@ namespace Fluence
                     ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
                     ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
 
-                    if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is StringObject str &&
-                        !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
-                    {
-                        vm.TryReturnRegisterReferenceToPool(instruction);
+                    vm.TryReturnRegisterReferenceToPool(instruction);
 
-                        int idx = indexRef.IntValue;
-                        if (idx >= 0 && idx < str.Value.Length)
-                        {
-                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(str.Value[idx]));
-                        }
-                        else { vm.ConstructAndThrowException("Index out of range."); }
-                    }
-                    else
+                    int idx = indexRef.IntValue;
+                    if (idx >= 0 && idx < str.Value.Length)
                     {
-                        instruction.SpecializedHandler = null;
-                        vm.ExecuteGenericGetElement(instruction);
+                        vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(str.Value[idx]));
                     }
+                    else { vm.ConstructAndThrowException("Index out of range."); }
                 };
             }
 
@@ -1402,23 +1364,14 @@ namespace Fluence
                     ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
                     ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
 
-                    if (!Unsafe.IsNullRef(ref collRef) && collRef.ObjectReference is StringObject str &&
-                        !Unsafe.IsNullRef(ref indexRef) && indexRef.Type == RuntimeValueType.Number)
-                    {
-                        vm.TryReturnRegisterReferenceToPool(instruction);
+                    vm.TryReturnRegisterReferenceToPool(instruction);
 
-                        int idx = indexRef.IntValue;
-                        if (idx >= 0 && idx < str.Value.Length)
-                        {
-                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(str.Value[idx]));
-                        }
-                        else { vm.ConstructAndThrowException("Index out of range."); }
-                    }
-                    else
+                    int idx = indexRef.IntValue;
+                    if (idx >= 0 && idx < str.Value.Length)
                     {
-                        instruction.SpecializedHandler = null;
-                        vm.ExecuteGenericGetElement(instruction);
+                        vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(str.Value[idx]));
                     }
+                    else { vm.ConstructAndThrowException("Index out of range."); }
                 };
             }
 
@@ -1444,13 +1397,14 @@ namespace Fluence
             return null;
         }
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedIterNextHandler(InstructionLine insn, IteratorObject iterator)
+        internal static SpecializedOpcodeHandler? CreateSpecializedIterNextHandler(FluenceVirtualMachine vm, InstructionLine insn, IteratorObject iterator)
         {
             TempValue iteratorReg = (TempValue)insn.Lhs;
             TempValue valueReg = (TempValue)insn.Rhs;
             TempValue continueFlagReg = (TempValue)insn.Rhs2;
+            RuntimeValue iterVal = vm.CurrentRegisters[iteratorReg.TempName];
 
-            if (iterator.Iterable is RangeObject range)
+            if (iterator.Iterable is RangeObject range && iterVal.ObjectReference is IteratorObject iter && iter.Iterable is RangeObject)
             {
                 int start = range.Start.IntValue;
                 int end = range.End.IntValue;
@@ -1458,26 +1412,17 @@ namespace Fluence
 
                 return (instruction, vm) =>
                 {
-                    RuntimeValue iterVal = vm.CurrentRegisters[iteratorReg.TempName];
-                    if (iterVal.ObjectReference is IteratorObject iter && iter.Iterable is RangeObject)
+                    int currentValue = start + iter.CurrentIndex;
+                    if (start <= end ? currentValue <= end : currentValue >= end)
                     {
-                        int currentValue = start + iter.CurrentIndex;
-                        if (start <= end ? currentValue <= end : currentValue >= end)
-                        {
-                            vm.SetRegister(valueReg, new RuntimeValue(currentValue));
-                            vm.SetRegister(continueFlagReg, new RuntimeValue(true));
-                            iter.CurrentIndex += step;
-                        }
-                        else
-                        {
-                            vm.SetRegister(valueReg, RuntimeValue.Nil);
-                            vm.SetRegister(continueFlagReg, new RuntimeValue(false));
-                        }
+                        vm.SetRegister(valueReg, new RuntimeValue(currentValue));
+                        vm.SetRegister(continueFlagReg, new RuntimeValue(true));
+                        iter.CurrentIndex += step;
                     }
                     else
                     {
-                        instruction.SpecializedHandler = null;
-                        vm.ExecuteGenericIterNext(instruction);
+                        vm.SetRegister(valueReg, RuntimeValue.Nil);
+                        vm.SetRegister(continueFlagReg, new RuntimeValue(false));
                     }
                 };
             }

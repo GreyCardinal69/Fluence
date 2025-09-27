@@ -1640,13 +1640,13 @@ namespace Fluence
                     bool isNextCase = false;
                     while (true)
                     {
-                        TokenType peekType = _lexer.PeekTokenTypeAheadByN(lookahead); 
+                        TokenType peekType = _lexer.PeekTokenTypeAheadByN(lookahead);
                         if (peekType == TokenType.COLON)
                         {
                             isNextCase = true;
                             break;
                         }
-                        if (peekType == TokenType.R_BRACE || peekType == TokenType.EOF || peekType == TokenType.EOL)
+                        if (peekType is TokenType.R_BRACE or TokenType.EOF or TokenType.EOL)
                         {
                             // We hit the end of the block or a line break without finding a colon.
                             // This is not the start of a new case.

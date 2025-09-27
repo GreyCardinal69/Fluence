@@ -465,6 +465,8 @@ namespace Fluence
             _dispatchTable[(int)InstructionCode.AssignTwo] = ExecuteAssignTwo;
 
             _dispatchTable[(int)InstructionCode.PushTwoParams] = ExecutePushTwoParam;
+            _dispatchTable[(int)InstructionCode.PushThreeParams] = ExecutePushThreeParam;
+            _dispatchTable[(int)InstructionCode.PushFourParams] = ExecutePushFourParam;
 
             // Goto family.
             _dispatchTable[(int)InstructionCode.BranchIfEqual] = (inst) => ExecuteBranchIfEqual(inst, true);
@@ -1622,7 +1624,7 @@ namespace Fluence
                 throw ConstructRuntimeException("Internal VM Error: Attempted to iterate over a non-iterator value.");
             }
 
-            SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedIterNextHandler(instruction, iterator);
+            SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedIterNextHandler(this, instruction, iterator);
             if (handler != null)
             {
                 instruction.SpecializedHandler = handler;
@@ -1677,6 +1679,28 @@ namespace Fluence
         {
             _operandStack.Push(GetRuntimeValue(instruction.Lhs));
             _operandStack.Push(GetRuntimeValue(instruction.Rhs));
+        }
+
+        /// <summary>
+        /// Handles the PUSH_THREE_PARAMS instruction, which pushes three values onto the operand stack in preparation for a function call.
+        /// </summary>
+        private void ExecutePushThreeParam(InstructionLine instruction)
+        {
+            _operandStack.Push(GetRuntimeValue(instruction.Lhs));
+            _operandStack.Push(GetRuntimeValue(instruction.Rhs));
+            _operandStack.Push(GetRuntimeValue(instruction.Rhs2));
+        }
+
+        /// <summary>
+        /// Handles the PUSH_FOUR_PARAMS instruction, which pushes four values onto the operand stack in preparation for a function call.
+        /// This is the most we can push in one instruction since an instruction allows up to four values: Lhs, Rhs, Rhs2, Rhs3.
+        /// </summary>
+        private void ExecutePushFourParam(InstructionLine instruction)
+        {
+            _operandStack.Push(GetRuntimeValue(instruction.Lhs));
+            _operandStack.Push(GetRuntimeValue(instruction.Rhs));
+            _operandStack.Push(GetRuntimeValue(instruction.Rhs2));
+            _operandStack.Push(GetRuntimeValue(instruction.Rhs3));
         }
 
         internal void PrepareFunctionCall(CallFrame frame, FunctionObject function)

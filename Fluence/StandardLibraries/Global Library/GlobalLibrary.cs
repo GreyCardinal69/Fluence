@@ -2,6 +2,8 @@
 using System.Globalization;
 using System.Numerics;
 using static Fluence.FluenceInterpreter;
+using static Fluence.FluenceVirtualMachine;
+using static Fluence.IntrinsicHelpers;
 
 namespace Fluence.Global
 {
@@ -28,7 +30,7 @@ namespace Fluence.Global
             globalScope.Declare("printl__1", new FunctionSymbol("printl__1", 1, (vm, argCount) =>
             {
                 RuntimeValue rv = vm.PopStack();
-                outputLine(rv.ToString());
+                outputLine(ConvertRuntimeValueToString(vm, rv));
                 return nilResult;
             }, ["content"], globalScope));
 
@@ -40,7 +42,7 @@ namespace Fluence.Global
             globalScope.Declare("print__1", new FunctionSymbol("print__1", 1, (vm, argCount) =>
             {
                 RuntimeValue rv = vm.PopStack();
-                output(rv.ToString());
+                output(ConvertRuntimeValueToString(vm, rv));
                 return nilResult;
             }, ["content"], globalScope));
 
@@ -153,6 +155,11 @@ namespace Fluence.Global
             }
 
             foreach (FunctionSymbol item in StackWrapper.CreateConstructors())
+            {
+                globalScope.Declare(item.Name, item);
+            }
+
+            foreach (FunctionSymbol item in HashSetWrapper.CreateConstructors())
             {
                 globalScope.Declare(item.Name, item);
             }

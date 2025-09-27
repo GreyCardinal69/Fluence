@@ -42,6 +42,11 @@ namespace Fluence.Global
                     RuntimeValue arg = vm.PopStack();
                     StringBuilder stringBuilderInstance;
 
+                    if (arg.Type != RuntimeValueType.Number || arg.NumberType != RuntimeNumberType.Int)
+                    {
+                        throw vm.ConstructRuntimeException("StringBuilder constructor accepts only an integer value for its capacity in the constructor 'HashSet(capacity)'");
+                    }
+
                     if (arg.ObjectReference is StringObject str)
                     {
                         string valueToAppend = arg.ToString();
@@ -56,7 +61,7 @@ namespace Fluence.Global
 
                     return new RuntimeValue(foreignObject);
 
-                }, ["string/int_capacity"], null!),
+                }, ["int_capacity"], null!),
             ];
         }
 

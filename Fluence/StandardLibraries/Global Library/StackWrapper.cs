@@ -1,4 +1,5 @@
 ﻿using Fluence.RuntimeTypes;
+using System.Text;
 using static Fluence.FluenceVirtualMachine;
 
 namespace Fluence.Global
@@ -16,6 +17,7 @@ namespace Fluence.Global
             _instanceMethods["clear__0"] = Clear;
             _instanceMethods["pop__0"] = Pop;
             _instanceMethods["peek__0"] = Peek;
+            _instanceMethods["to_string__0"] = ToString;
             _instanceMethods["push__1"] = Push;
             _instanceMethods["contains__1"] = Contains;
             _instanceMethods["empty__0"] = IsEmpty;
@@ -39,6 +41,11 @@ namespace Fluence.Global
                     RuntimeValue arg = vm.PopStack();
                     Stack<RuntimeValue> stackInstance;
 
+                    if (arg.Type != RuntimeValueType.Number || arg.NumberType != RuntimeNumberType.Int)
+                    {
+                        throw vm.ConstructRuntimeException("Stack constructor accepts only an integer value for its capacity in the constructor 'HashSet(capacity)'");
+                    }
+
                     stackInstance = new Stack<RuntimeValue>(arg.IntValue);
                     ForeignObject foreignObject = new ForeignObject(stackInstance, _instanceMethods);
 
@@ -58,6 +65,23 @@ namespace Fluence.Global
         {
             Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<ForeignObject>().Instance;
             return new RuntimeValue(stack.Count);
+        }
+
+        private static RuntimeValue ToString(FluenceVirtualMachine vm, RuntimeValue self)
+        {
+            Stack<RuntimeValue> set = (Stack<RuntimeValue>)self.As<ForeignObject>().Instance;
+
+            StringBuilder sb = new StringBuilder("Stack: [");
+
+            int i = 0;
+            foreach (RuntimeValue value in set)
+            {
+                sb.Append(value.ToString());
+                sb.Append(i < set.Count - 1 ? ", " : "]");
+                i++;
+            }
+
+            return vm.ResolveStringObjectRuntimeValue(sb.ToString());
         }
 
         private static RuntimeValue Clear(FluenceVirtualMachine vm, RuntimeValue self)

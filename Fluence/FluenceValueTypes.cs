@@ -43,8 +43,18 @@ namespace Fluence
     }
 
     /// <summary>Represents a boolean literal.</summary>
-    internal sealed record class BooleanValue(bool Value) : Value
+    internal sealed record class BooleanValue : Value
     {
+        internal bool Value { get; init; }
+
+        internal static readonly BooleanValue True = new BooleanValue(true);
+        internal static readonly BooleanValue False = new BooleanValue(false);
+
+        internal BooleanValue(bool value)
+        {
+            Value = value;
+        }
+
         internal override object GetValue() => Value;
         internal override string ToFluenceString() => Value ? "true" : "false";
         public override string ToString() => $"BooleanValue: {Value}";

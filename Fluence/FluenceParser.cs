@@ -1051,7 +1051,7 @@ namespace Fluence
 
             int incrementerStartIndex = _currentParseState.CodeInstructions.Count;
             ParseAssignment();
-            AdvanceAndExpect(TokenType.EOL, "Expected a ';' after the for-loop incrementer.");
+            AdvanceAndExpect(TokenType.EOL, "Expected a ';' after the 'for'-loop incrementer.");
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(conditionCheckIndex - 1)));
 
@@ -1059,7 +1059,7 @@ namespace Fluence
             _currentParseState.ActiveLoopContexts.Push(loopContext);
             int bodyStartIndex = _currentParseState.CodeInstructions.Count;
 
-            ParseStatementBody("Expected an '->' for a single-line for loop body.");
+            ParseStatementBody("Expected an '->' for a single-line 'for' loop body.");
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(incrementerStartIndex)));
             _currentParseState.CodeInstructions[loopBodyJumpPatchIndex].Lhs = new NumberValue(bodyStartIndex);
@@ -1080,7 +1080,7 @@ namespace Fluence
             Token itemToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a loop variable name after 'for'.");
             VariableValue loopVariable = new VariableValue(itemToken.Text);
 
-            AdvanceAndExpect(TokenType.IN, "Expected the 'in' keyword in a for-in loop.");
+            AdvanceAndExpect(TokenType.IN, "Expected the 'in' keyword in a 'for-in' loop.");
 
             Value collectionExpr = ResolveValue(ParseExpression());
 
@@ -1106,7 +1106,7 @@ namespace Fluence
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, loopVariable, valueReg));
 
-                ParseStatementBody($"Expected an '->' for a single-line 'for in' loop body.");
+                ParseStatementBody($"Expected an '->' for a single-line 'for-in' loop body.");
 
                 int loopCheckAddress = _currentParseState.CodeInstructions.Count;
                 _currentParseState.CodeInstructions[jumpToConditionPatchIndex].Lhs = new NumberValue(loopCheckAddress);
@@ -1141,7 +1141,7 @@ namespace Fluence
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetElement, currentElementVar, collectionVar, indexVar));
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, loopVariable, currentElementVar));
 
-                ParseStatementBody($"Expected an '->' for a single-line 'for in' loop body.");
+                ParseStatementBody($"Expected an '->' for a single-line 'for-in' loop body.");
 
                 int continueAddress = _currentParseState.CodeInstructions.Count;
                 TempValue incrementedIndex = new TempValue(_currentParseState.NextTempNumber++);
@@ -1159,22 +1159,6 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Helper method to handle patching 'break' and 'continue'.
-        /// </summary>
-        private void PatchLoopExits(LoopContext loopContext, int breakAddress, int continueAddress)
-        {
-            foreach (int patchIndex in loopContext.BreakPatchAddresses)
-            {
-                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(breakAddress);
-            }
-
-            foreach (int patchIndex in loopContext.ContinuePatchAddresses)
-            {
-                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(continueAddress);
-            }
-        }
-
-        /// <summary>
         /// Parses a while loop.
         /// </summary>
         private void ParseWhileStatement(bool parseAsUntil)
@@ -1187,8 +1171,6 @@ namespace Fluence
             LoopContext whileContext = new LoopContext();
             _currentParseState.ActiveLoopContexts.Push(whileContext);
 
-            // The condition of the while, we must jump back here if loop reaches the end ( not terminated by break ).
-            // We'll patch this later.
             _currentParseState.AddCodeInstruction(new InstructionLine(parseAsUntil ? InstructionCode.GotoIfTrue : InstructionCode.GotoIfFalse, null!, condition));
             int loopExitPatch = _currentParseState.CodeInstructions.Count - 1;
 
@@ -1357,15 +1339,7 @@ namespace Fluence
 
                             // We call SetStatic for static fields, and add to the initializer code list.
                             // This way the values are assigned before the application runs.
-                            _currentParseState.ScriptInitializerCode.Add(
-                                new InstructionLine(
-                                        InstructionCode.SetStatic,
-                                        structSymbol,
-                                        new StringValue(fieldName),
-                                        defaultValueResult
-                                )
-                            );
-
+                            _currentParseState.ScriptInitializerCode.Add(new InstructionLine(InstructionCode.SetStatic, structSymbol, new StringValue(fieldName), defaultValueResult));
                             continue;
                         }
                     }
@@ -1546,7 +1520,7 @@ namespace Fluence
                     {
                         parameters.Add(next.Text);
                     }
-                } while (ConsumeTokenIfMatch(TokenType.COMMA));
+                } while (AdvanceTokenIfMatch(TokenType.COMMA));
             }
 
             AdvanceAndExpect(TokenType.R_PAREN, $"Expected a closing ')' after parameters for function '{nameToken.Text}'.");
@@ -1960,7 +1934,7 @@ namespace Fluence
                     }
                 }
             }
-            while (ConsumeTokenIfMatch(TokenType.COMMA));
+            while (AdvanceTokenIfMatch(TokenType.COMMA));
 
             AdvanceAndExpect(TokenType.EOL, "Expected a ';' to end the 'use' statement.");
         }
@@ -2164,21 +2138,6 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Parses a custom <see cref="TokenType"/>-separated list of one or more expressions.
-        /// </summary>
-        /// <returns>A list of Value objects representing the parsed expressions.</returns>
-        private List<Value> ParseTokenSeparatedArguments(TokenType token)
-        {
-            List<Value> lhs = new List<Value>();
-            do
-            {
-                lhs.Add(ParseTernary());
-            } while (ConsumeTokenIfMatch(token));
-
-            return lhs;
-        }
-
-        /// <summary>
         /// Checks if special pipe call operator is up ahead in the expression.
         /// </summary>
         /// <param name="pipeType">Returns the type of the pipe if true, else <see cref="TokenType.UNKNOWN"/>.</param>
@@ -2296,7 +2255,7 @@ namespace Fluence
                     args.Add(ParseTernary());
                 }
             }
-            while (ConsumeTokenIfMatch(TokenType.COMMA));
+            while (AdvanceTokenIfMatch(TokenType.COMMA));
 
             AdvanceAndExpect(TokenType.R_PAREN, "Expected a closing ')' for the broadcast call template.");
 
@@ -2329,7 +2288,7 @@ namespace Fluence
                 Value curr = expressions[i];
 
                 TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, temp, curr, new BooleanValue(true)));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, temp, curr, BooleanValue.True));
                 _currentParseState.AddCodeInstruction(new InstructionLine(isOptional ? InstructionCode.GotoIfTrue : InstructionCode.GotoIfFalse, null!, temp));
                 boolyExitPatches.Add(_currentParseState.CodeInstructions.Count - 1);
             }
@@ -2357,7 +2316,7 @@ namespace Fluence
         {
             _lexer.Advance(); // Consume first '|??'.
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, new BooleanValue(true)));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, BooleanValue.True));
 
             List<Value> expressions = ParseTokenSeparatedArguments(TokenType.GUARD_PIPE);
             List<int> boolyExitPatches = new List<int>(expressions.Count);
@@ -2367,7 +2326,7 @@ namespace Fluence
                 Value curr = expressions[i];
 
                 TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, temp, curr, new BooleanValue(true)));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, temp, curr, BooleanValue.True));
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, temp));
                 boolyExitPatches.Add(_currentParseState.CodeInstructions.Count - 1);
             }
@@ -2375,7 +2334,7 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
             int breakIndex = _currentParseState.CodeInstructions.Count - 1;
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, new BooleanValue(false)));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, lhs, BooleanValue.False));
             int exitIndex = _currentParseState.CodeInstructions.Count - 1;
 
             for (int i = 0; i < boolyExitPatches.Count; i++)
@@ -2868,7 +2827,7 @@ namespace Fluence
             List<Value> args = new List<Value>();
             bool foundUnderscore = false;
 
-            while (ConsumeTokenIfMatch(TokenType.COMMA) || !_lexer.TokenTypeMatches(TokenType.R_PAREN))
+            while (AdvanceTokenIfMatch(TokenType.COMMA) || !_lexer.TokenTypeMatches(TokenType.R_PAREN))
             {
                 if (_lexer.TokenTypeMatches(TokenType.UNDERSCORE))
                 {
@@ -2918,7 +2877,6 @@ namespace Fluence
             TokenType.PERCENT => InstructionCode.Modulo,
             TokenType.EXPONENT => InstructionCode.Power,
 
-            // Equality & Comparison (including `is` and `not` aliases).
             TokenType.EQUAL_EQUAL => InstructionCode.Equal,
             TokenType.BANG_EQUAL => InstructionCode.NotEqual,
             TokenType.GREATER => InstructionCode.GreaterThan,
@@ -3155,7 +3113,7 @@ namespace Fluence
                 do
                 {
                     args.Add(ParseRange());
-                } while (ConsumeTokenIfMatch(TokenType.COMMA) && IsNotAStandardComparison(_lexer.PeekNextTokenType()));
+                } while (AdvanceTokenIfMatch(TokenType.COMMA) && IsNotAStandardComparison(_lexer.PeekNextTokenType()));
 
                 return GenerateCollectiveComparisonByteCode(args, _lexer.ConsumeToken(), ParseRange());
             }
@@ -3195,7 +3153,7 @@ namespace Fluence
 
             Value result = ResolveValue(ParseExpression());
 
-            while (ConsumeTokenIfMatch(TokenType.COMMA))
+            while (AdvanceTokenIfMatch(TokenType.COMMA))
             {
                 Value nextCondition = ResolveValue(ParseExpression());
 
@@ -3263,19 +3221,15 @@ namespace Fluence
         /// </summary>
         private Value ParseRange()
         {
-            Value left = ParseAdditionSubtraction(); // Parse the start of the range
+            Value left = ParseAdditionSubtraction();
 
             if (_lexer.TokenTypeMatches(TokenType.DOT_DOT))
             {
                 _lexer.Advance(); // Consume the '..'.
-
                 // The end of the range.
                 Value right = ParseAdditionSubtraction();
 
-                Value leftRes = ResolveValue(left);
-                Value rightRes = ResolveValue(right);
-
-                RangeValue range = new RangeValue(leftRes, rightRes);
+                RangeValue range = new RangeValue(ResolveValue(left), ResolveValue(right));
                 return range;
             }
 
@@ -3364,8 +3318,7 @@ namespace Fluence
             {
                 Token op = _lexer.ConsumeToken();
 
-                Value operand = ParseExpression();
-                Value resolvedOperand = ResolveValue(operand);
+                Value operand = ResolveValue(ParseExpression());
 
                 TempValue result = new TempValue(_currentParseState.NextTempNumber++);
 
@@ -3376,7 +3329,7 @@ namespace Fluence
                     TokenType.TILDE => InstructionCode.BitwiseNot,
                 };
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, result, resolvedOperand));
+                _currentParseState.AddCodeInstruction(new InstructionLine(opcode, result, operand));
 
                 return result;
             }
@@ -3455,7 +3408,7 @@ namespace Fluence
 
                 GenerateWriteBackInstruction(targetDescriptor, result);
             }
-            while (ConsumeTokenIfMatch(TokenType.COMMA));
+            while (AdvanceTokenIfMatch(TokenType.COMMA));
 
             AdvanceAndExpect(TokenType.R_PAREN, $"a closing ')' after the '{opToken.ToDisplayString()}' operator's arguments.");
         }
@@ -3645,7 +3598,7 @@ namespace Fluence
                     }
                     if (!initializedFields.Add(fieldName))
                     {
-                        ConstructAndThrowParserException($"Duplicate field '{fieldName}'. Each field can only be initialized only once.", fieldToken);
+                        ConstructAndThrowParserException($"Duplicate field '{fieldName}'. Each field can only be initialized once.", fieldToken);
                     }
 
                     AdvanceAndExpect(TokenType.COLON, $"Expected a ':' after the field name '{fieldName}'.");
@@ -3653,7 +3606,7 @@ namespace Fluence
 
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.SetField, instance, new StringValue(fieldName), ResolveValue(fieldValue)));
 
-                } while (ConsumeTokenIfMatch(TokenType.COMMA));
+                } while (AdvanceTokenIfMatch(TokenType.COMMA));
             }
 
             AdvanceAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end the struct initializer.");
@@ -3951,8 +3904,23 @@ namespace Fluence
                 do
                 {
                     arguments.Add(ParseTernary());
-                } while (ConsumeTokenIfMatch(TokenType.COMMA));
+                } while (AdvanceTokenIfMatch(TokenType.COMMA));
             }
+            return arguments;
+        }
+
+        /// <summary>
+        /// Parses a custom <see cref="TokenType"/>-separated list of one or more expressions.
+        /// </summary>
+        /// <returns>A list of Value objects representing the parsed expressions.</returns>
+        private List<Value> ParseTokenSeparatedArguments(TokenType token)
+        {
+            List<Value> arguments = new List<Value>();
+            do
+            {
+                arguments.Add(ParseTernary());
+            } while (AdvanceTokenIfMatch(token));
+
             return arguments;
         }
 
@@ -4069,8 +4037,8 @@ namespace Fluence
                     }
                     return NumberValue.FromToken(token);
                 case TokenType.STRING: return new StringValue(token.Literal.ToString()!);
-                case TokenType.TRUE: return new BooleanValue(true);
-                case TokenType.FALSE: return new BooleanValue(false);
+                case TokenType.TRUE: return BooleanValue.True;
+                case TokenType.FALSE: return BooleanValue.False;
                 case TokenType.F_STRING: return ParseFString(token.Literal);
                 case TokenType.CHARACTER: return new CharValue((char)token.Literal);
                 case TokenType.L_BRACKET: return ParseList();
@@ -4125,7 +4093,7 @@ namespace Fluence
         /// If it matches, the token is consumed and the method returns true.
         /// If it does not match, the token is not consumed and the method returns false.
         /// </summary>
-        private bool ConsumeTokenIfMatch(TokenType expectedType)
+        private bool AdvanceTokenIfMatch(TokenType expectedType)
         {
             if (_lexer.TokenTypeMatches(expectedType))
             {
@@ -4134,6 +4102,22 @@ namespace Fluence
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Helper method to handle patching 'break' and 'continue'.
+        /// </summary>
+        private void PatchLoopExits(LoopContext loopContext, int breakAddress, int continueAddress)
+        {
+            foreach (int patchIndex in loopContext.BreakPatchAddresses)
+            {
+                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(breakAddress);
+            }
+
+            foreach (int patchIndex in loopContext.ContinuePatchAddresses)
+            {
+                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(continueAddress);
+            }
         }
 
         /// <summary>
@@ -4346,19 +4330,6 @@ namespace Fluence
             TokenType.DOT_SLASH_EQUAL => InstructionCode.Divide,
             TokenType.DOT_PLUS_EQUAL => InstructionCode.Add,
             TokenType.DOT_MINUS_EQUAL => InstructionCode.Subtract,
-        };
-
-        /// <summary>
-        /// Checks if the token type is a unary operator: '++' or '--' or '-'.
-        /// </summary>
-        /// <param name="type"></param>
-        /// <returns></returns>
-        private static bool IsUnaryOperator(TokenType type) => type switch
-        {
-            TokenType.DECREMENT or
-            TokenType.INCREMENT or
-            TokenType.MINUS => true,
-            _ => false,
         };
 
         /// <summary>

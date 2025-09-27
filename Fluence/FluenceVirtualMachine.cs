@@ -631,8 +631,13 @@ namespace Fluence
 
         private void ExecuteIncrementIntUnrestricted(InstructionLine instruction)
         {
-            VariableValue var = (VariableValue)instruction.Lhs;
+            if (instruction.Lhs is TempValue temp)
+            {
+                SetRegister(temp, new RuntimeValue(GetRuntimeValue(temp).IntValue + 1));
+                return;
+            }
 
+            VariableValue var = (VariableValue)instruction.Lhs;
             SetVariable(var, new RuntimeValue(GetRuntimeValue(var).IntValue + 1));
         }
 

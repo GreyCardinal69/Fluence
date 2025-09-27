@@ -1560,6 +1560,7 @@ namespace Fluence
 
             if (IsSwitchStyleMatch())
             {
+                Console.WriteLine(  "here");
                 ParseMatchSwitchStyle(matchOn);
                 return NilValue.NilInstance;
             }
@@ -1626,22 +1627,44 @@ namespace Fluence
                 // Parse the body after the colon.
                 while (!_lexer.TokenTypeMatches(TokenType.R_BRACKET) && !_lexer.TokenTypeMatches(TokenType.REST))
                 {
-                    if (_lexer.TokenTypeMatches(TokenType.BREAK))
+                    TokenType nextToken = _lexer.PeekNextTokenType();
+
+                    if (nextToken == TokenType.BREAK)
                     {
                         _lexer.Advance();
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
                         context.BreakPatches.Add(_currentParseState.CodeInstructions.Count - 1);
                         break;
                     }
-                    else if (_lexer.PeekTokenTypeAheadByN(2) == TokenType.COLON)
+
+                    int lookahead = 1;
+                    bool isNextCase = false;
+                    while (true)
                     {
-                        // We have fallthrough cases here, we make this goto, but fill it in the next iteration.
-                        // This skips the next cases equal and gotoIfFalse instructions.
+                        TokenType peekType = _lexer.PeekTokenTypeAheadByN(lookahead); 
+                        if (peekType == TokenType.COLON)
+                        {
+                            isNextCase = true;
+                            break;
+                        }
+                        if (peekType == TokenType.R_BRACE || peekType == TokenType.EOF || peekType == TokenType.EOL)
+                        {
+                            // We hit the end of the block or a line break without finding a colon.
+                            // This is not the start of a new case.
+                            break;
+                        }
+                        lookahead++;
+                    }
+
+                    if (isNextCase)
+                    {
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
                         fallThroughSkipIndex = _currentParseState.CodeInstructions.Count - 1;
                         fallThrough = true;
                         break;
                     }
+
+                    // If none of the above, it's a regular statement in the case body.
                     ParseStatement();
                 }
 
@@ -3773,13 +3796,13 @@ namespace Fluence
                 }
                 Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected an identifier for a 'x times as y' statement");
                 condition = new VariableValue(nameToken.Text, isSolid);
+                GenerateWriteBackInstruction(condition, NumberValue.Zero);
             }
             else
             {
                 condition = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, condition, NumberValue.Zero));
             }
-
-            GenerateWriteBackInstruction(condition, NumberValue.Zero);
 
             TempValue truthy = new TempValue(_currentParseState.NextTempNumber++);
 

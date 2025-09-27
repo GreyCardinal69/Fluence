@@ -943,7 +943,7 @@ Fluence is still a language heavily in development, as such many features and mu
 - Custom intrinsics, a way to define intrinsics from the outside of the Fluence .dll
 - Exceptions, basic try/catch.
 - And much more.
-- Structs in structs, currently the parser cant parse nested structs, it can parse enumes defined in structs, but not structs.
+- Structs in structs, currently the parser cant parse nested structs, it can parse enums defined in structs, but not structs.
 
 
 

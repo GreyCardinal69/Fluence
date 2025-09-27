@@ -3854,6 +3854,7 @@ namespace Fluence
                 else if (type == TokenType.REF)
                 {
                     argByRef = true;
+                    _lexer.Advance();
 
                     if (_lexer.PeekNextTokenType() != TokenType.IDENTIFIER)
                     {
@@ -4197,7 +4198,7 @@ namespace Fluence
             {
                 TokenType type = _lexer.PeekTokenTypeAheadByN(lookAhead);
 
-                if (type is not TokenType.COMMA and not TokenType.IDENTIFIER and not TokenType.R_PAREN)
+                if (type is not TokenType.COMMA and not TokenType.IDENTIFIER and not TokenType.R_PAREN and not TokenType.REF)
                 {
                     return false;
                 }

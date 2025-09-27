@@ -1,6 +1,5 @@
 using Fluence.RuntimeTypes;
 using System.Diagnostics;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -1132,7 +1131,7 @@ namespace Fluence
         private void ExecuteToString(InstructionLine instruction)
         {
             RuntimeValue valueToConvert = GetRuntimeValue(instruction.Rhs);
-             
+
             SetRegister((TempValue)instruction.Lhs, new RuntimeValue(new StringObject(IntrinsicHelpers.ConvertRuntimeValueToString(this, valueToConvert))));
         }
 
@@ -1906,7 +1905,7 @@ namespace Fluence
         internal RuntimeValue ExecuteManualMethodCall(InstanceObject instance, FunctionValue func)
         {
             int savedIp = _ip;
-            var savedRegisters = _cachedRegisters;
+            Dictionary<string, RuntimeValue> savedRegisters = _cachedRegisters;
 
             FunctionObject functionToExecute = CreateFunctionObject(func);
             CallFrame newFrame = _callFramePool.Get();

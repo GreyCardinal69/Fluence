@@ -2,7 +2,6 @@
 using System.Globalization;
 using System.Numerics;
 using static Fluence.FluenceInterpreter;
-using static Fluence.FluenceVirtualMachine;
 using static Fluence.IntrinsicHelpers;
 
 namespace Fluence.Global
@@ -160,6 +159,11 @@ namespace Fluence.Global
             }
 
             foreach (FunctionSymbol item in HashSetWrapper.CreateConstructors())
+            {
+                globalScope.Declare(item.Name, item);
+            }
+
+            foreach (FunctionSymbol item in DictionaryWrapper.CreateConstructors())
             {
                 globalScope.Declare(item.Name, item);
             }

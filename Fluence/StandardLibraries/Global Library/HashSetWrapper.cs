@@ -1,5 +1,4 @@
 ﻿using Fluence.RuntimeTypes;
-using System.Collections.Generic;
 using System.Text;
 using static Fluence.FluenceVirtualMachine;
 
@@ -82,7 +81,7 @@ namespace Fluence.Global
             foreach (RuntimeValue value in set)
             {
                 sb.Append(value.ToString());
-                sb.Append(i < set.Count - 1? ", " : "]");
+                sb.Append(i < set.Count - 1 ? ", " : "]");
                 i++;
             }
 

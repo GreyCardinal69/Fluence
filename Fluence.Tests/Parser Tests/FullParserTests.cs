@@ -10,8 +10,8 @@ namespace Fluence.ParserTests
 
         private static FluenceParser CreateParser(string source)
         {
-            var lexer = new FluenceLexer(source);
-            var parser = new FluenceParser(lexer, null!, null!, null!);
+            FluenceLexer lexer = new FluenceLexer(source);
+            FluenceParser parser = new FluenceParser(lexer, null!, null!, null!);
             return parser;
         }
 
@@ -65,10 +65,10 @@ namespace Fluence.ParserTests
                 }
             ";
 
-            var parser = CreateParser(source);
+            FluenceParser parser = CreateParser(source);
 
             parser.Parse(true);
-            var symbolTree = GetSymbolTree(parser);
+            FluenceParser.ParseState symbolTree = GetSymbolTree(parser);
 
             Assert.True(symbolTree.GlobalScope.Contains("A_1"));
             Assert.True(symbolTree.GlobalScope.Contains("Globuloid_1"));
@@ -86,7 +86,7 @@ namespace Fluence.ParserTests
             Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_3"));
             Assert.True(symbolTree.NameSpaces.ContainsKey("FluenceMath"));
 
-            var myProgram1Scope = symbolTree.NameSpaces["MyProgram_1"];
+            FluenceScope myProgram1Scope = symbolTree.NameSpaces["MyProgram_1"];
             Assert.True(myProgram1Scope.ContainsLocal("Number_1"));
             Assert.True(myProgram1Scope.ContainsLocal("Number_1Type"));
             Assert.True(myProgram1Scope.ContainsLocal("Main_1__0"));
@@ -95,11 +95,11 @@ namespace Fluence.ParserTests
             Assert.True(myProgram1Scope.ContainsLocal("cos__1"));
             Assert.False(myProgram1Scope.ContainsLocal("Globuloid_1"));
 
-            var myMath2Scope = symbolTree.NameSpaces["MyMath_2"];
+            FluenceScope myMath2Scope = symbolTree.NameSpaces["MyMath_2"];
             Assert.True(myMath2Scope.ContainsLocal("Vector3_2"));
             Assert.False(myMath2Scope.ContainsLocal("Number_2"));
 
-            var myProgram3Scope = symbolTree.NameSpaces["MyProgram_3"];
+            FluenceScope myProgram3Scope = symbolTree.NameSpaces["MyProgram_3"];
             Assert.True(myProgram3Scope.ContainsLocal("Number_3"));
             Assert.True(myProgram3Scope.ContainsLocal("Main_3__0"));
             Assert.True(myProgram3Scope.ContainsLocal("Vector3_3"));
@@ -113,8 +113,8 @@ namespace Fluence.ParserTests
         public void ParsesFunctionDeclarationAndJumpsOverBody()
         {
             string source = "func DoNothing() => {};";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Goto, new NumberValue(2)),
                 new(InstructionCode.Return, new NilValue()),
@@ -129,8 +129,8 @@ namespace Fluence.ParserTests
         public void ParsesSwapOperatorCorrectly()
         {
             string source = "a = 1; b = 2; a >< b;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(2)),
@@ -147,8 +147,8 @@ namespace Fluence.ParserTests
         public void ParsesStandaloneVariableAsLoadExpression()
         {
             string source = "exitCode;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("exitCode"), NilValue.NilInstance),
                 new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main__0"), new NumberValue(0)),
@@ -161,8 +161,8 @@ namespace Fluence.ParserTests
         public void ParsesChainedFunctionCallAndIndexerCorrectly()
         {
             string source = "x = MyFunc()[230];";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("MyFunc__0"), new NumberValue(0)),
                 new(InstructionCode.GetElement, new TempValue(1), new TempValue(0), new NumberValue(230)),
@@ -177,8 +177,8 @@ namespace Fluence.ParserTests
         public void ParsesSimpleElementGetCorrectly()
         {
             string source = "y = list[2];";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.GetElement, new TempValue(0), new VariableValue("list"), new NumberValue(2)),
                 new(InstructionCode.Assign, new VariableValue("y"), new TempValue(0)),
@@ -192,8 +192,8 @@ namespace Fluence.ParserTests
         public void ParsesSimpleElementSetCorrectly()
         {
             string source = "list[2] = 5;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(2), new NumberValue(5)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
@@ -206,8 +206,8 @@ namespace Fluence.ParserTests
         public void ParsesChainedGetFromFunctionCallCorrectly()
         {
             string source = "x = MyFunc()[230];";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("MyFunc__0"), new NumberValue(0)),
                 new(InstructionCode.GetElement, new TempValue(1), new TempValue(0), new NumberValue(230)),
@@ -222,8 +222,8 @@ namespace Fluence.ParserTests
         public void ParsesListElementAssignmentCorrectly()
         {
             string source = "list = [1]; list[0] = 5;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.NewList, new TempValue(0)),
                 new(InstructionCode.PushElement, new TempValue(0), new NumberValue(1)),
@@ -244,8 +244,8 @@ namespace Fluence.ParserTests
                 exitCode;
                 exitCode = 1;
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.NewList, new TempValue(0)),
                 new(InstructionCode.PushElement, new TempValue(0), new NumberValue(1)),
@@ -266,8 +266,8 @@ namespace Fluence.ParserTests
         public void ParsesBooleanFlipOperatorCorrectly()
         {
             string source = "flag = true; flag!!;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("flag"), new BooleanValue(true)),
                 new(InstructionCode.Not, new TempValue(0), new VariableValue("flag")),
@@ -282,8 +282,8 @@ namespace Fluence.ParserTests
         public void ParsesFStringWithMixedContent()
         {
             string source = @"a = 10; b = f""Value is {a + 5}"";";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(10)),
                 new(InstructionCode.Add, new TempValue(0), new VariableValue("a"), new NumberValue(5)),
@@ -300,8 +300,8 @@ namespace Fluence.ParserTests
         public void ParsesSimpleStandardTernaryCorrectly()
         {
             string source = "a=1; c = a < 2 ? 10 : 10;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.LessThan, new TempValue(0), new VariableValue("a"), new NumberValue(2)),
@@ -320,8 +320,8 @@ namespace Fluence.ParserTests
         public void ParsesSimpleFluidStyleTernaryCorrectly()
         {
             string source = "a=1; d = a < 2 ?: 10, 10;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.LessThan, new TempValue(0), new VariableValue("a"), new NumberValue(2)),
@@ -340,8 +340,8 @@ namespace Fluence.ParserTests
         public void ParsesNestedStandardTernaryCorrectly()
         {
             string source = "c=10; d=10; v = c == 10 ? d == 10 ? 100 : 100 : 10;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("c"), new NumberValue(10)),
                 new(InstructionCode.Assign, new VariableValue("d"), new NumberValue(10)),
@@ -366,8 +366,8 @@ namespace Fluence.ParserTests
         public void ParsesSimpleAndPredicate()
         {
             string source = "if .and(a == 1, b == 2) -> print(1);";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Equal, new TempValue(0), new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("b"), new NumberValue(2)),
@@ -385,8 +385,8 @@ namespace Fluence.ParserTests
         public void ParsesSimpleOrPredicate()
         {
             string source = "if .or(a == 1, b == 2) -> print(1);";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Equal, new TempValue(0), new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("b"), new NumberValue(2)),
@@ -404,8 +404,8 @@ namespace Fluence.ParserTests
         public void ParsesCombinedAndAndOrPredicatesWithInfixOperator()
         {
             string source = "if .and(a, b) or .or(c, d) -> print(1);";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.And, new TempValue(0), new VariableValue("a"), new VariableValue("b")),
                 new(InstructionCode.Or, new TempValue(1), new VariableValue("c"), new VariableValue("d")),
@@ -428,8 +428,8 @@ namespace Fluence.ParserTests
                     print(""here"");
                 }
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("x"), new NumberValue(10)),
                 new(InstructionCode.Assign, new VariableValue("y"), new NumberValue(10)),
@@ -460,8 +460,8 @@ namespace Fluence.ParserTests
         public void ParsesParenthesizedArithmeticWithCorrectPrecedence()
         {
             string source = "x = (5 + 5) * 2;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Add, new TempValue(0), new NumberValue(5), new NumberValue(5)),
                 new(InstructionCode.Multiply, new TempValue(1), new TempValue(0), new NumberValue(2)),
@@ -476,8 +476,8 @@ namespace Fluence.ParserTests
         public void ParsesParenthesizedFunctionCall()
         {
             string source = "x = (MyFunc());";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("MyFunc__0"), new NumberValue(0)),
                 new(InstructionCode.Assign, new VariableValue("x"), new TempValue(0)),
@@ -491,8 +491,8 @@ namespace Fluence.ParserTests
         public void ParsesParenthesizedListAccess()
         {
             string source = "x = ([1,2,3])[1];";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.NewList, new TempValue(0)),
                 new(InstructionCode.PushElement, new TempValue(0), new NumberValue(1)),
@@ -516,8 +516,8 @@ namespace Fluence.ParserTests
                     rest -> Status.Err;
                 };
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Equal, new TempValue(1), new NumberValue(1), new NumberValue(1)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(4), new TempValue(1)),
@@ -549,8 +549,8 @@ namespace Fluence.ParserTests
                     print(result is nil ?: ""Error"", f""Result: {result}"");
                 }
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Goto, new NumberValue(5)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("input__0"), new NumberValue(0)),
@@ -651,8 +651,8 @@ namespace Fluence.ParserTests
                     func Helper() => { print(""helper""); }
                 }
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Goto, new NumberValue(8)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("x"), new NumberValue(0)),
@@ -678,7 +678,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("num"), new VariableValue("num")),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("numType"), new VariableValue("numType")),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(44)),
+                new(InstructionCode.Goto, new NumberValue(43)),
                 new(InstructionCode.NewInstance, new TempValue(7), new StructSymbol("Number")),
                 new(InstructionCode.PushTwoParams, new NumberValue(10), new EnumValue("NumberType", "Float",1)),
                 new(InstructionCode.CallMethod, new TempValue(8), new TempValue(7), new StringValue("init")),
@@ -687,8 +687,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.CallFunction, new TempValue(9), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(10), new VariableValue("Helper__0"), new NumberValue(0)),
                 new(InstructionCode.NewInstance, new TempValue(11), new StructSymbol("Vector3")),
-                new(InstructionCode.PushTwoParams, new NumberValue(1),new NumberValue(2)),
-                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.PushThreeParams, new NumberValue(1),new NumberValue(2), new NumberValue(3)),
                 new(InstructionCode.CallMethod, new TempValue(12), new TempValue(11), new StringValue("init")),
                 new(InstructionCode.Assign, new VariableValue("position3D"), new TempValue(11)),
                 new(InstructionCode.PushParam, new VariableValue("position3D")),
@@ -698,7 +697,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushParam, new TempValue(14)),
                 new(InstructionCode.CallFunction, new TempValue(15), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(48)),
+                new(InstructionCode.Goto, new NumberValue(47)),
                 new(InstructionCode.PushParam, new StringValue("helper")),
                 new(InstructionCode.CallFunction, new TempValue(16), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
@@ -718,8 +717,8 @@ namespace Fluence.ParserTests
         public void ParsesBroadcastWithComplexArgumentExpression()
         {
             string source = "add(5 + 5, _) <| 10, 20;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Add, new TempValue(0), new NumberValue(5), new NumberValue(5)),
                 new(InstructionCode.PushParam, new TempValue(0)),
@@ -770,8 +769,8 @@ namespace Fluence.ParserTests
                     func Helper() => { print(""helper""); }
                 }
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Goto, new NumberValue(8)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("x"), new NumberValue(0)),
@@ -797,7 +796,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("num"),  new VariableValue("num")),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("numType"), new VariableValue("numType")),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(44)),
+                new(InstructionCode.Goto, new NumberValue(43)),
                 new(InstructionCode.NewInstance, new TempValue(12), new StructSymbol("Number")),
                 new(InstructionCode.PushTwoParams, new NumberValue(10),new EnumValue("NumberType", "Float", 1)),
                 new(InstructionCode.CallMethod, new TempValue(13), new TempValue(12), new StringValue("init")),
@@ -806,8 +805,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.CallFunction, new TempValue(14), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(15), new VariableValue("Helper__0"), new NumberValue(0)),
                 new(InstructionCode.NewInstance, new TempValue(16), new StructSymbol("Vector3")),
-                new(InstructionCode.PushTwoParams, new NumberValue(1),new NumberValue(2)),
-                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.PushThreeParams, new NumberValue(1),new NumberValue(2), new NumberValue(3)),
                 new(InstructionCode.CallMethod, new TempValue(17), new TempValue(16), new StringValue("init")),
                 new(InstructionCode.Assign, new VariableValue("position3D"), new TempValue(16)),
                 new(InstructionCode.PushParam, new VariableValue("position3D")),
@@ -817,7 +815,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushParam, new TempValue(19)),
                 new(InstructionCode.CallFunction, new TempValue(20), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(48)),
+                new(InstructionCode.Goto, new NumberValue(47)),
                 new(InstructionCode.PushParam, new StringValue("helper")),
                 new(InstructionCode.CallFunction, new TempValue(21), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
@@ -845,17 +843,16 @@ namespace Fluence.ParserTests
                 }
                 enum GlobalEnum { A, B }
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.Goto, new NumberValue(7)),
+                new(InstructionCode.Goto, new NumberValue(6)),
                 new(InstructionCode.NewInstance, new TempValue(0), new StructSymbol("Vector3")),
-                new(InstructionCode.PushTwoParams, new NumberValue(1),new NumberValue(2)),
-                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.PushThreeParams, new NumberValue(1),new NumberValue(2),new NumberValue(3)),
                 new(InstructionCode.CallMethod, new TempValue(1), new TempValue(0), new StringValue("init")),
                 new(InstructionCode.Assign, new VariableValue("pos"), new TempValue(0)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(9)),
+                new(InstructionCode.Goto, new NumberValue(8)),
                 new(InstructionCode.Return, new NilValue()),
                 new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 3, 0)),
                 new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1,0)),
@@ -878,17 +875,16 @@ namespace Fluence.ParserTests
                     struct Vector3 { func init(x,y,z) => {} }
                 }
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.Goto, new NumberValue(7)),
+                new(InstructionCode.Goto, new NumberValue(6)),
                 new(InstructionCode.NewInstance, new TempValue(0), new StructSymbol("Vector3")),
-                new(InstructionCode.PushTwoParams, new NumberValue(1),new NumberValue(2)),
-                new(InstructionCode.PushParam, new NumberValue(3)),
+                new(InstructionCode.PushThreeParams, new NumberValue(1),new NumberValue(2),new NumberValue(3)),
                 new(InstructionCode.CallMethod, new TempValue(1), new TempValue(0), new StringValue("init")),
                 new(InstructionCode.Assign, new VariableValue("pos"), new TempValue(0)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(9)),
+                new(InstructionCode.Goto, new NumberValue(8)),
                 new(InstructionCode.Return, new NilValue()),
                 new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", 0, 3, 0)),
                 new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", 3, 1, 0)),
@@ -913,8 +909,8 @@ namespace Fluence.ParserTests
                     p = Point(100);
                 }
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Goto, new NumberValue(6)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("x"), new NumberValue(0)),
@@ -940,8 +936,8 @@ namespace Fluence.ParserTests
         public void ParsesArithmeticAsFunctionArgument()
         {
             string source = "x = 10; print(x * 2 + 5);";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("x"), new NumberValue(10)),
                 new(InstructionCode.Multiply, new TempValue(0), new VariableValue("x"), new NumberValue(2)),
@@ -958,8 +954,8 @@ namespace Fluence.ParserTests
         public void ParsesTernaryAsPartOfLargerArgumentList()
         {
             string source = "result=5; print(result is nil ?: 1, 0, 99);";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("result"), new NumberValue(5)),
                 new(InstructionCode.Equal, new TempValue(0), new VariableValue("result"), new NilValue()),
@@ -980,8 +976,8 @@ namespace Fluence.ParserTests
         public void ParsesTernaryAsIfCondition()
         {
             string source = "a=1; b=2; if (a > b ? a : b) == 2 -> print(1);";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(2)),
@@ -1004,8 +1000,8 @@ namespace Fluence.ParserTests
         public void ParsesSimplePipeWithPlaceholder()
         {
             string source = "result = 5 |> add(_);";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new NumberValue(5)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("add__1"), new NumberValue(1)),
@@ -1020,8 +1016,8 @@ namespace Fluence.ParserTests
         public void ParsesPipeWithPlaceholderInSecondPosition()
         {
             string source = "result = 10 |> add(5, _);";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new NumberValue(5)),
                 new(InstructionCode.PushParam, new NumberValue(10)),
@@ -1037,8 +1033,8 @@ namespace Fluence.ParserTests
         public void ParsesPipeWithoutPlaceholderAsSequencer()
         {
             string source = "print(1) |> print(2);";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("print__1"), new NumberValue(1)),
@@ -1054,8 +1050,8 @@ namespace Fluence.ParserTests
         public void ParsesMixedSequencingAndDataflowPipe()
         {
             string source = "result = print(x) |> getFive() |> print(_);";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new VariableValue("x")),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("print__1"), new NumberValue(1)),
@@ -1073,8 +1069,8 @@ namespace Fluence.ParserTests
         public void ParsesBrutalChainedPipeCorrectly()
         {
             string source = "result = add(x) |> add(_) |> mul(5, _) |> mul(_, 5) |> add2(_,3) |> add2(3,_);";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new VariableValue("x")),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("add__1"), new NumberValue(1)),
@@ -1107,8 +1103,8 @@ namespace Fluence.ParserTests
                 enum Color { Red, Green, Blue }
                 enumy2 = Color.Red;
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("enumy"), new EnumValue("Color", "Green", 1)),
                 new(InstructionCode.Assign, new VariableValue("enumy2"), new EnumValue("Color", "Red", 0)),
@@ -1130,8 +1126,8 @@ namespace Fluence.ParserTests
                     rest: print(3); break;
                 };
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("myColor"), new EnumValue("Color", "Red", 0)),
                 new(InstructionCode.Equal, new TempValue(0), new VariableValue("myColor"), new EnumValue("Color", "Red", 0)),
@@ -1162,8 +1158,8 @@ namespace Fluence.ParserTests
                     c = 3.14;
                 }
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(0)),
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(0)),
@@ -1215,8 +1211,8 @@ namespace Fluence.ParserTests
         public void ParsesSimpleCollectiveAndComparison()
         {
             string source = "a=1; b=1; if a,b <==| 1 -> a=2;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(1)),
@@ -1239,8 +1235,8 @@ namespace Fluence.ParserTests
                 a, b, list[1] .+= 1,2, list[0];
             ";
 
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.NewList, new TempValue(1)),
                 new(InstructionCode.PushElement, new TempValue(1), new NumberValue(0)),
@@ -1265,8 +1261,8 @@ namespace Fluence.ParserTests
         public void ParsesBrutalNestedPipeInArgumentCorrectly()
         {
             string source = "result = add(x) |> add(x |> add(_));";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new VariableValue("x")),
                 new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("add__1"), new NumberValue(1)),
@@ -1291,8 +1287,8 @@ namespace Fluence.ParserTests
                     rest -> 5;
                 };
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Goto, new NumberValue(10)),
                 new(InstructionCode.BranchIfNotEqual, new NumberValue(4), new VariableValue("a"), new NumberValue(1)),
@@ -1315,8 +1311,8 @@ namespace Fluence.ParserTests
         public void ParsesParenthesizedCollectiveComparison()
         {
             string source = "if (a, b <==| 0) -> x=1;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("a"), new NumberValue(0)),
                 new(InstructionCode.Equal, new TempValue(2), new VariableValue("b"), new NumberValue(0)),
@@ -1333,8 +1329,8 @@ namespace Fluence.ParserTests
         public void ParsesSimpleCollectiveOrComparison()
         {
             string source = "a=1; b=2; if a,b <||!=| 2 -> a=3;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(2)),
@@ -1353,8 +1349,8 @@ namespace Fluence.ParserTests
         public void ParsesMidComplexityCollectiveComparisonWithMixedLogic()
         {
             string source = "a=1; b=2; if a > 0 and a,b <<| 3 -> a=4;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(2)),
@@ -1380,8 +1376,8 @@ namespace Fluence.ParserTests
                     a = 5;
                 }
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(1)),
@@ -1409,8 +1405,8 @@ namespace Fluence.ParserTests
         public void ParsesTernaryAsFunctionArgument()
         {
             string source = "result=5; print(result is nil ?: 1, 0);";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("result"), new NumberValue(5)),
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("result"), new NilValue()),
@@ -1441,8 +1437,8 @@ namespace Fluence.ParserTests
                         break;
                 };
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("x"), new NumberValue(1)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(1)),
@@ -1473,8 +1469,8 @@ namespace Fluence.ParserTests
                     rest: print(3); break;
                 };
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("x"), new NumberValue(1)),
                 new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(1)),
@@ -1499,8 +1495,8 @@ namespace Fluence.ParserTests
         public void ParsesSimpleBroadcastCall()
         {
             string source = "print(_) <| 1, 2, 3;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print__1"), new NumberValue(1)),
@@ -1525,8 +1521,8 @@ namespace Fluence.ParserTests
                 ];
                 A[0][2] = A[2][0];
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.NewList, new TempValue(0)),
                 new(InstructionCode.NewList, new TempValue(1)),
@@ -1559,8 +1555,8 @@ namespace Fluence.ParserTests
         public void ParsesComplexBroadcastWithPlaceholderInSecondPosition()
         {
             string source = "add(5, _) <| 10, 20;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new NumberValue(5)),
                 new(InstructionCode.PushParam, new NumberValue(10)),
@@ -1578,8 +1574,8 @@ namespace Fluence.ParserTests
         public void ParsesBrutalChainedMixedBroadcastCall()
         {
             string source = "print(_) <| 1, 2 <?| 3, nil, 4;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print__1"), new NumberValue(1)),
@@ -1607,8 +1603,8 @@ namespace Fluence.ParserTests
         public void ParsesBrutalChainAssignmentWithMixedLValuesCorrectly()
         {
             string source = "a,b,c, list[0] <2?| input() <| input_int();";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("input__0"), new NumberValue(0)),
                 new(InstructionCode.Assign, new TempValue(2), new TempValue(1)),
@@ -1630,8 +1626,8 @@ namespace Fluence.ParserTests
         public void ParsesSimpleOptionalBroadcastCall()
         {
             string source = "print(_) <?| 1, nil, 3;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Equal, new TempValue(1), new NumberValue(1), new NilValue()),
                 new(InstructionCode.GotoIfTrue, new NumberValue(4), new TempValue(1)),
@@ -1666,8 +1662,8 @@ namespace Fluence.ParserTests
                 if c -> .++(a,b);
             ";
 
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(0)),
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(0)),
@@ -1702,8 +1698,8 @@ namespace Fluence.ParserTests
         public void ParsesRangeInsideListLiteralCorrectly()
         {
             string source = "list = [1..2];";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.NewList, new TempValue(1)),
                 new(InstructionCode.PushElement, new TempValue(1), new RangeValue(new NumberValue(1), new NumberValue(2))),
@@ -1718,8 +1714,8 @@ namespace Fluence.ParserTests
         public void ParsesRangeAsExpression()
         {
             string source = "my_list = 0..3;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("my_list"), new RangeValue(new NumberValue(0), new NumberValue(3))),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
@@ -1732,8 +1728,8 @@ namespace Fluence.ParserTests
         public void ParsesRangeAsFunctionArgument()
         {
             string source = "print(1..3);";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.PushParam, new RangeValue(new NumberValue(1), new NumberValue(3))),
                 new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print__1"), new NumberValue(1)),
@@ -1747,8 +1743,8 @@ namespace Fluence.ParserTests
         public void ParsesParenthesizedForInLoopCollection()
         {
             string source = "for i in (1..3) {}";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.NewRange, new TempValue(0), new RangeValue(new NumberValue(0), new NumberValue(3))),
                 new(InstructionCode.NewIterator, new TempValue(1), new TempValue(0)),
@@ -1773,8 +1769,8 @@ namespace Fluence.ParserTests
                 }
             ";
 
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.NewList, new TempValue(0)),
                 new(InstructionCode.PushElement, new TempValue(0), new NumberValue(1)),
@@ -1811,8 +1807,8 @@ namespace Fluence.ParserTests
                 y = list[2];
                 a,b,c, list[0] <2?| input() <| input_int();
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("MyFunc__0"), new NumberValue(0)),
                 new(InstructionCode.GetElement, new TempValue(2), new TempValue(1), new NumberValue(230)),
@@ -1842,8 +1838,8 @@ namespace Fluence.ParserTests
         public void ParsesNestedFluidStyleTernaryCorrectly()
         {
             string source = "a=1; b=1; c = a == 1 ?: (b == 1 ?: 100, 100), 10;";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(1)),
@@ -1873,8 +1869,8 @@ namespace Fluence.ParserTests
                 x,y,z, list[1] <~?| 10, 10, 0, 999;
             ";
 
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.NewList, new TempValue(1)),
                 new(InstructionCode.PushElement, new TempValue(1), new NumberValue(1)),
@@ -1910,8 +1906,8 @@ namespace Fluence.ParserTests
                 x,y,z, list[1] <~?| 10, 10, 0, 999;
             ";
 
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.NewList, new TempValue(1)),
                 new(InstructionCode.PushElement, new TempValue(1), new NumberValue(1)),
@@ -1940,8 +1936,8 @@ namespace Fluence.ParserTests
         {
             string source = @"a,b,c,booly <~| 10, -10, ""Hello world!"", true;";
 
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Negate, new TempValue(0), new NumberValue(10)),
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(10)),

@@ -9,8 +9,8 @@ namespace Fluence.LexerTests
 
         private static List<Token> LexAllTokens(string source)
         {
-            var lexer = new FluenceLexer(source);
-            var tokens = new List<Token>();
+            FluenceLexer lexer = new FluenceLexer(source);
+            List<Token> tokens = new List<Token>();
             Token token;
             do
             {
@@ -43,7 +43,7 @@ namespace Fluence.LexerTests
                 } else -> print(""Error..."") |> exit(1);
             }";
 
-            var expectedTypes = new List<Token.TokenType> {
+            List<Token.TokenType> expectedTypes = new List<Token.TokenType> {
                 FUNC, IDENTIFIER, L_PAREN, R_PAREN, ARROW, IDENTIFIER, L_PAREN, IDENTIFIER, L_PAREN, R_PAREN, R_PAREN,
                 EOL, FUNC, IDENTIFIER, L_PAREN, R_PAREN, ARROW, L_BRACE,
                 IDENTIFIER, COMMA, IDENTIFIER, COMMA, IDENTIFIER, CHAIN_ASSIGN_N, IDENTIFIER, L_PAREN, R_PAREN, CHAIN_ASSIGN_N, IDENTIFIER, L_PAREN, R_PAREN, EOL,
@@ -62,14 +62,14 @@ namespace Fluence.LexerTests
                 R_BRACE
             };
 
-            var actualTokens = LexAllTokens(source);
+            List<Token> actualTokens = LexAllTokens(source);
             actualTokens.RemoveAll(token => token.Type == Token.TokenType.EOL_LEXER);
-            var actualTypes = actualTokens.Select(t => t.Type).ToList();
+            List<Token.TokenType> actualTypes = actualTokens.Select(t => t.Type).ToList();
 
             if (!expectedTypes.SequenceEqual(actualTypes))
             {
                 _output.WriteLine("--- ACTUAL TOKEN STREAM ---");
-                foreach (var token in actualTokens)
+                foreach (Token token in actualTokens)
                 {
                     _output.WriteLine($"{token.Type,-25} {token.Text ?? "",-30} {token.Literal ?? ""}");
                 }

@@ -40,14 +40,14 @@ namespace Fluence.LexerTests
         [InlineData("struct", TokenType.STRUCT)]
         internal void TestSingleTokens(string source, TokenType expectedType)
         {
-            var types = LexFirstToken(source);
+            Token types = LexFirstToken(source);
             Assert.Equal(expectedType, types.Type);
         }
 
         [Fact]
         public void TestSemicolonEOL()
         {
-            var lexer = new FluenceLexer(";");
+            FluenceLexer lexer = new FluenceLexer(";");
             Assert.Equal(TokenType.EOL, lexer.ConsumeToken().Type);
         }
 
@@ -55,12 +55,12 @@ namespace Fluence.LexerTests
         public void TestSequenceOfSymbolsAndKeywords()
         {
             string source = "func main() => { return nil; }";
-            var expected = new List<TokenType> {
+            List<TokenType> expected = new List<TokenType> {
             TokenType.FUNC, TokenType.IDENTIFIER, TokenType.L_PAREN, TokenType.R_PAREN,
             TokenType.ARROW, TokenType.L_BRACE, TokenType.RETURN, TokenType.NIL,
             TokenType.EOL, TokenType.R_BRACE
         };
-            var actual = LexAllTypes(source);
+            List<TokenType> actual = LexAllTypes(source);
             Assert.Equal(expected, actual);
         }
 
@@ -68,12 +68,12 @@ namespace Fluence.LexerTests
         public void TestSequenceOfRange()
         {
             string source = "func main() => { x = 5..10; }";
-            var expected = new List<TokenType> {
+            List<TokenType> expected = new List<TokenType> {
             TokenType.FUNC, TokenType.IDENTIFIER, TokenType.L_PAREN, TokenType.R_PAREN,
             TokenType.ARROW, TokenType.L_BRACE, TokenType.IDENTIFIER, TokenType.EQUAL,
             TokenType.NUMBER, TokenType.DOT_DOT, TokenType.NUMBER, TokenType.EOL, TokenType.R_BRACE
         };
-            var actual = LexAllTypes(source);
+            List<TokenType> actual = LexAllTypes(source);
             Assert.Equal(expected, actual);
         }
     }

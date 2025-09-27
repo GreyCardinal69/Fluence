@@ -9,8 +9,8 @@ namespace Fluence.ParserTests
 
         internal static List<InstructionLine> Compile(string source)
         {
-            var lexer = new FluenceLexer(source);
-            var parser = new FluenceParser(lexer, null!, null!, null!);
+            FluenceLexer lexer = new FluenceLexer(source);
+            FluenceParser parser = new FluenceParser(lexer, null!, null!, null!);
 
             parser.Parse(true);
             return parser.CompiledCode;
@@ -22,8 +22,8 @@ namespace Fluence.ParserTests
 
             for (int i = 0; i < expected.Count; i++)
             {
-                var exp = expected[i];
-                var act = actual[i];
+                InstructionLine exp = expected[i];
+                InstructionLine act = actual[i];
 
                 Assert.True(exp.Instruction == act.Instruction, $"Instruction [{i:D4}]: Mismatch in InstructionCode. Expected '{exp.Instruction}', got '{act.Instruction}'.");
 
@@ -49,7 +49,7 @@ namespace Fluence.ParserTests
                     Assert.Equal(expV.Name, ((VariableValue)actual).Name);
                     break;
                 case NumberValue expN:
-                    var actN = (NumberValue)actual;
+                    NumberValue actN = (NumberValue)actual;
                     Assert.Equal(expN.Type, actN.Type);
                     Assert.Equal(Convert.ToDouble(expN.Value), Convert.ToDouble(actN.Value));
                     break;

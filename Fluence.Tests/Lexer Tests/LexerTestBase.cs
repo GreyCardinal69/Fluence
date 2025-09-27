@@ -8,8 +8,8 @@ namespace Fluence.LexerTests
 
         internal static List<Token.TokenType> LexAllTypes(string source)
         {
-            var lexer = new FluenceLexer(source);
-            var types = new List<Token.TokenType>();
+            FluenceLexer lexer = new FluenceLexer(source);
+            List<Token.TokenType> types = new List<Token.TokenType>();
             Token token;
             do
             {
@@ -21,7 +21,7 @@ namespace Fluence.LexerTests
 
         internal static Token LexFirstToken(string source)
         {
-            var lexer = new FluenceLexer(source);
+            FluenceLexer lexer = new FluenceLexer(source);
             return lexer.ConsumeToken();
         }
     }

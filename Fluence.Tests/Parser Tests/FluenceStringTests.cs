@@ -12,9 +12,9 @@ namespace Fluence.ParserTests
         public void ParsesSimpleStringAssignment()
         {
             string source = @"a = ""hello world"";";
-            var compiledCode = Compile(source);
+            List<InstructionLine> compiledCode = Compile(source);
 
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new StringValue("hello world")),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
@@ -28,9 +28,9 @@ namespace Fluence.ParserTests
         public void ParsesEmptyStringAssignment()
         {
             string source = @"d = """";";
-            var compiledCode = Compile(source);
+            List<InstructionLine> compiledCode = Compile(source);
 
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("d"), new StringValue("")),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
@@ -44,9 +44,9 @@ namespace Fluence.ParserTests
         public void ParsesEmptyFStringAsEmptyString()
         {
             string source = @"d = f"""";";
-            var compiledCode = Compile(source);
+            List<InstructionLine> compiledCode = Compile(source);
 
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("d"), new StringValue("")),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
@@ -64,9 +64,9 @@ namespace Fluence.ParserTests
                 c = f""hello {b}"";
             ";
 
-            var compiledCode = Compile(source);
+            List<InstructionLine> compiledCode = Compile(source);
 
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(5)),
                 new(InstructionCode.ToString, new TempValue(0), new VariableValue("b")),
@@ -86,8 +86,8 @@ namespace Fluence.ParserTests
                 a = ""end"";
                 c = f""start {10 + 20} middle {a}"";
             ";
-            var compiledCode = Compile(source);
-            var expectedCode = new List<InstructionLine>
+            List<InstructionLine> compiledCode = Compile(source);
+            List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new StringValue("end")),
                 new(InstructionCode.Add, new TempValue(0), new NumberValue(10), new NumberValue(20)),

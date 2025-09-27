@@ -24,7 +24,7 @@ namespace Fluence.LexerTests
         [Fact]
         public void TestPlaceholderAsSeparateToken()
         {
-            var types = LexAllTypes("x |> _");
+            List<TokenType> types = LexAllTypes("x |> _");
             Assert.Equal(TokenType.IDENTIFIER, types[0]);
             Assert.Equal(TokenType.PIPE, types[1]);
             Assert.Equal(TokenType.UNDERSCORE, types[2]);

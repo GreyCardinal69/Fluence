@@ -944,7 +944,7 @@ Fluence is still a language heavily in development, as such many features and mu
 - Exceptions, basic try/catch.
 - And much more.
 - Structs in structs, currently the parser cant parse nested structs, it can parse enums defined in structs, but not structs.
-
+- Expand this readme! Much is yet to be written.
 
 
 

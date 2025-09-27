@@ -150,7 +150,7 @@ namespace Fluence.ParserTests
             var compiledCode = Compile(source);
             var expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.Assign, new TempValue(0), new VariableValue("exitCode")),
+                new(InstructionCode.Assign, new VariableValue("exitCode"), NilValue.NilInstance),
                 new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
@@ -254,7 +254,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushParam, new VariableValue("a")),
                 new(InstructionCode.PushParam, new VariableValue("b")),
                 new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main__2"), new NumberValue(2)),
-                new(InstructionCode.Assign, new TempValue(2), new VariableValue("exitCode")),
+                new(InstructionCode.Assign, new VariableValue("exitCode"), NilValue.NilInstance),
                 new(InstructionCode.Assign, new VariableValue("exitCode"), new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)

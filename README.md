@@ -13,6 +13,7 @@ Fluence is a dynamically-typed, interpreted, multi-paradigm scripting language t
 
 ## Table of Contents
 
+- [Performace](#performance)
 - [Language Fundamentals](#language-fundamentals)
   - [Variables](#variables)
   - [Comments](#comments)
@@ -43,6 +44,8 @@ Fluence is a dynamically-typed, interpreted, multi-paradigm scripting language t
 - [TO DO](#to-do)
 
 
+## Performance
+All stages of the Fluence Interpreter, those being the Lexer, Parser, Optimizer and the Virtual Machine are heavily optimized and extremely fast, making Fluence into a very fast interpreted language, with minimum memory allocation.
 
 ## Language Fundamentals
 ### Variables

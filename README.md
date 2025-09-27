@@ -36,14 +36,11 @@ Fluence is a dynamically-typed, interpreted, multi-paradigm scripting language t
   - [Collective Comparison Operators](#collective-comparison-operators)
   - [Advanced Assignment Operators](#advanced-assignment-operators)
   - [Broadcast Call](#broadcast-call)
-  - [Pipe Operator](#pipe-operator)
+  - [Pipe Operator](#the-pipe-operator)
 - [Lambdas](#lambdas)
   - [Lambda Pipes](#lambda-pipes)
 - [Examples](#examples)
-- [Contributing](#contributing)
-- [Roadmap](#roadmap)
-- [License](#license)
-- [Acknowledgments](#acknowledgments)
+- [TO DO](#to-do)
 
 
 
@@ -744,7 +741,7 @@ truthy |?? a < b
 printl(truthy); # true.
 ```
 
-### Broadcast Call `<|`
+### Broadcast Call
 An overload of the rest assignment operator, pipes multiple values into a function.
 ```rust
 
@@ -758,7 +755,7 @@ printl(_) <| 1, 2, 3, "Hello World!";
 Hello World!
 ```
 
-### The Pipe Operator `|>`
+### The Pipe Operator
 Pipes a value into a chain of function calls. "Take the result of the expression on the left and feed it into the function on the right."
 There are to options when using the pipe:
 ```rust
@@ -937,8 +934,15 @@ func Collatz() => {
 
 func Main() => printl(Collatz());
 ```
-
-
+## TO DO
+Fluence is still a language heavily in development, as such many features and much content is yet to be done. This includes
+- A very rich set of built-in libraries and global types
+- Several Lambda based pipes the concepts of which exist, but due to not yet being implemented are not included in the readme.
+- Default function argument values
+- A certain form of pattern matching
+- Custom intrinsics, a way to define intrinsics from the outside of the Fluence .dll
+- Exceptions, basic try/catch.
+- And much more.
 
 
 

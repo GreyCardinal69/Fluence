@@ -9,15 +9,46 @@
 </p>
 </div>
 
-Fluence is a dynamically-typed, Interpreted, multi-paradigm scripting language that rejects verbosity and boilerplate. The language provides a rich suite of unique operators and constructs that enable a declarative, pipeline-oriented style.
+Fluence is a dynamically-typed, interpreted, multi-paradigm scripting language that rejects verbosity and boilerplate. It provides a rich suite of unique operators and constructs that enable a declarative, pipeline-oriented style. Designed for embedding in applications or standalone scripting, Fluence prioritizes concise syntax, powerful control flow, and ergonomic features to boost developer productivity.
+
+## Table of Contents
+
+- [Language Fundamentals](#language-fundamentals)
+  - [Variables](#variables)
+  - [Comments](#comments)
+  - [Built-in Types](#built-in-types)
+- [Functions](#functions)
+  - [Reference Arguments](#reference-arguments)
+- [Control Flow](#control-flow)
+  - [If and Unless](#if-and-unless)
+  - [Loops](#loops)
+  - [Match](#match)
+- [Data Structures](#data-structures)
+  - [Structs](#structs)
+  - [Enums](#enums)
+  - [Namespaces & Modules](#namespaces--modules)
+- [Operators](#operators)
+  - [Basic Operators](#basic-operators)
+  - [Ternary Operator](#ternary-operator)
+  - [DOT Family Operators](#dot-family-operators)
+  - [Miscellaneous Operators](#miscellaneous-operators)
+  - [Train Operator](#train-operator)
+  - [Collective Comparison Operators](#collective-comparison-operators)
+  - [Advanced Assignment Operators](#advanced-assignment-operators)
+  - [Broadcast Call](#broadcast-call)
+  - [Pipe Operator](#pipe-operator)
+- [Lambdas](#lambdas)
+  - [Lambda Pipes](#lambda-pipes)
+- [Examples](#examples)
+- [Contributing](#contributing)
+- [Roadmap](#roadmap)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
 
 
 
-
-
-# Fundamentals
-
-**Variable Declaration:**
+## Language Fundamentals
+### Variables
 
 Implicit. Variables are created upon their first assignment.
 ```cs
@@ -37,7 +68,7 @@ solid my_var = 10;
 my_var = 1; # error.
 ```
 
-**Comments**
+### Comments
 
 Single line comments with '#'
 ```cs
@@ -53,7 +84,7 @@ line3
 *#
 ```
 
-**Built-In core types**
+### Built-in Types
 
 Fluence supports: Int, Double, Float and Long numeric types.
 ```rust
@@ -113,7 +144,7 @@ The representation of null in Fluence;
 my_var = nil;
 ```
 
-# Functions
+## Functions
 Functions are first-class citizens. All functions start with the 'func' keyword and come in two formats.
 
 ```rust
@@ -140,7 +171,7 @@ func Main() => ....;
 Block bodied functions must define an explicit 'return expr' to return a value, otherwise they will return 'nil' by default.
 When calling a function you always pass arguments by value, this means that any change to them does not affect them outside the function.
 
-## Reference Arguments
+### Reference Arguments
 To pass an argument by reference you may use the 'ref' keyword.
 ```rust
 func ByRef(a, ref b) => {
@@ -159,10 +190,10 @@ func Main() => {
 }
 ```
 
-# Control Flow
+## Control Flow
 Control structures in Fluence do not require parentheses, for the most part.
 
-## `If` Statements
+### If and Unless
 Standard conditional branching. 
 ```rust
 my_var = 5;
@@ -183,8 +214,7 @@ else {
 }
 ```
 
-## Unless
-The inverse of `If`, doesnt not have else unless/else.
+**Unless** is the inverse of `If`, does not have an else unless/else.
 
 ```rust
 truthy = true;
@@ -197,9 +227,9 @@ unless truthy {
 }
 ```
 
-## Loops
+### Loops
 
-### For - In Loops
+- **For-In**:
 Represents a loop over a list or a range. Supports both single line and block bodies.
 Format is: for `variable` in `expression/list/range`
 
@@ -216,7 +246,7 @@ for i in 1..5 {
 
 ```
 
-### While
+- **While/Until**:
 A simple while loop.
 
 ```rust
@@ -227,7 +257,6 @@ while true {
 }
 ```
 
-### Until
 The inverse of `While`
 Until condition -> do something
 
@@ -243,7 +272,7 @@ until a > 5 {
 until cond -> ....
 ```
 
-### C-Style for loops.
+- **C-Style For**:
 Supports both single line and block body, expects 3 expressions separated with a semicolon.
 
 ```rust
@@ -254,7 +283,7 @@ for i = 0; i < 10; i++; {
 }
 ```
 
-### `Loop` - loops.
+- **Loop** (Infinite):
 Represents an infinite loop which can be exited only using a `break` statement.
 Does not support a single line form.
 
@@ -268,7 +297,7 @@ loop {
 }
 ```
 
-### `Times` Loop.
+- **Times**:
 A fancy way to loop a certain amount of times.
 Supports one line and block bodies.
 Accepts only integer numbers and integer variables.
@@ -285,7 +314,7 @@ my_var = 10;
 my_var times -> ...
 ```
 
-#### `Times As` loops.
+`Times As` loops.
 A slightly expanded way to do a `Times` loop.
 Supports one line and block bodies.
 
@@ -302,7 +331,7 @@ You can mark it as solid this way:
 }
 ```
 
-## Match
+### Match
 The `match` statement is a flexible tool for handling complex conditional logic based on a value's identity. It can be used as a traditional statement (like a `switch`) or as an expression that returns a value.
 
 **Expression-Style**
@@ -369,9 +398,9 @@ NOTE! That a switch style match does not require a semicolon after its closing b
   printl(result_message);
   ```
 
-# Data structures
+## Data Structures
 
-## Structs
+### Structs
 Simple data aggregates with instance fields, static fields, methods, and a special `init` constructor. `self` is used to refer to the instance.
 A field marked as `solid` is both readonly and static.
 
@@ -423,7 +452,7 @@ vector = Vector2(a,b);
 vector = Vector2 { x:1, y:2 };
 ```
 
-## Enums
+### Enums
 Simple C-style enumerations.
 
 ```rust
@@ -442,7 +471,7 @@ a = Tile.Hit;
 if a == Tile.Hit -> printl("Hit!"); # true, prints.
 ```
 
-## Namespaces & Modules
+### Namespaces & Modules
 Organize code with `space` keyword and import with `use`. The `use` keyword can import multiple namespaces at once.
 ```cs
 space MyGame {
@@ -456,9 +485,10 @@ space MyGame {
 
 Any code outside any space automatically belongs to the global namespace!
 
-# Operator Suite
+## Operators
 Operators can be considered the most distinct feature of Flunce. The operators are designed with ease of use and readability in mind.
 
+### Basic Operators
 Starting Simple:
 ```rust
 # generic operators
@@ -508,10 +538,10 @@ b = a ? 1 : 2;
 b = a ?: 1, 2;
 ```
 
-## `DOT` family operators.
+### DOT Family Operators
 A special set of operators that begin with a dot.
 
-### `.and()` and `.or()`
+#### `.and()` and `.or()`
 ```rust
 # Logical
 .or()  .and()
@@ -529,7 +559,7 @@ if .and(a,b) -> ....
 # Same for .or()
 ```
 
-### `.++()` and `.--()`
+#### `.++()` and `.--()`
 These represent a grouping of increments, decrements.
 ```rust
 a = 1;
@@ -543,7 +573,7 @@ printl(f"{a},{b}"); # prints 2 for both.
 printl(f"{a},{b}"); # prints 1 for both.
 ```
 
-### `.op=`
+#### `.op=`
 These represent a grouping of an operator + assignment.
 Only applicable for - + / *
 
@@ -565,7 +595,7 @@ a, b .-= 4,4;
 printl(f"{a},{b}"); # prints 1 for both.a
 ```
 
-## Miscellanea Operators
+### Miscellaneous Operators
 A small set of small, special operators.
 
 #### `!!` - Boolean flip
@@ -597,7 +627,7 @@ func Main() => {
 }
 ```
 
-## Collective Comparison Operators
+### Collective Comparison Operators
 These check a condition against multiple variables at once, eliminating long `&&` or `||` chains.
 ```rust
 a = 1;
@@ -635,7 +665,7 @@ The following OR collective comparison operators are supported, simply add `||` 
 <||>=| # any greater or equal to
 ```
 
-## Advanced Assignment Operators
+### Advanced Assignment Operators
 These elevate assignments from a simple statement to a powerful expression tool for reducing boilerplate.
 
 ### Sequential Rest Assignment `<~|`
@@ -712,7 +742,7 @@ truthy |?? a < b
 printl(truthy); # true.
 ```
 
-### BroadCast Call `<|`
+### Broadcast Call `<|`
 An overload of the rest assignment operator, pipes multiple values into a function.
 ```rust
 
@@ -778,7 +808,7 @@ func Main() => {
 }
 ```
 
-# Lambdas
+## Lambdas
 Lambdas are defined as follows:
 ```rust
 lambda = () => ...
@@ -818,7 +848,7 @@ Lambdas can accept arguments passed by reference.
     printl(a); # 5
 ```
 
-## Lambda Pipes
+### Lambda Pipes
 The following are pipe like operators that use lambdas.
 
 ### Reducer Pipe `|>>=`
@@ -863,7 +893,7 @@ Once the command is in your PATH, you can run scripts from any terminal:
 fluence -run my_script.fl
 ```
 
-# Examples:
+## Examples
 
 ## A simple calculator in Fluence:
 ```cs

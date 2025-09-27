@@ -717,19 +717,21 @@ Assigns `true` to a variable if a chain of comma-separated expressions are all t
 ```rust
 a, b, c <~| 1,2,3;
 
-truthy <||??| a < b, b > c, c > 10;
-
-printl(truthy); # true.
-```
-
-#### OR Guard Chain `<||??|`
-Assigns `true` to a variable if in a chain of comma-separated expressions at least one is truthy. Short-circuits.
-a, b, c <~| 1,2,3;
-
 truthy <??| a < b, b < c, c < 10;
 
 printl(truthy); # true.
 
+```
+
+#### OR Guard Chain `<||??|`
+Assigns `true` to a variable if in a chain of comma-separated expressions at least one is truthy. Short-circuits.
+```rust
+a, b, c <~| 1,2,3;
+
+truthy <||??| a < b, b > c, c > 10;
+
+printl(truthy); # true.
+```
 ### Guard Pipe Truthy-propagating. `|??`
 An alternative to the Guard Chain. If the right-side expression is false, the pipeline breaks and returns false.
 ```rust

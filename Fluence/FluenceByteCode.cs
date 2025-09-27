@@ -100,6 +100,8 @@
                 BranchIfNotEqual,
 
                 PushTwoParams,
+                PushThreeParams,
+                PushFourParams,
             }
 
             /// <summary>Gets the operation code for this instruction.</summary>

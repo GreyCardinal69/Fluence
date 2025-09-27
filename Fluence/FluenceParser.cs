@@ -1560,7 +1560,6 @@ namespace Fluence
 
             if (IsSwitchStyleMatch())
             {
-                Console.WriteLine(  "here");
                 ParseMatchSwitchStyle(matchOn);
                 return NilValue.NilInstance;
             }

@@ -65,27 +65,18 @@ namespace Fluence
                     if (text.SequenceEqual("as")) return TokenType.AS;
                     break;
                 case 3:
-                    if (text[0] == 'n')
-                    {
-                        if (text.SequenceEqual("nil")) return TokenType.NIL;
-                        if (text.SequenceEqual("not")) return TokenType.BANG_EQUAL;
-                    }
+                    if (text.SequenceEqual("nil")) return TokenType.NIL;
+                    if (text.SequenceEqual("not")) return TokenType.BANG_EQUAL;
                     if (text.SequenceEqual("for")) return TokenType.FOR;
                     if (text.SequenceEqual("ref")) return TokenType.REF;
                     if (text.SequenceEqual("and")) return TokenType.AND;
                     if (text.SequenceEqual("use")) return TokenType.USE;
                     break;
                 case 4:
-                    if (text[0] == 'e')
-                    {
-                        if (text[1] == 'l') return TokenType.ELSE;
-                        if (text[1] == 'n') return TokenType.ENUM;
-                    }
-                    if (text[0] == 't')
-                    {
-                        if (text[1] == 'r') return TokenType.TRUE;
-                        if (text[1] == 'y') return TokenType.TYPE;
-                    }
+                    if (text.SequenceEqual("else")) return TokenType.ELSE;
+                    if (text.SequenceEqual("enum")) return TokenType.ENUM;
+                    if (text.SequenceEqual("type")) return TokenType.ENUM;
+                    if (text.SequenceEqual("true")) return TokenType.TRUE;
                     if (text.SequenceEqual("func")) return TokenType.FUNC;
                     if (text.SequenceEqual("loop")) return TokenType.LOOP;
                     if (text.SequenceEqual("rest")) return TokenType.REST;

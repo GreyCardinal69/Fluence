@@ -34,7 +34,7 @@ namespace Fluence.Global
 
                     return new RuntimeValue(foreignObject);
 
-                }, new List<string>(), null!),
+                }, [], null!),
 
                 new FunctionSymbol("Stack__1", 1, (vm, argCount) =>
                 {

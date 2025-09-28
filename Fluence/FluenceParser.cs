@@ -1994,14 +1994,21 @@ namespace Fluence
         {
             _lexer.Advance(); // Consume 'solid'.
 
-            VariableValue left = (VariableValue)ParseExpression();
-            left.IsReadOnly = true;
+            Value left = ParseExpression();
+
+            if (left is not VariableValue)
+            {
+                ConstructAndThrowParserException("Can not declare a constant value, or a non variable as solid.", _lexer.PeekCurrentToken());
+            }
+
+            VariableValue variable = (VariableValue)left;
+            variable.IsReadOnly = true;
 
             AdvanceAndExpect(TokenType.EQUAL, "Expected an assignment for an immutable solid variable or field.");
 
             Value value = ParseExpression();
 
-            GenerateWriteBackInstruction(left, value);
+            GenerateWriteBackInstruction(variable, value);
         }
 
         /// <summary>

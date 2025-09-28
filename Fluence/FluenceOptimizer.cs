@@ -99,7 +99,7 @@ namespace Fluence
                     bytecode[i + 3] = null!;
                     i++;
                 }
-                if (line1.Instruction == InstructionCode.PushParam && line2.Instruction == InstructionCode.PushParam && line3.Instruction == InstructionCode.PushParam)
+                else if (line1.Instruction == InstructionCode.PushParam && line2.Instruction == InstructionCode.PushParam && line3.Instruction == InstructionCode.PushParam)
                 {
                     byteCodeChanged = true;
                     bytecode[i].Instruction = InstructionCode.PushThreeParams;
@@ -148,7 +148,7 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Scans for a comparison operation followed by a conditional jump that uses its result. Fuses them into a single, more efficient branch instruction (e.g., BranchIfNotEqual).
+        /// Scans for a comparison operation followed by a conditional jump that uses its result. Fuses them into a single, more efficient branch instruction.
         /// The second, now redundant, instruction is replaced with a null placeholder for later removal.
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>

@@ -5,69 +5,6 @@ using static Fluence.FluenceVirtualMachine;
 
 namespace Fluence
 {
-    /// <summary>
-    /// Provides detailed, context-rich information about an error.
-    /// </summary>
-    internal abstract record ExceptionContext
-    {
-        /// <summary>
-        /// Formats the exception context into a user-friendly, multi-line error message.
-        /// </summary>
-        /// <returns>A formatted string detailing the error context.</returns>
-        internal abstract string Format();
-    }
-
-    /// <summary>
-    /// Provides context for an error that occurred during the lexing phase.
-    /// </summary>
-    internal sealed record LexerExceptionContext : ExceptionContext
-    {
-        /// <summary>The line number where the error occurred.</summary>
-        internal int LineNum { get; init; }
-
-        /// <summary>The column number where the error occurred.</summary>
-        internal int Column { get; init; }
-
-        /// <summary>
-        /// The Fluence script file where the error occured, if given code as a string from an application, returns "script".
-        /// </summary>
-        internal required string FileName { get; init; }
-
-        /// <summary>
-        /// Last parsed <see cref="Fluence.Token"/>, can be null or <see cref="Token.TokenType.UNKNOWN"/>
-        /// </summary>
-        internal Token Token { get; init; }
-
-        /// <summary>The source code of the line where the error occurred.</summary>
-        internal required string FaultyLine { get; init; }
-
-        internal override string Format()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-
-            if (LineNum > 0 && FaultyLine != null && Column > 0)
-            {
-                int lineNumLen = LineNum.ToString().Length;
-                stringBuilder
-                    .AppendLine($"\nException occured in: {(string.IsNullOrEmpty(FileName) ? "Script" : FileName)}.")
-                    .AppendLine($"LEXER ERROR at: line {LineNum}, Column {Column}")
-                    .AppendLine($"\n{LineNum}.│ {FaultyLine}")
-                    .AppendLine($"{new string(' ', lineNumLen + 1)}│{new string(' ', Column - 1)}^")
-                    .AppendLine($"{new string('─', lineNumLen + 1)}┴{new string('─', Column - lineNumLen)}┴{new string('─', FaultyLine.Length)}");
-            }
-
-            string tokenText = (Token.Text is "\r" or "\n" or "\r\n" or ";\r\n") ? "NewLine" : Token.Text;
-            string tokenLiteral = (string)((Token.Literal is (object)"\r" or (object)"\n" or (object)"\r\n") ? "NewLine" : Token.Literal);
-
-            tokenText ??= "Null";
-            tokenLiteral ??= "Null";
-
-            stringBuilder.AppendLine($"Last Token scanned <Type, Text, Literal>: <{Token.Type.ToString()}, {tokenText}, {tokenLiteral}>");
-
-            return stringBuilder.ToString();
-        }
-    }
-
     internal sealed record RuntimeExceptionContext : ExceptionContext
     {
         internal string ExceptionMessage { get; set; }
@@ -79,13 +16,14 @@ namespace Fluence
 
         private void ElaborateOnUndefinedFunction(FluenceScope scope, StringBuilder stringBuilder, out bool foundMatch)
         {
-            string undefinedVarialbe = ExceptionMessage.Split('\'')[1];
-            Mangler.Demangle(undefinedVarialbe, out int deMangledArity);
-            string deMangledVar = Mangler.Demangle(undefinedVarialbe);
+            string undefinedVariable = ExceptionMessage.Split('\'')[1];
+            Mangler.Demangle(undefinedVariable, out int deMangledArity);
+            string deMangledVar = Mangler.Demangle(undefinedVariable);
 
             int errorlLineNum = InstructionLine.LineInSourceCode;
             int lineNumLen = errorlLineNum.ToString().Length;
             foundMatch = false;
+            string leftPad = new string(' ', lineNumLen + 1);
 
             foreach (Symbol symbol in scope.Symbols.Values)
             {
@@ -99,12 +37,12 @@ namespace Fluence
                         {
                             foundMatch = true;
                             stringBuilder.AppendLine($"Runtime Error: Function \"{deMangledFunc}\" does not accept {deMangledArity} argument(s).");
-                            stringBuilder.AppendLine($"{new string(' ', lineNumLen + 1)}│\tAvailable signatures are:");
-                            stringBuilder.AppendLine($"{new string(' ', lineNumLen + 1)}│\t\t- func {Mangler.Demangle(func.Name)}({string.Join(", ", func.Arguments)})");
+                            stringBuilder.AppendLine($"{leftPad}│\tAvailable signatures are:");
+                            stringBuilder.AppendLine($"{leftPad}│\t\t- func {Mangler.Demangle(func.Name)}({string.Join(", ", func.Arguments)})");
                         }
                         else
                         {
-                            stringBuilder.AppendLine($"{new string(' ', lineNumLen + 1)}│\t\t- func {Mangler.Demangle(func.Name)}({string.Join(", ", func.Arguments)})");
+                            stringBuilder.AppendLine($"{leftPad}│\t\t- func {Mangler.Demangle(func.Name)}({string.Join(", ", func.Arguments)})");
                         }
                     }
                 }
@@ -184,17 +122,19 @@ namespace Fluence
                 stringBuilder.AppendLine($"Exact path: {filepath}");
             }
 
+            string leftPad = new string(' ', lineNumLen + 1);
+
             if (errorlLineNum > 0 && faultyLine != null && errorColumnNum > 0)
             {
                 stringBuilder
                     .AppendLine($"RUNTIME ERROR at approximately: line {errorlLineNum}, Column {errorColumnNum}")
                     .AppendLine($"\nMost likely line where the error occured:")
-                    .AppendLine($"\n{new string(' ', lineNumLen + 1)}│")
-                    .AppendLine($"{new string(' ', lineNumLen + 1)}│")
-                    .AppendLine($"{new string(' ', lineNumLen + 1)}│\t{ExceptionMessage}")
-                    .AppendLine($"{new string(' ', lineNumLen + 1)}│")
+                    .AppendLine($"\n{leftPad}│")
+                    .AppendLine($"{leftPad}│")
+                    .AppendLine($"{leftPad}│\t{ExceptionMessage}")
+                    .AppendLine($"{leftPad}│")
                     .AppendLine($"{errorlLineNum}.│ {faultyLine}")
-                    .AppendLine($"{new string(' ', lineNumLen + 1)}│{new string(' ', errorColumnNum - lineNumLen)}^")
+                    .AppendLine($"{leftPad}│{new string(' ', errorColumnNum - lineNumLen)}^")
                     .AppendLine($"{new string('─', lineNumLen + 1)}┴{new string('─', errorColumnNum - lineNumLen)}┴{new string('─', faultyLine.Length)}");
             }
 
@@ -275,111 +215,5 @@ namespace Fluence
 
             return stringBuilder.ToString();
         }
-    }
-
-    /// <summary>
-    /// Provides context for an error that occurred during the parsing phase.
-    /// </summary>
-    internal sealed record ParserExceptionContext : ExceptionContext
-    {
-        /// <summary>The line number where the error occurred.</summary>
-        internal int LineNum { get; init; }
-
-        /// <summary>The column number where the error occurred.</summary>
-        internal int Column { get; init; }
-
-        /// <summary>
-        /// The Fluence script file where the error occured.
-        /// </summary>
-        internal required string FileName { get; init; }
-
-        /// <summary>The source code of the line where the error occurred.</summary>
-        internal string FaultyLine { get; init; }
-
-        /// <summary>Gets the token that the parser could not process.</summary>
-        internal required Token UnexpectedToken { get; init; }
-
-        internal override string Format()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-
-            if (LineNum > 0 && FaultyLine != null && Column > 0)
-            {
-                int lineNumLen = LineNum.ToString().Length;
-                stringBuilder
-                    .AppendLine($"\nException occured in: {(string.IsNullOrEmpty(FileName) ? "Script" : FileName)}.")
-                    .AppendLine($"PARSER ERROR at: line {LineNum}, Column {Column}")
-                    .AppendLine($"\n{LineNum}.│ {FaultyLine}")
-                    .AppendLine($"{new string(' ', lineNumLen + 1)}│{new string(' ', Column - 1)}^")
-                    .AppendLine($"{new string('─', lineNumLen + 1)}┴{new string('─', Column - lineNumLen)}┴{new string('─', FaultyLine.Length)}");
-            }
-
-            string tokenText = (UnexpectedToken.Text is "\r" or "\n" or "\r\n" or ";\r\n")
-                ? "NewLine"
-                : UnexpectedToken.ToDisplayString();
-
-            stringBuilder.AppendLine($"Error: Unexpected token '{tokenText}' (Type: {UnexpectedToken.Type}).");
-
-            return stringBuilder.ToString();
-        }
-    }
-
-    /// <summary>
-    /// The base class for all exceptions thrown by the Fluence VM.
-    /// </summary>
-    public class FluenceException : Exception
-    {
-        internal readonly ExceptionContext? _context;
-
-        public FluenceException(string message) : base(message)
-        {
-            _context = null;
-        }
-
-        internal FluenceException(string message, ExceptionContext context) : base(message)
-        {
-            _context = context;
-        }
-
-        public override string Message
-        {
-            get
-            {
-                StringBuilder stringBuilder = new StringBuilder();
-                stringBuilder.Append(_context?.Format());
-                if (_context is not RuntimeExceptionContext)
-                {
-                    stringBuilder.AppendLine($"Exception: {base.Message}");
-                }
-                return stringBuilder.ToString();
-            }
-        }
-    }
-
-    /// <summary>
-    /// Represents an exception that occurs during the execution of a Fluence script by the VM.
-    /// </summary>
-    public sealed class FluenceRuntimeException : FluenceException
-    {
-        internal FluenceRuntimeException(string message, RuntimeExceptionContext context)
-            : base(message, context) { }
-    }
-
-    /// <summary>
-    /// Represents an error that occurs during lexical analysis.
-    /// </summary>
-    public sealed class FluenceLexerException : FluenceException
-    {
-        internal FluenceLexerException(string message, LexerExceptionContext context)
-            : base(message, context) { }
-    }
-
-    /// <summary>
-    /// Represents an error that occurs during parsing.
-    /// </summary>
-    public sealed class FluenceParserException : FluenceException
-    {
-        internal FluenceParserException(string message, ParserExceptionContext context)
-            : base(message, context) { }
     }
 }

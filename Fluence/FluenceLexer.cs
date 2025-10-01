@@ -1,4 +1,5 @@
 ﻿using Fluence.Fluence.Exceptions;
+using System.Runtime.CompilerServices;
 using System.Text;
 using static Fluence.FluenceInterpreter;
 using static Fluence.Token;
@@ -1069,6 +1070,7 @@ namespace Fluence
 
         private ReadOnlySpan<char> PeekString(int length) => _sourceCode.AsSpan(_currentPosition, length);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool CanLookAheadStartInclusive(int numberOfChars = 1) => _currentPosition + numberOfChars <= _sourceLength;
 
         private void SkipWhiteSpaceAndComments()

@@ -7,7 +7,7 @@ namespace Fluence
     /// A generic wrapper that allows a native C# object
     /// to be exposed and used within the Fluence runtime.
     /// </summary>
-    internal sealed class ForeignObject : IFluenceObject
+    internal sealed class Wrapper : IFluenceObject
     {
         /// <summary>The actual C# object being wrapped.</summary>
         internal object Instance { get; }
@@ -18,7 +18,7 @@ namespace Fluence
         /// </summary>
         private readonly Dictionary<string, IntrinsicRuntimeMethod> _methods;
 
-        internal ForeignObject(object instance, Dictionary<string, IntrinsicRuntimeMethod> methods)
+        internal Wrapper(object instance, Dictionary<string, IntrinsicRuntimeMethod> methods)
         {
             Instance = instance;
             _methods = methods;

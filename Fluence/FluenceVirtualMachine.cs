@@ -530,7 +530,7 @@ namespace Fluence
         /// <summary>
         /// Sets the whitelist of allowed libraries.
         /// </summary>
-        /// <param name="libs">A collection of library names to allow (e.g., "FluenceIO", "FluenceMath").</param>
+        /// <param name="libs">A collection of library names to allow.</param>
         internal void SetAllowedIntrinsicLibraries(HashSet<string> libs)
         {
             _allowedIntrinsicLibraries = libs;

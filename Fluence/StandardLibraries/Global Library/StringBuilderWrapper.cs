@@ -31,7 +31,7 @@ namespace Fluence.Global
                 {
                     StringBuilder stringBuilderInstance = new StringBuilder();
 
-                    ForeignObject foreignObject = new ForeignObject(stringBuilderInstance, _instanceMethods);
+                    Wrapper foreignObject = new Wrapper(stringBuilderInstance, _instanceMethods);
 
                     return new RuntimeValue(foreignObject);
 
@@ -57,7 +57,7 @@ namespace Fluence.Global
                         stringBuilderInstance = new StringBuilder(arg.IntValue);
                     }
 
-                    ForeignObject foreignObject = new ForeignObject(stringBuilderInstance, _instanceMethods);
+                    Wrapper foreignObject = new Wrapper(stringBuilderInstance, _instanceMethods);
 
                     return new RuntimeValue(foreignObject);
 
@@ -70,7 +70,7 @@ namespace Fluence.Global
             RuntimeValue count = vm.PopStack();
             RuntimeValue chr = vm.PopStack();
 
-            StringBuilder sb = (StringBuilder)self.As<ForeignObject>().Instance;
+            StringBuilder sb = (StringBuilder)self.As<Wrapper>().Instance;
 
             sb.Append(chr.As<CharObject>().Value, count.IntValue);
             return self;
@@ -81,7 +81,7 @@ namespace Fluence.Global
             RuntimeValue arg = vm.PopStack();
             string valueToAppend = arg.ToString();
 
-            StringBuilder sb = (StringBuilder)self.As<ForeignObject>().Instance;
+            StringBuilder sb = (StringBuilder)self.As<Wrapper>().Instance;
             sb.Append(valueToAppend);
             return self;
         }
@@ -92,7 +92,7 @@ namespace Fluence.Global
             RuntimeValue arg = vm.PopStack();
             string separator = arg.ToString();
 
-            StringBuilder sb = (StringBuilder)self.As<ForeignObject>().Instance;
+            StringBuilder sb = (StringBuilder)self.As<Wrapper>().Instance;
 
             sb.AppendJoin(separator, list.As<ListObject>().Elements);
             return self;
@@ -104,7 +104,7 @@ namespace Fluence.Global
             string valueToAppend = arg.ToString();
             RuntimeValue count = vm.PopStack();
 
-            StringBuilder sb = (StringBuilder)self.As<ForeignObject>().Instance;
+            StringBuilder sb = (StringBuilder)self.As<Wrapper>().Instance;
 
             sb.Insert(count.IntValue, valueToAppend);
             return self;
@@ -112,7 +112,7 @@ namespace Fluence.Global
 
         private static RuntimeValue AppendLine(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            StringBuilder sb = (StringBuilder)self.As<ForeignObject>().Instance;
+            StringBuilder sb = (StringBuilder)self.As<Wrapper>().Instance;
 
             sb.Append(Environment.NewLine);
             return self;
@@ -123,7 +123,7 @@ namespace Fluence.Global
             RuntimeValue arg = vm.PopStack();
             string valueToAppend = arg.ToString();
 
-            StringBuilder sb = (StringBuilder)self.As<ForeignObject>().Instance;
+            StringBuilder sb = (StringBuilder)self.As<Wrapper>().Instance;
 
             sb.Append(valueToAppend).Append(Environment.NewLine);
             return self;
@@ -131,19 +131,19 @@ namespace Fluence.Global
 
         private static RuntimeValue Length(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            StringBuilder sb = (StringBuilder)self.As<ForeignObject>().Instance;
+            StringBuilder sb = (StringBuilder)self.As<Wrapper>().Instance;
             return new RuntimeValue(sb.Length);
         }
 
         private static RuntimeValue ToString(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            StringBuilder sb = (StringBuilder)self.As<ForeignObject>().Instance;
+            StringBuilder sb = (StringBuilder)self.As<Wrapper>().Instance;
             return vm.ResolveStringObjectRuntimeValue(sb.ToString());
         }
 
         private static RuntimeValue Clear(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            StringBuilder sb = (StringBuilder)self.As<ForeignObject>().Instance;
+            StringBuilder sb = (StringBuilder)self.As<Wrapper>().Instance;
             sb.Clear();
             return self;
         }

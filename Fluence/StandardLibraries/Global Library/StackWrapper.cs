@@ -30,7 +30,7 @@ namespace Fluence.Global
                 {
                     Stack<RuntimeValue> stackInstance = new Stack<RuntimeValue>();
 
-                    ForeignObject foreignObject = new ForeignObject(stackInstance, _instanceMethods);
+                    Wrapper foreignObject = new Wrapper(stackInstance, _instanceMethods);
 
                     return new RuntimeValue(foreignObject);
 
@@ -47,7 +47,7 @@ namespace Fluence.Global
                     }
 
                     stackInstance = new Stack<RuntimeValue>(arg.IntValue);
-                    ForeignObject foreignObject = new ForeignObject(stackInstance, _instanceMethods);
+                    Wrapper foreignObject = new Wrapper(stackInstance, _instanceMethods);
 
                     return new RuntimeValue(foreignObject);
 
@@ -57,19 +57,19 @@ namespace Fluence.Global
 
         private static RuntimeValue IsEmpty(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<ForeignObject>().Instance;
+            Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<Wrapper>().Instance;
             return stack.Count == 0 ? RuntimeValue.True : RuntimeValue.False;
         }
 
         private static RuntimeValue Count(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<ForeignObject>().Instance;
+            Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<Wrapper>().Instance;
             return new RuntimeValue(stack.Count);
         }
 
         private static RuntimeValue ToString(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            Stack<RuntimeValue> set = (Stack<RuntimeValue>)self.As<ForeignObject>().Instance;
+            Stack<RuntimeValue> set = (Stack<RuntimeValue>)self.As<Wrapper>().Instance;
 
             StringBuilder sb = new StringBuilder("Stack: [");
 
@@ -86,33 +86,33 @@ namespace Fluence.Global
 
         private static RuntimeValue Clear(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<ForeignObject>().Instance;
+            Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<Wrapper>().Instance;
             stack.Clear();
             return RuntimeValue.Nil;
         }
 
         private static RuntimeValue Pop(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<ForeignObject>().Instance;
+            Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<Wrapper>().Instance;
             return new RuntimeValue(stack.Pop());
         }
 
         private static RuntimeValue Push(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<ForeignObject>().Instance;
+            Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<Wrapper>().Instance;
             stack.Push(vm.PopStack());
             return RuntimeValue.Nil;
         }
 
         private static RuntimeValue Peek(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<ForeignObject>().Instance;
+            Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<Wrapper>().Instance;
             return new RuntimeValue(stack.Peek());
         }
 
         private static RuntimeValue Contains(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<ForeignObject>().Instance;
+            Stack<RuntimeValue> stack = (Stack<RuntimeValue>)self.As<Wrapper>().Instance;
             RuntimeValue arg = vm.PopStack();
             return stack.Contains(arg) ? RuntimeValue.True : RuntimeValue.False;
         }

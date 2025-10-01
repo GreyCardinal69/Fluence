@@ -28,7 +28,7 @@ namespace Fluence.Global
                 {
                     HashSet<RuntimeValue> setInstance = new HashSet<RuntimeValue>();
 
-                    ForeignObject foreignObject = new ForeignObject(setInstance, _instanceMethods);
+                    Wrapper foreignObject = new Wrapper(setInstance, _instanceMethods);
 
                     return new RuntimeValue(foreignObject);
 
@@ -39,11 +39,11 @@ namespace Fluence.Global
                     RuntimeValue arg = vm.PopStack();
                     HashSet<RuntimeValue> setInstance = null!;
 
-                    if (arg.ObjectReference is ForeignObject obj)
+                    if (arg.ObjectReference is Wrapper obj)
                     {
                         if (obj.Instance is HashSet<RuntimeValue>)
                         {
-                            setInstance = new HashSet<RuntimeValue>((HashSet<RuntimeValue>)arg.As<ForeignObject>().Instance);
+                            setInstance = new HashSet<RuntimeValue>((HashSet<RuntimeValue>)arg.As<Wrapper>().Instance);
                         }
                     }
                     else
@@ -55,7 +55,7 @@ namespace Fluence.Global
                         setInstance = new HashSet<RuntimeValue>(arg.IntValue);
                     }
 
-                    ForeignObject foreignObject = new ForeignObject(setInstance, _instanceMethods);
+                    Wrapper foreignObject = new Wrapper(setInstance, _instanceMethods);
 
                     return new RuntimeValue(foreignObject);
 
@@ -65,7 +65,7 @@ namespace Fluence.Global
 
         private static RuntimeValue Add(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            HashSet<RuntimeValue> set = (HashSet<RuntimeValue>)self.As<ForeignObject>().Instance;
+            HashSet<RuntimeValue> set = (HashSet<RuntimeValue>)self.As<Wrapper>().Instance;
             RuntimeValue arg = vm.PopStack();
             set.Add(arg);
             return RuntimeValue.Nil;
@@ -73,7 +73,7 @@ namespace Fluence.Global
 
         private static RuntimeValue ToString(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            HashSet<RuntimeValue> set = (HashSet<RuntimeValue>)self.As<ForeignObject>().Instance;
+            HashSet<RuntimeValue> set = (HashSet<RuntimeValue>)self.As<Wrapper>().Instance;
 
             StringBuilder sb = new StringBuilder("HashSet: [");
 
@@ -90,7 +90,7 @@ namespace Fluence.Global
 
         private static RuntimeValue Remove(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            HashSet<RuntimeValue> set = (HashSet<RuntimeValue>)self.As<ForeignObject>().Instance;
+            HashSet<RuntimeValue> set = (HashSet<RuntimeValue>)self.As<Wrapper>().Instance;
             RuntimeValue arg = vm.PopStack();
             set.Remove(arg);
             return RuntimeValue.Nil;
@@ -98,20 +98,20 @@ namespace Fluence.Global
 
         private static RuntimeValue Count(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            HashSet<RuntimeValue> set = (HashSet<RuntimeValue>)self.As<ForeignObject>().Instance;
+            HashSet<RuntimeValue> set = (HashSet<RuntimeValue>)self.As<Wrapper>().Instance;
             return new RuntimeValue(set.Count);
         }
 
         private static RuntimeValue Clear(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            HashSet<RuntimeValue> set = (HashSet<RuntimeValue>)self.As<ForeignObject>().Instance;
+            HashSet<RuntimeValue> set = (HashSet<RuntimeValue>)self.As<Wrapper>().Instance;
             set.Clear();
             return RuntimeValue.Nil;
         }
 
         private static RuntimeValue Contains(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            HashSet<RuntimeValue> set = (HashSet<RuntimeValue>)self.As<ForeignObject>().Instance;
+            HashSet<RuntimeValue> set = (HashSet<RuntimeValue>)self.As<Wrapper>().Instance;
             RuntimeValue arg = vm.PopStack();
             return set.Contains(arg) ? RuntimeValue.True : RuntimeValue.False;
         }

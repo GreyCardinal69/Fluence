@@ -20,6 +20,7 @@ Fluence is a dynamically-typed, interpreted, multi-paradigm scripting language t
   - [Built-in Types](#built-in-types)
 - [Functions](#functions)
   - [Reference Arguments](#reference-arguments)
+  - [Built-Ins](#built-ins)
 - [Control Flow](#control-flow)
   - [If and Unless](#if-and-unless)
   - [Loops](#loops)
@@ -189,6 +190,33 @@ func Main() => {
   printl(b); # prints 7.
 }
 ```
+
+### Built-Ins
+Say you define a struct
+```rust
+struct Vector2 {
+    x;y;
+    func init(x,y) => self.x,self.y <~| x,y;
+}
+```
+When you do
+```rust
+func Main() => {
+    pos = Vector2(1,2);
+    printl(pos);
+}
+```
+It will print `<instance of Vector2>. Fields: x: 1, y: 2`. This is how Fluence converts a struct instance into a string by default. You can overload this by defining the following function:
+```rust
+struct Vector2 {
+    x;y;
+    func init(x,y) => self.x,self.y <~| x,y;
+
+    func to_string() => f"Vector2: x:{self.x} y:{self.y}"; # Your custom to string format.
+}
+```
+If we print the Vector2 `pos` instance we will now get `Vector2: x:1 y:2`.
+Currently this is the only built-in overloadable function for structs.
 
 ## Control Flow
 Control structures in Fluence do not require parentheses, for the most part.

@@ -53,6 +53,13 @@ namespace Fluence
         /// </summary>
         private HashSet<string> _allowedIntrinsicLibraries = new HashSet<string>();
 
+        /// <summary>
+        /// A collection of the standard library names that are not permitted to be loaded by the script.
+        /// libraries whose names are in this set can not be imported via the 'use' statement.
+        /// This acts as a security blacklist for sandboxing script execution.
+        /// </summary>
+        private HashSet<string> _disallowedIntrinsicLibraries = new HashSet<string>();
+
         /// <summary> A pool of CallFrame objects to reuse. </summary>
         private readonly ObjectPool<CallFrame> _callFramePool;
 
@@ -528,12 +535,12 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Sets the whitelist of allowed libraries.
+        /// Sets the whitelist and the blacklist of standard libraries.
         /// </summary>
-        /// <param name="libs">A collection of library names to allow.</param>
-        internal void SetAllowedIntrinsicLibraries(HashSet<string> libs)
+        internal void SetIntrinsicLibraryWhiteAndBlackLists(HashSet<string> whiteList, HashSet<string> blackList)
         {
-            _allowedIntrinsicLibraries = libs;
+            _allowedIntrinsicLibraries = whiteList;
+            _disallowedIntrinsicLibraries = blackList;
         }
 
         /// <summary>
@@ -1738,9 +1745,13 @@ namespace Fluence
                 throw ConstructRuntimeException($"Internal VM Error: Attempted to call a value that is not a function (got type '{GetDetailedTypeName(functionVal)}').");
             }
 
-            if (_allowedIntrinsicLibraries.Count != 0 && !string.Equals(function.DefiningScope.Name, "Global", StringComparison.Ordinal) && !_allowedIntrinsicLibraries.Contains(function.DefiningScope.Name))
+            string scopeName = function.DefiningScope.Name;
+            if (!string.Equals(scopeName, "Global", StringComparison.Ordinal))
             {
-                throw ConstructRuntimeException($"Internal VM Error: The library \"{function.DefiningScope.Name}\" is not an allowed library for this Virtual Machine instance.");
+                if (!IsLibraryAllowed(scopeName))
+                {
+                    throw ConstructRuntimeException($"Security Error: Use of the library '{scopeName}' is disallowed by the host application due to library whiteList and or blackList rules.");
+                }
             }
 
             int argCount = GetRuntimeValue(instruction.Rhs2).IntValue;
@@ -1882,6 +1893,15 @@ namespace Fluence
                 {
                     ParametersByRef = methodBlueprint.ArgumentsByRef
                 };
+            }
+
+            string scopeName = functionToExecute.DefiningScope.Name;
+            if (!string.Equals(scopeName, "Global", StringComparison.Ordinal))
+            {
+                if (!IsLibraryAllowed(scopeName))
+                {
+                    throw ConstructRuntimeException($"Security Error: Use of the library '{scopeName}' is disallowed by the host application due to library whiteList and or blackList rules.");
+                }
             }
 
             int argCountOnStack = _operandStack.Count;
@@ -2030,6 +2050,15 @@ namespace Fluence
             if (functionToExecute.Arity != argCountOnStack)
             {
                 throw ConstructRuntimeException($"Runtime Error: Mismatched arity for static function '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
+            }
+
+            string scopeName = functionToExecute.DefiningScope.Name;
+            if (!string.Equals(scopeName, "Global", StringComparison.Ordinal))
+            {
+                if (!IsLibraryAllowed(scopeName))
+                {
+                    throw ConstructRuntimeException($"Security Error: Use of the library '{scopeName}' is disallowed by the host application due to library whiteList and or blackList rules.");
+                }
             }
 
             CallFrame newFrame = _callFramePool.Get();
@@ -2500,6 +2529,28 @@ namespace Fluence
 
             // Multiplying by 0 or a negative number results in an empty list.
             return new RuntimeValue(repeatedList);
+        }
+
+        /// <summary>
+        /// Determines if a library is allowed to be loaded based on the current
+        /// whitelist and blacklist rules.
+        /// </summary>
+        /// <param name="libraryName">The name of the library being checked.</param>
+        /// <returns>True if the library is permitted to be used.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool IsLibraryAllowed(string libraryName)
+        {
+            if (_disallowedIntrinsicLibraries.Contains(libraryName))
+            {
+                return false;
+            }
+
+            if (_allowedIntrinsicLibraries.Count > 0 && !_allowedIntrinsicLibraries.Contains(libraryName))
+            {
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>

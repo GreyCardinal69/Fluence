@@ -3343,7 +3343,7 @@ namespace Fluence
         private Value ParseUnary()
         {
             TokenType type = _lexer.PeekNextTokenType();
-            if (type == TokenType.BANG || type == TokenType.MINUS || type == TokenType.TILDE)
+            if (type is TokenType.BANG or TokenType.MINUS or TokenType.TILDE)
             {
                 Token op = _lexer.ConsumeToken();
 
@@ -3373,7 +3373,7 @@ namespace Fluence
         private Value ParsePostFix()
         {
             TokenType type = _lexer.PeekNextTokenType();
-            if (type == TokenType.DOT_DECREMENT || type == TokenType.DOT_INCREMENT)
+            if (type is TokenType.DOT_DECREMENT or TokenType.DOT_INCREMENT)
             {
                 ParseMultiIncrementDecrementOperators();
                 // This operation does not return a value.
@@ -3383,7 +3383,7 @@ namespace Fluence
             Value left = ParseAccess();
 
             type = _lexer.PeekNextTokenType();
-            if (type == TokenType.INCREMENT || type == TokenType.DECREMENT || type == TokenType.BOOLEAN_FLIP)
+            if (type is TokenType.INCREMENT or TokenType.DECREMENT or TokenType.BOOLEAN_FLIP)
             {
                 Token op = _lexer.ConsumeToken();
                 Value originalValue = ResolveValue(left);

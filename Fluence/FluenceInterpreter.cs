@@ -53,6 +53,13 @@ namespace Fluence
         public HashSet<string> AllowedLibraries { get; private set; } = new HashSet<string>();
 
         /// <summary>
+        /// A collection of the standard library names that are not permitted to be loaded by the script.
+        /// libraries whose names are in this set can not be imported via the 'use' statement.
+        /// This acts as a security blacklist for sandboxing script execution.
+        /// </summary>
+        public HashSet<string> DisallowedLibraries { get; private set; } = new HashSet<string>();
+
+        /// <summary>
         /// Gets or sets the output method to report errors and exceptions.
         /// </summary>
         public TextOutputMethod OnErrorOutput { get; set; } = Console.WriteLine;
@@ -75,33 +82,26 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Adds one or more standard library names to the whitelist of allowed libraries.
+        /// Configures the library sandbox with a specific set of allowed and disallowed standard libraries.
+        /// This method first clears both lists before applying the new rules.
         /// </summary>
-        /// <param name="libs">A collection of library names to allow.</param>
-        public void AddAllowedIntrinsicLibraries(IEnumerable<string> libs)
+        /// <param name="allowed">An optional collection of library names to add to the whitelist.</param>
+        /// <param name="disallowed">An optional collection of library names to add to the blacklist.</param>
+        public void ConfigureLibrarySandbox(IEnumerable<string>? allowed = null, IEnumerable<string>? disallowed = null)
         {
-            foreach (string lib in libs)
+            AllowedLibraries.Clear();
+            DisallowedLibraries.Clear();
+
+            if (allowed != null)
             {
-                AllowedLibraries.Add(lib);
+                foreach (string lib in allowed) { AllowedLibraries.Add(lib); }
+            }
+
+            if (disallowed != null)
+            {
+                foreach (string lib in disallowed) { DisallowedLibraries.Add(lib); }
             }
         }
-
-        /// <summary>
-        /// Removes one or more standard library names from the whitelist of allowed libraries.
-        /// </summary>
-        /// <param name="libs">A collection of library names to disallow.</param>
-        public void RemoveAllowedIntrinsicLibraries(IEnumerable<string> libs)
-        {
-            foreach (string lib in libs)
-            {
-                AllowedLibraries.Remove(lib);
-            }
-        }
-
-        /// <summary>
-        /// Clears the whitelist of allowed intrinsic libraries, allowing all standard libraries to be used.
-        /// </summary>
-        public void ClearAllowedIntrinsicLibraries() => AllowedLibraries.Clear();
 
         /// <summary>
         /// Compiles a Fluence source code script into executable bytecode.
@@ -205,7 +205,7 @@ namespace Fluence
                 {
                     _vm = new FluenceVirtualMachine(_byteCode, _parseState, OnOutput, OnOutputLine, OnInput);
                 }
-                _vm.SetAllowedIntrinsicLibraries(AllowedLibraries);
+                _vm.SetIntrinsicLibraryWhiteAndBlackLists(AllowedLibraries, DisallowedLibraries);
                 _vm.RunFor(duration);
 #if DEBUG
                 _vm.DumpPerformanceProfile();

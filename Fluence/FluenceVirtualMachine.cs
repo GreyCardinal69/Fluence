@@ -1,3 +1,4 @@
+using Fluence.Global;
 using Fluence.RuntimeTypes;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -107,6 +108,10 @@ namespace Fluence
         internal Dictionary<string, RuntimeValue> CurrentRegisters => _cachedRegisters;
 
         internal int CurrentInstructionPointer => _ip;
+
+        internal List<InstructionLine> ByteCode => _byteCode;
+
+        internal FluenceParser Parser => _parser;
 
         /// <summary>
         /// The current state of the Virtual Machine.
@@ -457,6 +462,8 @@ namespace Fluence
             _dispatchTable[(int)InstructionCode.NewLambda] = ExecuteNewLambda;
             _dispatchTable[(int)InstructionCode.IncrementIntUnrestricted] = ExecuteIncrementIntUnrestricted;
             _dispatchTable[(int)InstructionCode.LoadAddress] = ExecuteLoadAddress;
+
+            _dispatchTable[(int)InstructionCode.GetType] = ExecuteGetType;
 
             //      ==!!==
             //      The following are unique opCodes generated only by the FluenceOptimizer.
@@ -1708,6 +1715,52 @@ namespace Fluence
             _operandStack.Push(GetRuntimeValue(instruction.Rhs));
             _operandStack.Push(GetRuntimeValue(instruction.Rhs2));
             _operandStack.Push(GetRuntimeValue(instruction.Rhs3));
+        }
+
+        /// <summary>
+        /// Handles the GET_TYPE instruction, which creates a wrapper around a <see cref="TypeMetadata"/> object.
+        /// </summary>
+        private void ExecuteGetType(InstructionLine instruction)
+        {
+            TempValue destRegister = (TempValue)instruction.Lhs;
+            Value operand = instruction.Rhs;
+
+            TypeMetadata metadata;
+
+            // Raw type names are stored as strings.
+            if (operand is StringValue typeName)
+            {
+                if (CurrentFrame.Function.DefiningScope.TryResolve(typeName.Value, out Symbol? symbol))
+                {
+                    metadata = symbol switch
+                    {
+                        StructSymbol s => new TypeMetadata(s.Name, s.Fields, s.Functions.Keys.ToList()),
+                        EnumSymbol e => new TypeMetadata(e.Name, e.Members.Keys.ToList()),
+                        _ => new TypeMetadata("Unknown")
+                    };
+                }
+                else
+                {
+                    metadata = new TypeMetadata("string");
+                }
+            }
+            else
+            {
+                RuntimeValue value = GetRuntimeValue(operand);
+                string name = IntrinsicHelpers.GetRuntimeTypeName(value);
+
+                if (value.ObjectReference is InstanceObject instance)
+                {
+                    metadata = new TypeMetadata(instance.Class.Name, instance.Class.Fields, instance.Class.Functions.Keys.ToList());
+                }
+                else
+                {
+                    metadata = new TypeMetadata(name);
+                }
+            }
+
+            RuntimeValue typeObject = TypeObjectLibrary.Create(this, metadata);
+            SetRegister(destRegister, typeObject);
         }
 
         internal void PrepareFunctionCall(CallFrame frame, FunctionObject function)

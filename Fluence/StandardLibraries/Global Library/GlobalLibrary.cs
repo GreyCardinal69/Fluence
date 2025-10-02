@@ -167,6 +167,14 @@ namespace Fluence.Global
             {
                 globalScope.Declare(item.Name, item);
             }
+
+            // Others
+
+            globalScope.Declare("typeof__1", new FunctionSymbol("typeof__1", 1, (vm, argCount) =>
+            {
+                RuntimeValue rv = vm.PopStack();
+                return vm.ResolveStringObjectRuntimeValue(GetRuntimeTypeName(rv));
+            }, ["object"], globalScope));
         }
 
         private static bool TryConvertToNumeric<T>(ref RuntimeValue value, out T result) where T : struct, INumber<T>

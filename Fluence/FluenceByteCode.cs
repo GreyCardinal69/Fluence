@@ -53,6 +53,8 @@
                 NewIterator,
                 IterNext,
 
+                GetType,
+
                 // Function & Method Calls.
                 PushParam,      // Pushes a value (Lhs) onto the argument stack.
                 CallFunction,

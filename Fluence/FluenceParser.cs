@@ -4044,6 +4044,11 @@ namespace Fluence
                         {
                             return new StaticStructAccess(structSymbol, null!);
                         }
+                        else
+                        {
+                            // This is most likely the raw name of a type, most likely for the 'typeof' operator.
+                            return new StringValue(name);
+                        }
                     }
                     else
                     {
@@ -4058,7 +4063,6 @@ namespace Fluence
                         // Otherwise, it's just a regular variable.
                         return new VariableValue(name);
                     }
-                    break;
                 case TokenType.NUMBER:
                     // "x times" consumes the number, and dispatches the appropriate method.
                     // But must return a value, so we return StatementComplete.
@@ -4076,6 +4080,21 @@ namespace Fluence
                 case TokenType.L_BRACKET: return ParseList();
                 case TokenType.MATCH: return ParseMatchStatement();
                 case TokenType.REF: return new ReferenceValue((VariableValue)ParseExpression());
+                case TokenType.TYPE_OF:
+                    TempValue target = new TempValue(_currentParseState.NextTempNumber++);
+
+                    Value val = ResolveValue(ParseExpression());
+
+                    // A hack for 'typeof enum'.
+                    if (val is VariableValue var && _currentParseState.CurrentScope.TryResolve(var.Name, out Symbol symbol2) && symbol2 is EnumSymbol enumSymbol)
+                    {
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetType, target, new StringValue(var.Name)));
+                    }
+                    else
+                    {
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetType, target, val));
+                    }
+                    return target;
                 case TokenType.SELF:
                     if (_currentParseState.CurrentStructContext == null)
                     {

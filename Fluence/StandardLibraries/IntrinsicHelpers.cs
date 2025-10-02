@@ -1,4 +1,5 @@
 ﻿using Fluence.RuntimeTypes;
+using System.Globalization;
 using static Fluence.FluenceVirtualMachine;
 
 namespace Fluence
@@ -26,6 +27,30 @@ namespace Fluence
                 throw vm.ConstructRuntimeException($"Invalid arguments for function: \"{funcName}\". Both arguments must be non-empty strings.");
             }
             return (arg1Obj.Value, arg2Obj.Value);
+        }
+
+        internal static string GetRuntimeTypeName(RuntimeValue value)
+        {
+            switch (value.Type)
+            {
+                case RuntimeValueType.Nil: return "nil";
+                case RuntimeValueType.Boolean: return "bool";
+                case RuntimeValueType.Number:
+                    return value.NumberType.ToString().ToLower(CultureInfo.InvariantCulture);
+                case RuntimeValueType.Object:
+                    if (value.ObjectReference == null) return "nil";
+                    return value.ObjectReference switch
+                    {
+                        CharObject => "Char",
+                        StringObject => "string",
+                        ListObject => "list",
+                        FunctionObject => "function",
+                        InstanceObject inst => inst.Class.Name,
+                        Wrapper fo => fo.Instance.GetType().Name,
+                        _ => value.ObjectReference.GetType().Name
+                    };
+                default: return "unknown";
+            }
         }
 
         internal static string ConvertRuntimeValueToString(FluenceVirtualMachine vm, RuntimeValue val)

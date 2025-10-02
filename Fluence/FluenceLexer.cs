@@ -727,6 +727,10 @@ namespace Fluence
                 }
                 else
                 {
+                    if (identifierSpan.SequenceEqual("typeof"))
+                    {
+                        return MakeTokenAndTryAdvance(TokenType.TYPE_OF, 0, identifierSpan.ToString());
+                    }
                     string text = identifierSpan.ToString();
                     return MakeTokenAndTryAdvance(TokenType.IDENTIFIER, 0, text);
                 }

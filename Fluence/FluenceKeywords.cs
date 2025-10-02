@@ -75,7 +75,7 @@ namespace Fluence
                 case 4:
                     if (text.SequenceEqual("else")) return TokenType.ELSE;
                     if (text.SequenceEqual("enum")) return TokenType.ENUM;
-                    if (text.SequenceEqual("type")) return TokenType.ENUM;
+                    if (text.SequenceEqual("type")) return TokenType.TYPE;
                     if (text.SequenceEqual("true")) return TokenType.TRUE;
                     if (text.SequenceEqual("func")) return TokenType.FUNC;
                     if (text.SequenceEqual("loop")) return TokenType.LOOP;

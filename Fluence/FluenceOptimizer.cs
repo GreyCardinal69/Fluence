@@ -97,7 +97,7 @@ namespace Fluence
                     bytecode[i + 1] = null!;
                     bytecode[i + 2] = null!;
                     bytecode[i + 3] = null!;
-                    i++;
+                    i += 3;
                 }
                 else if (line1.Instruction == InstructionCode.PushParam && line2.Instruction == InstructionCode.PushParam && line3.Instruction == InstructionCode.PushParam)
                 {
@@ -107,7 +107,7 @@ namespace Fluence
                     bytecode[i].Rhs2 = line3.Lhs;
                     bytecode[i + 1] = null!;
                     bytecode[i + 2] = null!;
-                    i++;
+                    i += 2;
                 }
                 else if (line1.Instruction == InstructionCode.PushParam && line2.Instruction == InstructionCode.PushParam)
                 {

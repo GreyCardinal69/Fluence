@@ -659,6 +659,7 @@ namespace Fluence
                 if (token.Type == TokenType.SOLID)
                 {
                     solidField = true;
+                    continue;
                 }
 
                 if (token.Type == TokenType.REF)
@@ -859,7 +860,7 @@ namespace Fluence
                 case TokenType.SOLID: ParseSolidStatement(); break;
                 case TokenType.UNLESS: ParseUnlessStatement(); break;
 
-                // Simple Statements that MUST be terminated.
+                // Simple Statements that must be terminated.
                 case TokenType.RETURN:
                     ParseReturnStatement();
                     if (_lexer.PeekNextTokenType() != TokenType.TRAIN_PIPE_END) AdvanceAndExpect(TokenType.EOL, "Expected a ';' or newline after the return statement.");
@@ -1011,7 +1012,7 @@ namespace Fluence
                 ParseStatement();
             }
 
-            AdvanceAndExpect(TokenType.TRAIN_PIPE_END, "Expected a '<<-' operator to end a train");
+            AdvanceAndExpect(TokenType.TRAIN_PIPE_END, "Expected a '<<-' operator to end a train pipe.");
         }
 
         /// <summary>
@@ -1045,7 +1046,6 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
             int loopExitPatchIndex = _currentParseState.CodeInstructions.Count - 1;
 
-            // Add a placeholder jump to skip over the incrementer and go directly to the loop body.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
             int loopBodyJumpPatchIndex = _currentParseState.CodeInstructions.Count - 1;
 
@@ -3342,7 +3342,8 @@ namespace Fluence
         /// </summary>
         private Value ParseUnary()
         {
-            if (_lexer.TokenTypeMatches(TokenType.BANG) || _lexer.TokenTypeMatches(TokenType.MINUS) || _lexer.TokenTypeMatches(TokenType.TILDE))
+            TokenType type = _lexer.PeekNextTokenType();
+            if (type == TokenType.BANG || type == TokenType.MINUS || type == TokenType.TILDE)
             {
                 Token op = _lexer.ConsumeToken();
 
@@ -3371,7 +3372,8 @@ namespace Fluence
         /// </summary>
         private Value ParsePostFix()
         {
-            if (_lexer.TokenTypeMatches(TokenType.DOT_DECREMENT) || _lexer.TokenTypeMatches(TokenType.DOT_INCREMENT))
+            TokenType type = _lexer.PeekNextTokenType();
+            if (type == TokenType.DOT_DECREMENT || type == TokenType.DOT_INCREMENT)
             {
                 ParseMultiIncrementDecrementOperators();
                 // This operation does not return a value.
@@ -3380,7 +3382,8 @@ namespace Fluence
 
             Value left = ParseAccess();
 
-            if (_lexer.TokenTypeMatches(TokenType.INCREMENT) || _lexer.TokenTypeMatches(TokenType.DECREMENT) || _lexer.TokenTypeMatches(TokenType.BOOLEAN_FLIP))
+            type = _lexer.PeekNextTokenType();
+            if (type == TokenType.INCREMENT || type == TokenType.DECREMENT || type == TokenType.BOOLEAN_FLIP)
             {
                 Token op = _lexer.ConsumeToken();
                 Value originalValue = ResolveValue(left);

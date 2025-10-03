@@ -744,6 +744,7 @@ namespace Fluence
 
                     FunctionValue functionValue = new FunctionValue(funcName, arity, -1, nameToken.LineInSourceCode, args, argsByRef);
                     functionValue.SetScope(_currentParseState.CurrentScope);
+                    functionValue.SetClass(structSymbol);
                     string templated;
 
                     if (funcName == "init")
@@ -1351,6 +1352,7 @@ namespace Fluence
 
                     functionValue!.SetScope(_currentParseState.CurrentScope);
                     functionValue!.SetStartAddress(functionStartAddress);
+                    functionValue!.SetClass(structSymbol);
                     _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{functionValue.Name}"), functionValue));
 
                     return;
@@ -1406,6 +1408,7 @@ namespace Fluence
                 FunctionValue constructor = structSymbol.Constructors[nameToken.Text];
                 constructor.SetStartAddress(functionStartAddress);
                 constructor.SetScope(_currentParseState.CurrentScope);
+                constructor!.SetClass(structSymbol);
                 _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{constructor.Name}"), constructor));
             }
             // Standalone function.

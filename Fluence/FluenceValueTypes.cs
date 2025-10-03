@@ -364,6 +364,11 @@ namespace Fluence
         /// </summary>
         internal FluenceScope FunctionScope { get; private set; }
 
+        /// <summary>
+        /// The struct the function is defined in, if in any.
+        /// </summary>
+        internal StructSymbol Class { get; private set; }
+
         internal FunctionValue()
         {
         }
@@ -402,6 +407,8 @@ namespace Fluence
         internal void SetStartAddress(int adr) => StartAddress = adr;
 
         internal void SetName(string name) => Name = name;
+
+        internal void SetClass(StructSymbol structSymbol) => Class = structSymbol;
 
         internal override string ToFluenceString() => $"<internal: function__{Name}/{Arity}>";
 

@@ -195,9 +195,14 @@ namespace Fluence
         internal HashSet<string> ArgumentsByRef { get; private set; }
 
         /// <summary>
-        /// Keeps track in which namespace the function is defined in.
+        /// Keeps track which namespace the function is defined in.
         /// </summary>
         internal FluenceScope DefiningScope { get; init; }
+
+        /// <summary>
+        /// The struct the function is defined in, if in any.
+        /// </summary>
+        internal StructSymbol Class { get; private set; }
 
         /// <summary>
         /// Sets the bytecode start address for this function. Called by the parser during the second pass.
@@ -205,6 +210,8 @@ namespace Fluence
         internal void SetStartAddress(int addr) => StartAddress = addr;
 
         internal void SetRefArgs(HashSet<string> refArgs) => ArgumentsByRef = refArgs;
+
+        internal void SetClass(StructSymbol structSymbol) => Class = structSymbol;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="FunctionSymbol"/> class for a native C# intrinsic.

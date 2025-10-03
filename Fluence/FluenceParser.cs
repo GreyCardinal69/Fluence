@@ -626,7 +626,7 @@ namespace Fluence
         {
             Token nameToken = _lexer.PeekAheadByN(startTokenIndex + 2);
             string structName = nameToken.Text;
-            StructSymbol structSymbol = new StructSymbol(structName);
+            StructSymbol structSymbol = new StructSymbol(structName, _currentParseState.CurrentScope);
 
             int currentIndex = startTokenIndex + 3;
             bool solidField = false;

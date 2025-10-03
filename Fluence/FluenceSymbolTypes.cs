@@ -81,6 +81,11 @@ namespace Fluence
         internal string Name { get; init; }
 
         /// <summary>
+        /// The scope the struct belongs to.
+        /// </summary>
+        internal FluenceScope Scope { get; init; }
+
+        /// <summary>
         /// The list of declared field names.
         /// </summary>
         internal List<string> Fields { get; } = new();
@@ -121,9 +126,10 @@ namespace Fluence
         {
         }
 
-        internal StructSymbol(string name)
+        internal StructSymbol(string name, FluenceScope scope)
         {
             Name = name;
+            Scope = scope;
         }
 
         public override string ToString()

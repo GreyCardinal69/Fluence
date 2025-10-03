@@ -3992,14 +3992,15 @@ namespace Fluence
                 Value typeOperand;
                 if (operand is VariableValue varValue)
                 {
-                    if (_currentParseState.CurrentScope.TryResolve(varValue.Name, out _))
+                    bool found = _currentParseState.CurrentScope.TryResolve(varValue.Name, out Symbol sb);
+                    if (found && sb is VariableSymbol)
                     {
-                        // It's a raw type name.
-                        typeOperand = new StringValue(varValue.Name);
+                        typeOperand = varValue;
                     }
                     else
                     {
-                        typeOperand = varValue;
+                        // It's a raw type name.
+                        typeOperand = new StringValue(varValue.Name);
                     }
                 }
                 else

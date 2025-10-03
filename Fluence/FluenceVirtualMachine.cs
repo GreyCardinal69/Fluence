@@ -1727,40 +1727,116 @@ namespace Fluence
 
             TypeMetadata metadata;
 
-            // Raw type names are stored as strings.
-            if (operand is StringValue typeName)
+            // Raw type name.
+            if (operand is StringValue typeNameValue)
             {
-                if (CurrentFrame.Function.DefiningScope.TryResolve(typeName.Value, out Symbol? symbol))
+                string typeName = typeNameValue.Value;
+
+                if (TryFindSymbol(typeName, out Symbol symbol, out FluenceScope symbolScope))
                 {
                     metadata = symbol switch
                     {
-                        StructSymbol s => new TypeMetadata(s.Name, s.Fields, s.Functions.Keys.ToList(), s.StaticFields.Keys.ToList(), s.Constructors.Keys.ToList()),
-                        EnumSymbol e => new TypeMetadata(e.Name, e.Members.Keys.ToList()),
-                        _ => new TypeMetadata("Unknown")
+                        StructSymbol s => CreateMetadataFromStructSymbol(s, symbolScope),
+                        EnumSymbol e => new TypeMetadata(e.Name, $"{symbolScope.Name}.{e.Name}", TypeCategory.Enum, 0, false, enumMembers: e.Members.Keys.ToList()),
+                        _ => new TypeMetadata(typeName, typeName, TypeCategory.Unknown, 0, false)
                     };
                 }
                 else
                 {
-                    metadata = new TypeMetadata("string");
+                    throw ConstructRuntimeException($"Runtime Error: Unknown type or symbol '{typeName}'.");
                 }
             }
+            // Variable or expression.
             else
             {
                 RuntimeValue value = GetRuntimeValue(operand);
-                string name = IntrinsicHelpers.GetRuntimeTypeName(value);
 
-                if (value.ObjectReference is InstanceObject instance)
+                string name = IntrinsicHelpers.GetRuntimeTypeName(value);
+                Console.WriteLine(name);
+                switch (value.ObjectReference)
                 {
-                    metadata = new TypeMetadata(instance.Class.Name, instance.Class.Fields, instance.Class.Functions.Keys.ToList(), instance.Class.StaticFields.Keys.ToList(), instance.Class.Constructors.Keys.ToList());
-                }
-                else
-                {
-                    metadata = new TypeMetadata(name);
+                    case InstanceObject instance:
+                        metadata = CreateMetadataFromStructSymbol(instance.Class, instance.Class.Scope);
+                        break;
+                    // TO DO
+                    //case EnumMemberObject enumMember:
+                    //    var e = enumMember.EnumType;
+                    //    metadata = new TypeMetadata(e.Name, $"{e.DefiningScope.Name}.{e.Name}", TypeCategory.Enum, enumMembers: e.Members.Keys.ToList());
+                    //    break;
+                    case ListObject:
+                        metadata = new TypeMetadata("List", "List", TypeCategory.BuiltIn, 0, false);
+                        break;
+                    case FunctionObject func:
+                        bool isConstructor = false;
+
+                        if (func.BluePrint?.Class is not null)
+                        {
+                            if (func.BluePrint.Class.Constructors.ContainsKey(func.Name))
+                            {
+                                isConstructor = true;
+                            }
+                        }
+
+                        bool isLambda = operand is LambdaValue;
+
+                        MethodMetadata methodMeta = new MethodMetadata(func.Name, func.Arity, isConstructor, func.Parameters, func.ParametersByRef);
+                        metadata = new TypeMetadata("function", "function", TypeCategory.Function, func.Arity, isLambda, null, null, null, new[] { methodMeta }, null, func.Parameters, func.ParametersByRef);
+                        break;
+                    default:
+                        metadata = new TypeMetadata(name, name, TypeCategory.Primitive, 0, false);
+                        break;
                 }
             }
 
-            RuntimeValue typeObject = TypeObjectLibrary.Create(this, metadata);
+            RuntimeValue typeObject = TypeMetadataWrapper.Create(this, metadata);
             SetRegister(destRegister, typeObject);
+        }
+
+        /// <summary>
+        /// A helper to create a TypeMetadata object from a StructSymbol.
+        /// </summary>
+        private static TypeMetadata CreateMetadataFromStructSymbol(StructSymbol s, FluenceScope scope)
+        {
+            return new TypeMetadata(
+                name: s.Name,
+                fullName: $"{scope.Name}.{s.Name}",
+                category: TypeCategory.Struct,
+                0,
+                false,
+                instanceFields: s.Fields.Select(f => new FieldMetadata(f, IsStatic: false, IsSolid: false)).ToList(),
+                staticFields: s.StaticFields.Keys.Select(f => new FieldMetadata(f, IsStatic: true, IsSolid: true)).ToList(),
+                constructors: s.Constructors.Values.Select(c => new MethodMetadata(c.Name, c.Arity, true, c.Arguments, c.ArgumentsByRef)).ToList(),
+                instanceMethods: s.Functions.Values.Select(m => new MethodMetadata(m.Name, m.Arity, false, m.Arguments, m.ArgumentsByRef)).ToList()
+            );
+        }
+
+        /// <summary>
+        /// A helper to search all relevant scopes for a named symbol.
+        /// </summary>
+        private bool TryFindSymbol(string name, out Symbol symbol, out FluenceScope foundScope)
+        {
+            // Check current frame's scope, then namespaces, then global.
+            if (CurrentFrame.Function.DefiningScope.TryResolve(name, out symbol))
+            {
+                foundScope = CurrentFrame.Function.DefiningScope;
+                return true;
+            }
+            foreach (FluenceScope ns in Namespaces.Values)
+            {
+                if (ns.TryResolve(name, out symbol))
+                {
+                    foundScope = ns;
+                    return true;
+                }
+            }
+            if (_globalScope.TryResolve(name, out symbol))
+            {
+                foundScope = _globalScope;
+                return true;
+            }
+
+            foundScope = null;
+            return false;
         }
 
         internal void PrepareFunctionCall(CallFrame frame, FunctionObject function)
@@ -1798,7 +1874,7 @@ namespace Fluence
                 throw ConstructRuntimeException($"Internal VM Error: Attempted to call a value that is not a function (got type '{GetDetailedTypeName(functionVal)}').");
             }
 
-            string scopeName = function.DefiningScope.Name;
+            string scopeName = function.DefiningScope?.Name;
             if (!string.Equals(scopeName, "Global", StringComparison.Ordinal))
             {
                 if (!IsLibraryAllowed(scopeName))
@@ -1948,7 +2024,7 @@ namespace Fluence
                 };
             }
 
-            string scopeName = functionToExecute.DefiningScope.Name;
+            string scopeName = functionToExecute.DefiningScope?.Name;
             if (!string.Equals(scopeName, "Global", StringComparison.Ordinal))
             {
                 if (!IsLibraryAllowed(scopeName))
@@ -2105,7 +2181,7 @@ namespace Fluence
                 throw ConstructRuntimeException($"Runtime Error: Mismatched arity for static function '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
             }
 
-            string scopeName = functionToExecute.DefiningScope.Name;
+            string scopeName = functionToExecute.DefiningScope?.Name;
             if (!string.Equals(scopeName, "Global", StringComparison.Ordinal))
             {
                 if (!IsLibraryAllowed(scopeName))

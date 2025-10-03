@@ -30,9 +30,9 @@ namespace Fluence.Global
                 {
                     Stack<RuntimeValue> stackInstance = new Stack<RuntimeValue>();
 
-                    Wrapper foreignObject = new Wrapper(stackInstance, _instanceMethods);
+                    Wrapper wrapper = new Wrapper(stackInstance, _instanceMethods);
 
-                    return new RuntimeValue(foreignObject);
+                    return new RuntimeValue(wrapper);
 
                 }, [], null!),
 
@@ -47,9 +47,9 @@ namespace Fluence.Global
                     }
 
                     stackInstance = new Stack<RuntimeValue>(arg.IntValue);
-                    Wrapper foreignObject = new Wrapper(stackInstance, _instanceMethods);
+                    Wrapper wrapper = new Wrapper(stackInstance, _instanceMethods);
 
-                    return new RuntimeValue(foreignObject);
+                    return new RuntimeValue(wrapper);
 
                 }, ["int_capacity"], null!),
             ];

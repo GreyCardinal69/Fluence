@@ -28,9 +28,9 @@ namespace Fluence.Global
                 {
                     HashSet<RuntimeValue> setInstance = new HashSet<RuntimeValue>();
 
-                    Wrapper foreignObject = new Wrapper(setInstance, _instanceMethods);
+                    Wrapper wrapper = new Wrapper(setInstance, _instanceMethods);
 
-                    return new RuntimeValue(foreignObject);
+                    return new RuntimeValue(wrapper);
 
                 }, [], null!),
 
@@ -55,9 +55,9 @@ namespace Fluence.Global
                         setInstance = new HashSet<RuntimeValue>(arg.IntValue);
                     }
 
-                    Wrapper foreignObject = new Wrapper(setInstance, _instanceMethods);
+                    Wrapper wrapper = new Wrapper(setInstance, _instanceMethods);
 
-                    return new RuntimeValue(foreignObject);
+                    return new RuntimeValue(wrapper);
 
                 }, ["int_capacity/hash_Set"], null!)
             ];

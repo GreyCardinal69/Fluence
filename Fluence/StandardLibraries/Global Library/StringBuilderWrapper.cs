@@ -31,9 +31,9 @@ namespace Fluence.Global
                 {
                     StringBuilder stringBuilderInstance = new StringBuilder();
 
-                    Wrapper foreignObject = new Wrapper(stringBuilderInstance, _instanceMethods);
+                    Wrapper wrapper = new Wrapper(stringBuilderInstance, _instanceMethods);
 
-                    return new RuntimeValue(foreignObject);
+                    return new RuntimeValue(wrapper);
 
                 }, new List<string>(), null!),
 
@@ -57,9 +57,9 @@ namespace Fluence.Global
                         stringBuilderInstance = new StringBuilder(arg.IntValue);
                     }
 
-                    Wrapper foreignObject = new Wrapper(stringBuilderInstance, _instanceMethods);
+                    Wrapper wrapper = new Wrapper(stringBuilderInstance, _instanceMethods);
 
-                    return new RuntimeValue(foreignObject);
+                    return new RuntimeValue(wrapper);
 
                 }, ["int_capacity"], null!),
             ];

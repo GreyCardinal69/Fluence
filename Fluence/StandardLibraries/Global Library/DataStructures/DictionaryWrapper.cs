@@ -35,8 +35,8 @@ namespace Fluence.Global
                 new FunctionSymbol("Map__0", 0, (vm, argCount) =>
                 {
                     Dictionary<RuntimeValue, RuntimeValue> dictInstance = new Dictionary<RuntimeValue, RuntimeValue>();
-                    Wrapper foreignObject = new Wrapper(dictInstance, _instanceMethods);
-                    return new RuntimeValue(foreignObject);
+                    Wrapper wrapper = new Wrapper(dictInstance, _instanceMethods);
+                    return new RuntimeValue(wrapper);
 
                 }, [], null!),
 
@@ -48,8 +48,8 @@ namespace Fluence.Global
                         throw vm.ConstructRuntimeException("Map() constructor expects an integer capacity.");
                     }
                     Dictionary<RuntimeValue, RuntimeValue> dictInstance = new Dictionary<RuntimeValue, RuntimeValue>(arg.IntValue);
-                    Wrapper foreignObject = new Wrapper(dictInstance, _instanceMethods);
-                    return new RuntimeValue(foreignObject);
+                    Wrapper wrapper = new Wrapper(dictInstance, _instanceMethods);
+                    return new RuntimeValue(wrapper);
 
                 }, ["int_capacity"], null!)
             ];

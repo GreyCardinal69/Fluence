@@ -33,5 +33,11 @@ namespace Fluence
         {
             return Instance.ToString();
         }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj == null) return false;
+            return ((Wrapper)obj).Instance.Equals(Instance);
+        }
     }
 }

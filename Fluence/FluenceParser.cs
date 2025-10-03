@@ -3980,6 +3980,35 @@ namespace Fluence
         /// <returns>A Value representing the parsed primary expression.</returns>
         private Value ParsePrimary()
         {
+            if (AdvanceTokenIfMatch(TokenType.TYPE_OF))
+            {
+                Value operand = ParseAccess();
+
+                TempValue resultRegister = new TempValue(_currentParseState.NextTempNumber++);
+
+                Value typeOperand;
+                if (operand is VariableValue varValue)
+                {
+                    if (_currentParseState.CurrentScope.TryResolve(varValue.Name, out _))
+                    {
+                        // It's a raw type name.
+                        typeOperand = new StringValue(varValue.Name);
+                    }
+                    else
+                    {
+                        typeOperand = varValue;
+                    }
+                }
+                else
+                {
+                    typeOperand = operand;
+                }
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetType, resultRegister, typeOperand));
+
+                return resultRegister;
+            }
+
             Token token = _lexer.ConsumeToken();
 
             if (token.Type == TokenType.NIL)
@@ -4080,21 +4109,6 @@ namespace Fluence
                 case TokenType.L_BRACKET: return ParseList();
                 case TokenType.MATCH: return ParseMatchStatement();
                 case TokenType.REF: return new ReferenceValue((VariableValue)ParseExpression());
-                case TokenType.TYPE_OF:
-                    TempValue target = new TempValue(_currentParseState.NextTempNumber++);
-
-                    Value val = ResolveValue(ParseExpression());
-
-                    // A hack for 'typeof enum'.
-                    if (val is VariableValue var && _currentParseState.CurrentScope.TryResolve(var.Name, out Symbol symbol2) && symbol2 is EnumSymbol enumSymbol)
-                    {
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetType, target, new StringValue(var.Name)));
-                    }
-                    else
-                    {
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetType, target, val));
-                    }
-                    return target;
                 case TokenType.SELF:
                     if (_currentParseState.CurrentStructContext == null)
                     {

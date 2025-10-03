@@ -1734,7 +1734,7 @@ namespace Fluence
                 {
                     metadata = symbol switch
                     {
-                        StructSymbol s => new TypeMetadata(s.Name, s.Fields, s.Functions.Keys.ToList()),
+                        StructSymbol s => new TypeMetadata(s.Name, s.Fields, s.Functions.Keys.ToList(), s.StaticFields.Keys.ToList(), s.Constructors.Keys.ToList()),
                         EnumSymbol e => new TypeMetadata(e.Name, e.Members.Keys.ToList()),
                         _ => new TypeMetadata("Unknown")
                     };
@@ -1751,7 +1751,7 @@ namespace Fluence
 
                 if (value.ObjectReference is InstanceObject instance)
                 {
-                    metadata = new TypeMetadata(instance.Class.Name, instance.Class.Fields, instance.Class.Functions.Keys.ToList());
+                    metadata = new TypeMetadata(instance.Class.Name, instance.Class.Fields, instance.Class.Functions.Keys.ToList(), instance.Class.StaticFields.Keys.ToList(), instance.Class.Constructors.Keys.ToList());
                 }
                 else
                 {

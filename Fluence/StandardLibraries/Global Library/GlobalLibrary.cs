@@ -170,7 +170,7 @@ namespace Fluence.Global
 
             // Others
 
-            globalScope.Declare("typeof__1", new FunctionSymbol("typeof__1", 1, (vm, argCount) =>
+            globalScope.Declare("type_of__1", new FunctionSymbol("typeof__1", 1, (vm, argCount) =>
             {
                 RuntimeValue rv = vm.PopStack();
                 return vm.ResolveStringObjectRuntimeValue(GetRuntimeTypeName(rv));

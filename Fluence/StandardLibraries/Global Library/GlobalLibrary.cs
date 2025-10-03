@@ -170,6 +170,7 @@ namespace Fluence.Global
 
             // Others
 
+            // This simply returns the name of the type, not the type metadata.
             globalScope.Declare("type_of__1", new FunctionSymbol("typeof__1", 1, (vm, argCount) =>
             {
                 RuntimeValue rv = vm.PopStack();

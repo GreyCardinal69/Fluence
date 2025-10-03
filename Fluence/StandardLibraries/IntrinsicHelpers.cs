@@ -47,7 +47,7 @@ namespace Fluence
                         FunctionObject => "function",
                         InstanceObject inst => inst.Class.Name,
                         Wrapper fo => fo.Instance.GetType().Name,
-                        _ => value.ObjectReference.GetType().Name
+                        _ => value.ToString(),
                     };
                 default: return "unknown";
             }

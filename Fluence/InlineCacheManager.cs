@@ -264,8 +264,7 @@ namespace Fluence
 
             string destName = ((VariableValue)insn.Lhs).Name;
 
-            if (vm.CurrentFrame.Function.DefiningScope.TryResolve(destName, out Symbol symbol) &&
-                symbol is VariableSymbol { IsReadonly: true })
+            if (vm.CurrentFrame.Function.DefiningScope.TryResolve(destName, out Symbol symbol) && symbol is VariableSymbol { IsReadonly: true })
             {
                 return true;
             }
@@ -289,880 +288,304 @@ namespace Fluence
             return left.Equals(right);
         }
 
-        private static void ModifyTarget(Value dest, FluenceVirtualMachine vm, RuntimeValue newValue)
+        private static SpecializedOpcodeHandler? CreateBinaryNumericHandler(
+            InstructionLine insn,
+            RuntimeValue left, RuntimeValue right,
+            FluenceVirtualMachine vm,
+            Func<FluenceVirtualMachine, RuntimeValue, RuntimeValue, RuntimeValue> opFunction)
         {
-            if (dest is TempValue temp)
+            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number) return null;
+
+            if (AttemptToModifyReadonlyVar(insn, vm))
             {
-                vm.SetRegister(temp, newValue);
+                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
+                return null;
             }
-            else
+
+            var lhsOperand = insn.Rhs;
+            var rhsOperand = insn.Rhs2;
+            string leftName = null;
+            string rightName = null;
+            string varName  = null;
+
+            if (insn.Lhs is TempValue destTemp)
             {
-                vm.SetVariable((VariableValue)dest, newValue);
+                if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
+                {
+                    leftName = varLeft.Name;
+                    rightName = varRight.Name;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+
+                        RuntimeValue result = opFunction(vm, val1, val2);
+                        vm.SetRegister(destTemp, result);
+                    };
+                }
+
+                if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
+                {
+                    leftName = tempLeft.TempName;
+                    rightName = tempRight.TempName;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+
+                        var result = opFunction(vm, val1, val2);
+                        vm.SetRegister(destTemp, result);
+                    };
+                }
+
+                if (lhsOperand is TempValue tempLeft2 && rhsOperand is VariableValue varOp)
+                {
+                    leftName = tempLeft2.TempName;
+                    rightName = varOp.Name;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+
+                        var result = opFunction(vm, val1, val2);
+                        vm.SetRegister(destTemp, result);
+                    };
+                }
+
+                if (lhsOperand is VariableValue varLeft2 && rhsOperand is TempValue tempRight2)
+                {
+                    leftName = varLeft2.Name;
+                    rightName = tempRight2.TempName;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+
+                        RuntimeValue result = opFunction(vm, val1, val2);
+                        vm.SetRegister(destTemp, result);
+                    };
+                }
+
+                if (lhsOperand is TempValue tempLeft3 && rhsOperand is NumberValue num2)
+                {
+                    leftName = tempLeft3.TempName;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+
+                        var result = opFunction(vm, val1, vm.GetRuntimeValue(num2));
+                        vm.SetRegister(destTemp, result);
+                    };
+                }
+
+                if (lhsOperand is VariableValue varOp2 && rhsOperand is NumberValue)
+                {
+                    varName = varOp2.Name;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+
+                        var result = opFunction(vm, val1, right);
+                        vm.SetRegister(destTemp, result);
+                    };
+                }
+
+                if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num3)
+                {
+                    return (instruction, vm) =>
+                    {
+                        RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num3));
+                        vm.SetRegister(destTemp, result);
+                    };
+                }
+
+                if (lhsOperand is NumberValue num4 && rhsOperand is TempValue temp4)
+                {
+                    rightName = temp4.TempName;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+
+                        RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num4), val1);
+                        vm.SetRegister(destTemp, result);
+                    };
+                }
+
+                if (lhsOperand is NumberValue num5 && rhsOperand is VariableValue varRight3)
+                {
+                    rightName = varRight3.Name;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+
+                        RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num5), val1);
+                        vm.SetRegister(destTemp, result);
+                    };
+                }
             }
+            else if (insn.Lhs is VariableValue destVar)
+            {
+                if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
+                {
+                    leftName = varLeft.Name;
+                    rightName = varRight.Name;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+
+                        RuntimeValue result = opFunction(vm, val1, val2);
+                        vm.SetVariable(destVar, result);
+                    };
+                }
+
+                if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
+                {
+                    leftName = tempLeft.TempName;
+                    rightName = tempRight.TempName;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+
+                        var result = opFunction(vm, val1, val2);
+                        vm.SetVariable(destVar, result);
+                    };
+                }
+
+                if (lhsOperand is TempValue tempLeft2 && rhsOperand is VariableValue varOp)
+                {
+                    leftName = tempLeft2.TempName;
+                    rightName = varOp.Name;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+
+                        var result = opFunction(vm, val1, val2);
+                        vm.SetVariable(destVar, result);
+                    };
+                }
+
+                if (lhsOperand is VariableValue varLeft2 && rhsOperand is TempValue tempRight2)
+                {
+                    leftName = varLeft2.Name;
+                    rightName = tempRight2.TempName;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+
+                        RuntimeValue result = opFunction(vm, val1, val2);
+                        vm.SetVariable(destVar, result);
+                    };
+                }
+
+                if (lhsOperand is TempValue tempLeft3 && rhsOperand is NumberValue num2)
+                {
+                    leftName = tempLeft3.TempName;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+
+                        var result = opFunction(vm, val1, vm.GetRuntimeValue(num2));
+                        vm.SetVariable(destVar, result);
+                    };
+                }
+
+                if (lhsOperand is VariableValue varOp2 && rhsOperand is NumberValue)
+                {
+                    varName = varOp2.Name;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+
+                        var result = opFunction(vm, val1, right);
+                        vm.SetVariable(destVar, result);
+                    };
+                }
+
+                if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num3)
+                {
+                    return (instruction, vm) =>
+                    {
+                        RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num3));
+                        vm.SetVariable(destVar, result);
+                    };
+                }
+
+                if (lhsOperand is NumberValue num4 && rhsOperand is TempValue temp4)
+                {
+                    rightName = temp4.TempName;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+
+                        RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num4), val1);
+                        vm.SetVariable(destVar, result);
+                    };
+                }
+
+                if (lhsOperand is NumberValue num5 && rhsOperand is VariableValue varRight3)
+                {
+                    rightName = varRight3.Name;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+
+                        RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num5), val1);
+                        vm.SetVariable(destVar, result);
+                    };
+                }
+            }
+
+            return null;
         }
 
         internal static SpecializedOpcodeHandler? CreateSpecializedAddHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
-            {
-                return null;
-            }
-
-            if (AttemptToModifyReadonlyVar(insn, vm))
-            {
-                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
-                return null;
-            }
-
-            Value lhsOperand = insn.Rhs;
-            Value rhsOperand = insn.Rhs2;
-
-            if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num2)
-            {
-                return (instruction, vm) =>
-                {
-                    RuntimeValue result = AddValues(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
-            {
-                string leftName = varLeft.Name;
-                string rightName = varRight.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
-
-                    RuntimeValue result = AddValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
-            {
-                string varName = varOp.Name;
-                RuntimeValue constValue = right;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = AddValues(vm, val1, constValue);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
-            {
-                RuntimeValue constValue = left;
-                string varName = varOp_R.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = AddValues(vm, constValue, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
-            {
-                string leftName = tempLeft.TempName;
-                string rightName = tempRight.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
-
-                    RuntimeValue result = AddValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempOp && rhsOperand is NumberValue)
-            {
-                string tempName = tempOp.TempName;
-                RuntimeValue constValue = right;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = AddValues(vm, val1, constValue);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is NumberValue && rhsOperand is TempValue tempOp_R)
-            {
-                RuntimeValue constValue = left;
-                string tempName = tempOp_R.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = AddValues(vm, constValue, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempOp_L && rhsOperand is VariableValue varOp_R_2)
-            {
-                string tempName = tempOp_L.TempName;
-                string varName = varOp_R_2.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = AddValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varOp_L_2 && rhsOperand is TempValue tempOp_R_2)
-            {
-                string varName = varOp_L_2.Name;
-                string tempName = tempOp_R_2.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = AddValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            return null;
+            return CreateBinaryNumericHandler(insn, left, right, vm, AddValues);
         }
 
         internal static SpecializedOpcodeHandler? CreateSpecializedSubtractionHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
-            {
-                return null;
-            }
-
-            if (AttemptToModifyReadonlyVar(insn, vm))
-            {
-                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
-                return null;
-            }
-
-            Value lhsOperand = insn.Rhs;
-            Value rhsOperand = insn.Rhs2;
-
-            if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num2)
-            {
-                return (instruction, vm) =>
-                {
-                    RuntimeValue result = SubValues(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
-            {
-                string leftName = varLeft.Name;
-                string rightName = varRight.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
-
-                    RuntimeValue result = SubValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
-            {
-                string varName = varOp.Name;
-                RuntimeValue constValue = right;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = SubValues(vm, val1, constValue);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
-            {
-                RuntimeValue constValue = left;
-                string varName = varOp_R.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = SubValues(vm, constValue, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
-            {
-                string leftName = tempLeft.TempName;
-                string rightName = tempRight.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
-
-                    RuntimeValue result = SubValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempOp && rhsOperand is NumberValue)
-            {
-                string tempName = tempOp.TempName;
-                RuntimeValue constValue = right;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = SubValues(vm, val1, constValue);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is NumberValue && rhsOperand is TempValue tempOp_R)
-            {
-                RuntimeValue constValue = left;
-                string tempName = tempOp_R.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = SubValues(vm, constValue, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempOp_L && rhsOperand is VariableValue varOp_R_2)
-            {
-                string tempName = tempOp_L.TempName;
-                string varName = varOp_R_2.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = SubValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varOp_L_2 && rhsOperand is TempValue tempOp_R_2)
-            {
-                string varName = varOp_L_2.Name;
-                string tempName = tempOp_R_2.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = SubValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            return null;
+            return CreateBinaryNumericHandler(insn, left, right, vm, SubValues);
         }
 
         internal static SpecializedOpcodeHandler? CreateSpecializedDivHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
-            {
-                return null;
-            }
-
-            if (AttemptToModifyReadonlyVar(insn, vm))
-            {
-                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
-                return null;
-            }
-
-            Value lhsOperand = insn.Rhs;
-            Value rhsOperand = insn.Rhs2;
-
-            if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num2)
-            {
-                return (instruction, vm) =>
-                {
-                    RuntimeValue result = DivValues(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
-            {
-                string leftName = varLeft.Name;
-                string rightName = varRight.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
-
-                    RuntimeValue result = DivValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
-            {
-                string varName = varOp.Name;
-                RuntimeValue constValue = right;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = DivValues(vm, val1, constValue);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            // The other way around.
-            if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
-            {
-                RuntimeValue constValue = left;
-                string varName = varOp_R.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = DivValues(vm, constValue, val2);
-                    vm.SetVariableOrRegister(instruction.Lhs, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
-            {
-                string leftName = tempLeft.TempName;
-                string rightName = tempRight.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
-
-                    RuntimeValue result = DivValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempOp && rhsOperand is NumberValue)
-            {
-                string tempName = tempOp.TempName;
-                RuntimeValue constValue = right;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = DivValues(vm, val1, constValue);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is NumberValue && rhsOperand is TempValue tempOp_R)
-            {
-                RuntimeValue constValue = left;
-                string tempName = tempOp_R.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = DivValues(vm, constValue, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempOp_L && rhsOperand is VariableValue varOp_R_2)
-            {
-                string tempName = tempOp_L.TempName;
-                string varName = varOp_R_2.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = DivValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varOp_L_2 && rhsOperand is TempValue tempOp_R_2)
-            {
-                string varName = varOp_L_2.Name;
-                string tempName = tempOp_R_2.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = DivValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            return null;
+            return CreateBinaryNumericHandler(insn, left, right, vm, DivValues);
         }
 
         internal static SpecializedOpcodeHandler? CreateSpecializedMulHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
-            {
-                return null;
-            }
-
-            if (AttemptToModifyReadonlyVar(insn, vm))
-            {
-                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
-                return null;
-            }
-
-            Value lhsOperand = insn.Rhs;
-            Value rhsOperand = insn.Rhs2;
-
-            if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num2)
-            {
-                return (instruction, vm) =>
-                {
-                    RuntimeValue result = MulValues(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
-            {
-                string leftName = varLeft.Name;
-                string rightName = varRight.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
-
-                    RuntimeValue result = MulValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
-            {
-                string varName = varOp.Name;
-                RuntimeValue constValue = right;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-                    RuntimeValue result = MulValues(vm, val1, constValue);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
-            {
-                RuntimeValue constValue = left;
-                string varName = varOp_R.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = MulValues(vm, constValue, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
-            {
-                string leftName = tempLeft.TempName;
-                string rightName = tempRight.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
-
-                    RuntimeValue result = MulValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempOp && rhsOperand is NumberValue)
-            {
-                string tempName = tempOp.TempName;
-                RuntimeValue constValue = right;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = MulValues(vm, val1, constValue);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is NumberValue && rhsOperand is TempValue tempOp_R)
-            {
-                RuntimeValue constValue = left;
-                string tempName = tempOp_R.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = MulValues(vm, constValue, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempOp_L && rhsOperand is VariableValue varOp_R_2)
-            {
-                string tempName = tempOp_L.TempName;
-                string varName = varOp_R_2.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = MulValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varOp_L_2 && rhsOperand is TempValue tempOp_R_2)
-            {
-                string varName = varOp_L_2.Name;
-                string tempName = tempOp_R_2.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = MulValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            return null;
+            return CreateBinaryNumericHandler(insn, left, right, vm, MulValues);
         }
 
         internal static SpecializedOpcodeHandler? CreateSpecializedModuloHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
-            {
-                return null;
-            }
-
-            if (AttemptToModifyReadonlyVar(insn, vm))
-            {
-                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
-                return null;
-            }
-
-            Value lhsOperand = insn.Rhs;
-            Value rhsOperand = insn.Rhs2;
-
-            if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num2)
-            {
-                return (instruction, vm) =>
-                {
-                    RuntimeValue result = ModuloValues(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
-            {
-                string leftName = varLeft.Name;
-                string rightName = varRight.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
-
-                    RuntimeValue result = ModuloValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
-            {
-                string varName = varOp.Name;
-                RuntimeValue constValue = right;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = ModuloValues(vm, val1, constValue);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
-            {
-                RuntimeValue constValue = left;
-                string varName = varOp_R.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = ModuloValues(vm, constValue, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
-            {
-                string leftName = tempLeft.TempName;
-                string rightName = tempRight.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
-
-                    RuntimeValue result = ModuloValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempOp && rhsOperand is NumberValue)
-            {
-                string tempName = tempOp.TempName;
-                RuntimeValue constValue = right;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = ModuloValues(vm, val1, constValue);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is NumberValue && rhsOperand is TempValue tempOp_R)
-            {
-                RuntimeValue constValue = left;
-                string tempName = tempOp_R.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = ModuloValues(vm, constValue, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempOp_L && rhsOperand is VariableValue varOp_R_2)
-            {
-                string tempName = tempOp_L.TempName;
-                string varName = varOp_R_2.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = ModuloValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varOp_L_2 && rhsOperand is TempValue tempOp_R_2)
-            {
-                string varName = varOp_L_2.Name;
-                string tempName = tempOp_R_2.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = ModuloValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            return null;
+            return CreateBinaryNumericHandler(insn, left, right, vm, ModuloValues);
         }
 
         internal static SpecializedOpcodeHandler? CreateSpecializedPowerHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
-            {
-                return null;
-            }
-
-            if (AttemptToModifyReadonlyVar(insn, vm))
-            {
-                vm.ConstructAndThrowException($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
-                return null;
-            }
-
-            Value lhsOperand = insn.Rhs;
-            Value rhsOperand = insn.Rhs2;
-
-            if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num2)
-            {
-                return (instruction, vm) =>
-                {
-                    RuntimeValue result = PowerValues(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num2));
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
-            {
-                string leftName = varLeft.Name;
-                string rightName = varRight.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
-
-                    RuntimeValue result = PowerValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
-            {
-                string varName = varOp.Name;
-                RuntimeValue constValue = right;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = PowerValues(vm, val1, constValue);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is NumberValue && rhsOperand is VariableValue varOp_R)
-            {
-                RuntimeValue constValue = left;
-                string varName = varOp_R.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = PowerValues(vm, constValue, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
-            {
-                string leftName = tempLeft.TempName;
-                string rightName = tempRight.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
-
-                    RuntimeValue result = PowerValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempOp && rhsOperand is NumberValue)
-            {
-                string tempName = tempOp.TempName;
-                RuntimeValue constValue = right;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = PowerValues(vm, val1, constValue);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is NumberValue && rhsOperand is TempValue tempOp_R)
-            {
-                RuntimeValue constValue = left;
-                string tempName = tempOp_R.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = PowerValues(vm, constValue, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is TempValue tempOp_L && rhsOperand is VariableValue varOp_R_2)
-            {
-                string tempName = tempOp_L.TempName;
-                string varName = varOp_R_2.Name;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-
-                    RuntimeValue result = PowerValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            if (lhsOperand is VariableValue varOp_L_2 && rhsOperand is TempValue tempOp_R_2)
-            {
-                string varName = varOp_L_2.Name;
-                string tempName = tempOp_R_2.TempName;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, tempName);
-
-                    RuntimeValue result = PowerValues(vm, val1, val2);
-                    ModifyTarget(instruction.Lhs, vm, result);
-                };
-            }
-
-            return null;
+            return CreateBinaryNumericHandler(insn, left, right, vm, PowerValues);
         }
 
         internal static SpecializedOpcodeHandler? CreateSpecializedBranchHandler(InstructionLine insn, RuntimeValue right, bool target)

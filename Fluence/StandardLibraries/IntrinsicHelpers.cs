@@ -11,7 +11,7 @@ namespace Fluence
             RuntimeValue pathRv = vm.PopStack();
             if (pathRv.ObjectReference is not StringObject pathObj || string.IsNullOrEmpty(pathObj.Value))
             {
-                throw vm.ConstructRuntimeException($"Invalid path for function: \"{funcName}\". Argument must be a non-empty string.");
+                throw vm.ConstructRuntimeException($"Invalid argument for function: \"{funcName}\". Argument must be a non-empty string.");
             }
             return pathObj.Value;
         }
@@ -24,7 +24,7 @@ namespace Fluence
             if (arg1Rv.ObjectReference is not StringObject arg1Obj || string.IsNullOrEmpty(arg1Obj.Value) ||
                 arg2Rv.ObjectReference is not StringObject arg2Obj || string.IsNullOrEmpty(arg2Obj.Value))
             {
-                throw vm.ConstructRuntimeException($"Invalid arguments for function: \"{funcName}\". Both arguments must be non-empty strings.");
+                throw vm.ConstructRuntimeException($"Invalid argument(s) for function: \"{funcName}\". Both arguments must be non-empty strings.");
             }
             return (arg1Obj.Value, arg2Obj.Value);
         }

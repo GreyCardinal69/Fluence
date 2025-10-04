@@ -157,12 +157,12 @@ namespace Fluence
         /// <summary>
         /// The arguments of the function by name.
         /// </summary>
-        internal List<string>? Arguments { get; init; }
+        internal List<string> Arguments { get; init; }
 
         /// <summary>
         /// The arguments of the function passed by reference by name.
         /// </summary>
-        internal HashSet<string>? ArgumentsByRef { get; private set; }
+        internal HashSet<string> ArgumentsByRef { get; private set; }
 
         /// <summary>
         /// Keeps track which namespace the function is defined in.
@@ -174,15 +174,13 @@ namespace Fluence
         /// </summary>
         internal void SetStartAddress(int addr) => StartAddress = addr;
 
-        internal void SetRefArgs(HashSet<string> refArgs) => ArgumentsByRef = refArgs;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="FunctionSymbol"/> class for a native C# intrinsic.
         /// </summary>
         /// <param name="name">The name of the intrinsic function.</param>
         /// <param name="arity">The number of arguments the function expects.</param>
         /// <param name="body">The C# delegate that executes the function's logic.</param>
-        internal FunctionSymbol(string name, int arity, IntrinsicMethod body, FluenceScope definingScope, List<string>? arguments = null)
+        internal FunctionSymbol(string name, int arity, IntrinsicMethod body, FluenceScope definingScope, List<string> arguments)
         {
             Name = name;
             Arity = arity;
@@ -199,7 +197,7 @@ namespace Fluence
         /// <param name="name">The name of the function.</param>
         /// <param name="arity">The number of arguments the function expects.</param>
         /// <param name="startAddress">The initial start address (usually -1, resolved later).</param>
-        internal FunctionSymbol(string name, int arity, int startAddress, int lineInSource, FluenceScope definingScope, List<string>? arguments = null)
+        internal FunctionSymbol(string name, int arity, int startAddress, int lineInSource, FluenceScope definingScope, List<string> arguments, HashSet<string> argumentsByRef)
         {
             StartAddressInSource = lineInSource;
             Name = name;
@@ -207,6 +205,7 @@ namespace Fluence
             StartAddress = startAddress;
             IsIntrinsic = false;
             Arguments = arguments;
+            ArgumentsByRef = argumentsByRef;
             DefiningScope = definingScope;
         }
 

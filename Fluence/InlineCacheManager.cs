@@ -679,6 +679,28 @@ namespace Fluence
             if (collection.ObjectReference is ListObject)
             {
                 string collectionName = collectionOperand is VariableValue var ? var.Name : ((TempValue)collectionOperand).TempName;
+
+                if (indexOperand is NumberValue num1)
+                {
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collectionName);
+
+                        int idx = (int)num1.Value;
+
+                        ListObject listRef = (ListObject)collRef.ObjectReference;
+
+                        if ((uint)idx < (uint)listRef!.Elements.Count)
+                        {
+                            vm.SetRegister(destRegister, listRef.Elements[idx]);
+                        }
+                        else
+                        {
+                            vm.ConstructAndThrowException($"Index out of range. Index was {idx}, list count is '{listRef.Elements.Count}'.");
+                        }
+                    };
+                }
+
                 string indexName = indexOperand is VariableValue var2 ? var2.Name : ((TempValue)indexOperand).TempName;
 
                 return (instruction, vm) =>
@@ -694,37 +716,86 @@ namespace Fluence
                     {
                         vm.SetRegister(destRegister, listRef.Elements[idx]);
                     }
-                    else { vm.ConstructAndThrowException("Index out of range."); }
-                };
-            }
-
-            if (collection.ObjectReference is StringObject)
-            {
-                string collectionName = collectionOperand is VariableValue var ? var.Name : ((TempValue)collectionOperand).TempName;
-                string indexName = indexOperand is VariableValue var2 ? var2.Name : ((TempValue)indexOperand).TempName;
-
-                if (collectionName == null) return null;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collectionName);
-                    ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
-
-                    int idx = indexRef.IntValue;
-
-                    StringObject strRef = (StringObject)collRef.ObjectReference!;
-
-                    if (string.IsNullOrEmpty(strRef.Value) || (uint)idx > (uint)strRef.Value.Length)
-                    {
-                        vm.ConstructAndThrowException($"Index out of range. Index was {idx}, but string length is {(strRef.Value is null ? "The string was empty" : strRef.Value.Length)}.");
-                    }
                     else
                     {
-                        vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(strRef.Value[idx]));
+                        vm.ConstructAndThrowException($"Index out of range. Index was {idx}, list count is '{listRef.Elements.Count}'.");
                     }
                 };
             }
 
+            if (collection.ObjectReference is StringObject str)
+            {
+                if (collectionOperand is VariableValue collVar3 && indexOperand is VariableValue indexVar3)
+                {
+                    string collName = collVar3.Name;
+                    string indexName = indexVar3.Name;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
+                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
+
+                        vm.TryReturnRegisterReferenceToPool(instruction);
+
+                        int idx = indexRef.IntValue;
+                        if (idx >= 0 && idx < str.Value.Length)
+                        {
+                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(str.Value[idx]));
+                        }
+                        else
+                        {
+                            vm.ConstructAndThrowException($"Index out of range. Index was {idx}, but string length is {(str.Value is null ? "The string was empty" : str.Value.Length)}.");
+                        }
+                    };
+                }
+
+                if (collectionOperand is VariableValue collVar4 && indexOperand is TempValue indextemp4)
+                {
+                    string collName = collVar4.Name;
+                    string indexName = indextemp4.TempName;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
+                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
+
+                        vm.TryReturnRegisterReferenceToPool(instruction);
+
+                        int idx = indexRef.IntValue;
+                        if (idx >= 0 && idx < str.Value.Length)
+                        {
+                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(str.Value[idx]));
+                        }
+                        else
+                        {
+                            vm.ConstructAndThrowException($"Index out of range. Index was {idx}, but string length is {(str.Value is null ? "The string was empty" : str.Value.Length)}.");
+                        }
+                    };
+                }
+
+                if (collectionOperand is VariableValue collVar7 && indexOperand is NumberValue num)
+                {
+                    string collName = collVar7.Name;
+
+                    return (instruction, vm) =>
+                    {
+                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
+                        StringObject str = (StringObject)collRef.ObjectReference;
+                        vm.TryReturnRegisterReferenceToPool(instruction);
+
+                        int idx = (int)num.Value;
+                        if (idx >= 0 && idx < str.Value.Length)
+                        {
+                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(str.Value[idx]));
+                        }
+                        else
+                        {
+                            vm.ConstructAndThrowException($"Index out of range. Index was {idx}, but string length is {(str.Value is null ? "The string was empty" : str.Value.Length)}.");
+                        }
+                    };
+                }
+            }
+            Console.WriteLine("here");
             return null;
         }
 

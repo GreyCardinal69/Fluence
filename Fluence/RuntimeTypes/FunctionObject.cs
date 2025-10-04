@@ -29,7 +29,7 @@ namespace Fluence.RuntimeTypes
         internal bool IsLambda { get; set; }
 
         /// <summary>The names of the function's parameters.</summary>
-        internal List<string>? Parameters { get; private set; }
+        internal List<string> Parameters { get; private set; }
 
         /// <summary>The names of the function's parameters passed by reference.</summary>
         internal HashSet<string> ParametersByRef { get; set; }
@@ -104,9 +104,9 @@ namespace Fluence.RuntimeTypes
             BluePrint = null;
             Name = null!;
             Arity = 0;
-            Parameters = null;
+            Parameters = null!;
             StartAddress = 0;
-            DefiningScope = null;
+            DefiningScope = null!;
             IsIntrinsic = false;
             ParametersByRef = null!;
         }

@@ -34,7 +34,7 @@ namespace Fluence.Global
 
                     return new RuntimeValue(wrapper);
 
-                }, scope,[]),
+                }, scope, []),
 
                 new FunctionSymbol("Stack__1", 1, (vm, argCount) =>
                 {
@@ -51,7 +51,7 @@ namespace Fluence.Global
 
                     return new RuntimeValue(wrapper);
 
-                }, scope,["int_capacity"]),
+                }, scope, ["int_capacity"]),
             ];
         }
 

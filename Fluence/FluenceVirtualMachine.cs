@@ -347,7 +347,7 @@ namespace Fluence
                     {
                         string value = kvp.Value.ToString();
                         string end = value.Length > 150 ? "...\"" : "\"";
-                        string type = kvp.Value.ObjectReference.GetType().Name;
+                        string type = kvp.Value.ObjectReference?.GetType().Name;
                         sb.AppendLine($"  {kvp.Key.PadRight(maxKeyLength)} : {$"{type}: \"{value[..Math.Min(150, value.Length)]}{end}"}");
                     }
                 }
@@ -1322,7 +1322,7 @@ namespace Fluence
                 switch (collection.ObjectReference)
                 {
                     case StringObject str:
-                        length = str.Value.Length;
+                        length = string.IsNullOrEmpty(str.Value) ? 0 : str.Value.Length;
                         break;
                     case ListObject list:
                         length = list.Elements.Count;
@@ -1534,12 +1534,12 @@ namespace Fluence
                             throw ConstructRuntimeException($"Runtime Error: String index must be a number, not '{GetDetailedTypeName(indexVal)}'.");
                         }
                         int index = indexVal.IntValue;
-                        if (index < 0 || index >= str.Value.Length)
+                        if (index < 0 || string.IsNullOrEmpty(str.Value) || index >= str.Value.Length)
                         {
-                            throw ConstructRuntimeException($"Runtime Error: Index out of range. Index was {index}, but string length is {str.Value.Length}.");
+                            throw ConstructRuntimeException($"Runtime Error: Index out of range. Index was {index}, but string length is '{(str.Value is null ? "The string was empty" : str.Value.Length)}'.");
                         }
 
-                        char charAsString = str.Value[index];
+                        char charAsString = str.Value![index];
                         CharObject resultChar = _charObjectPool.Get();
                         resultChar.Initialize(charAsString);
                         SetRegister((TempValue)instruction.Lhs, new RuntimeValue(resultChar));
@@ -1796,15 +1796,15 @@ namespace Fluence
                 false,
                 instanceFields: s.Fields.Select(f => new FieldMetadata(f, IsStatic: false, IsSolid: false)).ToList(),
                 staticFields: s.StaticFields.Keys.Select(f => new FieldMetadata(f, IsStatic: true, IsSolid: true)).ToList(),
-                constructors: s.Constructors.Values.Select(c => new MethodMetadata(c.Name, c.Arity, true, c.Arguments, c.ArgumentsByRef)).ToList(),
-                instanceMethods: s.Functions.Values.Select(m => new MethodMetadata(m.Name, m.Arity, false, m.Arguments, m.ArgumentsByRef)).ToList()
+                constructors: s.Constructors.Values.Select(c => new MethodMetadata(c.Name, c.Arity, true, c.Arguments!, c.ArgumentsByRef!)).ToList(),
+                instanceMethods: s.Functions.Values.Select(m => new MethodMetadata(m.Name, m.Arity, false, m.Arguments!, m.ArgumentsByRef!)).ToList()
             );
         }
 
         /// <summary>
         /// A helper to search all relevant scopes for a named symbol.
         /// </summary>
-        private bool TryFindSymbol(string name, out Symbol symbol, out FluenceScope? foundScope)
+        private bool TryFindSymbol(string name, out Symbol symbol, out FluenceScope foundScope)
         {
             if (CurrentFrame.Function.DefiningScope?.TryResolve(name, out symbol) ?? false)
             {
@@ -1827,7 +1827,7 @@ namespace Fluence
                 return true;
             }
 
-            foundScope = null;
+            foundScope = null!;
             return false;
         }
 
@@ -1866,7 +1866,7 @@ namespace Fluence
                 throw ConstructRuntimeException($"Internal VM Error: Attempted to call a value that is not a function (got type '{GetDetailedTypeName(functionVal)}').");
             }
 
-            string scopeName = function.DefiningScope?.Name;
+            string scopeName = function.DefiningScope.Name;
             if (!string.Equals(scopeName, "Global", StringComparison.Ordinal))
             {
                 if (!IsLibraryAllowed(scopeName))
@@ -2016,7 +2016,7 @@ namespace Fluence
                 };
             }
 
-            string scopeName = functionToExecute.DefiningScope?.Name;
+            string scopeName = functionToExecute.DefiningScope.Name;
             if (!string.Equals(scopeName, "Global", StringComparison.Ordinal))
             {
                 if (!IsLibraryAllowed(scopeName))
@@ -2138,7 +2138,7 @@ namespace Fluence
                 throw ConstructRuntimeException("Internal VM Error: Invalid operands for CALL_STATIC.");
             }
 
-            if (structSymbol.StaticIntrinsics.TryGetValue(methodName.Value, out FunctionSymbol? intrinsicSymbol))
+            if (structSymbol.StaticIntrinsics.TryGetValue(methodName.Value, out FunctionSymbol intrinsicSymbol))
             {
                 int argCount = _operandStack.Count;
                 if (intrinsicSymbol.Arity != argCount)
@@ -2146,7 +2146,7 @@ namespace Fluence
                     throw ConstructRuntimeException($"Runtime Error: Mismatched arity for static intrinsic struct function '{intrinsicSymbol.Name}'. Expected {intrinsicSymbol.Arity}, but got {argCount}.");
                 }
 
-                RuntimeValue resultValue = intrinsicSymbol.IntrinsicBody(this, argCount);
+                RuntimeValue resultValue = intrinsicSymbol.IntrinsicBody!(this, argCount);
                 SetRegister((TempValue)instruction.Lhs, resultValue);
                 return;
             }
@@ -2173,7 +2173,7 @@ namespace Fluence
                 throw ConstructRuntimeException($"Runtime Error: Mismatched arity for static function '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
             }
 
-            string scopeName = functionToExecute.DefiningScope?.Name;
+            string scopeName = functionToExecute.DefiningScope.Name;
             if (!string.Equals(scopeName, "Global", StringComparison.Ordinal))
             {
                 if (!IsLibraryAllowed(scopeName))
@@ -2459,7 +2459,7 @@ namespace Fluence
 
             if (funcSymbol.IsIntrinsic)
             {
-                func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.IntrinsicBody, funcSymbol.DefiningScope, funcSymbol);
+                func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.IntrinsicBody!, funcSymbol.DefiningScope, funcSymbol);
                 return func;
             }
 
@@ -2686,7 +2686,7 @@ namespace Fluence
                 return new RuntimeValue(new StringObject(""));
             }
 
-            StringBuilder sb = new StringBuilder(str.Value.Length * count);
+            StringBuilder sb = new StringBuilder((str.Value?.Length ?? 0) * count);
             for (int i = 0; i < count; i++)
             {
                 sb.Append(str.Value);

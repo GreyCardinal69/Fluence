@@ -270,12 +270,12 @@ namespace Fluence
         internal int StartAddress { get; private set; }
 
         /// <summary>The arguments of the function by name.</summary>
-        internal List<string>? Arguments { get; init; }
+        internal List<string> Arguments { get; init; }
 
         /// <summary>
         /// The arguments of the function passed by reference by name.
         /// </summary>
-        internal HashSet<string>? ArgumentsByRef { get; init; }
+        internal HashSet<string> ArgumentsByRef { get; init; }
 
         /// <summary>
         /// The C# intrinsic body of the function, if it is intrinsic.
@@ -290,7 +290,7 @@ namespace Fluence
         /// <summary>The scope (namespace) the function belongs to.</summary>
         internal FluenceScope FunctionScope { get; private set; }
 
-        internal FunctionValue(string name, int arity, int startAddress, int lineInSource, List<string>? arguments = null, HashSet<string>? argsByRef = null)
+        internal FunctionValue(string name, int arity, int startAddress, int lineInSource, List<string> arguments, HashSet<string> argsByRef)
         {
             Name = name;
             Arity = arity;

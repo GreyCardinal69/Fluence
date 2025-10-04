@@ -32,7 +32,7 @@ namespace Fluence.Global
 
                     return new RuntimeValue(wrapper);
 
-                }, scope,[]),
+                }, scope, []),
 
                 new FunctionSymbol("HashSet__1", 1, (vm, argCount) =>
                 {
@@ -59,7 +59,7 @@ namespace Fluence.Global
 
                     return new RuntimeValue(wrapper);
 
-                }, scope,["int_capacity/hash_Set"])
+                }, scope, ["int_capacity/hash_Set"])
             ];
         }
 

@@ -61,7 +61,7 @@ namespace Fluence.Global
 
                     return new RuntimeValue(wrapper);
 
-                }, scope,["int_capacity"]),
+                }, scope, ["int_capacity"]),
             ];
         }
 

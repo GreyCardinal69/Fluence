@@ -17,9 +17,12 @@ namespace Fluence
         /// <summary>
         /// Gets the name of this scope, primarily used for debugging and error messages.
         /// </summary>
-        internal string Name { get; private set; }
+        internal readonly string Name;
 
-        internal readonly List<string> UsedScopes = new List<string>();
+        /// <summary>
+        /// Keeps track of declared symbol names for name conflict detection.
+        /// </summary>
+        internal readonly HashSet<string> DeclaredSymbolNames = new HashSet<string>();
 
         /// <summary>
         /// Gets the parent scope in the hierarchy. This is null for the global scope.
@@ -32,13 +35,10 @@ namespace Fluence
         /// </summary>
         internal readonly Dictionary<string, RuntimeValue> RuntimeStorage = new Dictionary<string, RuntimeValue>();
 
+        // Used in Tests. Might also be useful for other purposes.
         internal bool Contains(string name) => TryResolve(name, out _);
         internal bool ContainsLocal(string name) => TryGetLocalSymbol(name, out _);
-
-        internal FluenceScope()
-        {
-            ParentScope = null!;
-        }
+        internal bool TryGetLocalSymbol(string name, out Symbol symbol) => Symbols.TryGetValue(name, out symbol!);
 
         internal FluenceScope(FluenceScope parentScope, string name)
         {
@@ -54,18 +54,13 @@ namespace Fluence
         /// <returns>True if the symbol was declared successfully; false if a symbol with the same name already exists in this scope.</returns>
         internal bool Declare(string name, Symbol symbol)
         {
-            if (DeclareInternal(name, symbol))
+            if (Symbols.TryAdd(name, symbol))
             {
-                UsedScopes.Add(name);
+                DeclaredSymbolNames.Add(name);
                 return true;
             }
 
             return false;
-        }
-
-        private bool DeclareInternal(string name, Symbol symbol)
-        {
-            return Symbols.TryAdd(name, symbol);
         }
 
         /// <summary>
@@ -76,29 +71,21 @@ namespace Fluence
         /// <returns>True if the symbol was found in this scope or any parent scope; otherwise, false.</returns>
         internal bool TryResolve(string name, out Symbol symbol)
         {
-            ref Symbol localSymbol = ref CollectionsMarshal.GetValueRefOrNullRef(Symbols, name);
-
-            if (!Unsafe.IsNullRef(ref localSymbol))
+            FluenceScope current = this;
+            while (current != null)
             {
-                symbol = localSymbol;
-                return true;
+                ref Symbol localSymbol = ref CollectionsMarshal.GetValueRefOrNullRef(current.Symbols, name);
+                if (!Unsafe.IsNullRef(ref localSymbol))
+                {
+                    symbol = localSymbol;
+                    return true;
+                }
+                current = current.ParentScope;
             }
-
-            if (ParentScope != null)
-            {
-                return ParentScope.TryResolve(name, out symbol);
-            }
-
             symbol = null!;
             return false;
         }
 
-        public override string ToString()
-        {
-            return $"Scope: {Name}";
-        }
-
-        // This scope.
-        internal bool TryGetLocalSymbol(string name, out Symbol symbol) => Symbols.TryGetValue(name, out symbol!);
+        public override string ToString() => $"Scope: {Name}";
     }
 }

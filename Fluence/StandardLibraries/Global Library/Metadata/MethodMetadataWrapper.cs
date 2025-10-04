@@ -17,7 +17,7 @@ namespace Fluence.Global
             _instanceMethods["signature__0"] = GetSignature;
         }
 
-        internal static RuntimeValue Create(FluenceVirtualMachine vm, MethodMetadata metadata)
+        internal static RuntimeValue Create(MethodMetadata metadata)
         {
             Wrapper wrapper = new Wrapper(metadata, _instanceMethods);
             return new RuntimeValue(wrapper);
@@ -61,7 +61,7 @@ namespace Fluence.Global
 
             foreach (string parameter in metadata.Parameters)
             {
-                list.Elements.Add(ParameterMetadataWrapper.Create(vm, new ParameterMetadata()
+                list.Elements.Add(ParameterMetadataWrapper.Create(new ParameterMetadata()
                 {
                     ByRef = metadata.RefParameters.Contains(parameter),
                     Name = parameter

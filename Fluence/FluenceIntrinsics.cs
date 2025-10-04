@@ -14,7 +14,6 @@ namespace Fluence
         /// </summary>
         private readonly Dictionary<string, Action<FluenceScope>> _libraryRegistry = new();
         private readonly FluenceParser _parser;
-        private readonly FluenceVirtualMachine _vm;
 
         private readonly TextOutputMethod _outputLine;
         private readonly TextOutputMethod _output;

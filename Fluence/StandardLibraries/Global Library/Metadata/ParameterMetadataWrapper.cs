@@ -15,7 +15,7 @@ namespace Fluence.Global
             _instanceMethods["get_default_value__0"] = GetDefaultValue;
         }
 
-        internal static RuntimeValue Create(FluenceVirtualMachine vm, ParameterMetadata metadata)
+        internal static RuntimeValue Create(ParameterMetadata metadata)
         {
             Wrapper wrapper = new Wrapper(metadata, _instanceMethods);
             return new RuntimeValue(wrapper);

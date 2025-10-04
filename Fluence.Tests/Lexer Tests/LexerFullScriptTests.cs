@@ -63,7 +63,7 @@ namespace Fluence.LexerTests
             };
 
             List<Token> actualTokens = LexAllTokens(source);
-            actualTokens.RemoveAll(token => token.Type == Token.TokenType.EOL_LEXER);
+            actualTokens.RemoveAll(token => token.Type == Token.TokenType.NEW_LINE);
             List<Token.TokenType> actualTypes = actualTokens.Select(t => t.Type).ToList();
 
             if (!expectedTypes.SequenceEqual(actualTypes))

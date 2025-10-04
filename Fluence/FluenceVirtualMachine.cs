@@ -1639,7 +1639,7 @@ namespace Fluence
                 throw ConstructRuntimeException("Internal VM Error: Attempted to iterate over a non-iterator value.");
             }
 
-            SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedIterNextHandler(this, instruction, iterator);
+            SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedIterNextHandler(instruction, iterator);
             if (handler != null)
             {
                 instruction.SpecializedHandler = handler;
@@ -1771,7 +1771,7 @@ namespace Fluence
                         bool isLambda = operand is LambdaValue;
 
                         MethodMetadata methodMeta = new MethodMetadata(func.Name, func.Arity, false, func.Parameters, func.ParametersByRef);
-                        metadata = new TypeMetadata("function", "function", TypeCategory.Function, func.Arity, isLambda, null, null, null, new[] { methodMeta }, null, func.Parameters, func.ParametersByRef);
+                        metadata = new TypeMetadata("function", "function", TypeCategory.Function, func.Arity, isLambda, null, null, null, [methodMeta], null, func.Parameters, func.ParametersByRef);
                         break;
                     default:
                         metadata = new TypeMetadata(name, name, TypeCategory.Primitive, 0, false);
@@ -1779,7 +1779,7 @@ namespace Fluence
                 }
             }
 
-            RuntimeValue typeObject = TypeMetadataWrapper.Create(this, metadata);
+            RuntimeValue typeObject = TypeMetadataWrapper.Create(metadata);
             SetRegister(destRegister, typeObject);
         }
 
@@ -1804,14 +1804,14 @@ namespace Fluence
         /// <summary>
         /// A helper to search all relevant scopes for a named symbol.
         /// </summary>
-        private bool TryFindSymbol(string name, out Symbol symbol, out FluenceScope foundScope)
+        private bool TryFindSymbol(string name, out Symbol symbol, out FluenceScope? foundScope)
         {
-            // Check current frame's scope, then namespaces, then global.
-            if (CurrentFrame.Function.DefiningScope.TryResolve(name, out symbol))
+            if (CurrentFrame.Function.DefiningScope?.TryResolve(name, out symbol) ?? false)
             {
                 foundScope = CurrentFrame.Function.DefiningScope;
                 return true;
             }
+
             foreach (FluenceScope ns in Namespaces.Values)
             {
                 if (ns.TryResolve(name, out symbol))
@@ -1820,6 +1820,7 @@ namespace Fluence
                     return true;
                 }
             }
+
             if (_globalScope.TryResolve(name, out symbol))
             {
                 foundScope = _globalScope;

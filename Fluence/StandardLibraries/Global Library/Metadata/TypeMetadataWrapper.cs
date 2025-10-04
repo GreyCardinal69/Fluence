@@ -38,7 +38,7 @@ namespace Fluence.Global
             //instanceMethods["is_enum_member__1"] = IsEnumMember;
         }
 
-        internal static RuntimeValue Create(FluenceVirtualMachine vm, TypeMetadata metadata)
+        internal static RuntimeValue Create(TypeMetadata metadata)
         {
             Wrapper foreignObject = new Wrapper(metadata, _instanceMethods);
             return new RuntimeValue(foreignObject);
@@ -152,7 +152,7 @@ namespace Fluence.Global
 
             foreach (MethodMetadata ctor in metadata.Constructors)
             {
-                list.Elements.Add(MethodMetadataWrapper.Create(vm, ctor));
+                list.Elements.Add(MethodMetadataWrapper.Create(ctor));
             }
 
             return new RuntimeValue(list);
@@ -166,7 +166,7 @@ namespace Fluence.Global
 
             foreach (MethodMetadata method in metadata.InstanceMethods)
             {
-                list.Elements.Add(MethodMetadataWrapper.Create(vm, method));
+                list.Elements.Add(MethodMetadataWrapper.Create(method));
             }
 
             return new RuntimeValue(list);
@@ -179,9 +179,9 @@ namespace Fluence.Global
             ListObject list = new ListObject();
 
             foreach (MethodMetadata method in metadata.InstanceMethods)
-                list.Elements.Add(MethodMetadataWrapper.Create(vm, method));
+                list.Elements.Add(MethodMetadataWrapper.Create(method));
             foreach (MethodMetadata ctor in metadata.Constructors)
-                list.Elements.Add(MethodMetadataWrapper.Create(vm, ctor));
+                list.Elements.Add(MethodMetadataWrapper.Create(ctor));
 
             return new RuntimeValue(list);
         }
@@ -197,7 +197,7 @@ namespace Fluence.Global
             {
                 if (method.Name == name)
                 {
-                    list.Elements.Add(MethodMetadataWrapper.Create(vm, method));
+                    list.Elements.Add(MethodMetadataWrapper.Create(method));
                 }
             }
 
@@ -215,7 +215,7 @@ namespace Fluence.Global
             {
                 if (method.BaseName == name && method.Arity == arity)
                 {
-                    return MethodMetadataWrapper.Create(vm, method);
+                    return MethodMetadataWrapper.Create(method);
                 }
             }
 

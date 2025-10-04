@@ -106,16 +106,16 @@
                 PushFourParams,
             }
 
-            /// <summary>Gets the operation code for this instruction.</summary>
+            /// <summary>The operation code for this instruction.</summary>
             internal InstructionCode Instruction;
 
-            /// <summary>Gets the primary operand, often the destination or target of the operation.</summary>
+            /// <summary>The primary operand, often the destination or target of the operation.</summary>
             internal Value Lhs;
 
-            /// <summary>Gets the first source operand.</summary>
+            /// <summary>The first source operand.</summary>
             internal Value Rhs;
 
-            /// <summary>Gets the second source operand.</summary>
+            /// <summary>The second source operand.</summary>
             internal Value Rhs2;
 
             /// <summary>The third source operand, used only in specialized instructions and generated strictly by the optimizer.</summary>
@@ -150,7 +150,7 @@
             /// The cached, optimized "fast path" for this instruction.
             /// If this is not null, it is executed by the generic opcode handler.
             /// </summary>
-            internal SpecializedOpcodeHandler? SpecializedHandler { get; set; } = null!;
+            internal SpecializedOpcodeHandler? SpecializedHandler { get; set; }
 
             internal InstructionLine(InstructionCode instruction, Value lhs, Value rhs = null!, Value rhs2 = null!, Value rhs3 = null!)
             {

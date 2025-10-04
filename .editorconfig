@@ -22,3 +22,9 @@ dotnet_diagnostic.IDE0028.severity = none
 
 # IDE0130: Namespace does not match folder structure
 dotnet_diagnostic.IDE0130.severity = none
+
+# IDE0306: Simplify collection initialization
+dotnet_diagnostic.IDE0306.severity = none
+
+# IDE0305: Simplify collection initialization
+dotnet_diagnostic.IDE0305.severity = none

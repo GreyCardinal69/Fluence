@@ -766,7 +766,7 @@ namespace Fluence
             return null;
         }
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedIterNextHandler(FluenceVirtualMachine vm, InstructionLine insn, IteratorObject iterator)
+        internal static SpecializedOpcodeHandler? CreateSpecializedIterNextHandler(InstructionLine insn, IteratorObject iterator)
         {
             TempValue iteratorReg = (TempValue)insn.Lhs;
             TempValue valueReg = (TempValue)insn.Rhs;

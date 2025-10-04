@@ -631,6 +631,7 @@ namespace Fluence
         /// Directly sets the instruction pointer. Used for debugging or advanced control.
         /// </summary>
         /// <param name="id">The address of the next instruction to execute.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void SetInstructionPointer(int id) => _ip = id;
 
         /// <summary>Handles the ADD instruction, which performs numeric addition, string concatenation, or list concatenation.</summary>
@@ -1123,6 +1124,7 @@ namespace Fluence
         private void ExecuteLogicalOp(InstructionLine instruction, bool isAnd)
         {
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
+
             // Short-circuiting for efficiency.
             if (isAnd)
             {
@@ -1141,7 +1143,6 @@ namespace Fluence
                 }
             }
 
-            // If we didn't short-circuit, the result of the expression is the truthiness of the right-hand side.
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
             SetRegister((TempValue)instruction.Lhs, new RuntimeValue(right.IsTruthy));
         }
@@ -1752,7 +1753,7 @@ namespace Fluence
                 RuntimeValue value = GetRuntimeValue(operand);
 
                 string name = IntrinsicHelpers.GetRuntimeTypeName(value);
-                Console.WriteLine(name);
+
                 switch (value.ObjectReference)
                 {
                     case InstanceObject instance:

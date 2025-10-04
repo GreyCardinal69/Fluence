@@ -14,6 +14,7 @@ namespace Fluence
         /// </summary>
         private readonly Dictionary<string, Action<FluenceScope>> _libraryRegistry = new();
         private readonly FluenceParser _parser;
+        private readonly FluenceVirtualMachine _vm;
 
         private readonly TextOutputMethod _outputLine;
         private readonly TextOutputMethod _output;
@@ -28,6 +29,11 @@ namespace Fluence
 
             // Pre-register all known standard libraries.
             _libraryRegistry[FluenceMath.NamespaceName] = FluenceMath.Register;
+
+            _libraryRegistry[FluenceUnsafe.NamespaceName] = (scope) =>
+            {
+                FluenceUnsafe.Register(scope, _outputLine, _input, _output);
+            };
 
             _libraryRegistry[FluenceIO.NamespaceName] = (scope) =>
             {
@@ -54,7 +60,7 @@ namespace Fluence
         {
             if (_libraryRegistry.TryGetValue(namespaceName, out Action<FluenceScope>? registrationAction))
             {
-                if (_parser.CurrentParserStateGlobalScope.UsedScopes.Contains(namespaceName))
+                if (_parser.CurrentParserStateGlobalScope.DeclaredSymbolNames.Contains(namespaceName))
                 {
                     return null;
                 }

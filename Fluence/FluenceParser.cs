@@ -1953,7 +1953,7 @@ namespace Fluence
 
                 foreach (KeyValuePair<string, Symbol> entry in namespaceToUse!.Symbols)
                 {
-                    if (!_currentParseState.CurrentScope.Declare(entry.Key, entry.Value) && !_currentParseState.CurrentScope.UsedScopes.Contains(entry.Key))
+                    if (!_currentParseState.CurrentScope.Declare(entry.Key, entry.Value) && !_currentParseState.CurrentScope.DeclaredSymbolNames.Contains(entry.Key))
                     {
                         ConstructAndThrowParserException($"Symbol '{entry.Key}' from namespace '{namespaceName}' conflicts with a symbol already defined in this scope.", nameToken);
                     }

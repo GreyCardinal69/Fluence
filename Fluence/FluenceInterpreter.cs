@@ -1,3 +1,4 @@
+using Fluence.Exceptions;
 using Fluence.RuntimeTypes;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceParser;

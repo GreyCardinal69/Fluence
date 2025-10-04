@@ -1,4 +1,5 @@
-﻿using Fluence.RuntimeTypes;
+﻿using Fluence.Exceptions;
+using Fluence.RuntimeTypes;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceInterpreter;

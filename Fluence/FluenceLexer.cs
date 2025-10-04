@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using Fluence.Exceptions;
+using System.Runtime.CompilerServices;
 using System.Text;
 using static Fluence.FluenceInterpreter;
 using static Fluence.Token;

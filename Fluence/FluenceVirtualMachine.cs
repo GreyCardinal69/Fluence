@@ -564,25 +564,35 @@ namespace Fluence
             State = FluenceVMState.Running;
             Stopwatch stopwatch = Stopwatch.StartNew();
             int instructionsUntilNextCheck = _timeCheckInterval;
+            bool willRunUntilDone = duration == TimeSpan.MaxValue;
+
+            if (willRunUntilDone)
+            {
+                stopwatch.Stop();
+            }
 
             while (_ip < _byteCode.Count)
             {
-                instructionsUntilNextCheck--;
-
                 if (_stopRequested)
                 {
                     State = FluenceVMState.Paused;
                     return;
                 }
 
-                if (instructionsUntilNextCheck == 0)
+                // If the VM is set to run until completion, we can save a lot of time on just not doing time elapsed checks.
+                if (!willRunUntilDone)
                 {
-                    instructionsUntilNextCheck = _timeCheckInterval;
+                    instructionsUntilNextCheck--;
 
-                    if (stopwatch.Elapsed >= duration)
+                    if (instructionsUntilNextCheck == 0)
                     {
-                        State = FluenceVMState.Paused;
-                        return;
+                        instructionsUntilNextCheck = _timeCheckInterval;
+
+                        if (stopwatch.Elapsed >= duration)
+                        {
+                            State = FluenceVMState.Paused;
+                            return;
+                        }
                     }
                 }
 
@@ -2684,7 +2694,7 @@ namespace Fluence
             // Multiplying by 0 or a negative number results in an empty string.
             if (count <= 0)
             {
-                return new RuntimeValue(new StringObject(""));
+                return ResolveStringObjectRuntimeValue("");
             }
 
             StringBuilder sb = new StringBuilder((str.Value?.Length ?? 0) * count);
@@ -2693,7 +2703,7 @@ namespace Fluence
                 sb.Append(str.Value);
             }
 
-            return new RuntimeValue(new StringObject(sb.ToString()));
+            return ResolveStringObjectRuntimeValue(sb.ToString());
         }
 
         /// <summary>

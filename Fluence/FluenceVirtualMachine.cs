@@ -1768,19 +1768,9 @@ namespace Fluence
                         metadata = new TypeMetadata("List", "List", TypeCategory.BuiltIn, 0, false);
                         break;
                     case FunctionObject func:
-                        bool isConstructor = false;
-
-                        if (func.BluePrint?.Class is not null)
-                        {
-                            if (func.BluePrint.Class.Constructors.ContainsKey(func.Name))
-                            {
-                                isConstructor = true;
-                            }
-                        }
-
                         bool isLambda = operand is LambdaValue;
 
-                        MethodMetadata methodMeta = new MethodMetadata(func.Name, func.Arity, isConstructor, func.Parameters, func.ParametersByRef);
+                        MethodMetadata methodMeta = new MethodMetadata(func.Name, func.Arity, false, func.Parameters, func.ParametersByRef);
                         metadata = new TypeMetadata("function", "function", TypeCategory.Function, func.Arity, isLambda, null, null, null, new[] { methodMeta }, null, func.Parameters, func.ParametersByRef);
                         break;
                     default:

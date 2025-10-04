@@ -39,12 +39,12 @@ namespace Fluence
             mathNamespace.Declare("cos__1", new FunctionSymbol("cos__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Cos(vm.PopStack().AsDouble(vm)));
-            }, ["angle"], mathNamespace));
+            }, mathNamespace, ["angle"]));
 
             mathNamespace.Declare("sin__1", new FunctionSymbol("sin__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Sin(vm.PopStack().AsDouble(vm)));
-            }, ["angle"], mathNamespace));
+            }, mathNamespace, ["angle"]));
 
             mathNamespace.Declare("abs__1", new FunctionSymbol("abs__1", 1, (vm, argCount) =>
             {
@@ -57,44 +57,44 @@ namespace Fluence
                     RuntimeNumberType.Float => new RuntimeValue(Math.Abs(val.FloatValue)),
                     _ => new RuntimeValue(Math.Abs(val.DoubleValue)),
                 };
-            }, ["number"], mathNamespace));
+            }, mathNamespace, ["number"]));
 
             mathNamespace.Declare("acos__1", new FunctionSymbol("acos__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Acos(vm.PopStack().AsDouble(vm)));
-            }, ["value"], mathNamespace));
+            }, mathNamespace, ["value"]));
 
             mathNamespace.Declare("acosh__1", new FunctionSymbol("acosh__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Acosh(vm.PopStack().AsDouble(vm)));
-            }, ["value"], mathNamespace));
+            }, mathNamespace, ["value"]));
 
             mathNamespace.Declare("asin__1", new FunctionSymbol("asin__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Asin(vm.PopStack().AsDouble(vm)));
-            }, ["value"], mathNamespace));
+            }, mathNamespace, ["value"]));
 
             mathNamespace.Declare("asinh__1", new FunctionSymbol("asinh__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Asinh(vm.PopStack().AsDouble(vm)));
-            }, ["value"], mathNamespace));
+            }, mathNamespace, ["value"]));
 
             mathNamespace.Declare("atan__1", new FunctionSymbol("atan__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Atan(vm.PopStack().AsDouble(vm)));
-            }, ["value"], mathNamespace));
+            }, mathNamespace, ["value"]));
 
             mathNamespace.Declare("atan2__2", new FunctionSymbol("atan2__2", 2, (vm, argCount) =>
             {
                 RuntimeValue x = vm.PopStack(); // Note: Atan2(y, x)
                 RuntimeValue y = vm.PopStack();
                 return new RuntimeValue(Math.Atan2(y.AsDouble(vm), x.AsDouble(vm)));
-            }, ["y", "x"], mathNamespace));
+            }, mathNamespace, ["y", "x"]));
 
             mathNamespace.Declare("atanh__1", new FunctionSymbol("atanh__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Atanh(vm.PopStack().AsDouble(vm)));
-            }, ["value"], mathNamespace));
+            }, mathNamespace, ["value"]));
 
             mathNamespace.Declare("ceil__1", new FunctionSymbol("ceil__1", 1, (vm, argCount) =>
             {
@@ -106,7 +106,7 @@ namespace Fluence
                     RuntimeNumberType.Long => val,
                     _ => new RuntimeValue(Math.Ceiling(val.AsDouble(vm))),
                 };
-            }, ["number"], mathNamespace));
+            }, mathNamespace, ["number"]));
 
             mathNamespace.Declare("clamp__3", new FunctionSymbol("clamp__3", 3, (vm, argCount) =>
             {
@@ -120,37 +120,37 @@ namespace Fluence
                     RuntimeNumberType.Float => new RuntimeValue(Math.Clamp(val.FloatValue, min.FloatValue, max.FloatValue)),
                     _ => new RuntimeValue(Math.Clamp(val.DoubleValue, min.DoubleValue, max.DoubleValue)),
                 };
-            }, ["value", "min", "max"], mathNamespace));
+            }, mathNamespace, ["value", "min", "max"]));
 
             mathNamespace.Declare("cosh__1", new FunctionSymbol("cosh__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Cosh(vm.PopStack().AsDouble(vm)));
-            }, ["value"], mathNamespace));
+            }, mathNamespace, ["value"]));
 
             mathNamespace.Declare("exp__1", new FunctionSymbol("exp__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Exp(vm.PopStack().AsDouble(vm)));
-            }, ["number"], mathNamespace));
+            }, mathNamespace, ["number"]));
 
             mathNamespace.Declare("floor__1", new FunctionSymbol("floor__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Floor(vm.PopStack().AsDouble(vm)));
-            }, ["number"], mathNamespace));
+            }, mathNamespace, ["number"]));
 
             mathNamespace.Declare("log__1", new FunctionSymbol("log__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Log(vm.PopStack().AsDouble(vm)));
-            }, ["number"], mathNamespace));
+            }, mathNamespace, ["number"]));
 
             mathNamespace.Declare("log10__1", new FunctionSymbol("log10__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Log10(vm.PopStack().AsDouble(vm)));
-            }, ["number"], mathNamespace));
+            }, mathNamespace, ["number"]));
 
             mathNamespace.Declare("log2__1", new FunctionSymbol("log2__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Log2(vm.PopStack().AsDouble(vm)));
-            }, ["number"], mathNamespace));
+            }, mathNamespace, ["number"]));
 
             mathNamespace.Declare("max__2", new FunctionSymbol("max__2", 2, (vm, argCount) =>
             {
@@ -163,7 +163,7 @@ namespace Fluence
                     RuntimeNumberType.Float => new RuntimeValue(Math.Max(val1.FloatValue, val2.FloatValue)),
                     _ => new RuntimeValue(Math.Max(val1.DoubleValue, val2.DoubleValue)),
                 };
-            }, ["val1", "val2"], mathNamespace));
+            }, mathNamespace, ["val1", "val2"]));
 
             mathNamespace.Declare("min__2", new FunctionSymbol("min__2", 2, (vm, argCount) =>
             {
@@ -176,7 +176,7 @@ namespace Fluence
                     RuntimeNumberType.Float => new RuntimeValue(Math.Min(val1.FloatValue, val2.FloatValue)),
                     _ => new RuntimeValue(Math.Min(val1.DoubleValue, val2.DoubleValue)),
                 };
-            }, ["val1", "val2"], mathNamespace));
+            }, mathNamespace, ["val1", "val2"]));
 
             mathNamespace.Declare("min__3", new FunctionSymbol("min__3", 3, (vm, argCount) =>
             {
@@ -190,7 +190,7 @@ namespace Fluence
                     RuntimeNumberType.Long => new RuntimeValue(Math.Min(Math.Min(val1.LongValue, val2.LongValue), val3.LongValue)),
                     _ => new RuntimeValue(Math.Min(Math.Min(val1.DoubleValue, val2.DoubleValue), val3.DoubleValue)),
                 };
-            }, ["val1", "val2", "val3"], mathNamespace));
+            }, mathNamespace, ["val1", "val2", "val3"]));
 
             mathNamespace.Declare("round__1", new FunctionSymbol("round__1", 1, (vm, argCount) =>
             {
@@ -203,27 +203,27 @@ namespace Fluence
                     RuntimeNumberType.Float => new RuntimeValue(Math.Round(val.FloatValue)),
                     _ => new RuntimeValue(Math.Round(val.DoubleValue)),
                 };
-            }, ["number"], mathNamespace));
+            }, mathNamespace, ["number"]));
 
             mathNamespace.Declare("sinh__1", new FunctionSymbol("sinh__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Sinh(vm.PopStack().AsDouble(vm)));
-            }, ["value"], mathNamespace));
+            }, mathNamespace, ["value"]));
 
             mathNamespace.Declare("sqrt__1", new FunctionSymbol("sqrt__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Sqrt(vm.PopStack().AsDouble(vm)));
-            }, ["number"], mathNamespace));
+            }, mathNamespace, ["number"]));
 
             mathNamespace.Declare("tan__1", new FunctionSymbol("tan__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Tan(vm.PopStack().AsDouble(vm)));
-            }, ["angle"], mathNamespace));
+            }, mathNamespace, ["angle"]));
 
             mathNamespace.Declare("tanh__1", new FunctionSymbol("tanh__1", 1, (vm, argCount) =>
             {
                 return new RuntimeValue(Math.Tanh(vm.PopStack().AsDouble(vm)));
-            }, ["value"], mathNamespace));
+            }, mathNamespace, ["value"]));
         }
     }
 }

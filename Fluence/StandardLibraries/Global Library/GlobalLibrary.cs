@@ -24,44 +24,44 @@ namespace Fluence.Global
             {
                 outputLine("");
                 return nilResult;
-            }, [], globalScope));
+            }, globalScope, []));
 
             globalScope.Declare("printl__1", new FunctionSymbol("printl__1", 1, (vm, argCount) =>
             {
                 RuntimeValue rv = vm.PopStack();
                 outputLine(ConvertRuntimeValueToString(vm, rv));
                 return nilResult;
-            }, ["content"], globalScope));
+            }, globalScope, ["content"]));
 
             globalScope.Declare("print__0", new FunctionSymbol("print__0", 0, (vm, argCount) =>
             {
                 return nilResult;
-            }, [], globalScope));
+            }, globalScope, []));
 
             globalScope.Declare("print__1", new FunctionSymbol("print__1", 1, (vm, argCount) =>
             {
                 RuntimeValue rv = vm.PopStack();
                 output(ConvertRuntimeValueToString(vm, rv));
                 return nilResult;
-            }, ["content"], globalScope));
+            }, globalScope, ["content"]));
 
             globalScope.Declare("input__0", new FunctionSymbol("input__0", 0, (vm, argCount) =>
             {
                 return vm.ResolveStringObjectRuntimeValue(input() ?? "");
-            }, [], globalScope));
+            }, globalScope, []));
 
             globalScope.Declare("readAndClear__0", new FunctionSymbol("readAndClear__0", 0, (vm, argCount) =>
             {
                 Console.ReadLine();
                 Console.Clear();
                 return nilResult;
-            }, [], globalScope));
+            }, globalScope, []));
 
             globalScope.Declare("clear__0", new FunctionSymbol("clear__0", 0, (vm, argCount) =>
             {
                 Console.Clear();
                 return nilResult;
-            }, [], globalScope));
+            }, globalScope, []));
 
             //
             //      ==!!==
@@ -80,7 +80,7 @@ namespace Fluence.Global
 
                 throw vm.ConstructRuntimeException($"Cannot convert value '{arg}' to an integer.");
 
-            }, ["Value"], globalScope));
+            }, globalScope, ["Value"]));
 
             globalScope.Declare("to_double__1", new FunctionSymbol("to_double__1", 1, (vm, argCount) =>
             {
@@ -94,7 +94,7 @@ namespace Fluence.Global
 
                 throw vm.ConstructRuntimeException($"Cannot convert value '{arg}' to a double.");
 
-            }, ["Value"], globalScope));
+            }, globalScope, ["Value"]));
 
             globalScope.Declare("to_long__1", new FunctionSymbol("to_long__1", 1, (vm, argCount) =>
             {
@@ -108,7 +108,7 @@ namespace Fluence.Global
 
                 throw vm.ConstructRuntimeException($"Cannot convert value '{arg}' to a long.");
 
-            }, ["Value"], globalScope));
+            }, globalScope, ["Value"]));
 
             globalScope.Declare("to_float__1", new FunctionSymbol("to_float__1", 1, (vm, argCount) =>
             {
@@ -122,7 +122,7 @@ namespace Fluence.Global
 
                 throw vm.ConstructRuntimeException($"Cannot convert value '{arg}' to a float.");
 
-            }, ["Value"], globalScope));
+            }, globalScope, ["Value"]));
 
             globalScope.Declare("to_string__1", new FunctionSymbol("to_string__1", 1, (vm, argCount) =>
             {
@@ -131,7 +131,7 @@ namespace Fluence.Global
 
                 return vm.ResolveStringObjectRuntimeValue(arg.ToString());
 
-            }, ["Value"], globalScope));
+            }, globalScope, ["Value"]));
 
             globalScope.Declare("to_bool__1", new FunctionSymbol("to_bool__1", 1, (vm, argCount) =>
             {
@@ -144,26 +144,26 @@ namespace Fluence.Global
                 }
 
                 return new RuntimeValue(Convert.ToBoolean(arg.IntValue));
-            }, ["Value"], globalScope));
+            }, globalScope, ["Value"]));
 
             // Other classes.
 
-            foreach (FunctionSymbol item in StringBuilderWrapper.CreateConstructors())
+            foreach (FunctionSymbol item in StringBuilderWrapper.CreateConstructors(globalScope))
             {
                 globalScope.Declare(item.Name, item);
             }
 
-            foreach (FunctionSymbol item in StackWrapper.CreateConstructors())
+            foreach (FunctionSymbol item in StackWrapper.CreateConstructors(globalScope))
             {
                 globalScope.Declare(item.Name, item);
             }
 
-            foreach (FunctionSymbol item in HashSetWrapper.CreateConstructors())
+            foreach (FunctionSymbol item in HashSetWrapper.CreateConstructors(globalScope))
             {
                 globalScope.Declare(item.Name, item);
             }
 
-            foreach (FunctionSymbol item in DictionaryWrapper.CreateConstructors())
+            foreach (FunctionSymbol item in DictionaryWrapper.CreateConstructors(globalScope))
             {
                 globalScope.Declare(item.Name, item);
             }
@@ -175,7 +175,7 @@ namespace Fluence.Global
             {
                 RuntimeValue rv = vm.PopStack();
                 return vm.ResolveStringObjectRuntimeValue(GetRuntimeTypeName(rv));
-            }, ["object"], globalScope));
+            }, globalScope, ["object"]));
         }
 
         private static bool TryConvertToNumeric<T>(ref RuntimeValue value, out T result) where T : struct, INumber<T>

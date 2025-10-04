@@ -609,7 +609,7 @@ namespace Fluence
             }
 
             string parsedName = funcName.EndsWith($"__{arity}", StringComparison.Ordinal) ? funcName : Mangler.Mangle(funcName, arity);
-            FunctionSymbol functionSymbol = new FunctionSymbol(parsedName, arity, -1, nameToken.LineInSourceCode, paramaters, _currentParseState.CurrentScope);
+            FunctionSymbol functionSymbol = new FunctionSymbol(parsedName, arity, -1, nameToken.LineInSourceCode, _currentParseState.CurrentScope, paramaters);
             functionSymbol.SetRefArgs(paramatersByRef);
 
             _lexer.ModifyTokenAt(startTokenIndex + 1, new Token(TokenType.IDENTIFIER, parsedName, nameToken.Literal, nameToken.LineInSourceCode, nameToken.ColumnInSourceCode));

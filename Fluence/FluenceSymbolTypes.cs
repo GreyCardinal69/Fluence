@@ -157,12 +157,12 @@ namespace Fluence
         /// <summary>
         /// The arguments of the function by name.
         /// </summary>
-        internal List<string> Arguments { get; init; }
+        internal List<string>? Arguments { get; init; }
 
         /// <summary>
         /// The arguments of the function passed by reference by name.
         /// </summary>
-        internal HashSet<string> ArgumentsByRef { get; private set; }
+        internal HashSet<string>? ArgumentsByRef { get; private set; }
 
         /// <summary>
         /// Keeps track which namespace the function is defined in.
@@ -182,7 +182,7 @@ namespace Fluence
         /// <param name="name">The name of the intrinsic function.</param>
         /// <param name="arity">The number of arguments the function expects.</param>
         /// <param name="body">The C# delegate that executes the function's logic.</param>
-        internal FunctionSymbol(string name, int arity, IntrinsicMethod body, List<string> arguments = null!, FluenceScope definingScope = null!)
+        internal FunctionSymbol(string name, int arity, IntrinsicMethod body, FluenceScope definingScope, List<string>? arguments = null)
         {
             Name = name;
             Arity = arity;
@@ -199,7 +199,7 @@ namespace Fluence
         /// <param name="name">The name of the function.</param>
         /// <param name="arity">The number of arguments the function expects.</param>
         /// <param name="startAddress">The initial start address (usually -1, resolved later).</param>
-        internal FunctionSymbol(string name, int arity, int startAddress, int lineInSource, List<string> arguments = null!, FluenceScope definingScope = null!)
+        internal FunctionSymbol(string name, int arity, int startAddress, int lineInSource, FluenceScope definingScope, List<string>? arguments = null)
         {
             StartAddressInSource = lineInSource;
             Name = name;

@@ -24,7 +24,7 @@ namespace Fluence.Global
             _instanceMethods["length__0"] = Length;
         }
 
-        internal static FunctionSymbol[] CreateConstructors()
+        internal static FunctionSymbol[] CreateConstructors(FluenceScope scope)
         {
             return [
                 new FunctionSymbol("StringBuilder__0", 0, (vm, argCount) =>
@@ -35,7 +35,7 @@ namespace Fluence.Global
 
                     return new RuntimeValue(wrapper);
 
-                }, new List<string>(), null!),
+                }, scope, []),
 
                 new FunctionSymbol("StringBuilder__1", 1, (vm, argCount) =>
                 {
@@ -61,7 +61,7 @@ namespace Fluence.Global
 
                     return new RuntimeValue(wrapper);
 
-                }, ["int_capacity"], null!),
+                }, scope,["int_capacity"]),
             ];
         }
 

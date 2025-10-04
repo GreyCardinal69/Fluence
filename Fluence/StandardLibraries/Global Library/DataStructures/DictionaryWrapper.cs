@@ -28,7 +28,7 @@ namespace Fluence.Global
             _instanceMethods["to_string__0"] = ToString;
         }
 
-        internal static FunctionSymbol[] CreateConstructors()
+        internal static FunctionSymbol[] CreateConstructors(FluenceScope scope)
         {
             return
             [
@@ -38,7 +38,7 @@ namespace Fluence.Global
                     Wrapper wrapper = new Wrapper(dictInstance, _instanceMethods);
                     return new RuntimeValue(wrapper);
 
-                }, [], null!),
+                }, scope, []),
 
                 new FunctionSymbol("Map__1", 1, (vm, argCount) =>
                 {
@@ -51,7 +51,7 @@ namespace Fluence.Global
                     Wrapper wrapper = new Wrapper(dictInstance, _instanceMethods);
                     return new RuntimeValue(wrapper);
 
-                }, ["int_capacity"], null!)
+                }, scope, ["int_capacity"])
             ];
         }
 

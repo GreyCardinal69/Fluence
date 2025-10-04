@@ -23,7 +23,7 @@ namespace Fluence.Global
             _instanceMethods["empty__0"] = IsEmpty;
         }
 
-        internal static FunctionSymbol[] CreateConstructors()
+        internal static FunctionSymbol[] CreateConstructors(FluenceScope scope)
         {
             return [
                 new FunctionSymbol("Stack__0", 0, (vm, argCount) =>
@@ -34,7 +34,7 @@ namespace Fluence.Global
 
                     return new RuntimeValue(wrapper);
 
-                }, [], null!),
+                }, scope,[]),
 
                 new FunctionSymbol("Stack__1", 1, (vm, argCount) =>
                 {
@@ -51,7 +51,7 @@ namespace Fluence.Global
 
                     return new RuntimeValue(wrapper);
 
-                }, ["int_capacity"], null!),
+                }, scope,["int_capacity"]),
             ];
         }
 

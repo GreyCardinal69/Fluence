@@ -1,5 +1,4 @@
 ﻿using Fluence.RuntimeTypes;
-using static Fluence.FluenceInterpreter;
 
 namespace Fluence
 {
@@ -10,7 +9,7 @@ namespace Fluence
     {
         internal const string NamespaceName = "FluenceIO";
 
-        internal static void Register(FluenceScope ioNamespace, TextOutputMethod outputLine, TextInputMethod input, TextOutputMethod output)
+        internal static void Register(FluenceScope ioNamespace)
         {
             RuntimeValue nilResult = RuntimeValue.Nil;
 
@@ -25,47 +24,47 @@ namespace Fluence
                 (string path, string content) = IntrinsicHelpers.GetTwoStringArgs(vm, "File.write()");
                 File.WriteAllText(path, content);
                 return nilResult;
-            }, ["path", "content"], ioNamespace));
+            }, ioNamespace, ["path", "content"]));
 
             file.StaticIntrinsics.Add("append_text__2", new FunctionSymbol("append_text__2", 2, (vm, argCount) =>
             {
                 (string path, string content) = IntrinsicHelpers.GetTwoStringArgs(vm, "File.append_text()");
                 File.AppendAllText(path, content);
                 return nilResult;
-            }, ["path", "content"], ioNamespace));
+            }, ioNamespace, ["path", "content"]));
 
             file.StaticIntrinsics.Add("move__2", new FunctionSymbol("move__2", 2, (vm, argCount) =>
             {
                 (string newPath, string oldPath) = IntrinsicHelpers.GetTwoStringArgs(vm, "File.move()");
                 File.Move(oldPath, newPath);
                 return nilResult;
-            }, ["old_path", "new_path"], ioNamespace));
+            }, ioNamespace, ["old_path", "new_path"]));
 
             file.StaticIntrinsics.Add("read__1", new FunctionSymbol("read__1", 1, (vm, argCount) =>
             {
                 string path = IntrinsicHelpers.GetStringArg(vm, "File.read()");
                 return vm.ResolveStringObjectRuntimeValue(File.ReadAllText(path));
-            }, ["path"], ioNamespace));
+            }, ioNamespace, ["path"]));
 
             file.StaticIntrinsics.Add("create__1", new FunctionSymbol("create__1", 1, (vm, argCount) =>
             {
                 string path = IntrinsicHelpers.GetStringArg(vm, "File.create()");
                 File.Create(path).Close();
                 return nilResult;
-            }, ["path"], ioNamespace));
+            }, ioNamespace, ["path"]));
 
             file.StaticIntrinsics.Add("delete__1", new FunctionSymbol("delete__1", 1, (vm, argCount) =>
             {
                 string path = IntrinsicHelpers.GetStringArg(vm, "File.delete()");
                 File.Delete(path);
                 return nilResult;
-            }, ["path"], ioNamespace));
+            }, ioNamespace, ["path"]));
 
             file.StaticIntrinsics.Add("exists__1", new FunctionSymbol("exists__1", 1, (vm, argCount) =>
             {
                 string path = IntrinsicHelpers.GetStringArg(vm, "File.exists()");
                 return new RuntimeValue(File.Exists(path));
-            }, ["path"], ioNamespace));
+            }, ioNamespace, ["path"]));
 
             //
             // --- Path Static Struct ---
@@ -76,56 +75,56 @@ namespace Fluence
             pathStruct.StaticIntrinsics.Add("dir_sep_char__0", new FunctionSymbol("dir_sep_char__0", 0, (vm, argCount) =>
             {
                 return vm.ResolveCharObjectRuntimeValue(Path.DirectorySeparatorChar);
-            }, [], ioNamespace));
+            }, ioNamespace, []));
 
             pathStruct.StaticIntrinsics.Add("has_extension__1", new FunctionSymbol("has_extension__1", 1, (vm, argCount) =>
             {
                 string path = IntrinsicHelpers.GetStringArg(vm, "Path.has_extension()");
                 return new RuntimeValue(Path.HasExtension(path));
-            }, ["path"], ioNamespace));
+            }, ioNamespace, ["path"]));
 
             pathStruct.StaticIntrinsics.Add("change_extension__2", new FunctionSymbol("change_extension__2", 2, (vm, argCount) =>
             {
                 (string newExtension, string path) = IntrinsicHelpers.GetTwoStringArgs(vm, "Path.change_extension()");
                 return vm.ResolveStringObjectRuntimeValue(Path.ChangeExtension(path, newExtension));
-            }, ["path", "new_extension"], ioNamespace));
+            }, ioNamespace, ["path", "new_extension"]));
 
             pathStruct.StaticIntrinsics.Add("exists__1", new FunctionSymbol("exists__1", 1, (vm, argCount) =>
             {
                 string path = IntrinsicHelpers.GetStringArg(vm, "Path.exists()");
                 return new RuntimeValue(Path.Exists(path));
-            }, ["path"], ioNamespace));
+            }, ioNamespace, ["path"]));
 
             pathStruct.StaticIntrinsics.Add("get_dir_name__1", new FunctionSymbol("get_dir_name__1", 1, (vm, argCount) =>
             {
                 string path = IntrinsicHelpers.GetStringArg(vm, "Path.get_dir_name()");
                 string dirName = Path.GetDirectoryName(path);
                 return dirName is null ? RuntimeValue.Nil : vm.ResolveStringObjectRuntimeValue(dirName);
-            }, ["path"], ioNamespace));
+            }, ioNamespace, ["path"]));
 
             pathStruct.StaticIntrinsics.Add("get_file_name__1", new FunctionSymbol("get_file_name__1", 1, (vm, argCount) =>
             {
                 string path = IntrinsicHelpers.GetStringArg(vm, "Path.get_file_name()");
                 return vm.ResolveStringObjectRuntimeValue(Path.GetFileName(path));
-            }, ["path"], ioNamespace));
+            }, ioNamespace, ["path"]));
 
             pathStruct.StaticIntrinsics.Add("get_file_name_raw__1", new FunctionSymbol("get_file_name_raw__1", 1, (vm, argCount) =>
             {
                 string path = IntrinsicHelpers.GetStringArg(vm, "Path.get_file_name_raw()");
                 return vm.ResolveStringObjectRuntimeValue(Path.GetFileNameWithoutExtension(path));
-            }, ["path"], ioNamespace));
+            }, ioNamespace, ["path"]));
 
             pathStruct.StaticIntrinsics.Add("get_full_path__1", new FunctionSymbol("get_full_path__1", 1, (vm, argCount) =>
             {
                 string path = IntrinsicHelpers.GetStringArg(vm, "Path.get_full_path()");
                 string fullPath = Path.GetFullPath(path);
                 return fullPath is null ? RuntimeValue.Nil : vm.ResolveStringObjectRuntimeValue(fullPath);
-            }, ["path"], ioNamespace));
+            }, ioNamespace, ["path"]));
 
             pathStruct.StaticIntrinsics.Add("get_temp_path__0", new FunctionSymbol("get_temp_path__0", 0, (vm, argCount) =>
             {
                 return vm.ResolveStringObjectRuntimeValue(Path.GetTempPath());
-            }, [], ioNamespace));
+            }, ioNamespace, []));
 
             //
             // --- Directory Static Struct ---
@@ -138,20 +137,20 @@ namespace Fluence
                 string path = IntrinsicHelpers.GetStringArg(vm, "Dir.create()");
                 Directory.CreateDirectory(path);
                 return nilResult;
-            }, ["path"], ioNamespace));
+            }, ioNamespace, ["path"]));
 
             dir.StaticIntrinsics.Add("delete__1", new FunctionSymbol("delete__1", 1, (vm, argCount) =>
             {
                 string path = IntrinsicHelpers.GetStringArg(vm, "Dir.delete()");
                 Directory.Delete(path);
                 return nilResult;
-            }, ["path"], ioNamespace));
+            }, ioNamespace, ["path"]));
 
             dir.StaticIntrinsics.Add("exists__1", new FunctionSymbol("exists__1", 1, (vm, argCount) =>
             {
                 string path = IntrinsicHelpers.GetStringArg(vm, "Dir.exists()");
                 return new RuntimeValue(Directory.Exists(path));
-            }, ["path"], ioNamespace));
+            }, ioNamespace, ["path"]));
 
             dir.StaticIntrinsics.Add("get_dirs__1", new FunctionSymbol("get_dirs__1", 1, (vm, argCount) =>
             {
@@ -162,7 +161,7 @@ namespace Fluence
                     list.Elements.Add(vm.ResolveStringObjectRuntimeValue(item));
                 }
                 return new RuntimeValue(list);
-            }, ["path"], ioNamespace));
+            }, ioNamespace, ["path"]));
 
             dir.StaticIntrinsics.Add("get_files__1", new FunctionSymbol("get_files__1", 1, (vm, argCount) =>
             {
@@ -173,19 +172,19 @@ namespace Fluence
                     list.Elements.Add(vm.ResolveStringObjectRuntimeValue(item));
                 }
                 return new RuntimeValue(list);
-            }, ["path"], ioNamespace));
+            }, ioNamespace, ["path"]));
 
             dir.StaticIntrinsics.Add("move__2", new FunctionSymbol("move__2", 2, (vm, argCount) =>
             {
                 (string newPath, string path) = IntrinsicHelpers.GetTwoStringArgs(vm, "Dir.move()");
                 Directory.Move(path, newPath);
                 return nilResult;
-            }, ["path", "new_path"], ioNamespace));
+            }, ioNamespace, ["path", "new_path"]));
 
             dir.StaticIntrinsics.Add("get_current__0", new FunctionSymbol("get_current__0", 0, (vm, argCount) =>
             {
                 return vm.ResolveStringObjectRuntimeValue(Directory.GetCurrentDirectory());
-            }, [], ioNamespace));
+            }, ioNamespace, []));
         }
     }
 }

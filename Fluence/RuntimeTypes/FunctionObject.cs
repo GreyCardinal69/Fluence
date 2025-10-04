@@ -35,7 +35,7 @@ namespace Fluence.RuntimeTypes
         internal HashSet<string> ParametersByRef { get; set; }
 
         /// <summary>The lexical scope in which the function was defined, used for resolving non-local variables.</summary>
-        internal FluenceScope? DefiningScope { get; private set; }
+        internal FluenceScope DefiningScope { get; private set; }
 
         /// <summary> A direct reference to the immutable, function symbol that defines this function. </summary>
         internal FunctionSymbol? BluePrint { get; private set; }

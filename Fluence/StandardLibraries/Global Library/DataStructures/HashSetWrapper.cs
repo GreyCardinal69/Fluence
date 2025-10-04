@@ -21,7 +21,7 @@ namespace Fluence.Global
             _instanceMethods["count__0"] = Count;
         }
 
-        internal static FunctionSymbol[] CreateConstructors()
+        internal static FunctionSymbol[] CreateConstructors(FluenceScope scope)
         {
             return [
                 new FunctionSymbol("HashSet__0", 0, (vm, argCount) =>
@@ -32,7 +32,7 @@ namespace Fluence.Global
 
                     return new RuntimeValue(wrapper);
 
-                }, [], null!),
+                }, scope,[]),
 
                 new FunctionSymbol("HashSet__1", 1, (vm, argCount) =>
                 {
@@ -59,7 +59,7 @@ namespace Fluence.Global
 
                     return new RuntimeValue(wrapper);
 
-                }, ["int_capacity/hash_Set"], null!)
+                }, scope,["int_capacity/hash_Set"])
             ];
         }
 

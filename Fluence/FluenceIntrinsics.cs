@@ -28,15 +28,11 @@ namespace Fluence
 
             // Pre-register all known standard libraries.
             _libraryRegistry[FluenceMath.NamespaceName] = FluenceMath.Register;
+            _libraryRegistry[FluenceIO.NamespaceName] = FluenceIO.Register;
 
             _libraryRegistry[FluenceUnsafe.NamespaceName] = (scope) =>
             {
                 FluenceUnsafe.Register(scope, _outputLine, _input, _output);
-            };
-
-            _libraryRegistry[FluenceIO.NamespaceName] = (scope) =>
-            {
-                FluenceIO.Register(scope, _outputLine, _input, _output);
             };
         }
 

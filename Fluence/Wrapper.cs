@@ -39,7 +39,7 @@ namespace Fluence
 
         public override int GetHashCode()
         {
-            var hash = new HashCode();
+            HashCode hash = new HashCode();
             hash.Add(Instance);
             return hash.ToHashCode();
         }

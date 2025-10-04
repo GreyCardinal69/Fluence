@@ -53,7 +53,7 @@ namespace Fluence
             private bool _lexerFinished;
 
             // A reasonable threshold for trimming the buffer.
-            private const int _trimThreshold = 32;
+            private const int _trimThreshold = 16;
 
             internal int TokenCount => _buffer.Count;
 
@@ -94,7 +94,7 @@ namespace Fluence
                     _head++;
                 }
 
-                // Periodically trim the buffer to conserve memory.
+                // Periodically trims the buffer to conserve memory.
                 if (_head >= _trimThreshold)
                 {
                     Compact();
@@ -262,6 +262,9 @@ namespace Fluence
         /// </summary>
         internal Token PeekNextToken() => _tokenBuffer.Peek();
 
+        /// <summary>
+        /// Peeks at the current token in the stream without consuming it.
+        /// </summary>
         internal Token PeekCurrentToken() => _tokenBuffer.Peek(0);
 
         /// <summary>
@@ -280,6 +283,9 @@ namespace Fluence
             }
         }
 
+        /// <summary>
+        /// Replaces the token in the token stream at the given index. Unsafe.
+        /// </summary>
         internal void ModifyTokenAt(int index, Token newToken) => _tokenBuffer.ModifyTokenAt(index, newToken);
 
         /// <summary>
@@ -293,6 +299,11 @@ namespace Fluence
         /// <param name="type">The type of the token</param>
         internal void InsertNextToken(TokenType type) => _tokenBuffer.InsertNextToken(type);
 
+        /// <summary>
+        /// Peeks ahead by a given amount and returns the <see cref="TokenType"/> of the token at that position.
+        /// </summary>
+        /// <param name="n">The count to peek ahead.</param>
+        /// <returns>The <see cref="TokenType"/> at the position.</returns>
         internal TokenType PeekTokenTypeAheadByN(int n) => _tokenBuffer.PeekTokenTypeAheadByN(n);
 
         /// <summary>
@@ -838,34 +849,6 @@ namespace Fluence
             return c;
         }
 
-        internal static string GetCodeLineFromSource(string source, int lineNumber)
-        {
-            if (lineNumber <= 0)
-                return string.Empty;
-
-            ReadOnlySpan<char> span = source.AsSpan();
-            int currentLine = 1;
-            int lineStart = 0;
-
-            for (int i = 0; i < span.Length; i++)
-            {
-                if (span[i] is '\r' or '\n')
-                {
-                    if (currentLine == lineNumber)
-                        return span[lineStart..i].ToString();
-
-                    // Handles \r\n as a single newline.
-                    if (span[i] == '\r' && i + 1 < span.Length && span[i + 1] == '\n')
-                        i++;
-
-                    currentLine++;
-                    lineStart = i + 1;
-                }
-            }
-
-            return currentLine == lineNumber && lineStart < span.Length ? span[lineStart..].ToString() : string.Empty;
-        }
-
         private Token ScanPipe()
         {
             // |>>=
@@ -1058,9 +1041,8 @@ namespace Fluence
             return true;
         }
 
-        private static bool IsIdentifier(char c) => char.IsLetterOrDigit(c) || c is '\u009F' || c is '_';
-
         private char Peek() => _currentPosition >= _sourceLength ? '\0' : _sourceCode[_currentPosition];
+
         private char PeekNext() => _currentPosition + 1 >= _sourceLength ? '\0' : _sourceCode[_currentPosition + 1];
 
         private string ReadNumber()
@@ -1069,8 +1051,6 @@ namespace Fluence
             while (char.IsDigit(Peek())) AdvancePosition();
             return _sourceCode[start.._currentPosition];
         }
-
-        private static bool IsNumeric(char c) => c is >= '0' and <= '9';
 
         private ReadOnlySpan<char> PeekString(int length) => _sourceCode.AsSpan(_currentPosition, length);
 
@@ -1148,11 +1128,43 @@ namespace Fluence
             }
         }
 
-        private Token MakeTokenAndTryAdvance(TokenType type, int len = 0, string text = null!, object lieteral = null!)
+        private Token MakeTokenAndTryAdvance(TokenType type, int len = 0, string text = null!, object literal = null!)
         {
             AdvancePosition(len);
-            return new Token(type, text, lieteral, (ushort)_currentLineBeforeWhiteSpace, (ushort)_currentColumnBeforeWhiteSpace);
+            return new Token(type, text, literal, (ushort)_currentLineBeforeWhiteSpace, (ushort)_currentColumnBeforeWhiteSpace);
         }
+
+        internal static string GetCodeLineFromSource(string source, int lineNumber)
+        {
+            if (lineNumber <= 0)
+                return string.Empty;
+
+            ReadOnlySpan<char> span = source.AsSpan();
+            int currentLine = 1;
+            int lineStart = 0;
+
+            for (int i = 0; i < span.Length; i++)
+            {
+                if (span[i] is '\r' or '\n')
+                {
+                    if (currentLine == lineNumber)
+                        return span[lineStart..i].ToString();
+
+                    // Handles \r\n as a single newline.
+                    if (span[i] == '\r' && i + 1 < span.Length && span[i + 1] == '\n')
+                        i++;
+
+                    currentLine++;
+                    lineStart = i + 1;
+                }
+            }
+
+            return currentLine == lineNumber && lineStart < span.Length ? span[lineStart..].ToString() : string.Empty;
+        }
+
+        private static bool IsNumeric(char c) => c is >= '0' and <= '9';
+
+        private static bool IsIdentifier(char c) => char.IsLetterOrDigit(c) || c is '\u009F' || c is '_';
 
         private static bool IsWhiteSpace(char c) => c is ' ' or '\t';
     }

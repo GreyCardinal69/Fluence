@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-namespace Fluence
+﻿namespace Fluence
 {
     /// <summary>
     /// Represents a single lexical token from a Fluence script.

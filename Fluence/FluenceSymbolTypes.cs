@@ -14,18 +14,14 @@ namespace Fluence
     /// </summary>
     internal sealed record class VariableSymbol : Symbol
     {
-        /// <summary>
-        /// The name of the variable.
-        /// </summary>
+        /// <summary>The name of the variable.</summary>
         internal string Name { get; init; }
 
-        /// <summary>
-        /// The value of the variable.
-        /// </summary>
-        internal Value Value { get; set; }
+        /// <summary>The value of the variable.</summary>
+        internal Value Value { get; init; }
 
         /// <summary>
-        /// Indicates that the variable is marked as 'solid' readonly variable.
+        /// Indicates that the variable is marked as 'solid' as in, a readonly variable.
         /// </summary>
         internal bool IsReadonly { get; init; }
 
@@ -38,10 +34,7 @@ namespace Fluence
 
         internal override string ToFluenceString() => $"VariableSymbol: {Name}{Value}";
 
-        public override string ToString()
-        {
-            return $"VariableSymbol: {Name}{Value}";
-        }
+        public override string ToString() => $"VariableSymbol: {Name}{Value}";
     }
 
     /// <summary>
@@ -49,9 +42,7 @@ namespace Fluence
     /// </summary>
     internal sealed record class EnumSymbol : Symbol
     {
-        /// <summary>
-        /// The name of the enum.
-        /// </summary>
+        /// <summary>The name of the enum.</summary>
         internal string Name { get; init; }
 
         /// <summary>
@@ -64,10 +55,9 @@ namespace Fluence
             Name = name;
         }
 
-        internal override string ToFluenceString()
-        {
-            return $"<internal: enum_symbol>";
-        }
+        internal override string ToFluenceString() => $"<internal: enum_symbol>";
+
+        public override string ToString() => $"EnumSymbol: {Name}-{Members}";
     }
 
     /// <summary>
@@ -75,24 +65,16 @@ namespace Fluence
     /// </summary>
     internal sealed record class StructSymbol : Symbol
     {
-        /// <summary>
-        /// The name of the struct.
-        /// </summary>
+        /// <summary>The name of the struct.</summary>
         internal string Name { get; init; }
 
-        /// <summary>
-        /// The scope the struct belongs to.
-        /// </summary>
+        /// <summary>The scope the struct belongs to.</summary>
         internal FluenceScope Scope { get; init; }
 
-        /// <summary>
-        /// The list of declared field names.
-        /// </summary>
+        /// <summary>The list of declared field names.</summary>
         internal List<string> Fields { get; } = new();
 
-        /// <summary>
-        /// The static and solid fields of a struct.
-        /// </summary>
+        /// <summary>The static and solid fields of a struct.</summary>
         internal Dictionary<string, RuntimeValue> StaticFields { get; } = new();
 
         /// <summary>
@@ -122,25 +104,15 @@ namespace Fluence
         /// </summary>
         internal Dictionary<string, FunctionValue> Constructors { get; } = new();
 
-        internal StructSymbol()
-        {
-        }
-
         internal StructSymbol(string name, FluenceScope scope)
         {
             Name = name;
             Scope = scope;
         }
 
-        public override string ToString()
-        {
-            return $"StructSymbol<{Name}>";
-        }
+        internal override string ToFluenceString() => $"<internal: struct_symbol>";
 
-        internal override string ToFluenceString()
-        {
-            return $"<internal: struct_symbol>";
-        }
+        public override string ToString() => $"StructSymbol<{Name}>";
     }
 
     /// <summary>
@@ -154,9 +126,7 @@ namespace Fluence
     /// </summary>
     internal sealed record class FunctionSymbol : Symbol
     {
-        /// <summary>
-        /// The name of the function.
-        /// </summary>
+        /// <summary>The name of the function.</summary>
         internal string Name { get; init; }
 
         /// <summary>
@@ -182,7 +152,7 @@ namespace Fluence
         /// <summary>
         /// If this is an intrinsic function, gets the C# delegate that implements its logic.
         /// </summary>
-        internal IntrinsicMethod IntrinsicBody { get; init; }
+        internal IntrinsicMethod? IntrinsicBody { get; init; }
 
         /// <summary>
         /// The arguments of the function by name.
@@ -200,18 +170,11 @@ namespace Fluence
         internal FluenceScope DefiningScope { get; init; }
 
         /// <summary>
-        /// The struct the function is defined in, if in any.
-        /// </summary>
-        internal StructSymbol Class { get; private set; }
-
-        /// <summary>
         /// Sets the bytecode start address for this function. Called by the parser during the second pass.
         /// </summary>
         internal void SetStartAddress(int addr) => StartAddress = addr;
 
         internal void SetRefArgs(HashSet<string> refArgs) => ArgumentsByRef = refArgs;
-
-        internal void SetClass(StructSymbol structSymbol) => Class = structSymbol;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="FunctionSymbol"/> class for a native C# intrinsic.
@@ -223,7 +186,7 @@ namespace Fluence
         {
             Name = name;
             Arity = arity;
-            StartAddress = -1; // Special address for intrinsics
+            StartAddress = -1; // Special address for intrinsics.
             IsIntrinsic = true;
             IntrinsicBody = body;
             Arguments = arguments;
@@ -247,15 +210,12 @@ namespace Fluence
             DefiningScope = definingScope;
         }
 
+        internal override string ToFluenceString() => $"<internal: function_symbol>";
+
         public override string ToString()
         {
             string args = (Arguments == null || Arguments.Count == 0) ? "None" : string.Join(",", Arguments);
             return $"FunctionSymbol: {Name}, Intrinsic:{IsIntrinsic}, {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} args: {args}, LocationInSource: {StartAddressInSource}.";
-        }
-
-        internal override string ToFluenceString()
-        {
-            return $"<internal: function_symbol>";
         }
     }
 }

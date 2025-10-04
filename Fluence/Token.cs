@@ -1,4 +1,6 @@
-﻿namespace Fluence
+﻿using System.Runtime.InteropServices;
+
+namespace Fluence
 {
     /// <summary>
     /// Represents a single lexical token from a Fluence script.
@@ -163,7 +165,7 @@
             /// An internal token representing a physical newline. Used by the lexer for accurate
             /// line counting but removed before the parsing phase.
             /// </summary>
-            EOL_LEXER,
+            NEW_LINE,
 
             /// <summary>Represents the end of the input file.</summary>
             EOF
@@ -250,20 +252,20 @@
         internal readonly object Literal;
 
         // Line and Column indexes are stored as a short, this means that code length of a file
-        // Is limited to 32,767 lines, which is more than a reasonable amount.
+        // Is limited to 65,535 lines, which is more than a reasonable amount.
 
         /// <summary>
         /// Stores the line location of the token in the original lexer stream, for debugging and better exception context.
         /// </summary>
-        internal readonly short LineInSourceCode;
+        internal readonly ushort LineInSourceCode;
 
         /// <summary>
         /// Stores the column location of the token in the original lexer stream, for debugging and better exception context.
         /// </summary>
-        internal readonly short ColumnInSourceCode;
+        internal readonly ushort ColumnInSourceCode;
 
         /// <summary>A shared, single instance of the End-Of-Line-Lexer token.</summary>
-        internal static readonly Token EOL_LEXER = new Token(TokenType.EOL_LEXER);
+        internal static readonly Token NEW_LINE = new Token(TokenType.NEW_LINE);
 
         /// <summary>A shared, single instance of the End-of-File token.</summary>
         internal static readonly Token EOF = new Token(TokenType.EOF);
@@ -274,7 +276,7 @@
         /// <param name="type">The type of the token.</param>
         /// <param name="text">The raw text of the token.</param>
         /// <param name="literal">The literal value, if any.</param>
-        internal Token(TokenType type = TokenType.UNKNOWN, string text = "", object literal = null!, short line = -1, short column = -1)
+        internal Token(TokenType type = TokenType.UNKNOWN, string text = "", object literal = null!, ushort line = 0, ushort column = 0)
         {
             Type = type;
             Text = text;

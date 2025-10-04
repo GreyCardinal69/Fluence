@@ -29,15 +29,19 @@ namespace Fluence
             return _methods.TryGetValue(name, out method!);
         }
 
-        public override string ToString()
-        {
-            return Instance.ToString();
-        }
+        public override string ToString() => Instance.ToString();
 
         public override bool Equals(object? obj)
         {
             if (obj == null) return false;
             return ((Wrapper)obj).Instance.Equals(Instance);
+        }
+
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(Instance);
+            return hash.ToHashCode();
         }
     }
 }

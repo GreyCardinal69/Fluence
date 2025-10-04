@@ -144,7 +144,7 @@ namespace Fluence
 
             internal void RemoveLexerEOLS()
             {
-                _buffer.RemoveAll(token => token.Type == TokenType.EOL_LEXER);
+                _buffer.RemoveAll(token => token.Type == TokenType.NEW_LINE);
             }
 
             /// <summary>
@@ -549,7 +549,7 @@ namespace Fluence
                     }
                     AdvanceCurrentLine();
                     AdvancePosition();
-                    return EOL_LEXER;
+                    return NEW_LINE;
             }
 
             // Other cases done individually.
@@ -985,22 +985,22 @@ namespace Fluence
                 {
                     // We matched '<n?|'.
                     // Only assign the number as text/literal, the rest of the operator is in the TokenType.
-                    return new Token(TokenType.OPTIONAL_ASSIGN_N, null!, n, (short)_currentLine, (short)_currentColumn);
+                    return new Token(TokenType.OPTIONAL_ASSIGN_N, null!, n, (ushort)_currentLine, (ushort)_currentColumn);
                 }
                 if (Match("|"))
                 {
-                    return new Token(TokenType.CHAIN_ASSIGN_N, null!, n, (short)_currentLine, (short)_currentColumn);
+                    return new Token(TokenType.CHAIN_ASSIGN_N, null!, n, (ushort)_currentLine, (ushort)_currentColumn);
                 }
 
                 // <n!|
                 if (Match("!|"))
                 {
-                    return new Token(TokenType.CHAIN_N_UNIQUE_ASSIGN, null!, n, (short)_currentLine, (short)_currentColumn);
+                    return new Token(TokenType.CHAIN_N_UNIQUE_ASSIGN, null!, n, (ushort)_currentLine, (ushort)_currentColumn);
                 }
                 // <n!?|
                 if (Match("!?|"))
                 {
-                    return new Token(TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN, null!, n, (short)_currentLine, (short)_currentColumn);
+                    return new Token(TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN, null!, n, (ushort)_currentLine, (ushort)_currentColumn);
                 }
 
                 string initialLineContent = GetCodeLineFromSource(_sourceCode, _currentLine).TrimStart();
@@ -1151,7 +1151,7 @@ namespace Fluence
         private Token MakeTokenAndTryAdvance(TokenType type, int len = 0, string text = null!, object lieteral = null!)
         {
             AdvancePosition(len);
-            return new Token(type, text, lieteral, (short)_currentLineBeforeWhiteSpace, (short)_currentColumnBeforeWhiteSpace);
+            return new Token(type, text, lieteral, (ushort)_currentLineBeforeWhiteSpace, (ushort)_currentColumnBeforeWhiteSpace);
         }
 
         private static bool IsWhiteSpace(char c) => c is ' ' or '\t';

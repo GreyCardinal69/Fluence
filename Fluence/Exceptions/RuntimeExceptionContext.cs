@@ -38,11 +38,11 @@ namespace Fluence
                             foundMatch = true;
                             stringBuilder.AppendLine($"Runtime Error: Function \"{deMangledFunc}\" does not accept {deMangledArity} argument(s).");
                             stringBuilder.AppendLine($"{leftPad}│\tAvailable signatures are:");
-                            stringBuilder.AppendLine($"{leftPad}│\t\t- func {Mangler.Demangle(func.Name)}({string.Join(", ", func.Arguments)})");
+                            stringBuilder.AppendLine($"{leftPad}│\t\t- func {Mangler.Demangle(func.Name)}({(func.Arguments is not null ? string.Join(", ", func.Arguments) : "None")})");
                         }
                         else
                         {
-                            stringBuilder.AppendLine($"{leftPad}│\t\t- func {Mangler.Demangle(func.Name)}({string.Join(", ", func.Arguments)})");
+                            stringBuilder.AppendLine($"{leftPad}│\t\t- func {Mangler.Demangle(func.Name)}({(func.Arguments is not null ? string.Join(", ", func.Arguments) : "None")})");
                         }
                     }
                 }

@@ -676,85 +676,26 @@ namespace Fluence
             Value indexOperand = insn.Rhs2;
             TempValue destRegister = (TempValue)insn.Lhs;
 
-            if (collection.ObjectReference is ListObject list)
+            if (collection.ObjectReference is ListObject)
             {
-                if (collectionOperand is VariableValue collVar && indexOperand is VariableValue indexVar)
+                string collectionName = collectionOperand is VariableValue var ? var.Name : ((TempValue)collectionOperand).TempName;
+                string indexName = indexOperand is VariableValue var2 ? var2.Name : ((TempValue)indexOperand).TempName;
+
+                return (instruction, vm) =>
                 {
-                    string collName = collVar.Name;
-                    string indexName = indexVar.Name;
+                    ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collectionName);
+                    ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
 
-                    return (instruction, vm) =>
+                    int idx = indexRef.IntValue;
+
+                    ListObject listRef = (ListObject)collRef.ObjectReference;
+
+                    if ((uint)idx < (uint)listRef!.Elements.Count)
                     {
-                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
-                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
-
-                        int idx = indexRef.IntValue;
-                        if (idx >= 0 && idx < list.Elements.Count)
-                        {
-                            vm.SetRegister(destRegister, list.Elements[idx]);
-                        }
-                        else { vm.ConstructAndThrowException("Index out of range."); }
-                    };
-                }
-
-                if (collectionOperand is TempValue collVar5 && indexOperand is VariableValue indexVar5)
-                {
-                    string collName = collVar5.TempName;
-                    string indexName = indexVar5.Name;
-
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
-                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
-
-                        int idx = indexRef.IntValue;
-                        if (idx >= 0 && idx < list.Elements.Count)
-                        {
-                            vm.SetRegister(destRegister, list.Elements[idx]);
-                        }
-                        else { vm.ConstructAndThrowException("Index out of range."); }
-                    };
-                }
-
-                if (collectionOperand is TempValue collVar6 && indexOperand is TempValue indexVar6)
-                {
-                    string collName = collVar6.TempName;
-                    string indexName = indexVar6.TempName;
-
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
-                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
-
-                        int idx = indexRef.IntValue;
-                        if (idx >= 0 && idx < list.Elements.Count)
-                        {
-                            vm.SetRegister(destRegister, list.Elements[idx]);
-                        }
-                        else { vm.ConstructAndThrowException("Index out of range."); }
-                    };
-                }
-
-                if (collectionOperand is VariableValue collVar2 && indexOperand is TempValue indextemp)
-                {
-                    string collName = collVar2.Name;
-                    string indexName = indextemp.TempName;
-
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
-                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
-
-                        int idx = indexRef.IntValue;
-                        if (idx >= 0 && idx < list.Elements.Count)
-                        {
-                            vm.SetRegister(destRegister, list.Elements[idx]);
-                        }
-                        else { vm.ConstructAndThrowException("Index out of range."); }
-                    };
-                }
-
-                return null;
+                        vm.SetRegister(destRegister, listRef.Elements[idx]);
+                    }
+                    else { vm.ConstructAndThrowException("Index out of range."); }
+                };
             }
 
             // If we get here then we are accessing an element of a string.

@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace Fluence.Fluence.Exceptions
+namespace Fluence.Exceptions
 {
     /// <summary>
     /// Provides context for an error that occurred during the lexing phase.

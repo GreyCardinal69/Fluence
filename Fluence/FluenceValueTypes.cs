@@ -112,10 +112,11 @@ namespace Fluence
             };
         }
 
-        /// <summary>
-        /// Called by the optimizer after merging instructions, primarily for function start indecies.
-        /// </summary>
-        internal static NumberValue NewIntFromValue(object newValue) => new NumberValue(newValue, NumberType.Integer);
+        internal void ReAssign(object newValue)
+        {
+            Value = newValue;
+            AssignNumberType(newValue);
+        }
 
         internal static NumberValue FromToken(Token token)
         {

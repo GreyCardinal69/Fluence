@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace Fluence
+namespace Fluence.Exceptions
 {
     /// <summary>
     /// The base class for all exceptions thrown by the Fluence VM.

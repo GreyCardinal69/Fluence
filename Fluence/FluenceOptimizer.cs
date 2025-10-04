@@ -261,7 +261,7 @@ namespace Fluence
 
                 if (IsJumpInstruction(insn.Instruction) && insn.Lhs is NumberValue targetAddr)
                 {
-                    targetAddr.ReAssign(MapAddr((int)targetAddr.Value));
+                    insn.Lhs = NumberValue.NewIntFromValue(MapAddr((int)targetAddr.Value));
                 }
                 if (insn.Rhs is FunctionValue fvRhs) PatchFunctionValue(fvRhs);
                 if (insn.Rhs is LambdaValue lambda) PatchFunctionValue(lambda.Function);

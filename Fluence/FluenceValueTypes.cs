@@ -1,4 +1,4 @@
-﻿using Fluence.RuntimeTypes;
+﻿using System.Globalization;
 
 namespace Fluence
 {
@@ -8,11 +8,6 @@ namespace Fluence
     /// </summary>
     internal abstract record class Value
     {
-        internal virtual object GetValue()
-        {
-            return null!;
-        }
-
         /// <summary>
         /// Provides a user-facing string representation of the value, as it would appear
         /// when printed within the Fluence language itself.
@@ -23,7 +18,6 @@ namespace Fluence
     /// <summary>Represents a single character literal.</summary>
     internal sealed record class CharValue(char Value) : Value
     {
-        internal override object GetValue() => Value;
         internal override string ToFluenceString() => Value.ToString();
         public override string ToString() => $"CharValue: {Value}";
     }
@@ -31,11 +25,12 @@ namespace Fluence
     /// <summary>Represents a string literal.</summary>
     internal sealed record class StringValue(string Value) : Value
     {
-        internal override object GetValue() => Value;
         internal override string ToFluenceString() => Value;
 
         public override string ToString()
         {
+            if (string.IsNullOrEmpty(Value)) return "StringValue: \"\"";
+
             // First 15 chars are enough.
             string end = Value.Length > 15 ? "...\"" : "\"";
             return $"StringValue: \"{Value[..Math.Min(15, Value.Length)]}{end}";
@@ -55,7 +50,6 @@ namespace Fluence
             Value = value;
         }
 
-        internal override object GetValue() => Value;
         internal override string ToFluenceString() => Value ? "true" : "false";
         public override string ToString() => $"BooleanValue: {Value}";
     }
@@ -65,7 +59,6 @@ namespace Fluence
     {
         internal static readonly NilValue NilInstance = new NilValue();
 
-        internal override object GetValue() => null!;
         internal override string ToFluenceString() => "nil";
         public override string ToString() => $"NilValue";
     }
@@ -109,51 +102,49 @@ namespace Fluence
 
         private void AssignNumberType(object literal)
         {
-            if (literal is int)
+            Type = literal switch
             {
-                Type = NumberType.Integer;
-                return;
-            }
-
-            if (literal is float) Type = NumberType.Float;
-            if (literal is double) Type = NumberType.Double;
-            if (literal is long) Type = NumberType.Long;
+                int => NumberType.Integer,
+                float => NumberType.Float,
+                double => NumberType.Double,
+                long => NumberType.Long,
+                _ => NumberType.Double,
+            };
         }
 
-        internal void ReAssign(object newValue)
-        {
-            Value = newValue;
-            AssignNumberType(newValue);
-        }
+        /// <summary>
+        /// Called by the optimizer after merging instructions, primarily for function start indecies.
+        /// </summary>
+        internal static NumberValue NewIntFromValue(object newValue) => new NumberValue(newValue, NumberType.Integer);
 
         internal static NumberValue FromToken(Token token)
         {
-            string lexeme = token.Text;
-            if (lexeme.EndsWith('f') && float.TryParse(lexeme[..^1], out float floatVal))
+            ReadOnlySpan<char> lexemeSpan = token.Text.AsSpan();
+
+            if (lexemeSpan.EndsWith("f", StringComparison.OrdinalIgnoreCase) && float.TryParse(lexemeSpan[..^1], out float floatVal))
             {
                 return new NumberValue(floatVal, NumberType.Float);
             }
-            if (lexeme.Contains('.', StringComparison.OrdinalIgnoreCase) && double.TryParse(lexeme, out double doubleVal))
+            if ((lexemeSpan.Contains('.') || lexemeSpan.Contains('e') || lexemeSpan.Contains('E')) && double.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleVal))
             {
                 return new NumberValue(doubleVal, NumberType.Double);
             }
-            if (int.TryParse(lexeme, out int intVal))
+            if (int.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out int intVal))
             {
                 return new NumberValue(intVal, NumberType.Integer);
             }
-            if (long.TryParse(lexeme, out long longVal))
+            if (long.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out long longVal))
             {
                 return new NumberValue(longVal, NumberType.Long);
             }
-            if (double.TryParse(lexeme, out double fallbackVal))
+            if (double.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out double fallbackVal))
             {
                 return new NumberValue(fallbackVal, NumberType.Double);
             }
-            throw new FormatException($"Invalid number format: '{lexeme}'");
+            throw new FormatException($"Invalid number format: '{lexemeSpan}'");
         }
 
-        internal override object GetValue() => Value;
-        internal override string ToFluenceString() => Value.ToString()!;
+        internal override string ToFluenceString() => Value.ToString();
         public override string ToString() => $"NumberValue ({Type}): {Value}";
     }
 
@@ -172,15 +163,8 @@ namespace Fluence
     /// <param name="Reference">The variable to pass by reference.</param>
     internal sealed record class ReferenceValue(VariableValue Reference) : Value
     {
-        internal override string ToFluenceString()
-        {
-            return $"<internal: reference_value__{Reference}";
-        }
-
-        public override string ToString()
-        {
-            return $"ReferenceValue: {Reference}";
-        }
+        internal override string ToFluenceString() => $"<internal: reference_value__{Reference}";
+        public override string ToString() => $"ReferenceValue: {Reference}";
     }
 
     /// <summary>
@@ -227,16 +211,12 @@ namespace Fluence
     /// <summary>A descriptor for a broadcast call template, used in chain assignments.</summary>
     internal sealed record class BroadcastCallTemplate : Value
     {
-        /// <summary>
-        /// The function to be called.
-        /// </summary>
+        /// <summary>The function to be called.</summary>
         internal Value Callable { get; init; }
 
         internal List<Value> Arguments { get; init; }
 
-        /// <summary>
-        /// The underscore used in pipes.
-        /// </summary>
+        /// <summary>The underscore used in pipes.</summary>
         internal int PlaceholderIndex { get; init; }
 
         public BroadcastCallTemplate(Value callable, List<Value> args, int placeholderIndex)
@@ -266,47 +246,6 @@ namespace Fluence
     }
 
     /// <summary>
-    /// Represents a simple list.
-    /// </summary>
-    internal sealed record class ListValue : Value
-    {
-        internal List<Value> Elements { get; init; }
-
-        internal ListValue()
-        {
-            Elements = new List<Value>();
-        }
-
-        internal ListValue(List<Value> elements)
-        {
-            Elements = elements;
-        }
-
-        /// <summary>
-        /// Provides a user-friendly string representation of the list.
-        /// </summary>
-        /// <returns>A string in the format "[element1, element2, ...]".</returns>
-        public override string ToString()
-        {
-            const int maxElementsToShow = 20;
-            IEnumerable<Value> elementsToShow = Elements.Take(maxElementsToShow);
-            string formattedElements = string.Join(", ", elementsToShow);
-
-            if (Elements.Count > maxElementsToShow)
-            {
-                formattedElements += $", ... ({Elements.Count - maxElementsToShow} more)";
-            }
-
-            return $"[{formattedElements}]";
-        }
-
-        internal override string ToFluenceString()
-        {
-            return $"{string.Join(",", Elements)}";
-        }
-    }
-
-    /// <summary>
     /// Represents a lambda function, holding a reference to its function body.
     /// </summary>
     /// <param name="Function">The function body of the lambda.</param>
@@ -319,14 +258,10 @@ namespace Fluence
     /// <summary>Represents a function's compile-time blueprint, including its bytecode address or native implementation.</summary>
     internal sealed record class FunctionValue : Value
     {
-        /// <summary>
-        /// The name of the function.
-        /// </summary>
+        /// <summary>The name of the function.</summary>
         internal string Name { get; private set; }
 
-        /// <summary>
-        /// The number of parameters the function expects.
-        /// </summary>
+        /// <summary>The number of parameters the function expects.</summary>
         internal int Arity { get; init; }
 
         /// <summary>
@@ -334,15 +269,13 @@ namespace Fluence
         /// </summary>
         internal int StartAddress { get; private set; }
 
-        /// <summary>
-        /// The arguments of the function by name.
-        /// </summary>
-        internal List<string> Arguments { get; init; }
+        /// <summary>The arguments of the function by name.</summary>
+        internal List<string>? Arguments { get; init; }
 
         /// <summary>
         /// The arguments of the function passed by reference by name.
         /// </summary>
-        internal HashSet<string> ArgumentsByRef { get; init; }
+        internal HashSet<string>? ArgumentsByRef { get; init; }
 
         /// <summary>
         /// The C# intrinsic body of the function, if it is intrinsic.
@@ -350,25 +283,14 @@ namespace Fluence
         internal readonly IntrinsicMethod IntrinsicBody;
 
         /// <summary>
-        /// Is the function intrinsic?
-        /// </summary>
-        internal bool IsIntrinsic { get; init; }
-
-        /// <summary>
         /// Sets the bytecode start address for this function. Called by the parser during the second pass.
         /// </summary>
         internal int StartAddressInSource { get; init; }
 
-        /// <summary>
-        /// The scope (namespace) the function belongs to.
-        /// </summary>
+        /// <summary>The scope (namespace) the function belongs to.</summary>
         internal FluenceScope FunctionScope { get; private set; }
 
-        internal FunctionValue()
-        {
-        }
-
-        internal FunctionValue(string name, int arity, int startAddress, int lineInSource, List<string> arguments = null!, HashSet<string> argsByRef = null!)
+        internal FunctionValue(string name, int arity, int startAddress, int lineInSource, List<string>? arguments = null, HashSet<string>? argsByRef = null)
         {
             Name = name;
             Arity = arity;
@@ -376,25 +298,6 @@ namespace Fluence
             Arguments = arguments;
             ArgumentsByRef = argsByRef;
             StartAddressInSource = lineInSource;
-        }
-
-        public FunctionValue(string name, int arity, IntrinsicMethod body)
-        {
-            Name = name;
-            Arity = arity;
-            StartAddress = -1;
-            IsIntrinsic = true;
-            IntrinsicBody = body;
-        }
-
-        public FunctionValue(string name, int arity, IntrinsicMethod body, List<string> args)
-        {
-            Name = name;
-            Arity = arity;
-            StartAddress = -1;
-            IsIntrinsic = true;
-            IntrinsicBody = body;
-            Arguments = args;
         }
 
         internal void SetScope(FluenceScope scope) => FunctionScope = scope;
@@ -438,6 +341,9 @@ namespace Fluence
     internal sealed record class VariableValue : Value
     {
         internal string Name { get; init; }
+
+        // Whether it is readonly can't always be identified in the parser at the point of creation.
+        // Hence we keep this as mutable.
         internal bool IsReadOnly { get; set; }
 
         internal VariableValue(string identifierValue, bool readOnly = false)
@@ -464,26 +370,7 @@ namespace Fluence
             Value = value;
         }
 
-        internal override object GetValue() => Value;
         internal override string ToFluenceString() => $"{EnumTypeName}.{MemberName}";
         public override string ToString() => $"EnumValue: {EnumTypeName}.{MemberName}";
-    }
-
-    /// <summary>
-    /// Represents a struct instance.
-    /// </summary>
-    internal sealed record class StructValue : Value
-    {
-        internal StructSymbol Struct { get; init; }
-        internal Dictionary<string, RuntimeValue> Fields { get; init; }
-
-        internal StructValue(StructSymbol structSym, Dictionary<string, RuntimeValue> fields)
-        {
-            Struct = structSym;
-            Fields = fields;
-        }
-
-        internal override string ToFluenceString() => $"<internal: struct_value>";
-        public override string ToString() => $"{Struct} + {Fields}";
     }
 }

@@ -285,6 +285,11 @@ namespace Fluence
                 return left.IntValue == right.IntValue;
             }
 
+            if (left.Type == RuntimeValueType.Nil & right.Type == RuntimeValueType.Nil)
+            {
+                return true;
+            }
+
             return left.Equals(right);
         }
 
@@ -302,11 +307,11 @@ namespace Fluence
                 return null;
             }
 
-            var lhsOperand = insn.Rhs;
-            var rhsOperand = insn.Rhs2;
+            Value lhsOperand = insn.Rhs;
+            Value rhsOperand = insn.Rhs2;
             string leftName = null;
             string rightName = null;
-            string varName  = null;
+            string varName = null;
 
             if (insn.Lhs is TempValue destTemp)
             {
@@ -335,7 +340,7 @@ namespace Fluence
                         ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                         ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                        var result = opFunction(vm, val1, val2);
+                        RuntimeValue result = opFunction(vm, val1, val2);
                         vm.SetRegister(destTemp, result);
                     };
                 }
@@ -350,7 +355,7 @@ namespace Fluence
                         ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                         ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                        var result = opFunction(vm, val1, val2);
+                        RuntimeValue result = opFunction(vm, val1, val2);
                         vm.SetRegister(destTemp, result);
                     };
                 }
@@ -378,7 +383,7 @@ namespace Fluence
                     {
                         ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
 
-                        var result = opFunction(vm, val1, vm.GetRuntimeValue(num2));
+                        RuntimeValue result = opFunction(vm, val1, vm.GetRuntimeValue(num2));
                         vm.SetRegister(destTemp, result);
                     };
                 }
@@ -391,7 +396,7 @@ namespace Fluence
                     {
                         ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                        var result = opFunction(vm, val1, right);
+                        RuntimeValue result = opFunction(vm, val1, right);
                         vm.SetRegister(destTemp, result);
                     };
                 }
@@ -458,7 +463,7 @@ namespace Fluence
                         ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                         ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                        var result = opFunction(vm, val1, val2);
+                        RuntimeValue result = opFunction(vm, val1, val2);
                         vm.SetVariable(destVar, result);
                     };
                 }
@@ -473,7 +478,7 @@ namespace Fluence
                         ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
                         ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
 
-                        var result = opFunction(vm, val1, val2);
+                        RuntimeValue result = opFunction(vm, val1, val2);
                         vm.SetVariable(destVar, result);
                     };
                 }
@@ -501,7 +506,7 @@ namespace Fluence
                     {
                         ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
 
-                        var result = opFunction(vm, val1, vm.GetRuntimeValue(num2));
+                        RuntimeValue result = opFunction(vm, val1, vm.GetRuntimeValue(num2));
                         vm.SetVariable(destVar, result);
                     };
                 }
@@ -514,7 +519,7 @@ namespace Fluence
                     {
                         ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
 
-                        var result = opFunction(vm, val1, right);
+                        RuntimeValue result = opFunction(vm, val1, right);
                         vm.SetVariable(destVar, result);
                     };
                 }
@@ -825,27 +830,36 @@ namespace Fluence
             TempValue iteratorReg = (TempValue)insn.Lhs;
             TempValue valueReg = (TempValue)insn.Rhs;
             TempValue continueFlagReg = (TempValue)insn.Rhs2;
-            RuntimeValue iterVal = vm.CurrentRegisters[iteratorReg.TempName];
 
-            if (iterator.Iterable is RangeObject range && iterVal.ObjectReference is IteratorObject iter && iter.Iterable is RangeObject)
+            if (iterator.Iterable is RangeObject)
             {
-                int start = range.Start.IntValue;
-                int end = range.End.IntValue;
-                int step = start <= end ? 1 : -1;
-
                 return (instruction, vm) =>
                 {
-                    int currentValue = start + iter.CurrentIndex;
-                    if (start <= end ? currentValue <= end : currentValue >= end)
+                    ref RuntimeValue iterVal = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, iteratorReg.TempName);
+
+                    if (iterVal.ObjectReference is IteratorObject iter && iter.Iterable is RangeObject range)
                     {
-                        vm.SetRegister(valueReg, new RuntimeValue(currentValue));
-                        vm.SetRegister(continueFlagReg, new RuntimeValue(true));
-                        iter.CurrentIndex += step;
+                        int start = range.Start.IntValue;
+                        int end = range.End.IntValue;
+                        int step = start <= end ? 1 : -1;
+                        int currentValue = start + iter.CurrentIndex;
+
+                        if (start <= end ? currentValue <= end : currentValue >= end)
+                        {
+                            vm.SetRegister(valueReg, new RuntimeValue(currentValue));
+                            vm.SetRegister(continueFlagReg, RuntimeValue.True);
+                            iter.CurrentIndex += step;
+                        }
+                        else
+                        {
+                            vm.SetRegister(valueReg, RuntimeValue.Nil);
+                            vm.SetRegister(continueFlagReg, RuntimeValue.False);
+                        }
                     }
                     else
                     {
-                        vm.SetRegister(valueReg, RuntimeValue.Nil);
-                        vm.SetRegister(continueFlagReg, new RuntimeValue(false));
+                        instruction.SpecializedHandler = null;
+                        vm.ExecuteGenericIterNext(instruction);
                     }
                 };
             }
@@ -854,19 +868,20 @@ namespace Fluence
             {
                 return (instruction, vm) =>
                 {
-                    RuntimeValue iterVal = vm.CurrentRegisters[iteratorReg.TempName];
+                    ref RuntimeValue iterVal = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, iteratorReg.TempName);
+
                     if (iterVal.ObjectReference is IteratorObject iter && iter.Iterable is ListObject listRef)
                     {
                         if (iter.CurrentIndex < listRef.Elements.Count)
                         {
                             vm.SetRegister(valueReg, listRef.Elements[iter.CurrentIndex]);
-                            vm.SetRegister(continueFlagReg, new RuntimeValue(true));
+                            vm.SetRegister(continueFlagReg, RuntimeValue.True);
                             iter.CurrentIndex++;
                         }
                         else
                         {
                             vm.SetRegister(valueReg, RuntimeValue.Nil);
-                            vm.SetRegister(continueFlagReg, new RuntimeValue(false));
+                            vm.SetRegister(continueFlagReg, RuntimeValue.False);
                         }
                     }
                     else

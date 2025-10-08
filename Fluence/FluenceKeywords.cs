@@ -39,6 +39,8 @@ namespace Fluence
                 TokenType.UNLESS or
                 TokenType.AS or
                 TokenType.REF or
+                TokenType.CATCH or
+                TokenType.TRY or
                 TokenType.UNTIL or
                 TokenType.REST => true,
                 _ => false,
@@ -70,6 +72,7 @@ namespace Fluence
                     if (text.SequenceEqual("for")) return TokenType.FOR;
                     if (text.SequenceEqual("ref")) return TokenType.REF;
                     if (text.SequenceEqual("and")) return TokenType.AND;
+                    if (text.SequenceEqual("try")) return TokenType.TRY;
                     if (text.SequenceEqual("use")) return TokenType.USE;
                     break;
                 case 4:
@@ -85,6 +88,7 @@ namespace Fluence
                 case 5:
                     if (text.SequenceEqual("break")) return TokenType.BREAK;
                     if (text.SequenceEqual("until")) return TokenType.UNTIL;
+                    if (text.SequenceEqual("catch")) return TokenType.CATCH;
                     if (text.SequenceEqual("false")) return TokenType.FALSE;
                     if (text.SequenceEqual("match")) return TokenType.MATCH;
                     if (text.SequenceEqual("space")) return TokenType.SPACE;

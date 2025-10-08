@@ -859,6 +859,7 @@ namespace Fluence
                 case TokenType.MATCH: ParseMatchStatement(); break;
                 case TokenType.SOLID: ParseSolidStatement(); break;
                 case TokenType.UNLESS: ParseUnlessStatement(); break;
+                case TokenType.TRY: ParseTryCatch(); break;
 
                 // Simple Statements that must be terminated.
                 case TokenType.RETURN:
@@ -933,6 +934,47 @@ namespace Fluence
             AdvanceAndExpect(TokenType.R_BRACE, "Expected a closing '}' for the namespace body.");
 
             _currentParseState.CurrentScope = parentScope;
+        }
+
+        private void ParseTryCatch()
+        {
+            _lexer.Advance(); // Consume 'try'.
+
+            int jumpPatch = _currentParseState.CodeInstructions.Count;
+
+            // try JMP CONTEXT
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.TryBlock, null!));
+
+            ParseStatementBody("'try' statement expects a '->' for a single line statement of code.");
+
+            int tryBlockEnd = _currentParseState.CodeInstructions.Count;
+            _currentParseState.CodeInstructions[jumpPatch].Lhs = new NumberValue(tryBlockEnd);
+
+            if (_lexer.PeekNextTokenType() != TokenType.CATCH)
+            {
+                ConstructAndThrowParserException("'try' statement expects a 'catch' statement block.", _lexer.PeekCurrentToken());
+            }
+
+            _lexer.Advance(); // Consume 'catch'.
+
+            VariableValue var = null!;
+
+            if (_lexer.PeekNextTokenType() == TokenType.IDENTIFIER)
+            {
+                var = (VariableValue)ParseExpression();
+            }
+
+            int catchJumpPatch = _currentParseState.CodeInstructions.Count;
+
+            // catch VAR GOTO
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CatchBlock, var, null!));
+
+            ParseStatementBody("'catch' statement expects a '->' for a single line statement of code.");
+
+            int catchBlockEnd = _currentParseState.CodeInstructions.Count;
+            _currentParseState.CodeInstructions[catchJumpPatch].Rhs = new NumberValue(catchBlockEnd);
+
+            _currentParseState.CodeInstructions[jumpPatch].Rhs = new TryCatchValue(tryBlockEnd, var?.Name, catchBlockEnd, var is not null);
         }
 
         /// <summary>

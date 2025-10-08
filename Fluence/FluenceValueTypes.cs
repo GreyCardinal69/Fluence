@@ -317,6 +317,26 @@ namespace Fluence
         }
     }
 
+    internal sealed record class TryCatchValue : Value
+    {
+        internal int TryGoToIndex { get; init; }
+        internal int CatchGoToIndex { get; init; }
+        internal string ExceptionAsVar { get; init; }
+        internal bool HasExceptionVar { get; init; }
+        internal bool CaughtException { get; set; }
+
+        internal TryCatchValue(int tryGoToIndex, string? exceptionAsVar, int catchGoToIndex, bool hasExceptionVar)
+        {
+            TryGoToIndex = tryGoToIndex;
+            ExceptionAsVar = exceptionAsVar ?? "";
+            HasExceptionVar = hasExceptionVar;
+            CatchGoToIndex = catchGoToIndex;
+        }
+
+        internal override string ToFluenceString() => "<internal: try_catch__value>";
+        public override string ToString() => $"TryCatchValue: TryJmp: {TryGoToIndex}, CatchJmp: {CatchGoToIndex}.";
+    }
+
     /// <summary>
     /// A descriptor representing a property access operation.
     /// The parser resolves this into GetField or SetField bytecode.

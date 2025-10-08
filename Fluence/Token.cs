@@ -98,6 +98,8 @@
             UNLESS, // Reverse of if, unless ( x ) do something.
             AS,     // Used with 'times', and maybe others in the future.
             REF,    // Passed by reference.
+            TRY,
+            CATCH,
 
             // Pipe Family Operators.
             PIPE,               // |>

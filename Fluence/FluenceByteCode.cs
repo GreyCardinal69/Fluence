@@ -55,6 +55,9 @@
 
                 GetType,
 
+                TryBlock,
+                CatchBlock,
+
                 // Function & Method Calls.
                 PushParam,      // Pushes a value (Lhs) onto the argument stack.
                 CallFunction,

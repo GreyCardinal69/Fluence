@@ -10,7 +10,10 @@ namespace Fluence.ParserTests
         internal static List<InstructionLine> Compile(string source)
         {
             FluenceLexer lexer = new FluenceLexer(source);
-            FluenceParser parser = new FluenceParser(lexer, null!, null!, null!);
+            FluenceParser parser = new FluenceParser(lexer, new()
+            {
+                OptimizeByteCode = true
+            }, null!, null!, null!);
 
             parser.Parse(true);
             return parser.CompiledCode;

@@ -70,7 +70,6 @@ namespace Fluence.Global
 
             globalScope.Declare("to_int__1", new FunctionSymbol("to_int__1", 1, (vm, argCount) =>
             {
-                if (argCount != 1) throw vm.ConstructRuntimeException("to_int() expects one string argument.");
                 RuntimeValue arg = vm.PopStack();
 
                 if (TryConvertToNumeric<int>(ref arg, out int intResult))
@@ -78,13 +77,11 @@ namespace Fluence.Global
                     return new RuntimeValue(intResult);
                 }
 
-                throw vm.ConstructRuntimeException($"Cannot convert value '{arg}' to an integer.");
-
+                return vm.SignalRecoverableErrorAndReturnNil($"Cannot convert value '{arg}' to an integer.");
             }, globalScope, ["Value"]));
 
             globalScope.Declare("to_double__1", new FunctionSymbol("to_double__1", 1, (vm, argCount) =>
             {
-                if (argCount != 1) throw vm.ConstructRuntimeException("to_double() expects one string argument.");
                 RuntimeValue arg = vm.PopStack();
 
                 if (TryConvertToNumeric<double>(ref arg, out double intResult))
@@ -92,13 +89,11 @@ namespace Fluence.Global
                     return new RuntimeValue(intResult);
                 }
 
-                throw vm.ConstructRuntimeException($"Cannot convert value '{arg}' to a double.");
-
+                return vm.SignalRecoverableErrorAndReturnNil($"Cannot convert value '{arg}' to a double.");
             }, globalScope, ["Value"]));
 
             globalScope.Declare("to_long__1", new FunctionSymbol("to_long__1", 1, (vm, argCount) =>
             {
-                if (argCount != 1) throw vm.ConstructRuntimeException("to_long() expects one string argument.");
                 RuntimeValue arg = vm.PopStack();
 
                 if (TryConvertToNumeric<long>(ref arg, out long intResult))
@@ -106,13 +101,11 @@ namespace Fluence.Global
                     return new RuntimeValue(intResult);
                 }
 
-                throw vm.ConstructRuntimeException($"Cannot convert value '{arg}' to a long.");
-
+                return vm.SignalRecoverableErrorAndReturnNil($"Cannot convert value '{arg}' to a long.");
             }, globalScope, ["Value"]));
 
             globalScope.Declare("to_float__1", new FunctionSymbol("to_float__1", 1, (vm, argCount) =>
             {
-                if (argCount != 1) throw vm.ConstructRuntimeException("to_float() expects one string argument.");
                 RuntimeValue arg = vm.PopStack();
 
                 if (TryConvertToNumeric<float>(ref arg, out float intResult))
@@ -120,13 +113,11 @@ namespace Fluence.Global
                     return new RuntimeValue(intResult);
                 }
 
-                throw vm.ConstructRuntimeException($"Cannot convert value '{arg}' to a float.");
-
+                return vm.SignalRecoverableErrorAndReturnNil($"Cannot convert value '{arg}' to a float.");
             }, globalScope, ["Value"]));
 
             globalScope.Declare("to_string__1", new FunctionSymbol("to_string__1", 1, (vm, argCount) =>
             {
-                if (argCount != 1) throw vm.ConstructRuntimeException("to_string() expects one argument.");
                 RuntimeValue arg = vm.PopStack();
 
                 return vm.ResolveStringObjectRuntimeValue(arg.ToString());
@@ -135,7 +126,6 @@ namespace Fluence.Global
 
             globalScope.Declare("to_bool__1", new FunctionSymbol("to_bool__1", 1, (vm, argCount) =>
             {
-                if (argCount != 1) throw vm.ConstructRuntimeException("to_bool() expects one numeric or string argument.");
                 RuntimeValue arg = vm.PopStack();
 
                 if (arg.ObjectReference is StringObject str)

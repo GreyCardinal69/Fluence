@@ -2,6 +2,7 @@ using Fluence.Exceptions;
 using Fluence.Global;
 using Fluence.RuntimeTypes;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -45,7 +46,9 @@ namespace Fluence
         private readonly FluenceScope _globalScope;
 
         /// <summary>The stack used for passing arguments to functions and for temporary operand storage.</summary>
-        private readonly Stack<RuntimeValue> _operandStack = new();
+        private readonly Stack<RuntimeValue> _operandStack = new Stack<RuntimeValue>();
+
+        private readonly Stack<TryCatchValue> _tryCatchBlocks = new Stack<TryCatchValue>();
 
         /// <summary>
         /// A collection of the standard library names that are permitted to be loaded by a script.
@@ -466,6 +469,9 @@ namespace Fluence
 
             _dispatchTable[(int)InstructionCode.GetType] = ExecuteGetType;
 
+            _dispatchTable[(int)InstructionCode.TryBlock] = ExecuteTryBlock;
+            _dispatchTable[(int)InstructionCode.CatchBlock] = ExecuteCatchBlock;
+
             //      ==!!==
             //      The following are unique opCodes generated only by the FluenceOptimizer.
             //      Some of these perfectly map to existing functions.
@@ -534,7 +540,7 @@ namespace Fluence
 
                 // TO DO, lists.
 
-                _ => throw ConstructRuntimeException(
+                _ => SignalError<RuntimeValue>(
                     $"Unsupported type '{value.GetType().FullName}' for SetGlobal. " +
                     "Supported types are null, bool, int, long, float, double, string, char.")
             };
@@ -717,7 +723,7 @@ namespace Fluence
                 return;
             }
 
-            throw ConstructRuntimeException($"Runtime Error: Cannot apply operator '+' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
+            SignalError($"Runtime Error: Cannot apply operator '+' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
         /// <summary>Handles the SUBTRACT instruction for numeric subtraction or list difference.</summary>
@@ -762,7 +768,7 @@ namespace Fluence
                 return;
             }
 
-            throw ConstructRuntimeException($"Runtime Error: Cannot apply operator '-' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
+            SignalError($"Runtime Error: Cannot apply operator '-' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
         /// <summary>Handles the MULTIPLY instruction for numeric subtraction or list difference.</summary>
@@ -830,7 +836,7 @@ namespace Fluence
                 return;
             }
 
-            throw ConstructRuntimeException($"Runtime Error: Cannot apply operator '*' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
+            SignalError($"Runtime Error: Cannot apply operator '*' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
         /// <summary>Handles the DIVIDE instruction for numeric subtraction or list difference.</summary>
@@ -853,7 +859,7 @@ namespace Fluence
                 return;
             }
 
-            throw ConstructRuntimeException($"Runtime Error: Cannot apply operator '/' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
+            SignalError($"Runtime Error: Cannot apply operator '/' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
         /// <summary>Handles the MULTIPLY instruction for numeric subtraction or list difference.</summary>
@@ -876,7 +882,7 @@ namespace Fluence
                 return;
             }
 
-            throw ConstructRuntimeException($"Runtime Error: Cannot apply operator '%' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
+            SignalError($"Runtime Error: Cannot apply operator '%' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
         /// <summary>Handles the POWER instruction.</summary>
@@ -899,7 +905,7 @@ namespace Fluence
                 return;
             }
 
-            throw ConstructRuntimeException($"Runtime Error: Cannot apply operator '**' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
+            SignalError($"Runtime Error: Cannot apply operator '**' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
         /// <summary>Handles the ASSIGN_TWO instruction, which is used for variable assignment of two variables at once.</summary>
@@ -928,7 +934,8 @@ namespace Fluence
 
                 if (startValue.Type != RuntimeValueType.Number || endValue.Type != RuntimeValueType.Number)
                 {
-                    throw ConstructRuntimeException($"Runtime Error: Range bounds must be numbers, not {GetDetailedTypeName(range.Start)} and {GetDetailedTypeName(range.End)}.");
+                    SignalError($"Runtime Error: Range bounds must be numbers, not {GetDetailedTypeName(range.Start)} and {GetDetailedTypeName(range.End)}.");
+                    return;
                 }
 
                 int start = Convert.ToInt32(startValue.IntValue);
@@ -973,7 +980,7 @@ namespace Fluence
         {
             if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
             {
-                throw ConstructRuntimeException($"Internal VM Error: ExecuteNumericBinaryOperation called with non-numeric types.");
+                SignalError($"Internal VM Error: ExecuteNumericBinaryOperation called with non-numeric types.");
             }
 
             RuntimeValue result = left.NumberType switch
@@ -984,7 +991,7 @@ namespace Fluence
                     RuntimeNumberType.Long => longOp(left.IntValue, right.LongValue),
                     RuntimeNumberType.Float => floatOp(left.IntValue, right.FloatValue),
                     RuntimeNumberType.Double => doubleOp(left.IntValue, right.DoubleValue),
-                    _ => throw ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type."),
+                    _ => SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type."),
                 },
                 RuntimeNumberType.Long => right.NumberType switch
                 {
@@ -992,7 +999,7 @@ namespace Fluence
                     RuntimeNumberType.Long => longOp(left.LongValue, right.LongValue),
                     RuntimeNumberType.Float => floatOp(left.LongValue, right.FloatValue),
                     RuntimeNumberType.Double => doubleOp(left.LongValue, right.DoubleValue),
-                    _ => throw ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type."),
+                    _ => SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type."),
                 },
                 RuntimeNumberType.Float => right.NumberType switch
                 {
@@ -1000,7 +1007,7 @@ namespace Fluence
                     RuntimeNumberType.Long => floatOp(left.FloatValue, right.LongValue),
                     RuntimeNumberType.Float => floatOp(left.FloatValue, right.FloatValue),
                     RuntimeNumberType.Double => doubleOp(left.FloatValue, right.DoubleValue),
-                    _ => throw ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type."),
+                    _ => SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type."),
                 },
                 RuntimeNumberType.Double => right.NumberType switch
                 {
@@ -1008,9 +1015,9 @@ namespace Fluence
                     RuntimeNumberType.Long => doubleOp(left.DoubleValue, right.LongValue),
                     RuntimeNumberType.Float => doubleOp(left.DoubleValue, right.FloatValue),
                     RuntimeNumberType.Double => doubleOp(left.DoubleValue, right.DoubleValue),
-                    _ => throw ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type."),
+                    _ => SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type."),
                 },
-                _ => throw ConstructRuntimeException("Internal VM Error: Unsupported left-hand number type."),
+                _ => SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported left-hand number type."),
             };
 
             SetVariableOrRegister(instruction.Lhs, result);
@@ -1038,7 +1045,7 @@ namespace Fluence
                 InstructionCode.BitwiseXor => leftLong ^ ToLong(rightValue),
                 InstructionCode.BitwiseLShift => leftLong << ToInt(rightValue),
                 InstructionCode.BitwiseRShift => leftLong >> ToInt(rightValue),
-                _ => throw ConstructRuntimeException("Internal VM Error: Unhandled bitwise operation routed to ExecuteBitwiseOperation."),
+                _ => SignalError<long>("Internal VM Error: Unhandled bitwise operation routed to ExecuteBitwiseOperation.")!,
             };
 
             if (instruction.Lhs is VariableValue var)
@@ -1060,7 +1067,8 @@ namespace Fluence
 
             if (value.Type != RuntimeValueType.Number)
             {
-                throw ConstructRuntimeException($"Runtime Error: The unary minus operator '-' cannot be applied to a value of type '{GetDetailedTypeName(value)}'.");
+                SignalError($"Runtime Error: The unary minus operator '-' cannot be applied to a value of type '{GetDetailedTypeName(value)}'.");
+                return;
             }
 
             RuntimeValue result = value.NumberType switch
@@ -1069,7 +1077,7 @@ namespace Fluence
                 RuntimeNumberType.Double => new RuntimeValue(-value.DoubleValue),
                 RuntimeNumberType.Float => new RuntimeValue(-value.FloatValue),
                 RuntimeNumberType.Long => new RuntimeValue(-value.LongValue),
-                _ => throw ConstructRuntimeException("Internal VM Error: Invalid number type for negate operation.")
+                _ => SignalRecoverableErrorAndReturnNil("Internal VM Error: Invalid number type for negate operation.")
             };
 
             SetRegister(destination, result);
@@ -1255,14 +1263,15 @@ namespace Fluence
                     InstructionCode.GreaterThan => string.CompareOrdinal(leftStr.Value, rightStr.Value) > 0,
                     InstructionCode.LessEqual => string.CompareOrdinal(leftStr.Value, rightStr.Value) <= 0,
                     InstructionCode.GreaterEqual => string.CompareOrdinal(leftStr.Value, rightStr.Value) >= 0,
-                    _ => throw ConstructRuntimeException("Internal VM Error: Invalid comparison instruction for strings.")
+                    _ => SignalError<bool>("Internal VM Error: Invalid comparison instruction for strings.")
                 };
                 SetRegister(destination, new RuntimeValue(stringResult));
             }
 
             if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
             {
-                throw ConstructRuntimeException($"Internal VM Error: Cannot perform numeric comparison on non-number types: ({left.Type}, {right.Type}).");
+                SignalError($"Internal VM Error: Cannot perform numeric comparison on non-number types: ({left.Type}, {right.Type}).");
+                return;
             }
 
             bool result = left.NumberType switch
@@ -1273,7 +1282,7 @@ namespace Fluence
                     RuntimeNumberType.Long => longOp(left.IntValue, right.LongValue),
                     RuntimeNumberType.Float => floatOp(left.IntValue, right.FloatValue),
                     RuntimeNumberType.Double => doubleOp(left.IntValue, right.DoubleValue),
-                    _ => throw ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type."),
+                    _ => SignalError<bool>("Internal VM Error: Unsupported right-hand number type."),
                 },
                 RuntimeNumberType.Long => right.NumberType switch
                 {
@@ -1281,7 +1290,7 @@ namespace Fluence
                     RuntimeNumberType.Long => longOp(left.LongValue, right.LongValue),
                     RuntimeNumberType.Float => floatOp(left.LongValue, right.FloatValue),
                     RuntimeNumberType.Double => doubleOp(left.LongValue, right.DoubleValue),
-                    _ => throw ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type."),
+                    _ => SignalError<bool>("Internal VM Error: Unsupported right-hand number type."),
                 },
                 RuntimeNumberType.Float => right.NumberType switch
                 {
@@ -1289,7 +1298,7 @@ namespace Fluence
                     RuntimeNumberType.Long => floatOp(left.FloatValue, right.LongValue),
                     RuntimeNumberType.Float => floatOp(left.FloatValue, right.FloatValue),
                     RuntimeNumberType.Double => doubleOp(left.FloatValue, right.DoubleValue),
-                    _ => throw ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type."),
+                    _ => SignalError<bool>("Internal VM Error: Unsupported right-hand number type."),
                 },
                 RuntimeNumberType.Double => right.NumberType switch
                 {
@@ -1297,10 +1306,11 @@ namespace Fluence
                     RuntimeNumberType.Long => doubleOp(left.DoubleValue, right.LongValue),
                     RuntimeNumberType.Float => doubleOp(left.DoubleValue, right.FloatValue),
                     RuntimeNumberType.Double => doubleOp(left.DoubleValue, right.DoubleValue),
-                    _ => throw ConstructRuntimeException("Internal VM Error: Unsupported right-hand number type."),
+                    _ => SignalError<bool>("Internal VM Error: Unsupported right-hand number type."),
                 },
-                _ => throw ConstructRuntimeException("Internal VM Error: Unsupported left-hand number type."),
+                _ => SignalError<bool>("Internal VM Error: Unsupported right-hand number type."),
             };
+
             SetRegister(destination, new RuntimeValue(result));
         }
 
@@ -1326,7 +1336,7 @@ namespace Fluence
         private void ExecuteGetLength(InstructionLine instruction)
         {
             RuntimeValue collection = GetRuntimeValue(instruction.Rhs);
-            int length;
+            int length = 0;
 
             if (collection.Type == RuntimeValueType.Object)
             {
@@ -1341,19 +1351,22 @@ namespace Fluence
                     case RangeObject range:
                         if (range.Start.Type != RuntimeValueType.Number || range.End.Type != RuntimeValueType.Number)
                         {
-                            throw ConstructRuntimeException($"Runtime Error: Cannot get length of a range with non-numeric bounds ({GetDetailedTypeName(range.Start)}, {GetDetailedTypeName(range.End)}).");
+                            SignalError($"Runtime Error: Cannot get length of a range with non-numeric bounds ({GetDetailedTypeName(range.Start)}, {GetDetailedTypeName(range.End)}).");
+                            return;
                         }
                         int start = Convert.ToInt32(range.Start.IntValue);
                         int end = Convert.ToInt32(range.End.IntValue);
                         length = (end < start) ? 0 : (end - start + 1);
                         break;
                     default:
-                        throw ConstructRuntimeException($"Runtime Error: Cannot get the length of a value of type '{GetDetailedTypeName(collection)}'.");
+                        SignalError($"Runtime Error: Cannot get the length of a value of type '{GetDetailedTypeName(collection)}'.");
+                        return;
                 }
             }
             else
             {
-                throw ConstructRuntimeException($"Cannot get length of a non-object type '{collection.Type}'.");
+                SignalError($"Cannot get length of a non-object type '{collection.Type}'.");
+                return;
             }
 
             SetRegister((TempValue)instruction.Lhs, new RuntimeValue(length));
@@ -1367,7 +1380,8 @@ namespace Fluence
             RuntimeValue listVal = GetRuntimeValue(instruction.Lhs);
             if (listVal.ObjectReference is not ListObject list)
             {
-                throw ConstructRuntimeException($"Runtime Error: Cannot push an element to a non-list value (got type '{GetDetailedTypeName(listVal)}').");
+                SignalError($"Runtime Error: Cannot push an element to a non-list value (got type '{GetDetailedTypeName(listVal)}').");
+                return;
             }
 
             RuntimeValue elementToAdd = GetRuntimeValue(instruction.Rhs);
@@ -1379,7 +1393,8 @@ namespace Fluence
 
                 if (startValue.Type != RuntimeValueType.Number || endValue.Type != RuntimeValueType.Number)
                 {
-                    throw ConstructRuntimeException($"Runtime Error: Range bounds must be numbers, not {GetDetailedTypeName(range.Start)} and {GetDetailedTypeName(range.End)}.");
+                    SignalError($"Runtime Error: Range bounds must be numbers, not {GetDetailedTypeName(range.Start)} and {GetDetailedTypeName(range.End)}.");
+                    return;
                 }
 
                 int start = Convert.ToInt32(startValue.IntValue);
@@ -1457,7 +1472,7 @@ namespace Fluence
                 return;
             }
 
-            throw ConstructRuntimeException($"Internal VM Erorr: Attempt to retrieve a non-existant static struct field: {structSymbol}__Field:{fieldName.Value}.");
+            SignalError($"Internal VM Erorr: Attempt to retrieve a non-existant static struct field: {structSymbol}__Field:{fieldName.Value}.");
         }
 
         /// <summary>
@@ -1528,13 +1543,18 @@ namespace Fluence
                     {
                         if (indexVal.Type != RuntimeValueType.Number)
                         {
-                            throw ConstructRuntimeException($"Runtime Error: List index must be a number, not '{GetDetailedTypeName(indexVal)}'.");
+                            SignalError($"Runtime Error: List index must be a number, not '{GetDetailedTypeName(indexVal)}'.");
+                            return;
                         }
+
                         int index = indexVal.IntValue;
+
                         if (index < 0 || index >= list.Elements.Count)
                         {
-                            throw ConstructRuntimeException($"Runtime Error: Index out of range. Index was {index}, but list size is {list.Elements.Count}.");
+                            SignalError($"Runtime Error: Index out of range. Index was {index}, but list size is {list.Elements.Count}.");
+                            return;
                         }
+
                         SetRegister((TempValue)instruction.Lhs, list.Elements[index]);
                         break;
                     }
@@ -1542,12 +1562,16 @@ namespace Fluence
                     {
                         if (indexVal.Type != RuntimeValueType.Number)
                         {
-                            throw ConstructRuntimeException($"Runtime Error: String index must be a number, not '{GetDetailedTypeName(indexVal)}'.");
+                            SignalError($"Runtime Error: String index must be a number, not '{GetDetailedTypeName(indexVal)}'.");
+                            return;
                         }
+
                         int index = indexVal.IntValue;
+
                         if (index < 0 || string.IsNullOrEmpty(str.Value) || index >= str.Value.Length)
                         {
-                            throw ConstructRuntimeException($"Runtime Error: Index out of range. Index was {index}, but string length is '{(str.Value is null ? "The string was empty" : str.Value.Length)}'.");
+                            SignalError($"Runtime Error: Index out of range. Index was {index}, but string length is '{(str.Value is null ? "The string was empty" : str.Value.Length)}'.");
+                            return;
                         }
 
                         char charAsString = str.Value![index];
@@ -1558,7 +1582,8 @@ namespace Fluence
                     }
                 // Not an indexable type.
                 default:
-                    throw ConstructRuntimeException($"Runtime Error: Cannot apply index operator [...] to a non-indexable type '{GetDetailedTypeName(collection)}'.");
+                    SignalError($"Runtime Error: Cannot apply index operator [...] to a non-indexable type '{GetDetailedTypeName(collection)}'.");
+                    return;
             }
 
             instruction.SpecializedHandler = InlineCacheManager.CreateSpecializedGetElementHandler(instruction, collection, indexVal);
@@ -1575,22 +1600,44 @@ namespace Fluence
 
             if (collection.As<ListObject>() is not ListObject list)
             {
-                throw ConstructRuntimeException($"Internal VM Error: Cannot apply index operator [...] to a non-list value (got type '{GetDetailedTypeName(collection)}').");
+                SignalError($"Internal VM Error: Cannot apply index operator [...] to a non-list value (got type '{GetDetailedTypeName(collection)}').");
+                return;
             }
 
             if (indexVal.Type != RuntimeValueType.Number)
             {
-                throw ConstructRuntimeException($"Runtime Error: List index must be a number, not '{GetDetailedTypeName(indexVal)}'.");
+                SignalError($"Runtime Error: List index must be a number, not '{GetDetailedTypeName(indexVal)}'.");
+                return;
             }
 
             int index = indexVal.IntValue;
 
             if (index < 0 || index >= list.Elements.Count)
             {
-                throw ConstructRuntimeException($"Runtime Error: Index out of range. Index was {index}, but list size is {list.Elements.Count}.");
+                SignalError($"Runtime Error: Index out of range. Index was {index}, but list size is {list.Elements.Count}.");
+                return;
             }
 
             list.Elements[index] = valueToSet;
+        }
+
+        private void ExecuteTryBlock(InstructionLine instruction)
+        {
+            TryCatchValue context = (TryCatchValue)instruction.Rhs;
+
+            _tryCatchBlocks.Push(context);
+        }
+
+        private void ExecuteCatchBlock(InstructionLine instruction)
+        {
+            TryCatchValue context = _tryCatchBlocks.Pop();
+
+            if (!context.CaughtException)
+            {
+                _ip = context.CatchGoToIndex;
+            }
+
+            context.CaughtException = false;
         }
 
         /// <summary>
@@ -2060,6 +2107,7 @@ namespace Fluence
                     {
                         throw ConstructRuntimeException($"Internal VM Error: Argument '{paramName}' in function: \"{functionToExecute.ToCodeLikeString()}\" must be passed by reference ('ref').");
                     }
+
                     VariableValue refVar = ((ReferenceValue)argFromStack.ObjectReference).Reference;
                     newFrame.RefParameterMap[paramName] = refVar.Name;
                     ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
@@ -2146,7 +2194,7 @@ namespace Fluence
             if (instruction.Rhs is not StructSymbol structSymbol ||
                 instruction.Rhs2 is not StringValue methodName)
             {
-                throw ConstructRuntimeException("Internal VM Error: Invalid operands for CALL_STATIC.");
+                throw CreateRuntimeException("Internal VM Error: Invalid operands for CALL_STATIC.");
             }
 
             if (structSymbol.StaticIntrinsics.TryGetValue(methodName.Value, out FunctionSymbol intrinsicSymbol))
@@ -2154,7 +2202,7 @@ namespace Fluence
                 int argCount = _operandStack.Count;
                 if (intrinsicSymbol.Arity != argCount)
                 {
-                    throw ConstructRuntimeException($"Runtime Error: Mismatched arity for static intrinsic struct function '{intrinsicSymbol.Name}'. Expected {intrinsicSymbol.Arity}, but got {argCount}.");
+                    CreateAndThrowRuntimeException($"Runtime Error: Mismatched arity for static intrinsic struct function '{intrinsicSymbol.Name}'. Expected {intrinsicSymbol.Arity}, but got {argCount}.");
                 }
 
                 RuntimeValue resultValue = intrinsicSymbol.IntrinsicBody!(this, argCount);
@@ -2181,7 +2229,7 @@ namespace Fluence
             int argCountOnStack = _operandStack.Count;
             if (functionToExecute.Arity != argCountOnStack)
             {
-                throw ConstructRuntimeException($"Runtime Error: Mismatched arity for static function '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
+                CreateAndThrowRuntimeException($"Runtime Error: Mismatched arity for static function '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
             }
 
             string scopeName = functionToExecute.DefiningScope.Name;
@@ -2189,7 +2237,7 @@ namespace Fluence
             {
                 if (!IsLibraryAllowed(scopeName))
                 {
-                    throw ConstructRuntimeException($"Security Error: Use of the library '{scopeName}' is disallowed by the host application due to library whiteList and or blackList rules.");
+                    CreateAndThrowRuntimeException($"Security Error: Use of the library '{scopeName}' is disallowed by the host application due to library whiteList and or blackList rules.");
                 }
             }
 
@@ -2206,8 +2254,9 @@ namespace Fluence
                 {
                     if (argFromStack.ObjectReference is not ReferenceValue)
                     {
-                        throw ConstructRuntimeException($"Internal VM Error: Argument '{paramName}' in function: \"{functionToExecute.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                        throw CreateRuntimeException($"Internal VM Error: Argument '{paramName}' in function: \"{functionToExecute.ToCodeLikeString()}\" must be passed by reference ('ref').");
                     }
+
                     VariableValue refVar = ((ReferenceValue)argFromStack.ObjectReference).Reference;
                     newFrame.RefParameterMap[paramName] = refVar.Name;
                     ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
@@ -2337,14 +2386,14 @@ namespace Fluence
                     NumberValue.NumberType.Float => new RuntimeValue((float)num.Value),
                     NumberValue.NumberType.Double => new RuntimeValue((double)num.Value),
                     NumberValue.NumberType.Long => new RuntimeValue((long)num.Value),
-                    _ => throw ConstructRuntimeException($"Internal VM Error: Unrecognized NumberType '{num.Type}' in bytecode.")
+                    _ => SignalRecoverableErrorAndReturnNil($"Internal VM Error: Unrecognized NumberType '{num.Type}' in bytecode.")
                 },
                 BooleanValue boolean => new RuntimeValue(boolean.Value),
                 NilValue => RuntimeValue.Nil,
                 StringValue str => ResolveStringObjectRuntimeValue(str.Value),
                 RangeValue range => ResolveRangeObjectRuntimeValue(GetRuntimeValue(range.Start), GetRuntimeValue(range.End)),
                 LambdaValue lambda => new RuntimeValue(CreateFunctionObject(lambda.Function)),
-                _ => throw ConstructRuntimeException($"Internal VM Error: Unrecognized Value type '{val.GetType().Name}' during conversion.")
+                _ => SignalRecoverableErrorAndReturnNil($"Internal VM Error: Unrecognized Value type '{val.GetType().Name}' during conversion.")
             };
         }
 
@@ -2413,7 +2462,11 @@ namespace Fluence
             // Last case, a Lambda, and if not undefined.
             if (val is not null and VariableValue)
             {
-                return _cachedRegisters[Mangler.Demangle(name)];
+                ref RuntimeValue lambda = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentRegisters, Mangler.Demangle(name));
+                if (!Unsafe.IsNullRef(ref lambda))
+                {
+                    return lambda;
+                }
             }
 
             throw ConstructRuntimeException($"Runtime Error: Undefined variable '{name}'.", RuntimeExceptionType.UnknownVariable);
@@ -2548,14 +2601,14 @@ namespace Fluence
             {
                 if (isReadonlyRef)
                 {
-                    throw ConstructRuntimeException($"Runtime Error: Cannot assign to the readonly variable '{name}'.");
+                    CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly variable '{name}'.");
                 }
             }
             else if (!Unsafe.IsNullRef(ref isReadOnlyGlobalRef))
             {
                 if (isReadOnlyGlobalRef)
                 {
-                    throw ConstructRuntimeException($"Runtime Error: Cannot assign to the readonly global variable '{name}'.");
+                    CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly global variable '{name}'.");
                 }
             }
             else
@@ -2567,11 +2620,11 @@ namespace Fluence
                 }
                 else if (CurrentFrame.Function.DefiningScope.TryResolve(name, out Symbol symbol) && symbol is VariableSymbol { IsReadonly: true })
                 {
-                    throw ConstructRuntimeException($"Runtime Error: Cannot assign to the readonly or solid variable '{name}'.");
+                    CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly or solid variable '{name}'.");
                 }
                 else if (_globalScope.TryResolve(name, out symbol) && symbol is VariableSymbol symb && symb.IsReadonly)
                 {
-                    throw ConstructRuntimeException($"Runtime Error: Cannot assign to the readonly or solid variable '{name}'.");
+                    CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly or solid variable '{name}'.");
                 }
 
                 ref bool cacheSlot = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentFrame.WritableCache, name, out _);
@@ -2603,7 +2656,7 @@ namespace Fluence
         {
             if (value.Type != RuntimeValueType.Number)
             {
-                throw ConstructRuntimeException($"Internal VM Error: Bitwise operations require integer numbers, but got a {value.Type}.");
+                return SignalError<long>($"Internal VM Error: Bitwise operations require integer numbers, but got a {value.Type}.");
             }
 
             return value.NumberType switch
@@ -2613,7 +2666,7 @@ namespace Fluence
                 // Floats and doubles are truncated (decimal part is cut off).
                 RuntimeNumberType.Float => (long)value.FloatValue,
                 RuntimeNumberType.Double => (long)value.DoubleValue,
-                _ => throw ConstructRuntimeException("Internal VM Error: Unhandled number type in bitwise op.")
+                _ => SignalError<long>("Internal VM Error: Unhandled number type in bitwise op."),
             };
         }
 
@@ -2624,7 +2677,7 @@ namespace Fluence
         {
             if (value.Type != RuntimeValueType.Number)
             {
-                throw ConstructRuntimeException($"Internal VM Error: Left or Right Bit Shift amount must be an integer number, but got a {value.Type}.");
+                return SignalError<int>($"Internal VM Error: Left or Right Bit Shift amount must be an integer number, but got a {value.Type}.");
             }
 
             return (int)ToLong(value);
@@ -2637,7 +2690,7 @@ namespace Fluence
         {
             if (num.NumberType is not RuntimeNumberType.Int and not RuntimeNumberType.Long)
             {
-                throw ConstructRuntimeException($"Internal VM Error: Cannot multiply a list by a non-integer number ({num.NumberType}).");
+                return SignalRecoverableErrorAndReturnNil($"Internal VM Error: Cannot multiply a list by a non-integer number ({num.NumberType}).");
             }
 
             int count = Convert.ToInt32(num.IntValue);
@@ -2686,7 +2739,7 @@ namespace Fluence
         {
             if (num.NumberType is not RuntimeNumberType.Int and not RuntimeNumberType.Long)
             {
-                throw ConstructRuntimeException($"Internal VM Error: Cannot multiply a string by a non-integer number (got {num.NumberType}).");
+                return SignalRecoverableErrorAndReturnNil($"Internal VM Error: Cannot multiply a string by a non-integer number (got {num.NumberType}).");
             }
 
             int count = Convert.ToInt32(num.IntValue);
@@ -2745,16 +2798,106 @@ namespace Fluence
             UnknownVariable
         }
 
-        internal void ConstructAndThrowException(string message) => throw ConstructRuntimeException(message);
+        /// <summary>
+        /// Handles a runtime error that is allowed to be catched. If a try-catch block is active, it redirects the instruction pointer
+        /// to the catch block. Otherwise, it throws an unhandled exception, terminating the VM.
+        /// </summary>
+        /// <param name="exception">The error message.</param>
+        [DoesNotReturn]
+        internal void SignalError(string exception, RuntimeExceptionType exceptionType = RuntimeExceptionType.NonSpecific)
+        {
+            if (_tryCatchBlocks.Count > 0)
+            {
+                TryCatchValue tryCatchContext = _tryCatchBlocks.Pop();
+
+                // Error in try block.
+                if (_ip < tryCatchContext.TryGoToIndex)
+                {
+                    if (tryCatchContext.HasExceptionVar)
+                    {
+                        CurrentRegisters[tryCatchContext.ExceptionAsVar] = ResolveStringObjectRuntimeValue(exception);
+                    }
+
+                    // Jumps to catch block.
+                    _ip = tryCatchContext.TryGoToIndex;
+                    tryCatchContext.CaughtException = true;
+
+                    // We empty any and all pushed arguments.
+                    // This way arguments pushed for whatever reason in the try block won't be left behind.
+                    // Although this might be a bad decision.
+                    // TO DO: Needs testing.
+                    while (_operandStack.Count > 0)
+                    {
+                        _operandStack.Pop();
+                    }
+
+                    _tryCatchBlocks.Push(tryCatchContext);
+                }
+                // Error in catch block.
+                else if (_ip > tryCatchContext.TryGoToIndex && _ip < tryCatchContext.CatchGoToIndex)
+                {
+                    throw CreateRuntimeException(exception, exceptionType);
+                }
+            }
+            else
+            {
+                throw CreateRuntimeException(exception, exceptionType);
+            }
+        }
+
+        /// <summary>
+        /// Handles a runtime error. If a try-catch block is active, it redirects the instruction pointer
+        /// to the catch block. Otherwise, it throws an unhandled exception, terminating the VM.
+        /// Accepts a <see cref="T"/> type to satisfy the compiler.
+        /// </summary>
+        /// <param name="exception">The error message.</param>
+        internal T SignalError<T>(string exception, RuntimeExceptionType exceptionType = RuntimeExceptionType.NonSpecific)
+        {
+            SignalError(exception, exceptionType);
+            return default;
+        }
+
+        internal RuntimeValue SignalRecoverableErrorAndReturnNil(string message, RuntimeExceptionType exceptionType = RuntimeExceptionType.NonSpecific)
+        {
+            SignalError(message, exceptionType);
+            return RuntimeValue.Nil;
+        }
+
+        /// <summary>
+        /// Creates and throws a runtime error that can not be catched.
+        /// </summary>
+        /// <param name="exception">The exception message.</param>
+        /// <param name="exceptionType">The type of the exception.</param>
+        internal void CreateAndThrowRuntimeException(string exception, RuntimeExceptionType exceptionType = RuntimeExceptionType.NonSpecific) => throw CreateRuntimeException(exception, exceptionType);
+
+        /// <summary>
+        /// Creates a runtime error that can not be catched.
+        /// </summary>
+        /// <param name="exception">The exception message.</param>
+        /// <param name="exceptionType">The type of the exception.</param>
+        internal FluenceRuntimeException ConstructRuntimeException(string exception, RuntimeExceptionType exceptionType = RuntimeExceptionType.NonSpecific) => CreateRuntimeException(exception, exceptionType);
+
+        //  These exceptions should not be catchable
+        //
+        //  1. Readonly assignment.
+        //  2. wrong argument count in function call.
+        //  3. undefined variable.
+        //  4. undefined function.
+        //  5. calling non function.
+        //  6. wrong struct field/function.
+        //  7. break/continue outside loop.
+        //  8. invalid return.
+        //  9. ???
 
         /// <summary>
         /// Creates and logs to the console a highly detailed exception with the current state of the VM.
         /// </summary>
         /// <param name="exception">The exception message.</param>
-        internal FluenceRuntimeException ConstructRuntimeException(string exception, RuntimeExceptionType excType = RuntimeExceptionType.NonSpecific)
+        private FluenceRuntimeException CreateRuntimeException(string exception, RuntimeExceptionType excType = RuntimeExceptionType.NonSpecific)
         {
             VMDebugContext debugCtx = new VMDebugContext(this);
             List<StackFrameInfo> stackFrames = new List<StackFrameInfo>();
+
             while (_callStack.Count != 0)
             {
                 CallFrame frame = _callStack.Pop();

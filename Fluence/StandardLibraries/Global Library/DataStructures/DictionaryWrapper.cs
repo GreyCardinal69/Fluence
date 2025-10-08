@@ -45,7 +45,7 @@ namespace Fluence.Global
                     RuntimeValue arg = vm.PopStack();
                     if (arg.Type != RuntimeValueType.Number || arg.NumberType != RuntimeNumberType.Int)
                     {
-                        throw vm.ConstructRuntimeException("Map() constructor expects an integer capacity.");
+                        return vm.SignalRecoverableErrorAndReturnNil("Map() constructor expects an integer capacity.");
                     }
                     Dictionary<RuntimeValue, RuntimeValue> dictInstance = new Dictionary<RuntimeValue, RuntimeValue>(arg.IntValue);
                     Wrapper wrapper = new Wrapper(dictInstance, _instanceMethods);
@@ -62,7 +62,8 @@ namespace Fluence.Global
             {
                 return dict;
             }
-            throw vm.ConstructRuntimeException("Internal Error: Map method called on a non-Map object.");
+
+            return vm.SignalError<Dictionary<RuntimeValue, RuntimeValue>>("Internal Error: Map method called on a non-Map object.");
         }
 
         private static RuntimeValue Set(FluenceVirtualMachine vm, RuntimeValue self)

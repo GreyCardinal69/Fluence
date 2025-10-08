@@ -44,7 +44,7 @@ namespace Fluence.Global
 
                     if (arg.Type != RuntimeValueType.Number || arg.NumberType != RuntimeNumberType.Int)
                     {
-                        throw vm.ConstructRuntimeException("StringBuilder constructor accepts only an integer value for its capacity in the constructor 'HashSet(capacity)'");
+                        return vm.SignalRecoverableErrorAndReturnNil("StringBuilder constructor accepts only an integer value for its capacity in the constructor 'StringBuilder(capacity)'");
                     }
 
                     if (arg.ObjectReference is StringObject str)

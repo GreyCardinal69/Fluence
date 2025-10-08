@@ -50,7 +50,7 @@ namespace Fluence.Global
                     {
                         if (arg.Type != RuntimeValueType.Number || arg.NumberType != RuntimeNumberType.Int)
                         {
-                            throw vm.ConstructRuntimeException("HashSet constructor accepts only an integer value for its capacity in the constructor 'HashSet(capacity)'");
+                            return vm.SignalRecoverableErrorAndReturnNil("HashSet constructor accepts only an integer value for its capacity in the constructor 'HashSet(capacity)'");
                         }
                         setInstance = new HashSet<RuntimeValue>(arg.IntValue);
                     }

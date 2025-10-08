@@ -61,7 +61,7 @@ namespace Fluence.RuntimeTypes
 
             if (index.Type != RuntimeValueType.Number || index.IntValue < 0 || index.IntValue > selfList.Elements.Count)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: remove index is out of bounds or invalid.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: remove index is out of bounds or invalid.");
             }
 
             return new RuntimeValue(selfList.Elements[index.IntValue]);
@@ -74,7 +74,7 @@ namespace Fluence.RuntimeTypes
 
             if (index.Type != RuntimeValueType.Number || index.IntValue < 0 || index.IntValue > selfList.Elements.Count)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: remove index is out of bounds or invalid.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: remove index is out of bounds or invalid.");
             }
 
             selfList.Elements.RemoveAt(index.IntValue);
@@ -95,12 +95,12 @@ namespace Fluence.RuntimeTypes
 
             if (index.Type != RuntimeValueType.Number || index.IntValue < 0 || index.IntValue > selfList.Elements.Count)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: index is out of bounds or invalid.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: index is out of bounds or invalid.");
             }
 
             if (count.Type != RuntimeValueType.Number || count.IntValue < 0 || index.IntValue > selfList.Elements.Count)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: count to remove is out of bounds or invalid.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: count to remove is out of bounds or invalid.");
             }
 
             selfList.Elements.RemoveRange(index.IntValue, count.IntValue);
@@ -115,7 +115,7 @@ namespace Fluence.RuntimeTypes
 
             if (index.Type != RuntimeValueType.Number || index.IntValue < 0 || index.IntValue > selfList.Elements.Count)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: index is out of bounds or invalid.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: index is out of bounds or invalid.");
             }
 
             selfList.Elements.Insert(index.IntValue, element);
@@ -130,7 +130,7 @@ namespace Fluence.RuntimeTypes
 
             if (index.Type != RuntimeValueType.Number || index.IntValue < 0 || index.IntValue > selfList.Elements.Count)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: index is out of bounds or invalid.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: index is out of bounds or invalid.");
             }
 
             selfList.Elements.InsertRange(index.IntValue, list.As<ListObject>().Elements);

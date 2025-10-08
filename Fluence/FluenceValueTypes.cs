@@ -319,8 +319,8 @@ namespace Fluence
 
     internal sealed record class TryCatchValue : Value
     {
-        internal int TryGoToIndex { get; init; }
-        internal int CatchGoToIndex { get; init; }
+        internal int TryGoToIndex { get; set; }
+        internal int CatchGoToIndex { get; set; }
         internal string ExceptionAsVar { get; init; }
         internal bool HasExceptionVar { get; init; }
         internal bool CaughtException { get; set; }

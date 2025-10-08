@@ -16,8 +16,9 @@ namespace Fluence
         {
             if (val.Type != RuntimeValueType.Number)
             {
-                throw vm.ConstructRuntimeException($"Expected a number, but got {FluenceVirtualMachine.GetDetailedTypeName(val)}.");
+                return vm.SignalError<double>($"Expected a number, but got {FluenceVirtualMachine.GetDetailedTypeName(val)}.");
             }
+
             return val.NumberType switch
             {
                 RuntimeNumberType.Int => val.IntValue,
@@ -49,7 +50,8 @@ namespace Fluence
             mathNamespace.Declare("abs__1", new FunctionSymbol("abs__1", 1, (vm, argCount) =>
             {
                 RuntimeValue val = vm.PopStack();
-                if (val.Type != RuntimeValueType.Number) throw vm.ConstructRuntimeException("abs() expects a numerical argument.");
+                if (val.Type != RuntimeValueType.Number) return vm.SignalRecoverableErrorAndReturnNil("abs() expects a numerical argument.");
+
                 return val.NumberType switch
                 {
                     RuntimeNumberType.Int => new RuntimeValue(Math.Abs(val.IntValue)),
@@ -99,7 +101,8 @@ namespace Fluence
             mathNamespace.Declare("ceil__1", new FunctionSymbol("ceil__1", 1, (vm, argCount) =>
             {
                 RuntimeValue val = vm.PopStack();
-                if (val.Type != RuntimeValueType.Number) throw vm.ConstructRuntimeException("ceil() expects a numerical argument.");
+                if (val.Type != RuntimeValueType.Number) return vm.SignalRecoverableErrorAndReturnNil("ceil() expects a numerical argument.");
+
                 return val.NumberType switch
                 {
                     RuntimeNumberType.Int => val,
@@ -195,7 +198,8 @@ namespace Fluence
             mathNamespace.Declare("round__1", new FunctionSymbol("round__1", 1, (vm, argCount) =>
             {
                 RuntimeValue val = vm.PopStack();
-                if (val.Type != RuntimeValueType.Number) throw vm.ConstructRuntimeException("round() expects a numerical argument.");
+                if (val.Type != RuntimeValueType.Number) return vm.SignalRecoverableErrorAndReturnNil("round() expects a numerical argument.");
+
                 return val.NumberType switch
                 {
                     RuntimeNumberType.Int => val,

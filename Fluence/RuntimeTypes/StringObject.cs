@@ -63,13 +63,13 @@ namespace Fluence.RuntimeTypes
             StringObject selfStringObj = self.As<StringObject>();
             if (selfStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Cannot call method 'index_of' on a nil or non-string value.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Cannot call method 'index_of' on a nil or non-string value.");
             }
 
             RuntimeValue charToFind = vm.PopStack();
             if (charToFind.As<CharObject>() is not { } charObj)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: string.index_of() expects a character argument.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: string.index_of() expects a character argument.");
             }
 
             int index = selfStringObj.Value.IndexOf(charObj.Value);
@@ -81,13 +81,13 @@ namespace Fluence.RuntimeTypes
             StringObject selfStringObj = self.As<StringObject>();
             if (selfStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Cannot call method 'last_index_of' on a nil or non-string value.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Cannot call method 'last_index_of' on a nil or non-string value.");
             }
 
             RuntimeValue charToFind = vm.PopStack();
             if (charToFind.As<CharObject>() is not { } charObj)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: string.last_index_of() expects a character argument.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: string.last_index_of() expects a character argument.");
             }
 
             int index = selfStringObj.Value.LastIndexOf(charObj.Value);
@@ -99,14 +99,14 @@ namespace Fluence.RuntimeTypes
             StringObject selfStringObj = self.As<StringObject>();
             if (selfStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Cannot call method 'contains' on a nil or non-string value.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Cannot call method 'contains' on a nil or non-string value.");
             }
 
             RuntimeValue arg = vm.PopStack();
             StringObject argStringObj = arg.As<StringObject>();
             if (argStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException($"Runtime Error: string.contains() expects a non-nil string argument, got {GetDetailedTypeName(arg)}.");
+                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.contains() expects a non-nil string argument, got {GetDetailedTypeName(arg)}.");
             }
 
             bool contains = selfStringObj.Value.Contains(argStringObj.Value, StringComparison.Ordinal);
@@ -118,14 +118,14 @@ namespace Fluence.RuntimeTypes
             StringObject selfStringObj = self.As<StringObject>();
             if (selfStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Cannot call method 'ends_with' on a nil or non-string value.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Cannot call method 'ends_with' on a nil or non-string value.");
             }
 
             RuntimeValue arg = vm.PopStack();
             StringObject argStringObj = arg.As<StringObject>();
             if (argStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException($"Runtime Error: string.ends_with() expects a non-nil string argument, got {GetDetailedTypeName(arg)}.");
+                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.ends_with() expects a non-nil string argument, got {GetDetailedTypeName(arg)}.");
             }
 
             bool endsWith = selfStringObj.Value.EndsWith(argStringObj.Value, StringComparison.Ordinal);
@@ -137,14 +137,14 @@ namespace Fluence.RuntimeTypes
             StringObject selfStringObj = self.As<StringObject>();
             if (selfStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Cannot call method 'starts_with' on a nil or non-string value.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Cannot call method 'starts_with' on a nil or non-string value.");
             }
 
             RuntimeValue arg = vm.PopStack();
             StringObject argStringObj = arg.As<StringObject>();
             if (argStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException($"Runtime Error: string.starts_with() expects a non-nil string argument, got {GetDetailedTypeName(arg)}.");
+                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.starts_with() expects a non-nil string argument, got {GetDetailedTypeName(arg)}.");
             }
 
             bool startsWith = selfStringObj.Value.StartsWith(argStringObj.Value, StringComparison.Ordinal);
@@ -156,7 +156,7 @@ namespace Fluence.RuntimeTypes
             StringObject selfStringObj = self.As<StringObject>();
             if (selfStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Cannot call method 'insert' on a nil or non-string value.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Cannot call method 'insert' on a nil or non-string value.");
             }
 
             RuntimeValue arg = vm.PopStack();
@@ -165,12 +165,12 @@ namespace Fluence.RuntimeTypes
             StringObject argStringObj = arg.As<StringObject>();
             if (argStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException($"Runtime Error: string.insert() expects a non-nil string argument, got {GetDetailedTypeName(arg)}.");
+                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.insert() expects a non-nil string argument, got {GetDetailedTypeName(arg)}.");
             }
 
             if (index.Type != RuntimeValueType.Number || index.IntValue < 0 || index.IntValue > selfStringObj.Value.Length)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Insert index is out of bounds or invalid.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Insert index is out of bounds or invalid.");
             }
 
             string newValue = selfStringObj.Value.Insert(index.IntValue, argStringObj.Value);
@@ -182,7 +182,7 @@ namespace Fluence.RuntimeTypes
             StringObject selfStringObj = self.As<StringObject>();
             if (selfStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Cannot call method 'pad_left' on a nil or non-string value.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Cannot call method 'pad_left' on a nil or non-string value.");
             }
 
             RuntimeValue count = vm.PopStack();
@@ -190,10 +190,10 @@ namespace Fluence.RuntimeTypes
 
             if (count.Type != RuntimeValueType.Number || count.IntValue < 0)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Pad count must be a non-negative integer.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Pad count must be a non-negative integer.");
             }
 
-            CharObject? argCharObj = arg.As<CharObject>() ?? throw vm.ConstructRuntimeException($"Runtime Error: string.pad_left() expects a character argument, got {GetDetailedTypeName(arg)}.");
+            CharObject? argCharObj = arg.As<CharObject>() ?? vm.SignalError<CharObject>($"Runtime Error: string.pad_left() expects a character argument, got {GetDetailedTypeName(arg)}.");
             string newValue = selfStringObj.Value.PadLeft(count.IntValue, argCharObj.Value);
             return vm.ResolveStringObjectRuntimeValue(newValue);
         }
@@ -203,7 +203,7 @@ namespace Fluence.RuntimeTypes
             StringObject selfStringObj = self.As<StringObject>();
             if (selfStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Cannot call method 'pad_right' on a nil or non-string value.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Cannot call method 'pad_right' on a nil or non-string value.");
             }
 
             RuntimeValue count = vm.PopStack();
@@ -211,10 +211,10 @@ namespace Fluence.RuntimeTypes
 
             if (count.Type != RuntimeValueType.Number || count.IntValue < 0)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Pad count must be a non-negative integer.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Pad count must be a non-negative integer.");
             }
 
-            CharObject? argCharObj = arg.As<CharObject>() ?? throw vm.ConstructRuntimeException($"Runtime Error: string.pad_right() expects a character argument, got {GetDetailedTypeName(arg)}.");
+            CharObject? argCharObj = arg.As<CharObject>() ?? vm.SignalError<CharObject>($"Runtime Error: string.pad_right() expects a character argument, got {GetDetailedTypeName(arg)}.");
             string newValue = selfStringObj.Value.PadRight(count.IntValue, argCharObj.Value);
             return vm.ResolveStringObjectRuntimeValue(newValue);
         }
@@ -224,7 +224,7 @@ namespace Fluence.RuntimeTypes
             StringObject selfStringObj = self.As<StringObject>();
             if (selfStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Cannot call method 'replace' on a nil or non-string value.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Cannot call method 'replace' on a nil or non-string value.");
             }
 
             RuntimeValue with = vm.PopStack();
@@ -233,13 +233,13 @@ namespace Fluence.RuntimeTypes
             StringObject replaceStringObj = replace.As<StringObject>();
             if (replaceStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException($"Runtime Error: string.replace() expects a non-nil string argument for string to replace, got {GetDetailedTypeName(replace)}.");
+                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.replace() expects a non-nil string argument for string to replace, got {GetDetailedTypeName(replace)}.");
             }
 
             StringObject withStringObj = with.As<StringObject>();
             if (withStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException($"Runtime Error: string.replace() expects a non-nil string for string to replace with, got {GetDetailedTypeName(with)}.");
+                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.replace() expects a non-nil string for string to replace with, got {GetDetailedTypeName(with)}.");
             }
 
             string newValue = selfStringObj.Value.Replace(replaceStringObj.Value, withStringObj.Value, StringComparison.Ordinal);
@@ -251,14 +251,14 @@ namespace Fluence.RuntimeTypes
             StringObject selfStringObj = self.As<StringObject>();
             if (selfStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Cannot call method 'sub' on a nil or non-string value.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Cannot call method 'sub' on a nil or non-string value.");
             }
 
             RuntimeValue from = vm.PopStack();
 
             if (from.Type != RuntimeValueType.Number || from.IntValue < 0 || from.IntValue > selfStringObj.Value.Length)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Substring start index is out of bounds or invalid.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Substring start index is out of bounds or invalid.");
             }
 
             string newValue = selfStringObj.Value[from.IntValue..];
@@ -270,7 +270,7 @@ namespace Fluence.RuntimeTypes
             StringObject selfStringObj = self.As<StringObject>();
             if (selfStringObj.Value is null)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Cannot call method 'sub' on a nil or non-string value.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Cannot call method 'sub' on a nil or non-string value.");
             }
 
             RuntimeValue length = vm.PopStack();
@@ -279,7 +279,7 @@ namespace Fluence.RuntimeTypes
             if (from.Type != RuntimeValueType.Number || length.Type != RuntimeValueType.Number ||
                 from.IntValue < 0 || length.IntValue < 0 || from.IntValue + length.IntValue > selfStringObj.Value.Length)
             {
-                throw vm.ConstructRuntimeException("Runtime Error: Substring start index or length is out of bounds or invalid.");
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Substring start index or length is out of bounds or invalid.");
             }
 
             string newValue = selfStringObj.Value.Substring(from.IntValue, length.IntValue);

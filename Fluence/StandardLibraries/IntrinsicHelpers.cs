@@ -9,10 +9,12 @@ namespace Fluence
         internal static string GetStringArg(FluenceVirtualMachine vm, string funcName)
         {
             RuntimeValue pathRv = vm.PopStack();
+
             if (pathRv.ObjectReference is not StringObject pathObj || string.IsNullOrEmpty(pathObj.Value))
             {
-                throw vm.ConstructRuntimeException($"Invalid argument for function: \"{funcName}\". Argument must be a non-empty string.");
+                return vm.SignalError<string>($"Invalid argument for function: \"{funcName}\". Argument must be a non-empty string.");
             }
+
             return pathObj.Value;
         }
 
@@ -24,8 +26,9 @@ namespace Fluence
             if (arg1Rv.ObjectReference is not StringObject arg1Obj || string.IsNullOrEmpty(arg1Obj.Value) ||
                 arg2Rv.ObjectReference is not StringObject arg2Obj || string.IsNullOrEmpty(arg2Obj.Value))
             {
-                throw vm.ConstructRuntimeException($"Invalid argument(s) for function: \"{funcName}\". Both arguments must be non-empty strings.");
+                return vm.SignalError<(string, string)>($"Invalid argument(s) for function: \"{funcName}\". Both arguments must be non-empty strings.");
             }
+
             return (arg1Obj.Value, arg2Obj.Value);
         }
 
@@ -72,6 +75,7 @@ namespace Fluence
                 {
                     throw vm.ConstructRuntimeException($"Runtime Error: The 'to_string' method for '{instance.Class.Name}' must return a string, but it returned a '{GetDetailedTypeName(result)}'.");
                 }
+
                 return stringResult.Value;
             }
 

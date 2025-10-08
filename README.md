@@ -934,7 +934,7 @@ index = nil;
 try {
   printl(list[index]);
 } catch {
-  printl("Invalid Index);
+  printl("Invalid Index");
 }
 ```
 
@@ -1015,7 +1015,8 @@ Fluence is still a language heavily in development, as such many features and mu
 - Default function argument values
 - Some form of pattern matching
 - Custom intrinsics, a way to define intrinsics from the outside of the Fluence .dll
-- Exceptions, basic try/catch.
+- Exceptions
+- Enums as full objects.
 - Structs in structs, currently the parser cant parse nested structs, it can parse enums defined in structs, but not structs.
 - Expanding this readme, much is yet to be written.
 - And much more.

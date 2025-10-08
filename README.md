@@ -934,7 +934,7 @@ index = nil;
 try {
   printl(list[index]);
 } catch {
-  printl("Invalid Index);
+  printl("Invalid Index");
 }
 ```
 

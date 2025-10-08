@@ -13,7 +13,7 @@ namespace Fluence.RuntimeTypes
 
         public StringObject() { }
 
-        internal void Reset() => Value = null!;
+        internal void Reset() => Value = null;
 
         internal void Initialize(string str) => Value = str;
 

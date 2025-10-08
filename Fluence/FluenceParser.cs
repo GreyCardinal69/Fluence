@@ -4024,7 +4024,7 @@ namespace Fluence
         {
             if (AdvanceTokenIfMatch(TokenType.TYPE_OF))
             {
-                Value operand = ParseAccess();
+                Value operand = ParseAccess(); 
 
                 TempValue resultRegister = new TempValue(_currentParseState.NextTempNumber++);
 
@@ -4036,10 +4036,14 @@ namespace Fluence
                     {
                         typeOperand = varValue;
                     }
-                    else
+                    else if (_currentParseState.CurrentScope.TryResolve(varValue.Name, out _))
                     {
                         // It's a raw type name.
                         typeOperand = new StringValue(varValue.Name);
+                    }
+                    else
+                    {
+                        typeOperand = operand;
                     }
                 }
                 else

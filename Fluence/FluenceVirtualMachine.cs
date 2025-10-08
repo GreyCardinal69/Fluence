@@ -2813,9 +2813,9 @@ namespace Fluence
                 // Error in try block.
                 if (_ip < tryCatchContext.TryGoToIndex)
                 {
-                    if (tryCatchContext.HasExceptionVar)
+                    if (tryCatchContext.HasExceptionVar && !string.IsNullOrEmpty(tryCatchContext.ExceptionAsVar))
                     {
-                        CurrentRegisters[tryCatchContext.ExceptionAsVar] = ResolveStringObjectRuntimeValue(exception);
+                        CurrentRegisters[tryCatchContext.ExceptionAsVar] = new RuntimeValue(new ExceptionObject(exception));
                     }
 
                     // Jumps to catch block.

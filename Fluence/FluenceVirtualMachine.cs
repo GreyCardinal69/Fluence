@@ -1690,7 +1690,7 @@ namespace Fluence
                 throw ConstructRuntimeException("Internal VM Error: Invalid operands for IterNext. Expected (Source Iterator, Dest Value, Dest Flag).");
             }
 
-            RuntimeValue iteratorVal = CurrentRegisters[iteratorReg.TempName];
+            RuntimeValue iteratorVal = _cachedRegisters[iteratorReg.TempName];
 
             if (iteratorVal.As<IteratorObject>() is not IteratorObject iterator)
             {
@@ -2294,7 +2294,7 @@ namespace Fluence
 
             if (finishedFrame.DestinationRegister != null)
             {
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, finishedFrame.DestinationRegister.TempName, out _);
+                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, finishedFrame.DestinationRegister.TempName, out _);
                 valueRef = returnValue;
             }
 
@@ -2311,7 +2311,7 @@ namespace Fluence
 
             if (instruction.Lhs is TempValue destination)
             {
-                ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, destination.TempName, out _);
+                ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, destination.TempName, out _);
                 valueRef2 = returnValue;
             }
 
@@ -2343,7 +2343,7 @@ namespace Fluence
         {
             if (CurrentFrame.ReturnAddress != _byteCode.Count)
             {
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, var.Name, out _);
+                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, var.Name, out _);
                 valueRef = val;
                 return;
             }
@@ -2359,7 +2359,7 @@ namespace Fluence
         {
             if (val is TempValue temp)
             {
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentRegisters, temp.TempName);
+                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, temp.TempName);
 
                 return !Unsafe.IsNullRef(ref valueRef) ? valueRef : RuntimeValue.Nil;
             }
@@ -2426,7 +2426,7 @@ namespace Fluence
         /// <exception cref="FluenceRuntimeException">Thrown if the variable is not defined in any accessible scope.</exception>
         private RuntimeValue ResolveVariable(string name, Value val = null!)
         {
-            ref RuntimeValue localValue = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentRegisters, name);
+            ref RuntimeValue localValue = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, name);
             if (!Unsafe.IsNullRef(ref localValue))
             {
                 return localValue;
@@ -2462,7 +2462,7 @@ namespace Fluence
             // Last case, a Lambda, and if not undefined.
             if (val is not null and VariableValue)
             {
-                ref RuntimeValue lambda = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentRegisters, Mangler.Demangle(name));
+                ref RuntimeValue lambda = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, Mangler.Demangle(name));
                 if (!Unsafe.IsNullRef(ref lambda))
                 {
                     return lambda;
@@ -2570,7 +2570,7 @@ namespace Fluence
         /// </summary>
         internal void SetRegister(TempValue destination, RuntimeValue value)
         {
-            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, destination.TempName, out _);
+            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, destination.TempName, out _);
             valueRef = value;
         }
 
@@ -2640,7 +2640,7 @@ namespace Fluence
             // If we are not in the top-level script, assign to the current frame's local registers.
             if (CurrentFrame.ReturnAddress != _byteCode.Count)
             {
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentRegisters, name, out _);
+                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, name, out _);
                 valueRef = value;
                 return;
             }
@@ -2815,7 +2815,7 @@ namespace Fluence
                 {
                     if (tryCatchContext.HasExceptionVar && !string.IsNullOrEmpty(tryCatchContext.ExceptionAsVar))
                     {
-                        CurrentRegisters[tryCatchContext.ExceptionAsVar] = new RuntimeValue(new ExceptionObject(exception));
+                        _cachedRegisters[tryCatchContext.ExceptionAsVar] = new RuntimeValue(new ExceptionObject(exception));
                     }
 
                     // Jumps to catch block.

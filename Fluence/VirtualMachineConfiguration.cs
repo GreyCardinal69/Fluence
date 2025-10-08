@@ -8,7 +8,7 @@
     {
         /// <summary>
         /// Gets or sets a value indicating whether the generated Fluence bytecode should be
-        /// run through an optimization pass before execution.
+        /// run through an incremental optimization pass before execution.
         /// </summary>
         /// <remarks>
         /// When enabled, the optimizer may merge, replace, or reorder instructions to improve

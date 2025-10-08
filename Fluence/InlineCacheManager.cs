@@ -303,7 +303,7 @@ namespace Fluence
 
             if (AttemptToModifyReadonlyVar(insn, vm))
             {
-                return vm.SignalError<SpecializedOpcodeHandler>($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
+                throw vm.ConstructRuntimeException($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
             }
 
             Value lhsOperand = insn.Rhs;

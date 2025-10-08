@@ -33,6 +33,24 @@ namespace Fluence
         /// </summary>
         public TextOutputMethod OnOutputLine { get; set; } = Console.WriteLine;
 
+        private VirtualMachineConfiguration _vmConfiguration = new VirtualMachineConfiguration()
+        {
+            OptimizeByteCode = true
+        };
+
+        /// <summary>
+        /// Gets the configuration object that defines the runtime behavior and settings for this
+        /// virtual machine instance.
+        /// </summary>
+        public VirtualMachineConfiguration Configuration
+        {
+            get => _vmConfiguration;
+            private set
+            {
+                _vmConfiguration = value;
+            }
+        }
+
         /// <summary>
         /// Gets or sets the method used by the 'print' family of functions for non-newline output.
         /// Defaults to Console.Write.
@@ -118,7 +136,7 @@ namespace Fluence
             try
             {
                 FluenceLexer lexer = new FluenceLexer(sourceCode);
-                FluenceParser parser = new FluenceParser(lexer, OnOutputLine, OnOutput, OnInput);
+                FluenceParser parser = new FluenceParser(lexer, _vmConfiguration, OnOutputLine, OnOutput, OnInput);
                 _intrinsicsInstance = parser.Intrinsics;
                 parser.Parse(partialCode);
 #if DEBUG
@@ -151,9 +169,10 @@ namespace Fluence
 
             try
             {
-                FluenceParser parser = new FluenceParser(rootDir, OnOutputLine, OnOutput, OnInput);
+                FluenceParser parser = new FluenceParser(rootDir, _vmConfiguration, OnOutputLine, OnOutput, OnInput);
                 _intrinsicsInstance = parser.Intrinsics;
                 parser.Parse(partialCode);
+
 #if DEBUG
                 FluenceDebug.DumpSymbolTables(parser.CurrentParseState, OnOutputLine);
                 FluenceDebug.DumpByteCodeInstructions(parser.CompiledCode, OnOutputLine);

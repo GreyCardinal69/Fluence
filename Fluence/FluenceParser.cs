@@ -38,6 +38,11 @@ namespace Fluence
         private readonly Stack<string> _fileStack;
 
         /// <summary>
+        /// The instance of <see cref="VirtualMachineConfiguration"/> dictating certain parsing and runtime rules.
+        /// </summary>
+        private readonly VirtualMachineConfiguration _vmConfiguration;
+
+        /// <summary>
         /// Indicates which file, if in a multi-file Fluence project, is being parsed at the moment.
         /// </summary>
         private string _currentParsingFileName;
@@ -188,8 +193,9 @@ namespace Fluence
             }
         }
 
-        internal FluenceParser(string root, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input)
+        internal FluenceParser(string root, VirtualMachineConfiguration config, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input)
         {
+            _vmConfiguration = config;
             _currentParseState = new ParseState(this);
             _multiFileProject = true;
             _fileStack = new Stack<string>();
@@ -205,8 +211,9 @@ namespace Fluence
             _intrinsicsManager.RegisterCoreGlobals();
         }
 
-        internal FluenceParser(FluenceLexer lexer, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input)
+        internal FluenceParser(FluenceLexer lexer, VirtualMachineConfiguration config, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input)
         {
+            _vmConfiguration = config;
             _currentParseState = new ParseState(this);
             _lexer = lexer;
 
@@ -1516,10 +1523,13 @@ namespace Fluence
             _currentParseState.CodeInstructions[functionStartAddress - 1].Lhs = new NumberValue(afterBodyAddress);
             _currentParseState.IsParsingFunctionBody = false;
 
-            FluenceOptimizer.OptimizeChunk(ref _currentParseState.CodeInstructions, _currentParseState, _lastOptimizationIndex);
+            if (_vmConfiguration.OptimizeByteCode)
+            {
+                FluenceOptimizer.OptimizeChunk(ref _currentParseState.CodeInstructions, _currentParseState, _lastOptimizationIndex);
 
-            // Next time we call OptimizeChunk, all the bytecode before here will be skipped, to avoid repetitive, useless optimization passes.
-            _lastOptimizationIndex = functionStartAddress;
+                // Next time we call OptimizeChunk, all the bytecode before here will be skipped, to avoid repetitive, useless optimization passes.
+                _lastOptimizationIndex = functionStartAddress;
+            }
         }
 
         /// <summary>
@@ -4024,7 +4034,7 @@ namespace Fluence
         {
             if (AdvanceTokenIfMatch(TokenType.TYPE_OF))
             {
-                Value operand = ParseAccess(); 
+                Value operand = ParseAccess();
 
                 TempValue resultRegister = new TempValue(_currentParseState.NextTempNumber++);
 

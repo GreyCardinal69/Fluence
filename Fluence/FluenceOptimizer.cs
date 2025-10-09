@@ -249,11 +249,6 @@ namespace Fluence
                 return oldAddr > removedIndex ? oldAddr - 1 : oldAddr;
             }
 
-            void PatchFunctionValue(FunctionValue f)
-            {
-                f?.SetStartAddress(MapAddr(f.StartAddress));
-            }
-
             for (int i = 0; i < bytecode.Count; i++)
             {
                 InstructionLine insn = bytecode[i];
@@ -268,9 +263,9 @@ namespace Fluence
                     tryCatch.TryGoToIndex = MapAddr(tryCatch.TryGoToIndex);
                     tryCatch.CatchGoToIndex = MapAddr(tryCatch.CatchGoToIndex);
                 }
-                if (insn.Rhs is FunctionValue fvRhs) PatchFunctionValue(fvRhs);
-                if (insn.Rhs is LambdaValue lambda) PatchFunctionValue(lambda.Function);
-                if (insn.Rhs2 is FunctionValue fvRhs2) PatchFunctionValue(fvRhs2);
+                if (insn.Rhs is FunctionValue fvRhs) fvRhs.SetStartAddress(MapAddr(fvRhs.StartAddress));
+                if (insn.Rhs is LambdaValue lambda) lambda.Function.SetStartAddress(MapAddr(lambda.Function.StartAddress));
+                if (insn.Rhs2 is FunctionValue fvRhs2) fvRhs2.SetStartAddress(MapAddr(fvRhs2.StartAddress));
             }
 
             foreach (Symbol symbol in state.GlobalScope.Symbols.Values)
@@ -280,9 +275,9 @@ namespace Fluence
                 {
                     foreach (KeyValuePair<string, FunctionValue> item in s.Constructors)
                     {
-                        PatchFunctionValue(item.Value);
+                        item.Value.SetStartAddress(MapAddr(item.Value.StartAddress));
                     }
-                    foreach (FunctionValue m in s.Functions.Values) PatchFunctionValue(m);
+                    foreach (FunctionValue m in s.Functions.Values) m.SetStartAddress(MapAddr(m.StartAddress));
                 }
             }
             foreach (FluenceScope scope in state.NameSpaces.Values)
@@ -294,9 +289,9 @@ namespace Fluence
                     {
                         foreach (KeyValuePair<string, FunctionValue> item in s.Constructors)
                         {
-                            PatchFunctionValue(item.Value);
+                            item.Value.SetStartAddress(MapAddr(item.Value.StartAddress));
                         }
-                        foreach (FunctionValue m in s.Functions.Values) PatchFunctionValue(m);
+                        foreach (FunctionValue m in s.Functions.Values) m.SetStartAddress(MapAddr(m.StartAddress));
                     }
                 }
             }

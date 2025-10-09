@@ -2321,12 +2321,6 @@ namespace Fluence
 
             _ip = finishedFrame.ReturnAddress;
 
-            if (instruction.Lhs is TempValue destination)
-            {
-                ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, destination.TempName, out _);
-                valueRef2 = returnValue;
-            }
-
             // Lambdas don't return thier function object until their' parent call frame returns.
             if (!finishedFrame.Function.IsLambda)
             {

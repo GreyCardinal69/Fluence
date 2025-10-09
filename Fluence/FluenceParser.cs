@@ -977,7 +977,6 @@ namespace Fluence
             ParseStatementBody("'catch' statement expects a '->' for a single line statement of code.");
 
             int catchBlockEnd = _currentParseState.CodeInstructions.Count;
-
             _currentParseState.CodeInstructions[jumpPatch].Lhs = new TryCatchValue(tryBlockEnd, var?.Name, catchBlockEnd, var is not null);
         }
 

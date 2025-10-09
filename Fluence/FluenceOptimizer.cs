@@ -263,7 +263,7 @@ namespace Fluence
                 {
                     targetAddr.ReAssign(MapAddr((int)targetAddr.Value));
                 }
-                if (insn.Rhs is TryCatchValue tryCatch)
+                if (insn.Lhs is TryCatchValue tryCatch)
                 {
                     tryCatch.TryGoToIndex = MapAddr(tryCatch.TryGoToIndex);
                     tryCatch.CatchGoToIndex = MapAddr(tryCatch.CatchGoToIndex);

@@ -1634,7 +1634,7 @@ namespace Fluence
 
         private void ExecuteTryBlock(InstructionLine instruction)
         {
-            TryCatchValue context = (TryCatchValue)instruction.Rhs;
+            TryCatchValue context = (TryCatchValue)instruction.Lhs;
 
             _tryCatchBlocks.Push(context);
         }

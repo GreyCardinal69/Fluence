@@ -36,7 +36,6 @@ namespace Fluence
         private VirtualMachineConfiguration _vmConfiguration = new VirtualMachineConfiguration()
         {
             OptimizeByteCode = true,
-            Test = false,
         };
 
         /// <summary>

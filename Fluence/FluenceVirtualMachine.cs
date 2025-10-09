@@ -1907,7 +1907,15 @@ namespace Fluence
             _ip = function.StartAddress;
         }
 
-        internal RuntimeValue PopStack() => _operandStack.Pop();
+        internal RuntimeValue PopStack()
+        {
+            if (_operandStack.Count > 0)
+            {
+                return _operandStack.Pop();
+            }
+
+            throw ConstructRuntimeException("Internal VM Error: Attempt to pop value from the operand stack, the operand stack was empty.");
+        }
 
         /// <summary>
         /// Handles the CALL_FUNCTION instruction, which invokes a standalone function.
@@ -2863,6 +2871,11 @@ namespace Fluence
             return default;
         }
 
+        /// <summary>
+        /// Handles a runtime error. If a try-catch block is active, it redirects the instruction pointer
+        /// to the catch block. Otherwise, it throws an unhandled exception, terminating the VM.
+        /// Returns Nil if the exception has been caught.
+        /// </summary>
         internal RuntimeValue SignalRecoverableErrorAndReturnNil(string message, RuntimeExceptionType exceptionType = RuntimeExceptionType.NonSpecific)
         {
             SignalError(message, exceptionType);
@@ -2870,14 +2883,14 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Creates and throws a runtime error that can not be catched.
+        /// Creates and throws a runtime error that can not be caught.
         /// </summary>
         /// <param name="exception">The exception message.</param>
         /// <param name="exceptionType">The type of the exception.</param>
         internal void CreateAndThrowRuntimeException(string exception, RuntimeExceptionType exceptionType = RuntimeExceptionType.NonSpecific) => throw CreateRuntimeException(exception, exceptionType);
 
         /// <summary>
-        /// Creates a runtime error that can not be catched.
+        /// Creates a runtime error that can not be caught.
         /// </summary>
         /// <param name="exception">The exception message.</param>
         /// <param name="exceptionType">The type of the exception.</param>

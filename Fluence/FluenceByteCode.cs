@@ -86,6 +86,9 @@
                 NewLambda,
                 LoadAddress,    // REF
 
+                /// <summary> Increments an integer variable, even if it is readonly. </summary>
+                IncrementIntUnrestricted,
+
                 //      ==!!==
                 //      The following are special bytecode instructions generated solely by the Optimizer class after the parsing phase.
 
@@ -95,9 +98,6 @@
                 MulAssign,
                 DivAssign,
                 ModAssign,
-
-                /// <summary> Increments an integer variable, even if it is readonly. </summary>
-                IncrementIntUnrestricted,
 
                 AssignTwo,
 

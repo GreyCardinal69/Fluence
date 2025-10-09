@@ -35,7 +35,8 @@ namespace Fluence
 
         private VirtualMachineConfiguration _vmConfiguration = new VirtualMachineConfiguration()
         {
-            OptimizeByteCode = true
+            OptimizeByteCode = true,
+            Test = false,
         };
 
         /// <summary>
@@ -218,12 +219,12 @@ namespace Fluence
             {
                 if (_vm == null || _vm.State == FluenceVMState.NotStarted)
                 {
-                    _vm = new FluenceVirtualMachine(_byteCode, _parseState, OnOutput, OnOutputLine, OnInput);
+                    _vm = new FluenceVirtualMachine(_byteCode, _vmConfiguration, _parseState, OnOutput, OnOutputLine, OnInput);
                 }
 
                 if (_vm.State is FluenceVMState.Finished or FluenceVMState.Error)
                 {
-                    _vm = new FluenceVirtualMachine(_byteCode, _parseState, OnOutput, OnOutputLine, OnInput);
+                    _vm = new FluenceVirtualMachine(_byteCode, _vmConfiguration, _parseState, OnOutput, OnOutputLine, OnInput);
                 }
                 _vm.SetIntrinsicLibraryWhiteAndBlackLists(AllowedLibraries, DisallowedLibraries);
                 _vm.RunFor(duration);

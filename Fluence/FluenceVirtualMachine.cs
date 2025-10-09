@@ -105,23 +105,6 @@ namespace Fluence
         /// <summary>The Instruction Pointer, which holds the address of the *next* instruction to be executed.</summary>
         private int _ip;
 
-        /// <summary>Gets the currently active call frame from the top of the call stack.</summary>
-        internal CallFrame CurrentFrame => _callStack.Peek();
-
-        /// <summary>Gets the registers for the current call frame via the cached reference.</summary>
-        internal Dictionary<string, RuntimeValue> CurrentRegisters => _cachedRegisters;
-
-        internal int CurrentInstructionPointer => _ip;
-
-        internal List<InstructionLine> ByteCode => _byteCode;
-
-        internal FluenceParser Parser => _parser;
-
-        /// <summary>
-        /// The current state of the Virtual Machine.
-        /// </summary>
-        public FluenceVMState State { get; private set; } = FluenceVMState.NotStarted;
-
         /// <summary>
         /// A flag that, when set to true, will cause the execution loop to pause at the next instruction.
         /// </summary>
@@ -135,6 +118,32 @@ namespace Fluence
 
         /// <summary>The delegate method used to receive input.</summary>
         private readonly TextInputMethod _input;
+
+        /// <summary>
+        /// The current instance of the <see cref="VirtualMachineConfiguration"/> given by the interpreter.
+        /// </summary>
+        private readonly VirtualMachineConfiguration _configuration;
+
+        /// <summary>Gets the currently active call frame from the top of the call stack.</summary>
+        internal CallFrame CurrentFrame => _callStack.Peek();
+
+        /// <summary>Gets the registers for the current call frame via the cached reference.</summary>
+        internal Dictionary<string, RuntimeValue> CurrentRegisters => _cachedRegisters;
+
+        internal Dictionary<string, RuntimeValue> GlobalRegisters => _globals;
+
+        internal int CurrentInstructionPointer => _ip;
+
+        internal List<InstructionLine> ByteCode => _byteCode;
+
+        internal FluenceParser Parser => _parser;
+
+        internal FluenceScope GlobalScope => _globalScope;
+
+        /// <summary>
+        /// The current state of the Virtual Machine.
+        /// </summary>
+        public FluenceVMState State { get; private set; } = FluenceVMState.NotStarted;
 
 #if DEBUG
         //
@@ -370,7 +379,7 @@ namespace Fluence
         /// <param name="output">The delegate to handle non-newline output.</param>
         /// <param name="outputLine">The delegate to handle line-based output.</param>
         /// <param name="input">The delegate to handle user input.</param>
-        internal FluenceVirtualMachine(List<InstructionLine> bytecode, ParseState parseState, TextOutputMethod? output, TextOutputMethod? outputLine, TextInputMethod? input)
+        internal FluenceVirtualMachine(List<InstructionLine> bytecode, VirtualMachineConfiguration config, ParseState parseState, TextOutputMethod? output, TextOutputMethod? outputLine, TextInputMethod? input)
         {
             _callFramePool = new ObjectPool<CallFrame>(frame => frame.Reset());
             _iteratorObjectPool = new ObjectPool<IteratorObject>(iter => iter.Reset());
@@ -386,6 +395,8 @@ namespace Fluence
 
             _output = output ?? Console.Write;
             _outputLine = outputLine ?? Console.WriteLine;
+
+            _configuration = config;
 
             // TO DO, Needs testing.
             _input = input ?? Console.ReadLine!;
@@ -2288,7 +2299,8 @@ namespace Fluence
             {
                 // This means we are trying to return from the top-level script.
                 // In this case, we can treat it like a Terminate.
-                _ip = _byteCode.Count; _callFramePool.Return(finishedFrame);
+                _ip = _byteCode.Count;
+                _callFramePool.Return(finishedFrame);
                 return;
             }
 

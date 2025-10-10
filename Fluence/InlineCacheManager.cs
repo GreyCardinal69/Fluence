@@ -740,16 +740,17 @@ namespace Fluence
                         ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(registers, collName);
                         ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
 
-                        string actualString = collRef.As<StringObject>().Value;
+                        vm.TryReturnRegisterReferenceToPool(destRegister);
+                        StringObject actualString = (StringObject)collRef.ObjectReference;
 
                         int idx = indexRef.IntValue;
-                        if ((uint)idx < (uint)actualString.Length)
+                        if ((uint)idx < (uint)actualString.Value.Length)
                         {
-                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(actualString[idx]));
+                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(actualString.Value[idx]));
                         }
                         else
                         {
-                            vm.SignalError($"Index out of range. Index was {idx}, but string length is {actualString.Length}.");
+                            vm.SignalError($"Index out of range. Index was {idx}, but string length is {actualString.Value.Length}.");
                         }
                     };
                 }
@@ -764,16 +765,17 @@ namespace Fluence
                         ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
                         ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
 
-                        string actualString = collRef.As<StringObject>().Value;
+                        vm.TryReturnRegisterReferenceToPool(destRegister);
+                        StringObject actualString = (StringObject)collRef.ObjectReference;
 
                         int idx = indexRef.IntValue;
-                        if ((uint)idx < (uint)actualString.Length)
+                        if ((uint)idx < (uint)actualString.Value.Length)
                         {
-                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(actualString[idx]));
+                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(actualString.Value[idx]));
                         }
                         else
                         {
-                            vm.SignalError($"Index out of range. Index was {idx}, but string length is {actualString.Length}.");
+                            vm.SignalError($"Index out of range. Index was {idx}, but string length is {actualString.Value.Length}.");
                         }
                     };
                 }
@@ -787,15 +789,16 @@ namespace Fluence
                     {
                         ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
 
-                        string actualString = collRef.As<StringObject>().Value;
+                        vm.TryReturnRegisterReferenceToPool(destRegister);
+                        StringObject actualString = (StringObject)collRef.ObjectReference;
 
-                        if ((uint)constIndex < (uint)actualString.Length)
+                        if ((uint)constIndex < (uint)actualString.Value.Length)
                         {
-                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(actualString[constIndex]));
+                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(actualString.Value[constIndex]));
                         }
                         else
                         {
-                            vm.SignalError($"Index out of range. Index was {constIndex}, but string length is {actualString.Length}.");
+                            vm.SignalError($"Index out of range. Index was {constIndex}, but string length is {actualString.Value.Length}.");
                         }
                     };
                 }

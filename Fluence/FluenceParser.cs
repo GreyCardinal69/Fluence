@@ -2170,7 +2170,7 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Parses a multi-target compound assignment expression, e.g., `a, b.x .+= 5, 9`.
+        /// Parses a multi-target compound assignment expression.
         /// </summary>
         /// <param name="lhsDescriptors">The list of left-hand side targets to be modified.</param>
         private void ParseMultiCompoundAssignment(List<Value> lhsDescriptors)

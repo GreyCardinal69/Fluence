@@ -1335,7 +1335,7 @@ namespace Fluence
                 throw ConstructRuntimeException("Internal VM Error: NewRange opcode requires a non-null RangeValue operand.");
             }
 
-            TryReturnRegisterReferenceToPool(instruction);
+            TryReturnRegisterReferenceToPool((TempValue)instruction.Lhs);
 
             RuntimeValue rangeRuntimeValue = GetRuntimeValue(instruction.Rhs);
             SetRegister((TempValue)instruction.Lhs, rangeRuntimeValue);
@@ -1660,7 +1660,7 @@ namespace Fluence
 
             if (iterable.ObjectReference is ListObject or RangeObject)
             {
-                TryReturnRegisterReferenceToPool(instruction);
+                TryReturnRegisterReferenceToPool((TempValue)instruction.Lhs);
 
                 IteratorObject iterator = _iteratorObjectPool.Get();
                 iterator.Initialize(iterable.ObjectReference);
@@ -2561,9 +2561,9 @@ namespace Fluence
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void TryReturnRegisterReferenceToPool(InstructionLine instruction)
+        internal void TryReturnRegisterReferenceToPool(TempValue register)
         {
-            RuntimeValue registerValue = GetRegisterValue(((TempValue)instruction.Lhs).TempName);
+            RuntimeValue registerValue = GetRegisterValue(register.TempName);
 
             switch (registerValue.ObjectReference)
             {

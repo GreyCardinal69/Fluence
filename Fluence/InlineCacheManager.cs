@@ -667,7 +667,7 @@ namespace Fluence
             return null;
         }
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedGetElementHandler(InstructionLine insn, RuntimeValue collection, RuntimeValue index)
+        internal static SpecializedOpcodeHandler? CreateSpecializedGetElementHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue collection, RuntimeValue index)
         {
             if (index.Type != RuntimeValueType.Number) return null;
 
@@ -722,28 +722,34 @@ namespace Fluence
                 };
             }
 
-            if (collection.ObjectReference is StringObject str)
+            if (collection.ObjectReference is StringObject)
             {
                 if (collectionOperand is VariableValue collVar3 && indexOperand is VariableValue indexVar3)
                 {
                     string collName = collVar3.Name;
                     string indexName = indexVar3.Name;
 
+                    // TO DO, This check must be dont for all handlers, all cases, since currently we search for values only in local function registers.
+                    // Any instruction handler that deals with global variable will fail!
+
+                    bool isGlobal = vm.GlobalRegisters.ContainsKey(collName);
+                    Dictionary<string, RuntimeValue> registers = isGlobal ? vm.GlobalRegisters : vm.CurrentRegisters;
+
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
+                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(registers, collName);
                         ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
 
-                        vm.TryReturnRegisterReferenceToPool(instruction);
+                        string actualString = collRef.As<StringObject>().Value;
 
                         int idx = indexRef.IntValue;
-                        if (idx >= 0 && idx < str.Value.Length)
+                        if ((uint)idx < (uint)actualString.Length)
                         {
-                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(str.Value[idx]));
+                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(actualString[idx]));
                         }
                         else
                         {
-                            vm.SignalError($"Index out of range. Index was {idx}, but string length is {(str.Value is null ? "The string was empty" : str.Value.Length)}.");
+                            vm.SignalError($"Index out of range. Index was {idx}, but string length is {actualString.Length}.");
                         }
                     };
                 }
@@ -758,16 +764,16 @@ namespace Fluence
                         ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
                         ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
 
-                        vm.TryReturnRegisterReferenceToPool(instruction);
+                        string actualString = collRef.As<StringObject>().Value;
 
                         int idx = indexRef.IntValue;
-                        if (idx >= 0 && idx < str.Value.Length)
+                        if ((uint)idx < (uint)actualString.Length)
                         {
-                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(str.Value[idx]));
+                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(actualString[idx]));
                         }
                         else
                         {
-                            vm.SignalError($"Index out of range. Index was {idx}, but string length is {(str.Value is null ? "The string was empty" : str.Value.Length)}.");
+                            vm.SignalError($"Index out of range. Index was {idx}, but string length is {actualString.Length}.");
                         }
                     };
                 }
@@ -775,21 +781,21 @@ namespace Fluence
                 if (collectionOperand is VariableValue collVar7 && indexOperand is NumberValue num)
                 {
                     string collName = collVar7.Name;
+                    int constIndex = (int)num.Value;
 
                     return (instruction, vm) =>
                     {
                         ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
-                        StringObject str = (StringObject)collRef.ObjectReference;
-                        vm.TryReturnRegisterReferenceToPool(instruction);
 
-                        int idx = (int)num.Value;
-                        if (idx >= 0 && idx < str.Value.Length)
+                        string actualString = collRef.As<StringObject>().Value;
+
+                        if ((uint)constIndex < (uint)actualString.Length)
                         {
-                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(str.Value[idx]));
+                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(actualString[constIndex]));
                         }
                         else
                         {
-                            vm.SignalError($"Index out of range. Index was {idx}, but string length is {(str.Value is null ? "The string was empty" : str.Value.Length)}.");
+                            vm.SignalError($"Index out of range. Index was {constIndex}, but string length is {actualString.Length}.");
                         }
                     };
                 }

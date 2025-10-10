@@ -1597,7 +1597,7 @@ namespace Fluence
                     return;
             }
 
-            instruction.SpecializedHandler = InlineCacheManager.CreateSpecializedGetElementHandler(instruction, collection, indexVal);
+            instruction.SpecializedHandler = InlineCacheManager.CreateSpecializedGetElementHandler(instruction, this, collection, indexVal);
         }
 
         /// <summary>
@@ -2716,7 +2716,17 @@ namespace Fluence
                 repeatedList.Elements.Capacity = list.Elements.Count * count;
                 for (int i = 0; i < count; i++)
                 {
-                    repeatedList.Elements.AddRange(list.Elements);
+                    foreach (RuntimeValue element in list.Elements)
+                    {
+                        if (element.ObjectReference is ICloneableFluenceObject cloneable)
+                        {
+                            repeatedList.Elements.Add(new RuntimeValue(cloneable.CloneObject()));
+                        }
+                        else
+                        {
+                            repeatedList.Elements.Add(element);
+                        }
+                    }
                 }
             }
 

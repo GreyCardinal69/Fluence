@@ -9,6 +9,7 @@
         /// <summary>
         /// Gets or sets a value indicating whether the generated Fluence bytecode should be
         /// run through an incremental optimization pass before execution.
+        /// This is primarily a debug option.
         /// </summary>
         /// <remarks>
         /// When enabled, the optimizer may merge, replace, or reorder instructions to improve

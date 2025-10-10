@@ -6,10 +6,17 @@ namespace Fluence.RuntimeTypes
     /// Represents the runtime instance of a list, which can contain any <see cref="RuntimeValue"/>.
     /// Implements <see cref="IFluenceObject"/> to provide intrinsic functions.
     /// </summary>
-    internal sealed record class ListObject : IFluenceObject
+    internal sealed record class ListObject : IFluenceObject, ICloneableFluenceObject
     {
         /// <summary>The elements of the list.</summary>
         internal List<RuntimeValue> Elements { get; } = new();
+
+        public IFluenceObject CloneObject()
+        {
+            ListObject newList = new ListObject();
+            newList.Elements.AddRange(this.Elements);
+            return newList;
+        }
 
         private static RuntimeValue Length(FluenceVirtualMachine vm, RuntimeValue self)
         {

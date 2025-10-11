@@ -1694,8 +1694,7 @@ namespace Fluence
         /// </summary>
         private void ExecutePushParam(InstructionLine instruction)
         {
-            RuntimeValue valueToPush = GetRuntimeValue(instruction.Lhs);
-            _operandStack.Push(valueToPush);
+            _operandStack.Push(GetRuntimeValue(instruction.Lhs));
         }
 
         /// <summary>
@@ -1797,9 +1796,8 @@ namespace Fluence
         /// <summary>
         /// A helper to create a TypeMetadata object from a StructSymbol.
         /// </summary>
-        private static TypeMetadata CreateMetadataFromStructSymbol(StructSymbol s, FluenceScope scope)
-        {
-            return new TypeMetadata(
+        private static TypeMetadata CreateMetadataFromStructSymbol(StructSymbol s, FluenceScope scope) =>
+            new TypeMetadata(
                 name: s.Name,
                 fullName: $"{scope.Name}.{s.Name}",
                 category: TypeCategory.Struct,
@@ -1810,7 +1808,6 @@ namespace Fluence
                 constructors: s.Constructors.Values.Select(c => new MethodMetadata(c.Name, c.Arity, true, c.Arguments!, c.ArgumentsByRef!)).ToList(),
                 instanceMethods: s.Functions.Values.Select(m => new MethodMetadata(m.Name, m.Arity, false, m.Arguments!, m.ArgumentsByRef!)).ToList()
             );
-        }
 
         /// <summary>
         /// A helper to search all relevant scopes for a named symbol.

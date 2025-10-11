@@ -1885,9 +1885,9 @@ namespace Fluence
                 throw ConstructRuntimeException($"Internal VM Error: Attempted to call a value that is not a function (got type '{GetDetailedTypeName(functionVal)}').");
             }
 
-            string scopeName = function.DefiningScope.Name;
-            if (!string.Equals(scopeName, "Global", StringComparison.Ordinal))
+            if (!function.DefiningScope.IsTheGlobalScope)
             {
+                string scopeName = function.DefiningScope.Name;
                 if (!IsLibraryAllowed(scopeName))
                 {
                     throw ConstructRuntimeException($"Security Error: Use of the library '{scopeName}' is disallowed by the host application due to library whiteList and or blackList rules.");
@@ -2035,9 +2035,9 @@ namespace Fluence
                 };
             }
 
-            string scopeName = functionToExecute.DefiningScope.Name;
-            if (!string.Equals(scopeName, "Global", StringComparison.Ordinal))
+            if (!functionToExecute.DefiningScope.IsTheGlobalScope)
             {
+                string scopeName = functionToExecute.DefiningScope.Name;
                 if (!IsLibraryAllowed(scopeName))
                 {
                     throw ConstructRuntimeException($"Security Error: Use of the library '{scopeName}' is disallowed by the host application due to library whiteList and or blackList rules.");
@@ -2194,9 +2194,9 @@ namespace Fluence
                 CreateAndThrowRuntimeException($"Runtime Error: Mismatched arity for static function '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
             }
 
-            string scopeName = functionToExecute.DefiningScope.Name;
-            if (!string.Equals(scopeName, "Global", StringComparison.Ordinal))
+            if (!functionToExecute.DefiningScope.IsTheGlobalScope)
             {
+                string scopeName = functionToExecute.DefiningScope.Name;
                 if (!IsLibraryAllowed(scopeName))
                 {
                     CreateAndThrowRuntimeException($"Security Error: Use of the library '{scopeName}' is disallowed by the host application due to library whiteList and or blackList rules.");
@@ -2324,7 +2324,7 @@ namespace Fluence
 
             if (val is VariableValue variable)
             {
-                return ResolveVariable(variable.Name, val);
+                return ResolveVariable(variable.Name, variable.Hash, val);
             }
 
             if (val is FunctionValue func)
@@ -2382,9 +2382,9 @@ namespace Fluence
         /// <param name="name">The name of the variable to resolve.</param>
         /// <returns>The <see cref="RuntimeValue"/> associated with the variable name.</returns>
         /// <exception cref="FluenceRuntimeException">Thrown if the variable is not defined in any accessible scope.</exception>
-        private RuntimeValue ResolveVariable(string name, Value val = null!)
+        private RuntimeValue ResolveVariable(string name, int hash, Value val = null!)
         {
-            ref RuntimeValue localValue = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, name.GetHashCode());
+            ref RuntimeValue localValue = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, hash);
             if (!Unsafe.IsNullRef(ref localValue))
             {
                 return localValue;
@@ -2411,7 +2411,7 @@ namespace Fluence
 
             foreach (Symbol valSymbol in _globalScope.Symbols.Values)
             {
-                if (valSymbol is VariableSymbol varSymbol && string.Equals(varSymbol.Name, name, StringComparison.Ordinal))
+                if (valSymbol is VariableSymbol varSymbol && varSymbol.Hash == hash)
                 {
                     return GetRuntimeValue(varSymbol.Value);
                 }
@@ -2420,7 +2420,7 @@ namespace Fluence
             // Last case, a Lambda, and if not undefined.
             if (val is not null and VariableValue)
             {
-                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                // TO DO, hash lambda names.
                 ref RuntimeValue lambda = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, Mangler.Demangle(name).GetHashCode());
                 if (!Unsafe.IsNullRef(ref lambda))
                 {
@@ -2508,7 +2508,7 @@ namespace Fluence
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void TryReturnRegisterReferenceToPool(TempValue register)
         {
-            RuntimeValue registerValue = GetRegisterValue(register.TempName);
+            RuntimeValue registerValue = GetRegisterValue(register.Hash);
 
             switch (registerValue.ObjectReference)
             {
@@ -2537,9 +2537,9 @@ namespace Fluence
         /// Returns the current <see cref="RuntimeValue"/> of the given register of the local CallFrame.
         /// </summary>
         /// <param name="name">The name of the temporary register.</param>
-        internal RuntimeValue GetRegisterValue(string name)
+        internal RuntimeValue GetRegisterValue(int hash)
         {
-            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentFrame.Registers, name.GetHashCode(), out _);
+            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentFrame.Registers, hash, out _);
             return valueRef;
         }
 

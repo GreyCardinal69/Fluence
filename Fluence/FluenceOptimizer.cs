@@ -9,6 +9,8 @@ namespace Fluence
     /// </summary>
     internal static class FluenceOptimizer
     {
+        private static readonly Dictionary<TempValue, Value> _constantsMap = new Dictionary<TempValue, Value>();
+
         /// <summary>
         /// Incrementally optimizes a segment of the bytecode list..
         /// It scans for optimizable patterns from a given start index, performs fusions, and then compacts the list while realigning all addresses.
@@ -20,6 +22,7 @@ namespace Fluence
         {
             bool byteCodeChanged = false;
             FuseGotoConditionals(ref bytecode, startIndex, ref byteCodeChanged);
+            RemoveConstTempRegisters(ref bytecode, startIndex, ref byteCodeChanged);
             FuseCompoundAssignments(ref bytecode, startIndex, ref byteCodeChanged);
             FuseSimpleAssignments(ref bytecode, startIndex, ref byteCodeChanged);
             FusePushParams(ref bytecode, startIndex, ref byteCodeChanged);
@@ -28,6 +31,8 @@ namespace Fluence
             {
                 CompactAndRealignFromBottomUp(ref bytecode, parseState);
             }
+
+            _constantsMap.Clear();
         }
 
         /// <summary>
@@ -148,6 +153,69 @@ namespace Fluence
         }
 
         /// <summary>
+        /// If the bytecode contains any assignments to Temporary Registers, where the values assigned are const, we can remove those
+        /// and place them directly in instructions where that Temporary Register is used, reducing instruction count.
+        /// </summary>
+        /// <param name="bytecode">The bytecode list to modify.</param>
+        /// <param name="startIndex">The index from which to begin scanning.</param>
+        private static void RemoveConstTempRegisters(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
+        {
+            HashSet<int> instructionsToRemove = new HashSet<int>();
+
+            for (int i = startIndex; i < bytecode.Count; i++)
+            {
+                InstructionLine insn = bytecode[i];
+                if (insn == null) continue;
+
+                // Finds instructions of the form: Assign, __TempN, <constant>
+                if (insn.Instruction == InstructionCode.Assign &&
+                    insn.Lhs is TempValue temp &&
+                    IsConstantValue(insn.Rhs))
+                {
+                    _constantsMap[temp] = insn.Rhs;
+                    instructionsToRemove.Add(i);
+                }
+            }
+
+            if (_constantsMap.Count == 0)
+            {
+                return;
+            }
+
+            for (int i = startIndex; i < bytecode.Count; i++)
+            {
+                InstructionLine insn = bytecode[i];
+                if (insn == null) continue;
+
+                if (insn.Lhs is TempValue tempLhs && _constantsMap.TryGetValue(tempLhs, out Value? constValLhs))
+                {
+                    insn.Lhs = constValLhs;
+                    byteCodeChanged = true;
+                }
+                if (insn.Rhs is TempValue tempRhs && _constantsMap.TryGetValue(tempRhs, out Value? constValRhs))
+                {
+                    insn.Rhs = constValRhs;
+                    byteCodeChanged = true;
+                }
+                if (insn.Rhs2 is TempValue tempRhs2 && _constantsMap.TryGetValue(tempRhs2, out Value? constValRhs2))
+                {
+                    insn.Rhs2 = constValRhs2;
+                    byteCodeChanged = true;
+                }
+                if (insn.Rhs3 is TempValue tempRhs3 && _constantsMap.TryGetValue(tempRhs3, out Value? constValRhs3))
+                {
+                    insn.Rhs3 = constValRhs3;
+                    byteCodeChanged = true;
+                }
+            }
+
+            foreach (int index in instructionsToRemove)
+            {
+                bytecode[index] = null!;
+            }
+        }
+
+        /// <summary>
         /// Scans for a comparison operation followed by a conditional jump that uses its result. Fuses them into a single, more efficient branch instruction.
         /// The second, now redundant, instruction is replaced with a null placeholder for later removal.
         /// </summary>
@@ -183,6 +251,18 @@ namespace Fluence
                 }
             }
         }
+
+        /// <summary>
+        /// Checks whether the given <see cref="Value"/> represents a constant value such as strings, chars, nil, bool or numeric.
+        /// </summary>
+        /// <param name="val">The Value to check.</param>
+        /// <returns>True if the <see cref="Value"/> is considered constant.</returns>
+        private static bool IsConstantValue(Value val) => val is
+            NumberValue or
+            StringValue or
+            CharValue or
+            BooleanValue or
+            NilValue;
 
         /// <summary>
         /// Gets the corresponding branch instruction for a given comparison and conditional goto pair.

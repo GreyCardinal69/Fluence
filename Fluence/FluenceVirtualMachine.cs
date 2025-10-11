@@ -160,7 +160,7 @@ namespace Fluence
 
         /// <summary>
         /// Dumps a detailed performance profile to the console, showing instruction counts,
-        /// total time spent, and average time per instruction. This should be called AFTER Run() completes.
+        /// total time spent, and average time per instruction.
         /// </summary>
         internal void DumpPerformanceProfile()
         {
@@ -443,7 +443,6 @@ namespace Fluence
             _dispatchTable[(int)InstructionCode.PushThreeParams] = ExecutePushThreeParam;
             _dispatchTable[(int)InstructionCode.PushFourParams] = ExecutePushFourParam;
 
-            // Goto family.
             _dispatchTable[(int)InstructionCode.BranchIfEqual] = (inst) => ExecuteBranchIfEqual(inst, true);
             _dispatchTable[(int)InstructionCode.BranchIfNotEqual] = (inst) => ExecuteBranchIfEqual(inst, false);
 
@@ -1290,7 +1289,7 @@ namespace Fluence
         private void ExecuteGetLength(InstructionLine instruction)
         {
             RuntimeValue collection = GetRuntimeValue(instruction.Rhs);
-            int length = 0;
+            int length;
 
             if (collection.Type == RuntimeValueType.Object)
             {

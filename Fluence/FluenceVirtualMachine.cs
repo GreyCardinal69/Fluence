@@ -11,7 +11,7 @@ using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceInterpreter;
 using static Fluence.FluenceParser;
 
-namespace Fluence
+namespace Fluence.VirtualMachine
 {
     /// <summary>
     /// The core execution engine for Fluence bytecode. It manages the call stack, instruction pointer,
@@ -160,7 +160,7 @@ namespace Fluence
 
         /// <summary>
         /// Dumps a detailed performance profile to the console, showing instruction counts,
-        /// total time spent, and average time per instruction. This should be called AFTER Run() completes.
+        /// total time spent, and average time per instruction.
         /// </summary>
         internal void DumpPerformanceProfile()
         {
@@ -212,107 +212,6 @@ namespace Fluence
             _outputLine(Environment.NewLine);
         }
 #endif
-
-        internal sealed class ObjectPool<T> where T : class, new()
-        {
-            private readonly Stack<T> _pool = new Stack<T>();
-            private readonly Action<T> _resetAction;
-
-            internal ObjectPool(Action<T> resetAction = null!, int initialCapacity = 16)
-            {
-                _resetAction = resetAction;
-                for (int i = 0; i < initialCapacity; i++)
-                {
-                    _pool.Push(new T());
-                }
-            }
-
-            /// <summary>
-            /// Gets an object from the pool. If the pool is empty, a new object is created.
-            /// </summary>
-            internal T Get()
-            {
-                if (_pool.TryPop(out T? item))
-                {
-                    return item;
-                }
-                return new T();
-            }
-
-            /// <summary>
-            /// Returns an object to the pool for reuse.
-            /// </summary>
-            internal void Return(T item)
-            {
-                _resetAction.Invoke(item);
-                _pool.Push(item);
-            }
-        }
-
-        /// <summary>
-        /// Represents the state of a single function call on the stack. It contains the function being executed,
-        /// its local variables (registers), the return address, and the destination for the return value.
-        /// </summary>
-        internal sealed record class CallFrame
-        {
-            internal Dictionary<int, RuntimeValue> Registers { get; } = new();
-            internal TempValue DestinationRegister { get; private set; }
-            internal FunctionObject Function { get; private set; }
-            internal int ReturnAddress { get; private set; }
-            internal Dictionary<int, int> RefParameterMap { get; } = new();
-
-            /// <summary>
-            /// A cache to store the readonly status of variables in this scope.
-            /// Key: variable name. Value: true if readonly, false if writable.
-            /// </summary>
-            internal readonly Dictionary<int, bool> WritableCache = new();
-
-            public CallFrame()
-            {
-            }
-
-            public void Reset()
-            {
-                RefParameterMap.Clear();
-                Registers.Clear();
-                WritableCache.Clear();
-                DestinationRegister = null!;
-                Function = null!;
-                ReturnAddress = 0;
-            }
-
-            public void Initialize(FunctionObject function, int returnAddress, TempValue destination)
-            {
-                Function = function;
-                ReturnAddress = returnAddress;
-                DestinationRegister = destination;
-            }
-        }
-
-        /// <summary>
-        /// Captures the state of the virtual machine at the point of the creation of the object.
-        /// </summary>
-        internal sealed class VMDebugContext
-        {
-            internal int InstructionPointer { get; }
-            internal InstructionLine CurrentInstruction { get; }
-            internal IReadOnlyDictionary<int, RuntimeValue> CurrentLocals { get; }
-            internal IReadOnlyList<RuntimeValue> OperandStackSnapshot { get; }
-            internal int CallStackDepth { get; }
-            internal string CurrentFunctionName { get; }
-
-            internal VMDebugContext(FluenceVirtualMachine vm)
-            {
-                InstructionPointer = vm._ip > 0 ? vm._ip - 1 : 0;
-                CurrentInstruction = vm._byteCode[InstructionPointer];
-
-                CurrentLocals = new Dictionary<int, RuntimeValue>(vm.CurrentRegisters);
-
-                OperandStackSnapshot = [.. vm._operandStack];
-                CallStackDepth = vm._callStack.Count;
-                CurrentFunctionName = vm.CurrentFrame.Function.Name;
-            }
-        }
 
         /// <summary>
         /// Initializes a new instance of the Fluence Virtual Machine.
@@ -443,7 +342,6 @@ namespace Fluence
             _dispatchTable[(int)InstructionCode.PushThreeParams] = ExecutePushThreeParam;
             _dispatchTable[(int)InstructionCode.PushFourParams] = ExecutePushFourParam;
 
-            // Goto family.
             _dispatchTable[(int)InstructionCode.BranchIfEqual] = (inst) => ExecuteBranchIfEqual(inst, true);
             _dispatchTable[(int)InstructionCode.BranchIfNotEqual] = (inst) => ExecuteBranchIfEqual(inst, false);
 
@@ -1290,7 +1188,7 @@ namespace Fluence
         private void ExecuteGetLength(InstructionLine instruction)
         {
             RuntimeValue collection = GetRuntimeValue(instruction.Rhs);
-            int length = 0;
+            int length;
 
             if (collection.Type == RuntimeValueType.Object)
             {
@@ -1695,8 +1593,7 @@ namespace Fluence
         /// </summary>
         private void ExecutePushParam(InstructionLine instruction)
         {
-            RuntimeValue valueToPush = GetRuntimeValue(instruction.Lhs);
-            _operandStack.Push(valueToPush);
+            _operandStack.Push(GetRuntimeValue(instruction.Lhs));
         }
 
         /// <summary>
@@ -1798,9 +1695,8 @@ namespace Fluence
         /// <summary>
         /// A helper to create a TypeMetadata object from a StructSymbol.
         /// </summary>
-        private static TypeMetadata CreateMetadataFromStructSymbol(StructSymbol s, FluenceScope scope)
-        {
-            return new TypeMetadata(
+        private static TypeMetadata CreateMetadataFromStructSymbol(StructSymbol s, FluenceScope scope) =>
+            new TypeMetadata(
                 name: s.Name,
                 fullName: $"{scope.Name}.{s.Name}",
                 category: TypeCategory.Struct,
@@ -1811,7 +1707,6 @@ namespace Fluence
                 constructors: s.Constructors.Values.Select(c => new MethodMetadata(c.Name, c.Arity, true, c.Arguments!, c.ArgumentsByRef!)).ToList(),
                 instanceMethods: s.Functions.Values.Select(m => new MethodMetadata(m.Name, m.Arity, false, m.Arguments!, m.ArgumentsByRef!)).ToList()
             );
-        }
 
         /// <summary>
         /// A helper to search all relevant scopes for a named symbol.
@@ -1871,14 +1766,6 @@ namespace Fluence
                 return;
             }
 
-            ExecuteGenericCallFunction(instruction);
-        }
-
-        /// <summary>
-        /// Handles the CALL_FUNCTION instruction, which invokes a standalone function.
-        /// </summary>
-        internal void ExecuteGenericCallFunction(InstructionLine instruction)
-        {
             RuntimeValue functionVal = GetRuntimeValue(instruction.Rhs);
 
             if (functionVal.ObjectReference is not FunctionObject function)
@@ -1886,9 +1773,9 @@ namespace Fluence
                 throw ConstructRuntimeException($"Internal VM Error: Attempted to call a value that is not a function (got type '{GetDetailedTypeName(functionVal)}').");
             }
 
-            string scopeName = function.DefiningScope.Name;
-            if (!string.Equals(scopeName, "Global", StringComparison.Ordinal))
+            if (!function.DefiningScope.IsTheGlobalScope)
             {
+                string scopeName = function.DefiningScope.Name;
                 if (!IsLibraryAllowed(scopeName))
                 {
                     throw ConstructRuntimeException($"Security Error: Use of the library '{scopeName}' is disallowed by the host application due to library whiteList and or blackList rules.");
@@ -1902,14 +1789,6 @@ namespace Fluence
                 throw ConstructRuntimeException($"Internal VM Error: Mismatched arguments for function '{function.Name}'. Expected {function.Arity}, but got {argCount}.");
             }
 
-            if (function.IsIntrinsic)
-            {
-                RuntimeValue resultValue = function.IntrinsicBody(this, argCount);
-                SetRegister((TempValue)instruction.Lhs, resultValue);
-                ReturnFunctionObjectToPool(function);
-                return;
-            }
-
             SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedCallFunctionHandler(instruction, function);
             if (handler != null)
             {
@@ -1917,6 +1796,9 @@ namespace Fluence
                 handler(instruction, this);
                 return;
             }
+
+            // Intrinsic and normal function calls are handled by the SpecializedHandler, because their function blueprint is not null.
+            // If we get here then we are dealing with a lambda function.
 
             CallFrame newFrame = _callFramePool.Get();
             newFrame.Initialize(function, _ip, (TempValue)instruction.Lhs);
@@ -2036,9 +1918,9 @@ namespace Fluence
                 };
             }
 
-            string scopeName = functionToExecute.DefiningScope.Name;
-            if (!string.Equals(scopeName, "Global", StringComparison.Ordinal))
+            if (!functionToExecute.DefiningScope.IsTheGlobalScope)
             {
+                string scopeName = functionToExecute.DefiningScope.Name;
                 if (!IsLibraryAllowed(scopeName))
                 {
                     throw ConstructRuntimeException($"Security Error: Use of the library '{scopeName}' is disallowed by the host application due to library whiteList and or blackList rules.");
@@ -2195,9 +2077,9 @@ namespace Fluence
                 CreateAndThrowRuntimeException($"Runtime Error: Mismatched arity for static function '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
             }
 
-            string scopeName = functionToExecute.DefiningScope.Name;
-            if (!string.Equals(scopeName, "Global", StringComparison.Ordinal))
+            if (!functionToExecute.DefiningScope.IsTheGlobalScope)
             {
+                string scopeName = functionToExecute.DefiningScope.Name;
                 if (!IsLibraryAllowed(scopeName))
                 {
                     CreateAndThrowRuntimeException($"Security Error: Use of the library '{scopeName}' is disallowed by the host application due to library whiteList and or blackList rules.");
@@ -2325,7 +2207,7 @@ namespace Fluence
 
             if (val is VariableValue variable)
             {
-                return ResolveVariable(variable.Name, val);
+                return ResolveVariable(variable.Name, variable.Hash, val);
             }
 
             if (val is FunctionValue func)
@@ -2383,9 +2265,9 @@ namespace Fluence
         /// <param name="name">The name of the variable to resolve.</param>
         /// <returns>The <see cref="RuntimeValue"/> associated with the variable name.</returns>
         /// <exception cref="FluenceRuntimeException">Thrown if the variable is not defined in any accessible scope.</exception>
-        private RuntimeValue ResolveVariable(string name, Value val = null!)
+        private RuntimeValue ResolveVariable(string name, int hash, Value val = null!)
         {
-            ref RuntimeValue localValue = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, name.GetHashCode());
+            ref RuntimeValue localValue = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, hash);
             if (!Unsafe.IsNullRef(ref localValue))
             {
                 return localValue;
@@ -2412,7 +2294,7 @@ namespace Fluence
 
             foreach (Symbol valSymbol in _globalScope.Symbols.Values)
             {
-                if (valSymbol is VariableSymbol varSymbol && string.Equals(varSymbol.Name, name, StringComparison.Ordinal))
+                if (valSymbol is VariableSymbol varSymbol && varSymbol.Hash == hash)
                 {
                     return GetRuntimeValue(varSymbol.Value);
                 }
@@ -2421,7 +2303,7 @@ namespace Fluence
             // Last case, a Lambda, and if not undefined.
             if (val is not null and VariableValue)
             {
-                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                // TO DO, hash lambda names.
                 ref RuntimeValue lambda = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, Mangler.Demangle(name).GetHashCode());
                 if (!Unsafe.IsNullRef(ref lambda))
                 {
@@ -2509,7 +2391,7 @@ namespace Fluence
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void TryReturnRegisterReferenceToPool(TempValue register)
         {
-            RuntimeValue registerValue = GetRegisterValue(register.TempName);
+            RuntimeValue registerValue = GetRegisterValue(register.Hash);
 
             switch (registerValue.ObjectReference)
             {
@@ -2538,9 +2420,9 @@ namespace Fluence
         /// Returns the current <see cref="RuntimeValue"/> of the given register of the local CallFrame.
         /// </summary>
         /// <param name="name">The name of the temporary register.</param>
-        internal RuntimeValue GetRegisterValue(string name)
+        internal RuntimeValue GetRegisterValue(int hash)
         {
-            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentFrame.Registers, name.GetHashCode(), out _);
+            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentFrame.Registers, hash, out _);
             return valueRef;
         }
 
@@ -2743,31 +2625,6 @@ namespace Fluence
             return value.Type.ToString();
         }
 
-        internal readonly record struct StackFrameInfo
-        {
-            internal readonly string FunctionName;
-            internal readonly string FileName;
-            internal readonly int LineNumber;
-
-            internal StackFrameInfo(string name, string fileName, int line)
-            {
-                FunctionName = name;
-                FileName = fileName;
-                LineNumber = line;
-            }
-
-            public override string ToString()
-            {
-                return $"StackFrameInfo: Line:{LineNumber}, Function:{FunctionName}, File:{FileName}";
-            }
-        }
-
-        internal enum RuntimeExceptionType
-        {
-            NonSpecific,
-            UnknownVariable
-        }
-
         /// <summary>
         /// Handles a runtime error that is allowed to be catched. If a try-catch block is active, it redirects the instruction pointer
         /// to the catch block. Otherwise, it throws an unhandled exception, terminating the VM.
@@ -2870,7 +2727,7 @@ namespace Fluence
         /// <param name="exception">The exception message.</param>
         private FluenceRuntimeException CreateRuntimeException(string exception, RuntimeExceptionType excType = RuntimeExceptionType.NonSpecific)
         {
-            VMDebugContext debugCtx = new VMDebugContext(this);
+            VMDebugContext debugCtx = new VMDebugContext(this, _operandStack, _callStack.Count);
             List<StackFrameInfo> stackFrames = new List<StackFrameInfo>();
 
             while (_callStack.Count != 0)

@@ -1,5 +1,6 @@
 using Fluence.Exceptions;
 using Fluence.RuntimeTypes;
+using Fluence.VirtualMachine;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceParser;
 
@@ -142,6 +143,7 @@ namespace Fluence
 #if DEBUG
                 FluenceDebug.DumpSymbolTables(parser.CurrentParseState, OnOutputLine);
                 FluenceDebug.DumpByteCodeInstructions(parser.CompiledCode, OnOutputLine);
+                BytecodeTestGenerator.GenerateCSharpCodeForInstructionList(parser.CurrentParseState.CodeInstructions, OnOutputLine);
 #endif
 
                 _byteCode = parser.CompiledCode;
@@ -176,8 +178,8 @@ namespace Fluence
 #if DEBUG
                 FluenceDebug.DumpSymbolTables(parser.CurrentParseState, OnOutputLine);
                 FluenceDebug.DumpByteCodeInstructions(parser.CompiledCode, OnOutputLine);
+                BytecodeTestGenerator.GenerateCSharpCodeForInstructionList(parser.CurrentParseState.CodeInstructions, OnOutputLine);
 #endif
-
                 _byteCode = parser.CompiledCode;
                 _parseState = parser.CurrentParseState;
                 _vm = null!;

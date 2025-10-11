@@ -1,9 +1,9 @@
 ﻿using Fluence.RuntimeTypes;
+using Fluence.VirtualMachine;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
-using static Fluence.FluenceVirtualMachine;
 
 namespace Fluence
 {
@@ -726,18 +726,18 @@ namespace Fluence
             {
                 if (collectionOperand is VariableValue collVar3 && indexOperand is VariableValue indexVar3)
                 {
-                    int collName = collVar3.Hash;
+                    int collHash = collVar3.Hash;
                     int indexHash = indexVar3.Hash;
 
-                    // TO DO, This check must be dont for all handlers, all cases, since currently we search for values only in local function registers.
-                    // Any instruction handler that deals with global variable will fail!
+                    // TO DO, This check must be done for all handlers, all cases, since currently we search for values only in local function registers.
+                    // Any instruction handler that deals with a global variable will fail! (probably).
 
-                    bool isGlobal = vm.GlobalRegisters.ContainsKey(collName);
+                    bool isGlobal = vm.GlobalRegisters.ContainsKey(collHash);
                     Dictionary<int, RuntimeValue> registers = isGlobal ? vm.GlobalRegisters : vm.CurrentRegisters;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(registers, collName);
+                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(registers, collHash);
                         ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexHash);
 
                         vm.TryReturnRegisterReferenceToPool(destRegister);
@@ -757,12 +757,12 @@ namespace Fluence
 
                 if (collectionOperand is VariableValue collVar4 && indexOperand is TempValue indextemp4)
                 {
-                    int collName = collVar4.Hash;
+                    int collHash = collVar4.Hash;
                     int indexHash = indextemp4.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
+                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collHash);
                         ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexHash);
 
                         vm.TryReturnRegisterReferenceToPool(destRegister);
@@ -782,12 +782,12 @@ namespace Fluence
 
                 if (collectionOperand is VariableValue collVar7 && indexOperand is NumberValue num)
                 {
-                    int collName = collVar7.Hash;
+                    int collHash = collVar7.Hash;
                     int constIndex = (int)num.Value;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
+                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collHash);
 
                         vm.TryReturnRegisterReferenceToPool(destRegister);
                         StringObject actualString = (StringObject)collRef.ObjectReference;
@@ -885,11 +885,22 @@ namespace Fluence
             TempValue destinationRegister = (TempValue)insn.Lhs;
             int argCount = functionBlueprint.Arguments.Count;
 
+            if (func.IsIntrinsic)
+            {
+                return (instruction, vm) =>
+                {
+                    FunctionObject function = vm.CreateFunctionObject(functionBlueprint);
+                    RuntimeValue resultValue = function.IntrinsicBody(vm, argCount);
+                    vm.SetRegister(destinationRegister, resultValue);
+                    vm.ReturnFunctionObjectToPool(function);
+                };
+            }
+
             return (instruction, vm) =>
             {
                 FunctionObject function = vm.CreateFunctionObject(functionBlueprint);
                 CallFrame newFrame = vm.GetCallframe();
-                newFrame.Initialize(function, vm.CurrentInstructionPointer, (TempValue)instruction.Lhs);
+                newFrame.Initialize(function, vm.CurrentInstructionPointer, destinationRegister);
 
                 for (int i = argCount - 1; i >= 0; i--)
                 {

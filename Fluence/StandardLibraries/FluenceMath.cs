@@ -1,4 +1,5 @@
 ﻿using Fluence.RuntimeTypes;
+using Fluence.VirtualMachine;
 
 namespace Fluence
 {

@@ -1,4 +1,5 @@
-﻿using static Fluence.FluenceVirtualMachine;
+﻿using Fluence.VirtualMachine;
+using static Fluence.VirtualMachine.FluenceVirtualMachine;
 
 namespace Fluence.RuntimeTypes
 {

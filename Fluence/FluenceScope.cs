@@ -19,6 +19,9 @@ namespace Fluence
         /// </summary>
         internal readonly string Name;
 
+        /// <summary>Indicates whether this scope is the global scope.</summary>
+        internal readonly bool IsTheGlobalScope;
+
         /// <summary>
         /// Keeps track of declared symbol names for name conflict detection.
         /// </summary>
@@ -44,6 +47,7 @@ namespace Fluence
         {
             ParentScope = parentScope;
             Name = name;
+            IsTheGlobalScope = string.Equals(name, "Global", StringComparison.Ordinal);
         }
 
         /// <summary>

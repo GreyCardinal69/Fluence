@@ -1,4 +1,5 @@
-﻿using Xunit.Abstractions;
+﻿using Microsoft.VisualStudio.TestPlatform.Utilities;
+using Xunit.Abstractions;
 using static Fluence.FluenceByteCode;
 
 namespace Fluence.ParserTests

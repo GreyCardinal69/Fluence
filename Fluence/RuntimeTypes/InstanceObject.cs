@@ -1,4 +1,6 @@
-﻿namespace Fluence.RuntimeTypes
+﻿using Fluence.VirtualMachine;
+
+namespace Fluence.RuntimeTypes
 {
     /// <summary>
     /// Represents a runtime instance of a user-defined 'struct'. It holds a reference

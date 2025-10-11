@@ -1,7 +1,8 @@
-﻿using Fluence.RuntimeTypes;
+﻿using Fluence.Exceptions;
+using Fluence.RuntimeTypes;
+using Fluence.VirtualMachine;
 using System.Text;
 using static Fluence.FluenceByteCode;
-using static Fluence.FluenceVirtualMachine;
 
 namespace Fluence
 {

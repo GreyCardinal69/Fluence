@@ -244,6 +244,7 @@ namespace Fluence
         {
             TempName = $"__Temp{num}";
             Hash = TempName.GetHashCode();
+            HashTable.Register(TempName, Hash);
         }
 
         internal TempValue(int num, string name)
@@ -383,6 +384,7 @@ namespace Fluence
             IsReadOnly = readOnly;
             Name = identifierValue;
             Hash = Name.GetHashCode();
+            HashTable.Register(Name, Hash);
         }
 
         internal override string ToFluenceString() => $"<internal: variable_{(IsReadOnly ? "solid" : "fluid")}>";

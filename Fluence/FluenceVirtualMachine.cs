@@ -292,7 +292,7 @@ namespace Fluence
         /// <summary>
         /// Captures the state of the virtual machine at the point of the creation of the object.
         /// </summary>
-        internal readonly struct VMDebugContext
+        internal sealed class VMDebugContext
         {
             internal int InstructionPointer { get; }
             internal InstructionLine CurrentInstruction { get; }
@@ -303,71 +303,14 @@ namespace Fluence
 
             internal VMDebugContext(FluenceVirtualMachine vm)
             {
-                InstructionPointer = vm._ip - 1;
+                InstructionPointer = vm._ip > 0 ? vm._ip - 1 : 0;
                 CurrentInstruction = vm._byteCode[InstructionPointer];
-                CurrentLocals = vm.CurrentRegisters;
+
+                CurrentLocals = new Dictionary<int, RuntimeValue>(vm.CurrentRegisters);
+
                 OperandStackSnapshot = [.. vm._operandStack];
                 CallStackDepth = vm._callStack.Count;
                 CurrentFunctionName = vm.CurrentFrame.Function.Name;
-            }
-
-            /// <summary>
-            /// Formats the captured VM state into a detailed string for display.
-            /// </summary>
-            /// <returns>A formatted string representing the VM state.</returns>
-            internal string DumpContext(FluenceParser parser)
-            {
-                StringBuilder sb = new StringBuilder();
-                string separator = new string('-', 50);
-
-                sb.AppendLine(separator);
-                sb.AppendLine("--- FLUENCE VM STATE SNAPSHOT ---");
-                sb.AppendLine(separator);
-
-                sb.AppendLine($"IP: {InstructionPointer:D4}   Function: {CurrentFunctionName}   Call Stack Depth: {CallStackDepth}");
-                sb.AppendLine($"Executing: {CurrentInstruction}");
-                sb.AppendLine(separator);
-
-                sb.AppendLine("OPERAND STACK (Top to Bottom):");
-                if (OperandStackSnapshot.Count == 0)
-                {
-                    sb.AppendLine("  [Empty]");
-                }
-                else
-                {
-                    for (int i = 0; i < OperandStackSnapshot.Count; i++)
-                    {
-                        sb.AppendLine($"  [{i}]: {OperandStackSnapshot[i]}");
-                    }
-                }
-                sb.AppendLine(separator);
-
-                //sb.AppendLine("CURRENT FRAME REGISTERS:");
-                //if (CurrentLocals.Count == 0)
-                //{
-                //    sb.AppendLine("  [No locals or temporaries]");
-                //}
-                //else
-                //{
-                //    int maxKeyLength = 0;
-                //    foreach (int key in CurrentLocals.Keys)
-                //    {
-                //        if (key.Length > maxKeyLength) maxKeyLength = key.Length;
-                //    }
-
-                //    IOrderedEnumerable<KeyValuePair<int, RuntimeValue>> sortedLocals = CurrentLocals.OrderBy(kvp => kvp.Key);
-                //    foreach (KeyValuePair<string, RuntimeValue> kvp in sortedLocals)
-                //    {
-                //        string value = kvp.Value.ToString();
-                //        string end = value.Length > 150 ? "...\"" : "\"";
-                //        string type = kvp.Value.ObjectReference?.GetType().Name;
-                //        sb.AppendLine($"  {kvp.Key.PadRight(maxKeyLength)} : {$"{type}: \"{value[..Math.Min(150, value.Length)]}{end}"}");
-                //    }
-                //}
-                sb.AppendLine(FluenceLexer.GetCodeLineFromSource(parser.Lexer.SourceCode, CurrentInstruction.LineInSourceCode));
-                sb.AppendLine(separator);
-
-                return sb.ToString();
             }
         }
 
@@ -2343,7 +2286,7 @@ namespace Fluence
         {
             if (target is VariableValue var)
             {
-                AssignVariable(var.Name,var.Hash,value, var.IsReadOnly);
+                AssignVariable(var.Name, var.Hash, value, var.IsReadOnly);
                 return;
             }
 

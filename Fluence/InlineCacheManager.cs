@@ -308,9 +308,9 @@ namespace Fluence
 
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;
-            var leftName = 0;
-            var rightName = 0;
-            var varName = 0;
+            int leftName = 0;
+            int rightName = 0;
+            int varName = 0;
 
             if (insn.Lhs is TempValue destTemp)
             {

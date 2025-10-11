@@ -142,24 +142,37 @@ namespace Fluence
                 .AppendLine($"In Function       :│ \"{Mangler.Demangle(DebugContext.CurrentFunctionName, out _)}\"")
                 .Append($"                   │ \n");
 
-            stringBuilder.Append("Local Variables   :│ ");
-
             if (DebugContext.CurrentLocals.Count > 0)
             {
-                int maxKeyLength = 0; // DebugContext.CurrentLocals.Keys.Max(key => key.Length);
-
                 bool isFirstLocal = true;
+                List<(string Name, RuntimeValue Value)> displayItems = new List<(string Name, RuntimeValue Value)>();
                 foreach (KeyValuePair<int, RuntimeValue> local in DebugContext.CurrentLocals)
                 {
-                    string value = local.Value.ToString();
+                    string name = HashTable.TryGetName(local.Key, out string? resolvedName)
+                                  ? resolvedName
+                                  : $"<hash:{local.Key}>";
+                    displayItems.Add((name, local.Value));
+                }
+
+                displayItems.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
+
+                int maxKeyLength = 0;
+                if (displayItems.Count > 0)
+                {
+                    maxKeyLength = displayItems.Max(item => item.Name.Length);
+                }
+
+                foreach ((string name, RuntimeValue runtimeValue) in displayItems)
+                {
+                    string value = runtimeValue.ToString();
                     string end = value.Length > 150 ? "...\"" : "\"";
                     string formattedValue = $"\"{value[..Math.Min(150, value.Length)]}{end}";
 
-                    //  string paddedKey = local.Key.PadRight(maxKeyLength);
-                    var paddedKey = ""
-;                    if (isFirstLocal)
+                    string paddedKey = name.PadRight(maxKeyLength);
+
+                    if (isFirstLocal)
                     {
-                        stringBuilder.AppendLine($"{paddedKey} = {formattedValue}");
+                        stringBuilder.AppendLine($"Local Variables   :│ {paddedKey} = {formattedValue}");
                         isFirstLocal = false;
                     }
                     else

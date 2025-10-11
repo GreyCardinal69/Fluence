@@ -308,21 +308,21 @@ namespace Fluence
 
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;
-            int leftName = 0;
-            int rightName = 0;
-            int varName = 0;
+            int leftHash = 0;
+            int rightHash = 0;
+            int varHash = 0;
 
             if (insn.Lhs is TempValue destTemp)
             {
                 if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
                 {
-                    leftName = varLeft.Hash;
-                    rightName = varRight.Hash;
+                    leftHash = varLeft.Hash;
+                    rightHash = varRight.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, val1, val2);
                         vm.SetRegister(destTemp, result);
@@ -331,13 +331,13 @@ namespace Fluence
 
                 if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
                 {
-                    leftName = tempLeft.Hash;
-                    rightName = tempRight.Hash;
+                    leftHash = tempLeft.Hash;
+                    rightHash = tempRight.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, val1, val2);
                         vm.SetRegister(destTemp, result);
@@ -346,13 +346,13 @@ namespace Fluence
 
                 if (lhsOperand is TempValue tempLeft2 && rhsOperand is VariableValue varOp)
                 {
-                    leftName = tempLeft2.Hash;
-                    rightName = varOp.Hash;
+                    leftHash = tempLeft2.Hash;
+                    rightHash = varOp.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, val1, val2);
                         vm.SetRegister(destTemp, result);
@@ -361,13 +361,13 @@ namespace Fluence
 
                 if (lhsOperand is VariableValue varLeft2 && rhsOperand is TempValue tempRight2)
                 {
-                    leftName = varLeft2.Hash;
-                    rightName = tempRight2.Hash;
+                    leftHash = varLeft2.Hash;
+                    rightHash = tempRight2.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, val1, val2);
                         vm.SetRegister(destTemp, result);
@@ -376,11 +376,11 @@ namespace Fluence
 
                 if (lhsOperand is TempValue tempLeft3 && rhsOperand is NumberValue num2)
                 {
-                    leftName = tempLeft3.Hash;
+                    leftHash = tempLeft3.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
 
                         RuntimeValue result = opFunction(vm, val1, vm.GetRuntimeValue(num2));
                         vm.SetRegister(destTemp, result);
@@ -389,11 +389,11 @@ namespace Fluence
 
                 if (lhsOperand is VariableValue varOp2 && rhsOperand is NumberValue)
                 {
-                    varName = varOp2.Hash;
+                    varHash = varOp2.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varHash);
 
                         RuntimeValue result = opFunction(vm, val1, right);
                         vm.SetRegister(destTemp, result);
@@ -411,11 +411,11 @@ namespace Fluence
 
                 if (lhsOperand is NumberValue num4 && rhsOperand is TempValue temp4)
                 {
-                    rightName = temp4.Hash;
+                    rightHash = temp4.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num4), val1);
                         vm.SetRegister(destTemp, result);
@@ -424,11 +424,11 @@ namespace Fluence
 
                 if (lhsOperand is NumberValue num5 && rhsOperand is VariableValue varRight3)
                 {
-                    rightName = varRight3.Hash;
+                    rightHash = varRight3.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num5), val1);
                         vm.SetRegister(destTemp, result);
@@ -439,13 +439,13 @@ namespace Fluence
             {
                 if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
                 {
-                    leftName = varLeft.Hash;
-                    rightName = varRight.Hash;
+                    leftHash = varLeft.Hash;
+                    rightHash = varRight.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, val1, val2);
                         vm.SetVariable(destVar, result);
@@ -454,13 +454,13 @@ namespace Fluence
 
                 if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
                 {
-                    leftName = tempLeft.Hash;
-                    rightName = tempRight.Hash;
+                    leftHash = tempLeft.Hash;
+                    rightHash = tempRight.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, val1, val2);
                         vm.SetVariable(destVar, result);
@@ -469,13 +469,13 @@ namespace Fluence
 
                 if (lhsOperand is TempValue tempLeft2 && rhsOperand is VariableValue varOp)
                 {
-                    leftName = tempLeft2.Hash;
-                    rightName = varOp.Hash;
+                    leftHash = tempLeft2.Hash;
+                    rightHash = varOp.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, val1, val2);
                         vm.SetVariable(destVar, result);
@@ -484,13 +484,13 @@ namespace Fluence
 
                 if (lhsOperand is VariableValue varLeft2 && rhsOperand is TempValue tempRight2)
                 {
-                    leftName = varLeft2.Hash;
-                    rightName = tempRight2.Hash;
+                    leftHash = varLeft2.Hash;
+                    rightHash = tempRight2.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
+                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, val1, val2);
                         vm.SetVariable(destVar, result);
@@ -499,11 +499,11 @@ namespace Fluence
 
                 if (lhsOperand is TempValue tempLeft3 && rhsOperand is NumberValue num2)
                 {
-                    leftName = tempLeft3.Hash;
+                    leftHash = tempLeft3.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
 
                         RuntimeValue result = opFunction(vm, val1, vm.GetRuntimeValue(num2));
                         vm.SetVariable(destVar, result);
@@ -512,11 +512,11 @@ namespace Fluence
 
                 if (lhsOperand is VariableValue varOp2 && rhsOperand is NumberValue)
                 {
-                    varName = varOp2.Hash;
+                    varHash = varOp2.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varHash);
 
                         RuntimeValue result = opFunction(vm, val1, right);
                         vm.SetVariable(destVar, result);
@@ -534,11 +534,11 @@ namespace Fluence
 
                 if (lhsOperand is NumberValue num4 && rhsOperand is TempValue temp4)
                 {
-                    rightName = temp4.Hash;
+                    rightHash = temp4.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num4), val1);
                         vm.SetVariable(destVar, result);
@@ -547,11 +547,11 @@ namespace Fluence
 
                 if (lhsOperand is NumberValue num5 && rhsOperand is VariableValue varRight3)
                 {
-                    rightName = varRight3.Hash;
+                    rightHash = varRight3.Hash;
 
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num5), val1);
                         vm.SetVariable(destVar, result);
@@ -600,12 +600,12 @@ namespace Fluence
 
             if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
             {
-                int varName = varOp.Hash;
+                int varHash = varOp.Hash;
                 RuntimeValue constValue = right;
 
                 return (instruction, vm) =>
                 {
-                    ref RuntimeValue register = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue register = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varHash);
 
                     if (AreEqual(register, constValue) == target)
                     {
@@ -616,12 +616,12 @@ namespace Fluence
 
             if (lhsOperand is TempValue temp && rhsOperand is NumberValue)
             {
-                int varName = temp.Hash;
+                int varHash = temp.Hash;
                 RuntimeValue constValue = right;
 
                 return (instruction, vm) =>
                 {
-                    ref RuntimeValue register = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varName);
+                    ref RuntimeValue register = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varHash);
 
                     if (AreEqual(register, constValue) == target)
                     {
@@ -632,13 +632,13 @@ namespace Fluence
 
             if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
             {
-                int leftName = varLeft.Hash;
-                int rightName = varRight.Hash;
+                int leftHash = varLeft.Hash;
+                int rightHash = varRight.Hash;
 
                 return (instruction, vm) =>
                 {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                     if (AreEqual(val1, val2) == target)
                     {
@@ -649,13 +649,13 @@ namespace Fluence
 
             if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
             {
-                int leftName = tempLeft.Hash;
-                int rightName = tempRight.Hash;
+                int leftHash = tempLeft.Hash;
+                int rightHash = tempRight.Hash;
 
                 return (instruction, vm) =>
                 {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftName);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightName);
+                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
+                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                     if (AreEqual(val1, val2) == target)
                     {
@@ -677,13 +677,13 @@ namespace Fluence
 
             if (collection.ObjectReference is ListObject)
             {
-                int collectionName = collectionOperand is VariableValue var ? var.Hash : ((TempValue)collectionOperand).Hash;
+                int collectionHash = collectionOperand is VariableValue var ? var.Hash : ((TempValue)collectionOperand).Hash;
 
                 if (indexOperand is NumberValue num1)
                 {
                     return (instruction, vm) =>
                     {
-                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collectionName);
+                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collectionHash);
 
                         int idx = (int)num1.Value;
 
@@ -700,12 +700,12 @@ namespace Fluence
                     };
                 }
 
-                int indexName = indexOperand is VariableValue var2 ? var2.Hash : ((TempValue)indexOperand).Hash;
+                int indexHash = indexOperand is VariableValue var2 ? var2.Hash : ((TempValue)indexOperand).Hash;
 
                 return (instruction, vm) =>
                 {
-                    ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collectionName);
-                    ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
+                    ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collectionHash);
+                    ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexHash);
 
                     int idx = indexRef.IntValue;
 
@@ -727,7 +727,7 @@ namespace Fluence
                 if (collectionOperand is VariableValue collVar3 && indexOperand is VariableValue indexVar3)
                 {
                     int collName = collVar3.Hash;
-                    int indexName = indexVar3.Hash;
+                    int indexHash = indexVar3.Hash;
 
                     // TO DO, This check must be dont for all handlers, all cases, since currently we search for values only in local function registers.
                     // Any instruction handler that deals with global variable will fail!
@@ -738,7 +738,7 @@ namespace Fluence
                     return (instruction, vm) =>
                     {
                         ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(registers, collName);
-                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
+                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexHash);
 
                         vm.TryReturnRegisterReferenceToPool(destRegister);
                         StringObject actualString = (StringObject)collRef.ObjectReference;
@@ -758,12 +758,12 @@ namespace Fluence
                 if (collectionOperand is VariableValue collVar4 && indexOperand is TempValue indextemp4)
                 {
                     int collName = collVar4.Hash;
-                    int indexName = indextemp4.Hash;
+                    int indexHash = indextemp4.Hash;
 
                     return (instruction, vm) =>
                     {
                         ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collName);
-                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexName);
+                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexHash);
 
                         vm.TryReturnRegisterReferenceToPool(destRegister);
                         StringObject actualString = (StringObject)collRef.ObjectReference;

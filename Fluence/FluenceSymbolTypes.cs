@@ -16,6 +16,7 @@ namespace Fluence
     {
         /// <summary>The name of the variable.</summary>
         internal string Name { get; init; }
+        internal int Hash { get; init; }
 
         /// <summary>The value of the variable.</summary>
         internal Value Value { get; init; }
@@ -30,6 +31,7 @@ namespace Fluence
             Name = name;
             Value = value;
             IsReadonly = readOnly;
+            Hash = Name.GetHashCode();
         }
 
         internal override string ToFluenceString() => $"VariableSymbol: {Name}{Value}";

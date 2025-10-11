@@ -37,10 +37,10 @@ namespace Fluence
         /// <summary>
         /// A direct, cached reference to the registers of the currently executing function's call frame.
         /// </summary>
-        private Dictionary<string, RuntimeValue> _cachedRegisters;
+        private Dictionary<int, RuntimeValue> _cachedRegisters;
 
         /// <summary>A dictionary holding all global variables.</summary>
-        private readonly Dictionary<string, RuntimeValue> _globals;
+        private readonly Dictionary<int, RuntimeValue> _globals;
 
         /// <summary>The top-level global scope, used for resolving global functions and variables.</summary>
         private readonly FluenceScope _globalScope;
@@ -97,7 +97,7 @@ namespace Fluence
         /// <summary>
         /// A cache to store the readonly status of variables in the global scope.
         /// </summary>
-        internal readonly Dictionary<string, bool> GlobalWritableCache = new();
+        internal readonly Dictionary<int, bool> GlobalWritableCache = new();
 
         /// <summary> The list of all namespaces in the source code. </summary>
         private readonly Dictionary<string, FluenceScope> Namespaces;
@@ -128,9 +128,9 @@ namespace Fluence
         internal CallFrame CurrentFrame => _callStack.Peek();
 
         /// <summary>Gets the registers for the current call frame via the cached reference.</summary>
-        internal Dictionary<string, RuntimeValue> CurrentRegisters => _cachedRegisters;
+        internal Dictionary<int, RuntimeValue> CurrentRegisters => _cachedRegisters;
 
-        internal Dictionary<string, RuntimeValue> GlobalRegisters => _globals;
+        internal Dictionary<int, RuntimeValue> GlobalRegisters => _globals;
 
         internal int CurrentInstructionPointer => _ip;
 
@@ -255,17 +255,17 @@ namespace Fluence
         /// </summary>
         internal sealed record class CallFrame
         {
-            internal Dictionary<string, RuntimeValue> Registers { get; } = new();
+            internal Dictionary<int, RuntimeValue> Registers { get; } = new();
             internal TempValue DestinationRegister { get; private set; }
             internal FunctionObject Function { get; private set; }
             internal int ReturnAddress { get; private set; }
-            internal Dictionary<string, string> RefParameterMap { get; } = new();
+            internal Dictionary<int, int> RefParameterMap { get; } = new();
 
             /// <summary>
             /// A cache to store the readonly status of variables in this scope.
             /// Key: variable name. Value: true if readonly, false if writable.
             /// </summary>
-            internal readonly Dictionary<string, bool> WritableCache = new();
+            internal readonly Dictionary<int, bool> WritableCache = new();
 
             public CallFrame()
             {
@@ -292,82 +292,25 @@ namespace Fluence
         /// <summary>
         /// Captures the state of the virtual machine at the point of the creation of the object.
         /// </summary>
-        internal readonly struct VMDebugContext
+        internal sealed class VMDebugContext
         {
             internal int InstructionPointer { get; }
             internal InstructionLine CurrentInstruction { get; }
-            internal IReadOnlyDictionary<string, RuntimeValue> CurrentLocals { get; }
+            internal IReadOnlyDictionary<int, RuntimeValue> CurrentLocals { get; }
             internal IReadOnlyList<RuntimeValue> OperandStackSnapshot { get; }
             internal int CallStackDepth { get; }
             internal string CurrentFunctionName { get; }
 
             internal VMDebugContext(FluenceVirtualMachine vm)
             {
-                InstructionPointer = vm._ip - 1;
+                InstructionPointer = vm._ip > 0 ? vm._ip - 1 : 0;
                 CurrentInstruction = vm._byteCode[InstructionPointer];
-                CurrentLocals = vm.CurrentRegisters;
+
+                CurrentLocals = new Dictionary<int, RuntimeValue>(vm.CurrentRegisters);
+
                 OperandStackSnapshot = [.. vm._operandStack];
                 CallStackDepth = vm._callStack.Count;
                 CurrentFunctionName = vm.CurrentFrame.Function.Name;
-            }
-
-            /// <summary>
-            /// Formats the captured VM state into a detailed string for display.
-            /// </summary>
-            /// <returns>A formatted string representing the VM state.</returns>
-            internal string DumpContext(FluenceParser parser)
-            {
-                StringBuilder sb = new StringBuilder();
-                string separator = new string('-', 50);
-
-                sb.AppendLine(separator);
-                sb.AppendLine("--- FLUENCE VM STATE SNAPSHOT ---");
-                sb.AppendLine(separator);
-
-                sb.AppendLine($"IP: {InstructionPointer:D4}   Function: {CurrentFunctionName}   Call Stack Depth: {CallStackDepth}");
-                sb.AppendLine($"Executing: {CurrentInstruction}");
-                sb.AppendLine(separator);
-
-                sb.AppendLine("OPERAND STACK (Top to Bottom):");
-                if (OperandStackSnapshot.Count == 0)
-                {
-                    sb.AppendLine("  [Empty]");
-                }
-                else
-                {
-                    for (int i = 0; i < OperandStackSnapshot.Count; i++)
-                    {
-                        sb.AppendLine($"  [{i}]: {OperandStackSnapshot[i]}");
-                    }
-                }
-                sb.AppendLine(separator);
-
-                sb.AppendLine("CURRENT FRAME REGISTERS:");
-                if (CurrentLocals.Count == 0)
-                {
-                    sb.AppendLine("  [No locals or temporaries]");
-                }
-                else
-                {
-                    int maxKeyLength = 0;
-                    foreach (string key in CurrentLocals.Keys)
-                    {
-                        if (key.Length > maxKeyLength) maxKeyLength = key.Length;
-                    }
-
-                    IOrderedEnumerable<KeyValuePair<string, RuntimeValue>> sortedLocals = CurrentLocals.OrderBy(kvp => kvp.Key);
-                    foreach (KeyValuePair<string, RuntimeValue> kvp in sortedLocals)
-                    {
-                        string value = kvp.Value.ToString();
-                        string end = value.Length > 150 ? "...\"" : "\"";
-                        string type = kvp.Value.ObjectReference?.GetType().Name;
-                        sb.AppendLine($"  {kvp.Key.PadRight(maxKeyLength)} : {$"{type}: \"{value[..Math.Min(150, value.Length)]}{end}"}");
-                    }
-                }
-                sb.AppendLine(FluenceLexer.GetCodeLineFromSource(parser.Lexer.SourceCode, CurrentInstruction.LineInSourceCode));
-                sb.AppendLine(separator);
-
-                return sb.ToString();
             }
         }
 
@@ -390,7 +333,7 @@ namespace Fluence
             _parser = parseState.ParserInstance;
             _byteCode = bytecode;
             _globalScope = parseState.GlobalScope;
-            _globals = new Dictionary<string, RuntimeValue>();
+            _globals = new Dictionary<int, RuntimeValue>();
             _callStack = new Stack<CallFrame>();
 
             _output = output ?? Console.Write;
@@ -516,7 +459,7 @@ namespace Fluence
         /// <param name="name">The name of the global variable.</param>
         /// <param name="val">When this method returns, contains the value of the global variable, if found; otherwise, the default value.</param>
         /// <returns>True if the global variable was found; otherwise, false.</returns>
-        internal bool TryGetGlobalVariable(string name, out RuntimeValue val) => _globals.TryGetValue(name, out val);
+        internal bool TryGetGlobalVariable(string name, out RuntimeValue val) => _globals.TryGetValue(name.GetHashCode(), out val);
 
         /// <summary>
         /// Returns a reusable CallFrame insitance from the CallFrame pool or creates one if non are available.
@@ -556,7 +499,7 @@ namespace Fluence
                     "Supported types are null, bool, int, long, float, double, string, char.")
             };
 
-            AssignVariable(name, runtimeValue);
+            AssignVariable(name, name.GetHashCode(), runtimeValue);
         }
 
         /// <summary>
@@ -966,13 +909,13 @@ namespace Fluence
                         list.Elements.Add(new RuntimeValue(i));
                     }
                 }
-                AssignVariable(destVar.Name, new RuntimeValue(list));
+                AssignVariable(destVar.Name, destVar.Hash, new RuntimeValue(list));
                 return;
             }
             // Standard assignment.
             else if (left is VariableValue destVar2)
             {
-                AssignVariable(destVar2.Name, sourceValue, destVar2.IsReadOnly);
+                AssignVariable(destVar2.Name, destVar2.Hash, sourceValue, destVar2.IsReadOnly);
             }
             else if (left is TempValue destTemp) SetRegister(destTemp, sourceValue);
             else throw ConstructRuntimeException("Internal VM Error: Destination of 'Assign' must be a variable or temporary.");
@@ -1061,7 +1004,7 @@ namespace Fluence
 
             if (instruction.Lhs is VariableValue var)
             {
-                AssignVariable(var.Name, new RuntimeValue(result), var.IsReadOnly);
+                AssignVariable(var.Name, var.Hash, new RuntimeValue(result), var.IsReadOnly);
                 return;
             }
 
@@ -1701,7 +1644,7 @@ namespace Fluence
                 throw ConstructRuntimeException("Internal VM Error: Invalid operands for IterNext. Expected (Source Iterator, Dest Value, Dest Flag).");
             }
 
-            RuntimeValue iteratorVal = _cachedRegisters[iteratorReg.TempName];
+            RuntimeValue iteratorVal = _cachedRegisters[iteratorReg.Hash];
 
             if (iteratorVal.As<IteratorObject>() is not IteratorObject iterator)
             {
@@ -1980,8 +1923,8 @@ namespace Fluence
 
             for (int i = function.Parameters.Count - 1; i >= 0; i--)
             {
-                string paramName = function.Parameters[i];
-                bool isRefParam = function.ParametersByRef.Contains(paramName);
+                int paramName = function.Parameters[i].GetHashCode();
+                bool isRefParam = function.ParametersByRef.Contains(function.Parameters[i]);
                 RuntimeValue argFromStack = _operandStack.Pop();
 
                 if (isRefParam)
@@ -1992,7 +1935,7 @@ namespace Fluence
                     }
 
                     VariableValue refVar = ((ReferenceValue)argFromStack.ObjectReference).Reference;
-                    newFrame.RefParameterMap[paramName] = refVar.Name;
+                    newFrame.RefParameterMap[paramName] = refVar.Hash;
                     ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
                     valueRef = GetRuntimeValue(refVar);
                 }
@@ -2021,8 +1964,8 @@ namespace Fluence
             FunctionObject lambdaObject = CreateFunctionObject(lambdaValue.Function);
             lambdaObject.IsLambda = true;
 
-            AssignVariable(baseName, new RuntimeValue(lambdaObject), destination.IsReadOnly);
-            AssignVariable(mangledName, new RuntimeValue(lambdaObject), destination.IsReadOnly);
+            AssignVariable(baseName, destination.Hash, new RuntimeValue(lambdaObject), destination.IsReadOnly);
+            AssignVariable(mangledName, destination.Hash, new RuntimeValue(lambdaObject), destination.IsReadOnly);
         }
 
         /// <summary>
@@ -2112,12 +2055,13 @@ namespace Fluence
             newFrame.Initialize(functionToExecute, _ip, (TempValue)instruction.Lhs);
 
             // Implicitly pass 'self'.
-            newFrame.Registers["self"] = instanceVal;
+            newFrame.Registers["self".GetHashCode()] = instanceVal;
 
             for (int i = functionToExecute.Parameters.Count - 1; i >= 0; i--)
             {
                 string paramName = functionToExecute.Parameters[i];
                 bool isRefParam = functionToExecute.ParametersByRef.Contains(paramName);
+                int paramHash = paramName.GetHashCode();
                 RuntimeValue argFromStack = _operandStack.Pop();
 
                 if (isRefParam)
@@ -2128,13 +2072,13 @@ namespace Fluence
                     }
 
                     VariableValue refVar = ((ReferenceValue)argFromStack.ObjectReference).Reference;
-                    newFrame.RefParameterMap[paramName] = refVar.Name;
-                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
+                    newFrame.RefParameterMap[paramHash] = refVar.Hash;
+                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramHash, out _);
                     valueRef = GetRuntimeValue(refVar);
                 }
                 else // Pass by value.
                 {
-                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
+                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramHash, out _);
                     valueRef = argFromStack.ObjectReference is ReferenceValue refVal ? GetRuntimeValue(refVal.Reference) : argFromStack;
                 }
             }
@@ -2153,14 +2097,14 @@ namespace Fluence
         internal RuntimeValue ExecuteManualMethodCall(InstanceObject instance, FunctionValue func)
         {
             int savedIp = _ip;
-            Dictionary<string, RuntimeValue> savedRegisters = _cachedRegisters;
+            Dictionary<int, RuntimeValue> savedRegisters = _cachedRegisters;
 
             FunctionObject functionToExecute = CreateFunctionObject(func);
             CallFrame newFrame = _callFramePool.Get();
 
             newFrame.Initialize(functionToExecute, -1, null!);
 
-            newFrame.Registers["self"] = new RuntimeValue(instance);
+            newFrame.Registers["self".GetHashCode()] = new RuntimeValue(instance);
 
             _callStack.Push(newFrame);
             _cachedRegisters = newFrame.Registers;
@@ -2266,6 +2210,7 @@ namespace Fluence
             for (int i = functionToExecute.Parameters.Count - 1; i >= 0; i--)
             {
                 string paramName = functionToExecute.Parameters[i];
+                int paramHash = paramName.GetHashCode();
                 bool isRefParam = functionToExecute.ParametersByRef.Contains(paramName);
                 RuntimeValue argFromStack = _operandStack.Pop();
 
@@ -2277,13 +2222,13 @@ namespace Fluence
                     }
 
                     VariableValue refVar = ((ReferenceValue)argFromStack.ObjectReference).Reference;
-                    newFrame.RefParameterMap[paramName] = refVar.Name;
-                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
+                    newFrame.RefParameterMap[paramHash] = refVar.Hash;
+                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramHash, out _);
                     valueRef = GetRuntimeValue(refVar);
                 }
                 else // Pass by value.
                 {
-                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
+                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramHash, out _);
                     valueRef = argFromStack.ObjectReference is ReferenceValue refVal ? GetRuntimeValue(refVal.Reference) : argFromStack;
                 }
             }
@@ -2314,14 +2259,14 @@ namespace Fluence
 
             if (finishedFrame.DestinationRegister != null)
             {
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, finishedFrame.DestinationRegister.TempName, out _);
+                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, finishedFrame.DestinationRegister.Hash, out _);
                 valueRef = returnValue;
             }
 
-            foreach (KeyValuePair<string, string> mapping in finishedFrame.RefParameterMap)
+            foreach (KeyValuePair<int, int> mapping in finishedFrame.RefParameterMap)
             {
-                string paramName = mapping.Key;
-                string originalVarName = mapping.Value;
+                int paramName = mapping.Key;
+                int originalVarName = mapping.Value;
 
                 RuntimeValue finalValue = finishedFrame.Registers[paramName];
                 _cachedRegisters[originalVarName] = finalValue;
@@ -2341,7 +2286,7 @@ namespace Fluence
         {
             if (target is VariableValue var)
             {
-                AssignVariable(var.Name, value, var.IsReadOnly);
+                AssignVariable(var.Name, var.Hash, value, var.IsReadOnly);
                 return;
             }
 
@@ -2357,12 +2302,12 @@ namespace Fluence
         {
             if (CurrentFrame.ReturnAddress != _byteCode.Count)
             {
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, var.Name, out _);
+                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, var.Hash, out _);
                 valueRef = val;
                 return;
             }
 
-            ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, var.Name, out _);
+            ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, var.Hash, out _);
             valueRef2 = val;
         }
 
@@ -2373,7 +2318,7 @@ namespace Fluence
         {
             if (val is TempValue temp)
             {
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, temp.TempName);
+                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, temp.Hash);
 
                 return !Unsafe.IsNullRef(ref valueRef) ? valueRef : RuntimeValue.Nil;
             }
@@ -2440,7 +2385,7 @@ namespace Fluence
         /// <exception cref="FluenceRuntimeException">Thrown if the variable is not defined in any accessible scope.</exception>
         private RuntimeValue ResolveVariable(string name, Value val = null!)
         {
-            ref RuntimeValue localValue = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, name);
+            ref RuntimeValue localValue = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, name.GetHashCode());
             if (!Unsafe.IsNullRef(ref localValue))
             {
                 return localValue;
@@ -2476,7 +2421,8 @@ namespace Fluence
             // Last case, a Lambda, and if not undefined.
             if (val is not null and VariableValue)
             {
-                ref RuntimeValue lambda = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, Mangler.Demangle(name));
+                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                ref RuntimeValue lambda = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, Mangler.Demangle(name).GetHashCode());
                 if (!Unsafe.IsNullRef(ref lambda))
                 {
                     return lambda;
@@ -2501,13 +2447,13 @@ namespace Fluence
             else if (symbol is VariableSymbol variable)
             {
                 // Current scopt also contains all symbols from namespaces it uses.
-                ref RuntimeValue namespaceRuntimeValue = ref CollectionsMarshal.GetValueRefOrNullRef(scope.RuntimeStorage, variable.Name);
+                ref RuntimeValue namespaceRuntimeValue = ref CollectionsMarshal.GetValueRefOrNullRef(scope.RuntimeStorage, variable.Hash);
                 if (!Unsafe.IsNullRef(ref namespaceRuntimeValue))
                 {
                     return namespaceRuntimeValue;
                 }
 
-                ref RuntimeValue namespaceRuntimeValue2 = ref CollectionsMarshal.GetValueRefOrNullRef(_globals, variable.Name);
+                ref RuntimeValue namespaceRuntimeValue2 = ref CollectionsMarshal.GetValueRefOrNullRef(_globals, variable.Hash);
                 if (!Unsafe.IsNullRef(ref namespaceRuntimeValue2))
                 {
                     return namespaceRuntimeValue2;
@@ -2584,7 +2530,7 @@ namespace Fluence
         /// </summary>
         internal void SetRegister(TempValue destination, RuntimeValue value)
         {
-            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, destination.TempName, out _);
+            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, destination.Hash, out _);
             valueRef = value;
         }
 
@@ -2594,7 +2540,7 @@ namespace Fluence
         /// <param name="name">The name of the temporary register.</param>
         internal RuntimeValue GetRegisterValue(string name)
         {
-            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentFrame.Registers, name, out _);
+            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentFrame.Registers, name.GetHashCode(), out _);
             return valueRef;
         }
 
@@ -2606,10 +2552,10 @@ namespace Fluence
         /// <summary>
         /// Assigns a value to a variable.
         /// </summary>
-        private void AssignVariable(string name, RuntimeValue value, bool readOnly = false)
+        private void AssignVariable(string name, int hash, RuntimeValue value, bool readOnly = false)
         {
-            ref bool isReadonlyRef = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentFrame.WritableCache, name);
-            ref bool isReadOnlyGlobalRef = ref CollectionsMarshal.GetValueRefOrNullRef(GlobalWritableCache, name);
+            ref bool isReadonlyRef = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentFrame.WritableCache, hash);
+            ref bool isReadOnlyGlobalRef = ref CollectionsMarshal.GetValueRefOrNullRef(GlobalWritableCache, hash);
 
             if (!Unsafe.IsNullRef(ref isReadonlyRef))
             {
@@ -2641,12 +2587,12 @@ namespace Fluence
                     CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly or solid variable '{name}'.");
                 }
 
-                ref bool cacheSlot = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentFrame.WritableCache, name, out _);
+                ref bool cacheSlot = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentFrame.WritableCache, hash, out _);
                 cacheSlot = isVariableReadonly;
 
                 if (CurrentFrame.ReturnAddress == _byteCode.Count)
                 {
-                    ref bool globalCacheSlot = ref CollectionsMarshal.GetValueRefOrAddDefault(GlobalWritableCache, name, out _);
+                    ref bool globalCacheSlot = ref CollectionsMarshal.GetValueRefOrAddDefault(GlobalWritableCache, hash, out _);
                     globalCacheSlot = isVariableReadonly;
                 }
             }
@@ -2654,12 +2600,12 @@ namespace Fluence
             // If we are not in the top-level script, assign to the current frame's local registers.
             if (CurrentFrame.ReturnAddress != _byteCode.Count)
             {
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, name, out _);
+                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, hash, out _);
                 valueRef = value;
                 return;
             }
 
-            ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, name, out _);
+            ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, hash, out _);
             valueRef2 = value;
         }
 
@@ -2839,7 +2785,7 @@ namespace Fluence
                 {
                     if (tryCatchContext.HasExceptionVar && !string.IsNullOrEmpty(tryCatchContext.ExceptionAsVar))
                     {
-                        _cachedRegisters[tryCatchContext.ExceptionAsVar] = new RuntimeValue(new ExceptionObject(exception));
+                        _cachedRegisters[tryCatchContext.ExceptionAsVar.GetHashCode()] = new RuntimeValue(new ExceptionObject(exception));
                     }
 
                     // Jumps to catch block.

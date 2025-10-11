@@ -33,7 +33,7 @@ namespace Fluence
         /// The runtime storage for this scope's global variables.
         /// This is used by the VM to store the actual RuntimeValues.
         /// </summary>
-        internal readonly Dictionary<string, RuntimeValue> RuntimeStorage = new Dictionary<string, RuntimeValue>();
+        internal readonly Dictionary<int, RuntimeValue> RuntimeStorage = new Dictionary<int, RuntimeValue>();
 
         // Used in Tests. Might also be useful for other purposes.
         internal bool Contains(string name) => TryResolve(name, out _);

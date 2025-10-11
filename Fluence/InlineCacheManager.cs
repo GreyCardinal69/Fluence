@@ -885,11 +885,22 @@ namespace Fluence
             TempValue destinationRegister = (TempValue)insn.Lhs;
             int argCount = functionBlueprint.Arguments.Count;
 
+            if (func.IsIntrinsic)
+            {
+                return (instruction, vm) =>
+                {
+                    FunctionObject function = vm.CreateFunctionObject(functionBlueprint);
+                    RuntimeValue resultValue = function.IntrinsicBody(vm, argCount);
+                    vm.SetRegister(destinationRegister, resultValue);
+                    vm.ReturnFunctionObjectToPool(function);
+                };
+            }
+
             return (instruction, vm) =>
             {
                 FunctionObject function = vm.CreateFunctionObject(functionBlueprint);
                 CallFrame newFrame = vm.GetCallframe();
-                newFrame.Initialize(function, vm.CurrentInstructionPointer, (TempValue)instruction.Lhs);
+                newFrame.Initialize(function, vm.CurrentInstructionPointer, destinationRegister);
 
                 for (int i = argCount - 1; i >= 0; i--)
                 {

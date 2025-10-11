@@ -57,7 +57,7 @@ namespace Fluence
                 case TempValue tempVal: return $"new TempValue({tempVal.TempName[6..]})";
                 case VariableValue varVal: return $"new VariableValue(\"{varVal.Name}\")";
                 case FunctionValue funcVal: return $"new FunctionValue(\"{funcVal.Name}\", {funcVal.StartAddress}, {funcVal.Arity}, {funcVal.StartAddressInSource}, [], [])";
-                default: throw new System.NotSupportedException($"Value type {value.GetType().Name} is not supported for code generation.");
+                default: return "";
             }
         }
     }

@@ -142,6 +142,7 @@ namespace Fluence
 #if DEBUG
                 FluenceDebug.DumpSymbolTables(parser.CurrentParseState, OnOutputLine);
                 FluenceDebug.DumpByteCodeInstructions(parser.CompiledCode, OnOutputLine);
+                BytecodeTestGenerator.GenerateCSharpCodeForInstructionList(parser.CurrentParseState.CodeInstructions, OnOutputLine);
 #endif
 
                 _byteCode = parser.CompiledCode;

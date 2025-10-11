@@ -1870,14 +1870,6 @@ namespace Fluence
                 return;
             }
 
-            ExecuteGenericCallFunction(instruction);
-        }
-
-        /// <summary>
-        /// Handles the CALL_FUNCTION instruction, which invokes a standalone function.
-        /// </summary>
-        internal void ExecuteGenericCallFunction(InstructionLine instruction)
-        {
             RuntimeValue functionVal = GetRuntimeValue(instruction.Rhs);
 
             if (functionVal.ObjectReference is not FunctionObject function)
@@ -1901,14 +1893,6 @@ namespace Fluence
                 throw ConstructRuntimeException($"Internal VM Error: Mismatched arguments for function '{function.Name}'. Expected {function.Arity}, but got {argCount}.");
             }
 
-            if (function.IsIntrinsic)
-            {
-                RuntimeValue resultValue = function.IntrinsicBody(this, argCount);
-                SetRegister((TempValue)instruction.Lhs, resultValue);
-                ReturnFunctionObjectToPool(function);
-                return;
-            }
-
             SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedCallFunctionHandler(instruction, function);
             if (handler != null)
             {
@@ -1916,6 +1900,9 @@ namespace Fluence
                 handler(instruction, this);
                 return;
             }
+
+            // Intrinsic and normal function calls are handled by the SpecializedHandler, because their function blueprint is not null.
+            // If we get here then we are dealing with a lambda function.
 
             CallFrame newFrame = _callFramePool.Get();
             newFrame.Initialize(function, _ip, (TempValue)instruction.Lhs);

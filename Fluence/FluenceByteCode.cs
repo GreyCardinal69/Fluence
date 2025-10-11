@@ -1,4 +1,6 @@
-﻿namespace Fluence
+﻿using Fluence.VirtualMachine;
+
+namespace Fluence
 {
     /// <summary>
     /// A static class containing definitions for Fluence bytecode.

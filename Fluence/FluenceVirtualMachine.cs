@@ -11,7 +11,7 @@ using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceInterpreter;
 using static Fluence.FluenceParser;
 
-namespace Fluence
+namespace Fluence.VirtualMachine
 {
     /// <summary>
     /// The core execution engine for Fluence bytecode. It manages the call stack, instruction pointer,
@@ -212,107 +212,6 @@ namespace Fluence
             _outputLine(Environment.NewLine);
         }
 #endif
-
-        internal sealed class ObjectPool<T> where T : class, new()
-        {
-            private readonly Stack<T> _pool = new Stack<T>();
-            private readonly Action<T> _resetAction;
-
-            internal ObjectPool(Action<T> resetAction = null!, int initialCapacity = 16)
-            {
-                _resetAction = resetAction;
-                for (int i = 0; i < initialCapacity; i++)
-                {
-                    _pool.Push(new T());
-                }
-            }
-
-            /// <summary>
-            /// Gets an object from the pool. If the pool is empty, a new object is created.
-            /// </summary>
-            internal T Get()
-            {
-                if (_pool.TryPop(out T? item))
-                {
-                    return item;
-                }
-                return new T();
-            }
-
-            /// <summary>
-            /// Returns an object to the pool for reuse.
-            /// </summary>
-            internal void Return(T item)
-            {
-                _resetAction.Invoke(item);
-                _pool.Push(item);
-            }
-        }
-
-        /// <summary>
-        /// Represents the state of a single function call on the stack. It contains the function being executed,
-        /// its local variables (registers), the return address, and the destination for the return value.
-        /// </summary>
-        internal sealed record class CallFrame
-        {
-            internal Dictionary<int, RuntimeValue> Registers { get; } = new();
-            internal TempValue DestinationRegister { get; private set; }
-            internal FunctionObject Function { get; private set; }
-            internal int ReturnAddress { get; private set; }
-            internal Dictionary<int, int> RefParameterMap { get; } = new();
-
-            /// <summary>
-            /// A cache to store the readonly status of variables in this scope.
-            /// Key: variable name. Value: true if readonly, false if writable.
-            /// </summary>
-            internal readonly Dictionary<int, bool> WritableCache = new();
-
-            public CallFrame()
-            {
-            }
-
-            public void Reset()
-            {
-                RefParameterMap.Clear();
-                Registers.Clear();
-                WritableCache.Clear();
-                DestinationRegister = null!;
-                Function = null!;
-                ReturnAddress = 0;
-            }
-
-            public void Initialize(FunctionObject function, int returnAddress, TempValue destination)
-            {
-                Function = function;
-                ReturnAddress = returnAddress;
-                DestinationRegister = destination;
-            }
-        }
-
-        /// <summary>
-        /// Captures the state of the virtual machine at the point of the creation of the object.
-        /// </summary>
-        internal sealed class VMDebugContext
-        {
-            internal int InstructionPointer { get; }
-            internal InstructionLine CurrentInstruction { get; }
-            internal IReadOnlyDictionary<int, RuntimeValue> CurrentLocals { get; }
-            internal IReadOnlyList<RuntimeValue> OperandStackSnapshot { get; }
-            internal int CallStackDepth { get; }
-            internal string CurrentFunctionName { get; }
-
-            internal VMDebugContext(FluenceVirtualMachine vm)
-            {
-                InstructionPointer = vm._ip > 0 ? vm._ip - 1 : 0;
-                CurrentInstruction = vm._byteCode[InstructionPointer];
-
-                CurrentLocals = new Dictionary<int, RuntimeValue>(vm.CurrentRegisters);
-
-                OperandStackSnapshot = [.. vm._operandStack];
-                CallStackDepth = vm._callStack.Count;
-                CurrentFunctionName = vm.CurrentFrame.Function.Name;
-            }
-        }
 
         /// <summary>
         /// Initializes a new instance of the Fluence Virtual Machine.
@@ -2726,31 +2625,6 @@ namespace Fluence
             return value.Type.ToString();
         }
 
-        internal readonly record struct StackFrameInfo
-        {
-            internal readonly string FunctionName;
-            internal readonly string FileName;
-            internal readonly int LineNumber;
-
-            internal StackFrameInfo(string name, string fileName, int line)
-            {
-                FunctionName = name;
-                FileName = fileName;
-                LineNumber = line;
-            }
-
-            public override string ToString()
-            {
-                return $"StackFrameInfo: Line:{LineNumber}, Function:{FunctionName}, File:{FileName}";
-            }
-        }
-
-        internal enum RuntimeExceptionType
-        {
-            NonSpecific,
-            UnknownVariable
-        }
-
         /// <summary>
         /// Handles a runtime error that is allowed to be catched. If a try-catch block is active, it redirects the instruction pointer
         /// to the catch block. Otherwise, it throws an unhandled exception, terminating the VM.
@@ -2853,7 +2727,7 @@ namespace Fluence
         /// <param name="exception">The exception message.</param>
         private FluenceRuntimeException CreateRuntimeException(string exception, RuntimeExceptionType excType = RuntimeExceptionType.NonSpecific)
         {
-            VMDebugContext debugCtx = new VMDebugContext(this);
+            VMDebugContext debugCtx = new VMDebugContext(this, _operandStack, _callStack.Count);
             List<StackFrameInfo> stackFrames = new List<StackFrameInfo>();
 
             while (_callStack.Count != 0)

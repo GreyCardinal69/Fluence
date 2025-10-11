@@ -1,5 +1,6 @@
 using Fluence.Exceptions;
 using Fluence.RuntimeTypes;
+using Fluence.VirtualMachine;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceParser;
 

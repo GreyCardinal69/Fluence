@@ -238,9 +238,19 @@ namespace Fluence
     internal sealed record class TempValue : Value
     {
         internal string TempName { get; init; }
+        internal int Hash { get; init; }
 
-        internal TempValue(int num) => TempName = $"__Temp{num}";
-        internal TempValue(int num, string name) => TempName = $"__{name}{num}";
+        internal TempValue(int num)
+        {
+            TempName = $"__Temp{num}";
+            Hash = TempName.GetHashCode();
+        }
+
+        internal TempValue(int num, string name)
+        {
+            TempName = $"__{name}{num}";
+            Hash = TempName.GetHashCode();
+        }
 
         internal override string ToFluenceString() => "<internal: temp_register>";
         public override string ToString() => $"TempValue: {TempName}";
@@ -362,6 +372,7 @@ namespace Fluence
     internal sealed record class VariableValue : Value
     {
         internal string Name { get; init; }
+        internal int Hash { get; init; }
 
         // Whether it is readonly can't always be identified in the parser at the point of creation.
         // Hence we keep this as mutable.
@@ -371,6 +382,7 @@ namespace Fluence
         {
             IsReadOnly = readOnly;
             Name = identifierValue;
+            Hash = Name.GetHashCode();
         }
 
         internal override string ToFluenceString() => $"<internal: variable_{(IsReadOnly ? "solid" : "fluid")}>";

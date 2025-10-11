@@ -146,18 +146,18 @@ namespace Fluence
 
             if (DebugContext.CurrentLocals.Count > 0)
             {
-                int maxKeyLength = DebugContext.CurrentLocals.Keys.Max(key => key.Length);
+                int maxKeyLength = 0; // DebugContext.CurrentLocals.Keys.Max(key => key.Length);
 
                 bool isFirstLocal = true;
-                foreach (KeyValuePair<string, RuntimeValue> local in DebugContext.CurrentLocals)
+                foreach (KeyValuePair<int, RuntimeValue> local in DebugContext.CurrentLocals)
                 {
                     string value = local.Value.ToString();
                     string end = value.Length > 150 ? "...\"" : "\"";
                     string formattedValue = $"\"{value[..Math.Min(150, value.Length)]}{end}";
 
-                    string paddedKey = local.Key.PadRight(maxKeyLength);
-
-                    if (isFirstLocal)
+                    //  string paddedKey = local.Key.PadRight(maxKeyLength);
+                    var paddedKey = ""
+;                    if (isFirstLocal)
                     {
                         stringBuilder.AppendLine($"{paddedKey} = {formattedValue}");
                         isFirstLocal = false;

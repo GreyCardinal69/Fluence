@@ -160,20 +160,43 @@ namespace Fluence
         /// <param name="startIndex">The index from which to begin scanning.</param>
         private static void RemoveConstTempRegisters(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
-            HashSet<int> instructionsToRemove = new HashSet<int>();
+            var lastAssignmentIndexMap = new Dictionary<TempValue, int>();
+            for (int i = startIndex; i < bytecode.Count; i++)
+            {
+                InstructionLine insn = bytecode[i];
+                if (insn == null) continue;
+
+                if (insn.Lhs is TempValue temp)
+                {
+                    lastAssignmentIndexMap[temp] = i;
+                }
+            }
+
+            if (lastAssignmentIndexMap.Count == 0)
+            {
+                return;
+            }
+
+            var instructionsToRemove = new HashSet<int>();
 
             for (int i = startIndex; i < bytecode.Count; i++)
             {
                 InstructionLine insn = bytecode[i];
                 if (insn == null) continue;
 
-                // Finds instructions of the form: Assign, __TempN, <constant>
+                // Finds instructions of form: Assign, __TempN, <constant>
                 if (insn.Instruction == InstructionCode.Assign &&
                     insn.Lhs is TempValue temp &&
                     IsConstantValue(insn.Rhs))
                 {
-                    _constantsMap[temp] = insn.Rhs;
-                    instructionsToRemove.Add(i);
+                    // In some cases, we can have some temp register assigned to a constant as a temporary, say in a match
+                    // Depending on the match case, it can be constant, or non constant, we look ahead, if we assign to this temp register later
+                    // We can't replace the register.
+                    if (lastAssignmentIndexMap[temp] == i)
+                    {
+                        _constantsMap[temp] = insn.Rhs;
+                        instructionsToRemove.Add(i);
+                    }
                 }
             }
 
@@ -187,11 +210,6 @@ namespace Fluence
                 InstructionLine insn = bytecode[i];
                 if (insn == null) continue;
 
-                if (insn.Lhs is TempValue tempLhs && _constantsMap.TryGetValue(tempLhs, out Value? constValLhs))
-                {
-                    insn.Lhs = constValLhs;
-                    byteCodeChanged = true;
-                }
                 if (insn.Rhs is TempValue tempRhs && _constantsMap.TryGetValue(tempRhs, out Value? constValRhs))
                 {
                     insn.Rhs = constValRhs;

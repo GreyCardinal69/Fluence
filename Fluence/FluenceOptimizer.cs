@@ -10,6 +10,8 @@ namespace Fluence
     internal static class FluenceOptimizer
     {
         private static readonly Dictionary<TempValue, Value> _constantsMap = new Dictionary<TempValue, Value>();
+        private static readonly HashSet<int> _instructionsToRemove = new HashSet<int>();
+        private static readonly Dictionary<TempValue, int> _registerAssignmentCounts = new Dictionary<TempValue, int>();
 
         /// <summary>
         /// Incrementally optimizes a segment of the bytecode list..
@@ -21,8 +23,10 @@ namespace Fluence
         internal static void OptimizeChunk(ref List<InstructionLine> bytecode, ParseState parseState, int startIndex)
         {
             bool byteCodeChanged = false;
+            bool constantFoldingDidWork = false;
+
             FuseGotoConditionals(ref bytecode, startIndex, ref byteCodeChanged);
-            RemoveConstTempRegisters(ref bytecode, startIndex, ref byteCodeChanged);
+            RemoveConstTempRegisters(ref bytecode, startIndex, ref byteCodeChanged, ref constantFoldingDidWork);
             FuseCompoundAssignments(ref bytecode, startIndex, ref byteCodeChanged);
             FuseSimpleAssignments(ref bytecode, startIndex, ref byteCodeChanged);
             FusePushParams(ref bytecode, startIndex, ref byteCodeChanged);
@@ -32,7 +36,12 @@ namespace Fluence
                 CompactAndRealignFromBottomUp(ref bytecode, parseState);
             }
 
-            _constantsMap.Clear();
+            if (constantFoldingDidWork)
+            {
+                _constantsMap.Clear();
+                _instructionsToRemove.Clear();
+                _registerAssignmentCounts.Clear();
+            }
         }
 
         /// <summary>
@@ -158,9 +167,8 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>
         /// <param name="startIndex">The index from which to begin scanning.</param>
-        private static void RemoveConstTempRegisters(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
+        private static void RemoveConstTempRegisters(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged, ref bool constantFoldingDidWork)
         {
-            var lastAssignmentIndexMap = new Dictionary<TempValue, int>();
             for (int i = startIndex; i < bytecode.Count; i++)
             {
                 InstructionLine insn = bytecode[i];
@@ -168,23 +176,21 @@ namespace Fluence
 
                 if (insn.Lhs is TempValue temp)
                 {
-                    lastAssignmentIndexMap[temp] = i;
+                    _registerAssignmentCounts.TryGetValue(temp, out int currentCount);
+                    _registerAssignmentCounts[temp] = currentCount + 1;
                 }
             }
 
-            if (lastAssignmentIndexMap.Count == 0)
+            if (_registerAssignmentCounts.Count == 0)
             {
                 return;
             }
-
-            var instructionsToRemove = new HashSet<int>();
 
             for (int i = startIndex; i < bytecode.Count; i++)
             {
                 InstructionLine insn = bytecode[i];
                 if (insn == null) continue;
 
-                // Finds instructions of form: Assign, __TempN, <constant>
                 if (insn.Instruction == InstructionCode.Assign &&
                     insn.Lhs is TempValue temp &&
                     IsConstantValue(insn.Rhs))
@@ -192,10 +198,11 @@ namespace Fluence
                     // In some cases, we can have some temp register assigned to a constant as a temporary, say in a match
                     // Depending on the match case, it can be constant, or non constant, we look ahead, if we assign to this temp register later
                     // We can't replace the register.
-                    if (lastAssignmentIndexMap[temp] == i)
+                    // Constant folding is non error prone only for temp registers that are assigned to only once in the entire function.
+                    if (_registerAssignmentCounts.TryGetValue(temp, out int count) && count == 1)
                     {
                         _constantsMap[temp] = insn.Rhs;
-                        instructionsToRemove.Add(i);
+                        _instructionsToRemove.Add(i);
                     }
                 }
             }
@@ -213,21 +220,24 @@ namespace Fluence
                 if (insn.Rhs is TempValue tempRhs && _constantsMap.TryGetValue(tempRhs, out Value? constValRhs))
                 {
                     insn.Rhs = constValRhs;
+                    constantFoldingDidWork = true;
                     byteCodeChanged = true;
                 }
                 if (insn.Rhs2 is TempValue tempRhs2 && _constantsMap.TryGetValue(tempRhs2, out Value? constValRhs2))
                 {
                     insn.Rhs2 = constValRhs2;
+                    constantFoldingDidWork = true;
                     byteCodeChanged = true;
                 }
                 if (insn.Rhs3 is TempValue tempRhs3 && _constantsMap.TryGetValue(tempRhs3, out Value? constValRhs3))
                 {
                     insn.Rhs3 = constValRhs3;
+                    constantFoldingDidWork = true;
                     byteCodeChanged = true;
                 }
             }
 
-            foreach (int index in instructionsToRemove)
+            foreach (int index in _instructionsToRemove)
             {
                 bytecode[index] = null!;
             }

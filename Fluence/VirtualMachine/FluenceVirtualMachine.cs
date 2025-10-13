@@ -399,7 +399,7 @@ namespace Fluence.VirtualMachine
                     "Supported types are null, bool, int, long, float, double, string, char.")
             };
 
-            AssignVariable(name, name.GetHashCode(), runtimeValue);
+            AssignVariable(name, name.GetHashCode(), runtimeValue, null!);
         }
 
         /// <summary>
@@ -526,7 +526,8 @@ namespace Fluence.VirtualMachine
             }
 
             VariableValue var = (VariableValue)instruction.Lhs;
-            SetVariable(var, new RuntimeValue(GetRuntimeValue(var).IntValue + 1));
+            RuntimeValue result = new RuntimeValue(GetRuntimeValue(var).IntValue + 1);
+            SetVariable(var.Hash, ref result);
         }
 
         private void ExecuteLoadAddress(InstructionLine instruction)
@@ -541,6 +542,12 @@ namespace Fluence.VirtualMachine
         /// </summary>
         internal void ExecuteGenericAdd(InstructionLine instruction)
         {
+            if (instruction.SpecializedHandler != null)
+            {
+                instruction.SpecializedHandler(instruction, this);
+                return;
+            }
+
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
@@ -561,7 +568,7 @@ namespace Fluence.VirtualMachine
             {
                 string resultString = string.Concat(left.ToString(), right.ToString());
 
-                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(new StringObject(resultString)));
+                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(new StringObject(resultString)), instruction);
                 return;
             }
 
@@ -573,7 +580,7 @@ namespace Fluence.VirtualMachine
                 concatenatedList.Elements.AddRange(leftList.Elements);
                 concatenatedList.Elements.AddRange(rightList.Elements);
 
-                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(concatenatedList));
+                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(concatenatedList), instruction);
                 return;
             }
 
@@ -659,34 +666,34 @@ namespace Fluence.VirtualMachine
 
             if (left.ObjectReference is StringObject strLeft && right.Type == RuntimeValueType.Number)
             {
-                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(strLeft, right));
+                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(strLeft, right), instruction);
                 return;
             }
             if (left.Type == RuntimeValueType.Number && right.ObjectReference is StringObject strRight)
             {
-                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(strRight, left));
+                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(strRight, left), instruction);
                 return;
             }
 
             if (left.ObjectReference is CharObject charLeft && right.Type == RuntimeValueType.Number)
             {
-                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(new StringObject(charLeft.Value.ToString()), right));
+                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(new StringObject(charLeft.Value.ToString()), right), instruction);
                 return;
             }
             if (left.Type == RuntimeValueType.Number && right.ObjectReference is CharObject charRight)
             {
-                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(new StringObject(charRight.Value.ToString()), left));
+                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(new StringObject(charRight.Value.ToString()), left), instruction);
                 return;
             }
 
             if (left.ObjectReference is ListObject listLeft && right.Type == RuntimeValueType.Number)
             {
-                SetVariableOrRegister(instruction.Lhs, HandleListRepetition(listLeft, right));
+                SetVariableOrRegister(instruction.Lhs, HandleListRepetition(listLeft, right), instruction);
                 return;
             }
             if (left.Type == RuntimeValueType.Number && right.ObjectReference is ListObject listRight)
             {
-                SetVariableOrRegister(instruction.Lhs, HandleListRepetition(listRight, left));
+                SetVariableOrRegister(instruction.Lhs, HandleListRepetition(listRight, left), instruction);
                 return;
             }
 
@@ -765,18 +772,18 @@ namespace Fluence.VirtualMachine
         /// <summary>Handles the ASSIGN_TWO instruction, which is used for variable assignment of two variables at once.</summary>
         private void ExecuteAssignTwo(InstructionLine instruction)
         {
-            AssignTo(instruction.Lhs, instruction.Rhs);
-            AssignTo(instruction.Rhs2, instruction.Rhs3);
+            AssignTo(instruction.Lhs, instruction.Rhs, instruction);
+            AssignTo(instruction.Rhs2, instruction.Rhs3, instruction);
         }
 
         /// <summary>Handles the ASSIGN instruction, which is used for variable assignment and range-to-list expansion.</summary>
         private void ExecuteAssign(InstructionLine instruction)
         {
-            AssignTo(instruction.Lhs, instruction.Rhs);
+            AssignTo(instruction.Lhs, instruction.Rhs, instruction);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void AssignTo(Value left, Value right)
+        private void AssignTo(Value left, Value right, InstructionLine insn)
         {
             RuntimeValue sourceValue = GetRuntimeValue(right);
 
@@ -809,13 +816,12 @@ namespace Fluence.VirtualMachine
                         list.Elements.Add(new RuntimeValue(i));
                     }
                 }
-                AssignVariable(destVar.Name, destVar.Hash, new RuntimeValue(list));
-                return;
+                AssignVariable(destVar.Name, destVar.Hash, new RuntimeValue(list), insn);
             }
             // Standard assignment.
             else if (left is VariableValue destVar2)
             {
-                AssignVariable(destVar2.Name, destVar2.Hash, sourceValue, destVar2.IsReadOnly);
+                AssignVariable(destVar2.Name, destVar2.Hash, sourceValue, insn, destVar2.IsReadOnly);
             }
             else if (left is TempValue destTemp) SetRegister(destTemp, sourceValue);
             else throw ConstructRuntimeException("Internal VM Error: Destination of 'Assign' must be a variable or temporary.");
@@ -874,7 +880,7 @@ namespace Fluence.VirtualMachine
                 _ => SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported left-hand number type."),
             };
 
-            SetVariableOrRegister(instruction.Lhs, result);
+            SetVariableOrRegister(instruction.Lhs, result, instruction);
         }
 
         /// <summary>
@@ -904,7 +910,7 @@ namespace Fluence.VirtualMachine
 
             if (instruction.Lhs is VariableValue var)
             {
-                AssignVariable(var.Name, var.Hash, new RuntimeValue(result), var.IsReadOnly);
+                AssignVariable(var.Name, var.Hash, new RuntimeValue(result), instruction, var.IsReadOnly);
                 return;
             }
 
@@ -1848,8 +1854,8 @@ namespace Fluence.VirtualMachine
             FunctionObject lambdaObject = CreateFunctionObject(lambdaValue.Function);
             lambdaObject.IsLambda = true;
 
-            AssignVariable(baseName, destination.Hash, new RuntimeValue(lambdaObject), destination.IsReadOnly);
-            AssignVariable(mangledName, destination.Hash, new RuntimeValue(lambdaObject), destination.IsReadOnly);
+            AssignVariable(baseName, destination.Hash, new RuntimeValue(lambdaObject), instruction, destination.IsReadOnly);
+            AssignVariable(mangledName, destination.Hash, new RuntimeValue(lambdaObject), instruction, destination.IsReadOnly);
         }
 
         /// <summary>
@@ -2168,33 +2174,15 @@ namespace Fluence.VirtualMachine
             _callFramePool.Return(finishedFrame);
         }
 
-        internal void SetVariableOrRegister(Value target, RuntimeValue value)
+        internal void SetVariableOrRegister(Value target, RuntimeValue value, InstructionLine insn)
         {
             if (target is VariableValue var)
             {
-                AssignVariable(var.Name, var.Hash, value, var.IsReadOnly);
+                AssignVariable(var.Name, var.Hash, value, insn, var.IsReadOnly);
                 return;
             }
 
             SetRegister((TempValue)target, value);
-        }
-
-        /// <summary>
-        /// Sets the value of a variable directly, avoiding extra checks.
-        /// </summary>
-        /// <param name="var">The Variable.</param>
-        /// <param name="val">The value to assign to.</param>
-        internal void SetVariable(VariableValue var, RuntimeValue val)
-        {
-            if (CurrentFrame.ReturnAddress != _byteCode.Count)
-            {
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, var.Hash, out _);
-                valueRef = val;
-                return;
-            }
-
-            ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, var.Hash, out _);
-            valueRef2 = val;
         }
 
         /// <summary>
@@ -2438,8 +2426,14 @@ namespace Fluence.VirtualMachine
         /// <summary>
         /// Assigns a value to a variable.
         /// </summary>
-        private void AssignVariable(string name, int hash, RuntimeValue value, bool readOnly = false)
+        private void AssignVariable(string name, int hash, RuntimeValue value, InstructionLine insn, bool readOnly = false)
         {
+            if (insn.AssignsVariableSafely)
+            {
+                SetVariable(hash, ref value);
+                return;
+            }
+
             ref bool isReadonlyRef = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentFrame.WritableCache, hash);
             ref bool isReadOnlyGlobalRef = ref CollectionsMarshal.GetValueRefOrNullRef(GlobalWritableCache, hash);
 
@@ -2477,6 +2471,22 @@ namespace Fluence.VirtualMachine
                 }
             }
 
+            if (insn != null)
+            {
+                insn.AssignsVariableSafely = true;
+            }
+
+            SetVariable(hash, ref value);
+        }
+
+        /// <summary>
+        /// Sets the value of a variable directly, avoiding extra checks.
+        /// </summary>
+        /// <param name="var">The Variable.</param>
+        /// <param name="val">The value to assign to.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void SetVariable(int hash, ref RuntimeValue value)
+        {
             // If we are not in the top-level script, assign to the current frame's local registers.
             if (CurrentFrame.ReturnAddress != _byteCode.Count)
             {

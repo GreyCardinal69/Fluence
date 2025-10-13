@@ -144,6 +144,12 @@ namespace Fluence
             /// </summary>
             internal int ProjectFileIndex { get; private set; }
 
+            /// <summary>
+            /// Indicates that the following instruction assigns a value to a variable, and that the assignment has passed safety
+            /// checks of solid ( readonly ) variables, allowing the virtual machine to skip those expensive checks on the next iteration.
+            /// </summary>
+            internal bool AssignsVariableSafely;
+
             internal void SetDebugInfo(int column, int line, int fileIndex)
             {
                 ColumnInSourceCode = column;

@@ -285,10 +285,8 @@ namespace Fluence
                 return left.IntValue == right.IntValue;
             }
 
-            if (left.Type == RuntimeValueType.Nil & right.Type == RuntimeValueType.Nil)
-            {
-                return true;
-            }
+            if (left.Type is RuntimeValueType.Nil || right.Type is RuntimeValueType.Nil)
+                return left.Type is RuntimeValueType.Nil && right.Type is RuntimeValueType.Nil;
 
             return left.Equals(right);
         }
@@ -448,7 +446,7 @@ namespace Fluence
                         ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, val1, val2);
-                        vm.SetVariable(destVar, result);
+                        vm.SetVariable(destVar.Hash, ref result);
                     };
                 }
 
@@ -463,7 +461,7 @@ namespace Fluence
                         ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, val1, val2);
-                        vm.SetVariable(destVar, result);
+                        vm.SetVariable(destVar.Hash, ref result);
                     };
                 }
 
@@ -478,7 +476,7 @@ namespace Fluence
                         ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, val1, val2);
-                        vm.SetVariable(destVar, result);
+                        vm.SetVariable(destVar.Hash, ref result);
                     };
                 }
 
@@ -493,7 +491,7 @@ namespace Fluence
                         ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, val1, val2);
-                        vm.SetVariable(destVar, result);
+                        vm.SetVariable(destVar.Hash, ref result);
                     };
                 }
 
@@ -506,7 +504,7 @@ namespace Fluence
                         ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
 
                         RuntimeValue result = opFunction(vm, val1, vm.GetRuntimeValue(num2));
-                        vm.SetVariable(destVar, result);
+                        vm.SetVariable(destVar.Hash, ref result);
                     };
                 }
 
@@ -519,7 +517,7 @@ namespace Fluence
                         ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varHash);
 
                         RuntimeValue result = opFunction(vm, val1, right);
-                        vm.SetVariable(destVar, result);
+                        vm.SetVariable(destVar.Hash, ref result);
                     };
                 }
 
@@ -528,7 +526,7 @@ namespace Fluence
                     return (instruction, vm) =>
                     {
                         RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num3));
-                        vm.SetVariable(destVar, result);
+                        vm.SetVariable(destVar.Hash, ref result);
                     };
                 }
 
@@ -541,7 +539,7 @@ namespace Fluence
                         ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num4), val1);
-                        vm.SetVariable(destVar, result);
+                        vm.SetVariable(destVar.Hash, ref result);
                     };
                 }
 
@@ -554,7 +552,7 @@ namespace Fluence
                         ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
 
                         RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num5), val1);
-                        vm.SetVariable(destVar, result);
+                        vm.SetVariable(destVar.Hash, ref result);
                     };
                 }
             }

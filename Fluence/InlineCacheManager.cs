@@ -264,7 +264,7 @@ namespace Fluence
 
             string destName = ((VariableValue)insn.Lhs).Name;
 
-            if (vm.CurrentFrame.Function.DefiningScope.TryResolve(destName, out Symbol symbol) && symbol is VariableSymbol { IsReadonly: true })
+            if (vm.CurrentFrame.Function.DefiningScope.TryResolve(destName.GetHashCode(), out Symbol symbol) && symbol is VariableSymbol { IsReadonly: true })
             {
                 return true;
             }
@@ -905,7 +905,7 @@ namespace Fluence
                 for (int i = argCount - 1; i >= 0; i--)
                 {
                     string paramName = function.Parameters[i];
-                    int paramHash = function.Parameters[i].GetHashCode();
+                    int paramHash = function.ParametersHash[i];
                     bool isRefParam = function.ParametersByRef.Contains(paramName);
                     RuntimeValue argValue = vm.PopStack();
 

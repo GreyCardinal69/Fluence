@@ -251,7 +251,7 @@ namespace Fluence
                     return;
                 }
 
-                _currentParseState.GlobalScope.Declare("Main", mainFunctionSymbol);
+                _currentParseState.GlobalScope.Declare("Main".GetHashCode(), mainFunctionSymbol);
             }
 
             // We first insert the function declarations.
@@ -355,14 +355,16 @@ namespace Fluence
         /// <returns>The FunctionSymbol for the entry point, or null if not found.</returns>
         private FunctionSymbol FindEntryPoint()
         {
-            if (_currentParseState.GlobalScope.TryResolve("Main__0", out Symbol? globalMainSymbol))
+            int mainHash = "Main__0".GetHashCode();
+
+            if (_currentParseState.GlobalScope.TryResolve(mainHash, out Symbol? globalMainSymbol))
             {
                 return (FunctionSymbol)globalMainSymbol;
             }
 
             foreach (FluenceScope scope in _currentParseState.NameSpaces.Values)
             {
-                if (scope.TryResolve("Main__0", out Symbol mainFunc))
+                if (scope.TryResolve(mainHash, out Symbol mainFunc))
                 {
                     return (FunctionSymbol)mainFunc;
                 }
@@ -620,7 +622,7 @@ namespace Fluence
             FunctionSymbol functionSymbol = new FunctionSymbol(parsedName, arity, -1, nameToken.LineInSourceCode, _currentParseState.CurrentScope, paramaters, paramatersByRef);
 
             _lexer.ModifyTokenAt(startTokenIndex + 1, new Token(TokenType.IDENTIFIER, parsedName, nameToken.Literal, nameToken.LineInSourceCode, nameToken.ColumnInSourceCode));
-            _currentParseState.CurrentScope.Declare(parsedName, functionSymbol);
+            _currentParseState.CurrentScope.Declare(parsedName.GetHashCode(), functionSymbol);
         }
 
         /// <summary>
@@ -782,7 +784,7 @@ namespace Fluence
                 currentIndex++;
             }
 
-            if (!_currentParseState.CurrentScope.Declare(structName, structSymbol))
+            if (!_currentParseState.CurrentScope.Declare(structName.GetHashCode(), structSymbol))
             {
                 ConstructAndThrowParserException($"A symbol named '{structName}' is already defined in this scope.", nameToken);
             }
@@ -828,7 +830,7 @@ namespace Fluence
                 currentIndex++;
             }
 
-            if (!_currentParseState.CurrentScope.Declare(enumName, enumSymbol))
+            if (!_currentParseState.CurrentScope.Declare(enumName.GetHashCode(), enumSymbol))
             {
                 ConstructAndThrowParserException($"A symbol named '{enumName}' is already defined in this scope.", nameToken);
             }
@@ -999,7 +1001,7 @@ namespace Fluence
             string structName = nameToken.Text;
             AdvanceAndExpect(TokenType.L_BRACE, $"Expected an opening '{{' for struct '{structName}'.");
 
-            if (!_currentParseState.CurrentScope.TryResolve(structName, out Symbol symbol) || symbol is not StructSymbol structSymbol)
+            if (!_currentParseState.CurrentScope.TryResolve(structName.GetHashCode(), out Symbol symbol) || symbol is not StructSymbol structSymbol)
             {
                 ConstructAndThrowParserException($"Could not find the symbol for struct '{structName}'.", nameToken);
                 return; // Satisfies compiler.
@@ -1347,7 +1349,7 @@ namespace Fluence
 
             if (inStruct)
             {
-                bool isResolved = _currentParseState.CurrentScope.TryResolve(structName, out Symbol symbol);
+                bool isResolved = _currentParseState.CurrentScope.TryResolve(structName.GetHashCode(), out Symbol symbol);
 
                 if (!isResolved || symbol is not StructSymbol)
                 {
@@ -1457,7 +1459,7 @@ namespace Fluence
             else
             {
                 // This will also work for functions defined in the current scope.
-                if (!_currentParseState.CurrentScope.TryResolve(functionName, out Symbol symbol) || symbol is not FunctionSymbol functionSymbol)
+                if (!_currentParseState.CurrentScope.TryResolve(functionName.GetHashCode(), out Symbol symbol) || symbol is not FunctionSymbol functionSymbol)
                 {
                     ConstructAndThrowParserException($"Internal error: Could not resolve function symbol '{funcValue.Name}'. Function does not exist.", nameToken);
                 }
@@ -1996,7 +1998,7 @@ namespace Fluence
                     ConstructAndThrowParserException($"Namespace '{namespaceName}' not found. Expected a defined namespace.", nameToken);
                 }
 
-                foreach (KeyValuePair<string, Symbol> entry in namespaceToUse!.Symbols)
+                foreach (KeyValuePair<int, Symbol> entry in namespaceToUse!.Symbols)
                 {
                     if (!_currentParseState.CurrentScope.Declare(entry.Key, entry.Value) && !_currentParseState.CurrentScope.DeclaredSymbolNames.Contains(entry.Key))
                     {
@@ -2141,7 +2143,7 @@ namespace Fluence
 
                     if (firstLhs is VariableValue variable)
                     {
-                        _currentParseState.CurrentScope.Declare(variable.Name, new VariableSymbol(variable.Name, resolvedLhs));
+                        _currentParseState.CurrentScope.Declare(variable.Hash, new VariableSymbol(variable.Name, resolvedLhs));
                     }
                     else
                     {
@@ -2293,7 +2295,7 @@ namespace Fluence
             {
                 string name = _lexer.ConsumeToken().Text;
 
-                if (_currentParseState.CurrentScope.TryResolve(name, out Symbol symbol) && symbol is StructSymbol structSymbol)
+                if (_currentParseState.CurrentScope.TryResolve(name.GetHashCode(), out Symbol symbol) && symbol is StructSymbol structSymbol)
                 {
                     _lexer.Advance();
                     functionToCall = new StaticStructAccess(structSymbol, _lexer.ConsumeToken().Text);
@@ -3503,7 +3505,7 @@ namespace Fluence
             switch (descriptor)
             {
                 case VariableValue variable:
-                    _currentParseState.CurrentScope.Declare(variable.Name, new VariableSymbol(variable.Name, valueToAssign, variable.IsReadOnly));
+                    _currentParseState.CurrentScope.Declare(variable.Hash, new VariableSymbol(variable.Name, valueToAssign, variable.IsReadOnly));
 
                     if (valueToAssign is LambdaValue)
                     {
@@ -3731,7 +3733,7 @@ namespace Fluence
                     switch (left)
                     {
                         case VariableValue variable:
-                            if (_currentParseState.CurrentScope.TryResolve(variable.Name, out Symbol symbol) && symbol is EnumSymbol enumSymbol)
+                            if (_currentParseState.CurrentScope.TryResolve(variable.Hash, out Symbol symbol) && symbol is EnumSymbol enumSymbol)
                             {
                                 if (enumSymbol.Members.TryGetValue(memberToken.Text, out EnumValue enumValue))
                                 {
@@ -4037,12 +4039,12 @@ namespace Fluence
                 Value typeOperand;
                 if (operand is VariableValue varValue)
                 {
-                    bool found = _currentParseState.CurrentScope.TryResolve(varValue.Name, out Symbol sb);
+                    bool found = _currentParseState.CurrentScope.TryResolve(varValue.Hash, out Symbol sb);
                     if (found && sb is VariableSymbol)
                     {
                         typeOperand = varValue;
                     }
-                    else if (_currentParseState.CurrentScope.TryResolve(varValue.Name, out _))
+                    else if (_currentParseState.CurrentScope.TryResolve(varValue.Hash, out _))
                     {
                         // It's a raw type name.
                         typeOperand = new StringValue(varValue.Name);
@@ -4109,7 +4111,7 @@ namespace Fluence
             {
                 case TokenType.IDENTIFIER:
                     string name = token.Text;
-                    if (_currentParseState.CurrentScope.TryResolve(name, out Symbol symbol) && symbol is StructSymbol structSymbol)
+                    if (_currentParseState.CurrentScope.TryResolve(name.GetHashCode(), out Symbol symbol) && symbol is StructSymbol structSymbol)
                     {
                         // It's a struct, check if it's a constructor call Vec2(2,3).
                         // or a direct initializer Vec2{ x: 2, y: 3 }.

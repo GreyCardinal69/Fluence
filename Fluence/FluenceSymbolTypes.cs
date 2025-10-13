@@ -16,9 +16,16 @@ namespace Fluence
         /// </summary>
         internal string Name { get; init; }
 
+        /// <summary>
+        /// The hash code of this symbol.
+        /// Taken from the name of the symbol.
+        /// </summary>
+        internal int Hash { get; init; }
+
         protected Symbol(string name)
         {
             Name = name;
+            Hash = Name.GetHashCode();
         }
     }
 
@@ -27,8 +34,6 @@ namespace Fluence
     /// </summary>
     internal sealed record class VariableSymbol : Symbol
     {
-        internal int Hash { get; init; }
-
         /// <summary>The value of the variable.</summary>
         internal Value Value { get; init; }
 
@@ -41,7 +46,6 @@ namespace Fluence
         {
             Value = value;
             IsReadonly = readOnly;
-            Hash = Name.GetHashCode();
         }
 
         internal override string ToFluenceString() => $"VariableSymbol: {Name}{Value}";
@@ -134,11 +138,6 @@ namespace Fluence
         internal int Arity { get; init; }
 
         /// <summary>
-        /// The hash code of the function name.
-        /// </summary>
-        internal int Hash { get; init; }
-
-        /// <summary>
         /// The starting address of the function's bytecode. For intrinsics, this is -1.
         /// </summary>
         internal int StartAddress { get; private set; }
@@ -186,7 +185,6 @@ namespace Fluence
         /// <param name="body">The C# delegate that executes the function's logic.</param>
         internal FunctionSymbol(string name, int arity, IntrinsicMethod body, FluenceScope definingScope, List<string> arguments) : base(name)
         {
-            Hash = Name.GetHashCode();
             Arity = arity;
             StartAddress = -1; // Special address for intrinsics.
             IsIntrinsic = true;
@@ -204,7 +202,6 @@ namespace Fluence
         internal FunctionSymbol(string name, int arity, int startAddress, int lineInSource, FluenceScope definingScope, List<string> arguments, HashSet<string> argumentsByRef) : base(name)
         {
             StartAddressInSource = lineInSource;
-            Hash = Name.GetHashCode();
             Arity = arity;
             StartAddress = startAddress;
             IsIntrinsic = false;

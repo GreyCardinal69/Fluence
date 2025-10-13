@@ -31,6 +31,9 @@ namespace Fluence.RuntimeTypes
         /// <summary>The names of the function's parameters.</summary>
         internal List<string> Parameters { get; private set; }
 
+        /// <summary>The hash codes of the function's parameters.</summary>
+        internal List<int> ParametersHash { get; private set; }
+
         /// <summary>The names of the function's parameters passed by reference.</summary>
         internal HashSet<string> ParametersByRef { get; set; }
 
@@ -50,7 +53,14 @@ namespace Fluence.RuntimeTypes
         {
             Name = name;
             Arity = arity;
-            Parameters = parameters ?? new List<string>();
+            Parameters = parameters;
+
+            ParametersHash = new List<int>();
+            for (int i = 0; i < parameters.Count; i++)
+            {
+                ParametersHash.Add(parameters[i].GetHashCode());
+            }
+
             StartAddress = startAddress;
             DefiningScope = definingScope;
             IsIntrinsic = false;
@@ -63,6 +73,7 @@ namespace Fluence.RuntimeTypes
             Arity = arity;
             StartAddress = -1; // No bytecode address.
             Parameters = new List<string>();
+            ParametersHash = new List<int>();
             DefiningScope = definingScope;
             IsIntrinsic = true;
             IntrinsicBody = body;
@@ -78,7 +89,14 @@ namespace Fluence.RuntimeTypes
             StartAddressInSource = lineInSource;
             Name = name;
             Arity = arity;
-            Parameters = parameters ?? new List<string>();
+            Parameters = parameters;
+
+            ParametersHash = new List<int>();
+            for (int i = 0; i < parameters.Count; i++)
+            {
+                ParametersHash.Add(parameters[i].GetHashCode());
+            }
+
             StartAddress = startAddress;
             DefiningScope = definingScope;
             IsIntrinsic = false;

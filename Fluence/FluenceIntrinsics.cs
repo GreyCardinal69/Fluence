@@ -55,7 +55,7 @@ namespace Fluence
         {
             if (_libraryRegistry.TryGetValue(namespaceName, out Action<FluenceScope>? registrationAction))
             {
-                if (_parser.CurrentParserStateGlobalScope.DeclaredSymbolNames.Contains(namespaceName))
+                if (_parser.CurrentParserStateGlobalScope.DeclaredSymbolNames.Contains(namespaceName.GetHashCode()))
                 {
                     return null;
                 }

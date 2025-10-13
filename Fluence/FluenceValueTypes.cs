@@ -284,6 +284,9 @@ namespace Fluence
         /// <summary>The arguments of the function by name.</summary>
         internal List<string> Arguments { get; init; }
 
+        /// <summary>The hash codes of the function's arguments.</summary>
+        internal List<int> ArgumentsHash { get; private set; }
+
         /// <summary>
         /// The arguments of the function passed by reference by name.
         /// </summary>
@@ -308,6 +311,13 @@ namespace Fluence
             Arity = arity;
             StartAddress = startAddress;
             Arguments = arguments;
+
+            ArgumentsHash = new List<int>();
+            for (int i = 0; i < Arguments.Count; i++)
+            {
+                ArgumentsHash.Add(Arguments[i].GetHashCode());
+            }
+
             ArgumentsByRef = argsByRef;
             StartAddressInSource = lineInSource;
         }

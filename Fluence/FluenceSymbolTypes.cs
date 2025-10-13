@@ -162,6 +162,9 @@ namespace Fluence
         /// </summary>
         internal List<string> Arguments { get; init; }
 
+        /// <summary>The hash codes of the function's arguments.</summary>
+        internal List<int> ArgumentsHash { get; private set; }
+
         /// <summary>
         /// The arguments of the function passed by reference by name.
         /// </summary>
@@ -190,6 +193,13 @@ namespace Fluence
             IsIntrinsic = true;
             IntrinsicBody = body;
             Arguments = arguments;
+
+            ArgumentsHash = new List<int>();
+            for (int i = 0; i < Arguments.Count; i++)
+            {
+                ArgumentsHash.Add(Arguments[i].GetHashCode());
+            }
+
             DefiningScope = definingScope;
         }
 
@@ -206,6 +216,13 @@ namespace Fluence
             StartAddress = startAddress;
             IsIntrinsic = false;
             Arguments = arguments;
+
+            ArgumentsHash = new List<int>();
+            for (int i = 0; i < Arguments.Count; i++)
+            {
+                ArgumentsHash.Add(Arguments[i].GetHashCode());
+            }
+
             ArgumentsByRef = argumentsByRef;
             DefiningScope = definingScope;
         }

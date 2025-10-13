@@ -49,18 +49,12 @@ namespace Fluence.RuntimeTypes
         /// <summary>The C# delegate that implements the body of an intrinsic function.</summary>
         internal IntrinsicMethod IntrinsicBody { get; private set; }
 
-        internal FunctionObject(string name, int arity, List<string> parameters, int startAddress, FluenceScope definingScope)
+        internal FunctionObject(string name, int arity, List<string> parameters, List<int> parametersHash, int startAddress, FluenceScope definingScope)
         {
             Name = name;
             Arity = arity;
             Parameters = parameters;
-
-            ParametersHash = new List<int>();
-            for (int i = 0; i < parameters.Count; i++)
-            {
-                ParametersHash.Add(parameters[i].GetHashCode());
-            }
-
+            ParametersHash = parametersHash;
             StartAddress = startAddress;
             DefiningScope = definingScope;
             IsIntrinsic = false;
@@ -84,19 +78,13 @@ namespace Fluence.RuntimeTypes
         /// </summary>
         public FunctionObject() { }
 
-        internal void Initialize(string name, int arity, List<string> parameters, int startAddress, FluenceScope definingScope, FunctionSymbol symb, int lineInSource)
+        internal void Initialize(string name, int arity, List<string> parameters, List<int> parametersHash, int startAddress, FluenceScope definingScope, FunctionSymbol symb, int lineInSource)
         {
             StartAddressInSource = lineInSource;
             Name = name;
             Arity = arity;
             Parameters = parameters;
-
-            ParametersHash = new List<int>();
-            for (int i = 0; i < parameters.Count; i++)
-            {
-                ParametersHash.Add(parameters[i].GetHashCode());
-            }
-
+            ParametersHash = parametersHash;
             StartAddress = startAddress;
             DefiningScope = definingScope;
             IsIntrinsic = false;
@@ -111,7 +99,7 @@ namespace Fluence.RuntimeTypes
             Arity = arity;
             DefiningScope = definingScope;
             IsIntrinsic = true;
-            BluePrint = symb!;
+            BluePrint = symb;
         }
 
         internal void SetBluePrint(FunctionSymbol? symb) => BluePrint = symb;
@@ -126,6 +114,7 @@ namespace Fluence.RuntimeTypes
             StartAddress = 0;
             DefiningScope = null!;
             IsIntrinsic = false;
+            ParametersHash = null!;
             ParametersByRef = null!;
         }
 

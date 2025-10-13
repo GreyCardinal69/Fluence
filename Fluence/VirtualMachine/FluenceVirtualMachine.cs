@@ -246,7 +246,7 @@ namespace Fluence.VirtualMachine
             _input = input ?? Console.ReadLine!;
 
             // This represents the top-level global execution context.
-            FunctionObject mainScriptFunc = new FunctionObject("<script>", 0, new List<string>(), 0, _globalScope);
+            FunctionObject mainScriptFunc = new FunctionObject("<script>", 0, new List<string>(), new List<int>(), 0, _globalScope);
 
             CallFrame initialFrame = new CallFrame();
             initialFrame.Initialize(mainScriptFunc, _byteCode.Count, null!);
@@ -1912,6 +1912,7 @@ namespace Fluence.VirtualMachine
                     methodBlueprint.Name,
                     methodBlueprint.Arity,
                     methodBlueprint.Arguments,
+                    methodBlueprint.ArgumentsHash,
                     methodBlueprint.StartAddress,
                     methodBlueprint.FunctionScope
                 )
@@ -2066,6 +2067,7 @@ namespace Fluence.VirtualMachine
                 methodBlueprint.Name,
                 methodBlueprint.Arity,
                 methodBlueprint.Arguments,
+                methodBlueprint.ArgumentsHash,
                 methodBlueprint.StartAddress,
                 methodBlueprint.FunctionScope
             )
@@ -2371,7 +2373,7 @@ namespace Fluence.VirtualMachine
                 return func;
             }
 
-            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.StartAddress, funcSymbol.DefiningScope, funcSymbol, funcSymbol.StartAddressInSource);
+            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.ArgumentsHash, funcSymbol.StartAddress, funcSymbol.DefiningScope, funcSymbol, funcSymbol.StartAddressInSource);
             func.ParametersByRef = funcSymbol.ArgumentsByRef;
             return func;
         }
@@ -2385,7 +2387,7 @@ namespace Fluence.VirtualMachine
         {
             FunctionObject func = _functionObjectPool.Get();
 
-            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.StartAddress, funcSymbol.FunctionScope, null!, funcSymbol.StartAddressInSource);
+            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.ArgumentsHash, funcSymbol.StartAddress, funcSymbol.FunctionScope, null!, funcSymbol.StartAddressInSource);
             func.ParametersByRef = funcSymbol.ArgumentsByRef;
             return func;
         }

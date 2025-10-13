@@ -8,15 +8,25 @@ namespace Fluence
     /// This is the abstract base class for functions, structs, and enums.
     /// It inherits from <see cref="Value"/> to be storable in the bytecode stream.
     /// </summary>
-    internal abstract record class Symbol : Value { }
+    internal abstract record class Symbol : Value
+    {
+        /// <summary>
+        /// The declared name of this symbol.
+        /// Always non-null for any valid symbol.
+        /// </summary>
+        internal string Name { get; init; }
+
+        protected Symbol(string name)
+        {
+            Name = name;
+        }
+    }
 
     /// <summary>
     /// Represents a variable of a scope.
     /// </summary>
     internal sealed record class VariableSymbol : Symbol
     {
-        /// <summary>The name of the variable.</summary>
-        internal string Name { get; init; }
         internal int Hash { get; init; }
 
         /// <summary>The value of the variable.</summary>
@@ -27,9 +37,8 @@ namespace Fluence
         /// </summary>
         internal bool IsReadonly { get; init; }
 
-        internal VariableSymbol(string name, Value value, bool readOnly = false)
+        internal VariableSymbol(string name, Value value, bool readOnly = false) : base(name)
         {
-            Name = name;
             Value = value;
             IsReadonly = readOnly;
             Hash = Name.GetHashCode();
@@ -45,18 +54,12 @@ namespace Fluence
     /// </summary>
     internal sealed record class EnumSymbol : Symbol
     {
-        /// <summary>The name of the enum.</summary>
-        internal string Name { get; init; }
-
         /// <summary>
         /// The dictionary mapping member names to their corresponding <see cref="EnumValue"/>s.
         /// </summary>
         internal Dictionary<string, EnumValue> Members { get; } = new();
 
-        internal EnumSymbol(string name)
-        {
-            Name = name;
-        }
+        internal EnumSymbol(string name) : base(name) { }
 
         internal override string ToFluenceString() => $"<internal: enum_symbol>";
 
@@ -68,9 +71,6 @@ namespace Fluence
     /// </summary>
     internal sealed record class StructSymbol : Symbol
     {
-        /// <summary>The name of the struct.</summary>
-        internal string Name { get; init; }
-
         /// <summary>The scope the struct belongs to.</summary>
         internal FluenceScope Scope { get; init; }
 
@@ -107,9 +107,8 @@ namespace Fluence
         /// </summary>
         internal Dictionary<string, FunctionValue> Constructors { get; } = new();
 
-        internal StructSymbol(string name, FluenceScope scope)
+        internal StructSymbol(string name, FluenceScope scope) : base(name)
         {
-            Name = name;
             Scope = scope;
         }
 
@@ -129,13 +128,15 @@ namespace Fluence
     /// </summary>
     internal sealed record class FunctionSymbol : Symbol
     {
-        /// <summary>The name of the function.</summary>
-        internal string Name { get; init; }
-
         /// <summary>
         /// The number of parameters the function is declared to accept (excluding the implicit 'self' for methods).
         /// </summary>
         internal int Arity { get; init; }
+
+        /// <summary>
+        /// The hash code of the function name.
+        /// </summary>
+        internal int Hash { get; init; }
 
         /// <summary>
         /// The starting address of the function's bytecode. For intrinsics, this is -1.
@@ -183,9 +184,9 @@ namespace Fluence
         /// <param name="name">The name of the intrinsic function.</param>
         /// <param name="arity">The number of arguments the function expects.</param>
         /// <param name="body">The C# delegate that executes the function's logic.</param>
-        internal FunctionSymbol(string name, int arity, IntrinsicMethod body, FluenceScope definingScope, List<string> arguments)
+        internal FunctionSymbol(string name, int arity, IntrinsicMethod body, FluenceScope definingScope, List<string> arguments) : base(name)
         {
-            Name = name;
+            Hash = Name.GetHashCode();
             Arity = arity;
             StartAddress = -1; // Special address for intrinsics.
             IsIntrinsic = true;
@@ -200,10 +201,10 @@ namespace Fluence
         /// <param name="name">The name of the function.</param>
         /// <param name="arity">The number of arguments the function expects.</param>
         /// <param name="startAddress">The initial start address (usually -1, resolved later).</param>
-        internal FunctionSymbol(string name, int arity, int startAddress, int lineInSource, FluenceScope definingScope, List<string> arguments, HashSet<string> argumentsByRef)
+        internal FunctionSymbol(string name, int arity, int startAddress, int lineInSource, FluenceScope definingScope, List<string> arguments, HashSet<string> argumentsByRef) : base(name)
         {
             StartAddressInSource = lineInSource;
-            Name = name;
+            Hash = Name.GetHashCode();
             Arity = arity;
             StartAddress = startAddress;
             IsIntrinsic = false;

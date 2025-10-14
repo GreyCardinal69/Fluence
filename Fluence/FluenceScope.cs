@@ -12,7 +12,7 @@ namespace Fluence
         /// <summary>
         /// Gets the collection of symbols declared directly within this scope.
         /// </summary>
-        internal readonly Dictionary<string, Symbol> Symbols = new Dictionary<string, Symbol>();
+        internal readonly Dictionary<int, Symbol> Symbols = new Dictionary<int, Symbol>();
 
         /// <summary>
         /// Gets the name of this scope, primarily used for debugging and error messages.
@@ -25,7 +25,7 @@ namespace Fluence
         /// <summary>
         /// Keeps track of declared symbol names for name conflict detection.
         /// </summary>
-        internal readonly HashSet<string> DeclaredSymbolNames = new HashSet<string>();
+        internal readonly HashSet<int> DeclaredSymbolNames = new HashSet<int>();
 
         /// <summary>
         /// Gets the parent scope in the hierarchy. This is null for the global scope.
@@ -39,9 +39,9 @@ namespace Fluence
         internal readonly Dictionary<int, RuntimeValue> RuntimeStorage = new Dictionary<int, RuntimeValue>();
 
         // Used in Tests. Might also be useful for other purposes.
-        internal bool Contains(string name) => TryResolve(name, out _);
-        internal bool ContainsLocal(string name) => TryGetLocalSymbol(name, out _);
-        internal bool TryGetLocalSymbol(string name, out Symbol symbol) => Symbols.TryGetValue(name, out symbol!);
+        internal bool Contains(string name) => TryResolve(name.GetHashCode(), out _);
+        internal bool ContainsLocal(int name) => TryGetLocalSymbol(name, out _);
+        internal bool TryGetLocalSymbol(int hash, out Symbol symbol) => Symbols.TryGetValue(hash, out symbol!);
 
         internal FluenceScope(FluenceScope parentScope, string name)
         {
@@ -56,11 +56,11 @@ namespace Fluence
         /// <param name="name">The name of the symbol.</param>
         /// <param name="symbol">The symbol to declare.</param>
         /// <returns>True if the symbol was declared successfully; false if a symbol with the same name already exists in this scope.</returns>
-        internal bool Declare(string name, Symbol symbol)
+        internal bool Declare(int hash, Symbol symbol)
         {
-            if (Symbols.TryAdd(name, symbol))
+            if (Symbols.TryAdd(hash, symbol))
             {
-                DeclaredSymbolNames.Add(name);
+                DeclaredSymbolNames.Add(hash);
                 return true;
             }
 
@@ -73,12 +73,12 @@ namespace Fluence
         /// <param name="name">The name of the symbol to find.</param>
         /// <param name="symbol">When this method returns, contains the found symbol, or null if it was not found.</param>
         /// <returns>True if the symbol was found in this scope or any parent scope; otherwise, false.</returns>
-        internal bool TryResolve(string name, out Symbol symbol)
+        internal bool TryResolve(int hash, out Symbol symbol)
         {
             FluenceScope current = this;
             while (current != null)
             {
-                ref Symbol localSymbol = ref CollectionsMarshal.GetValueRefOrNullRef(current.Symbols, name);
+                ref Symbol localSymbol = ref CollectionsMarshal.GetValueRefOrNullRef(current.Symbols, hash);
                 if (!Unsafe.IsNullRef(ref localSymbol))
                 {
                     symbol = localSymbol;

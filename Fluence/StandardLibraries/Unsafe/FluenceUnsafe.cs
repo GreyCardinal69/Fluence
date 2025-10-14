@@ -12,7 +12,7 @@ namespace Fluence
         internal static void Register(FluenceScope unsafeScope, TextOutputMethod outputLine, TextInputMethod input, TextOutputMethod output)
         {
             StructSymbol byteCode = new StructSymbol("ByteCode", unsafeScope);
-            unsafeScope.Declare("ByteCode", byteCode);
+            unsafeScope.Declare("ByteCode".GetHashCode(), byteCode);
         }
     }
 }

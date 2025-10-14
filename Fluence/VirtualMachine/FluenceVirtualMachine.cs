@@ -45,6 +45,8 @@ namespace Fluence.VirtualMachine
         /// <summary>The top-level global scope, used for resolving global functions and variables.</summary>
         private readonly FluenceScope _globalScope;
 
+        private static readonly int _selfInstanceHashCode = "self".GetHashCode();
+
         /// <summary>The stack used for passing arguments to functions and for temporary operand storage.</summary>
         private readonly Stack<RuntimeValue> _operandStack = new Stack<RuntimeValue>();
 
@@ -244,7 +246,7 @@ namespace Fluence.VirtualMachine
             _input = input ?? Console.ReadLine!;
 
             // This represents the top-level global execution context.
-            FunctionObject mainScriptFunc = new FunctionObject("<script>", 0, new List<string>(), 0, _globalScope);
+            FunctionObject mainScriptFunc = new FunctionObject("<script>", 0, new List<string>(), new List<int>(), 0, _globalScope);
 
             CallFrame initialFrame = new CallFrame();
             initialFrame.Initialize(mainScriptFunc, _byteCode.Count, null!);
@@ -397,7 +399,7 @@ namespace Fluence.VirtualMachine
                     "Supported types are null, bool, int, long, float, double, string, char.")
             };
 
-            AssignVariable(name, name.GetHashCode(), runtimeValue);
+            AssignVariable(name, name.GetHashCode(), runtimeValue, null!);
         }
 
         /// <summary>
@@ -524,7 +526,8 @@ namespace Fluence.VirtualMachine
             }
 
             VariableValue var = (VariableValue)instruction.Lhs;
-            SetVariable(var, new RuntimeValue(GetRuntimeValue(var).IntValue + 1));
+            RuntimeValue result = new RuntimeValue(GetRuntimeValue(var).IntValue + 1);
+            SetVariable(var.Hash, ref result);
         }
 
         private void ExecuteLoadAddress(InstructionLine instruction)
@@ -539,6 +542,12 @@ namespace Fluence.VirtualMachine
         /// </summary>
         internal void ExecuteGenericAdd(InstructionLine instruction)
         {
+            if (instruction.SpecializedHandler != null)
+            {
+                instruction.SpecializedHandler(instruction, this);
+                return;
+            }
+
             RuntimeValue left = GetRuntimeValue(instruction.Rhs);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
 
@@ -559,7 +568,7 @@ namespace Fluence.VirtualMachine
             {
                 string resultString = string.Concat(left.ToString(), right.ToString());
 
-                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(new StringObject(resultString)));
+                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(new StringObject(resultString)), instruction);
                 return;
             }
 
@@ -571,7 +580,7 @@ namespace Fluence.VirtualMachine
                 concatenatedList.Elements.AddRange(leftList.Elements);
                 concatenatedList.Elements.AddRange(rightList.Elements);
 
-                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(concatenatedList));
+                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(concatenatedList), instruction);
                 return;
             }
 
@@ -657,34 +666,34 @@ namespace Fluence.VirtualMachine
 
             if (left.ObjectReference is StringObject strLeft && right.Type == RuntimeValueType.Number)
             {
-                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(strLeft, right));
+                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(strLeft, right), instruction);
                 return;
             }
             if (left.Type == RuntimeValueType.Number && right.ObjectReference is StringObject strRight)
             {
-                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(strRight, left));
+                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(strRight, left), instruction);
                 return;
             }
 
             if (left.ObjectReference is CharObject charLeft && right.Type == RuntimeValueType.Number)
             {
-                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(new StringObject(charLeft.Value.ToString()), right));
+                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(new StringObject(charLeft.Value.ToString()), right), instruction);
                 return;
             }
             if (left.Type == RuntimeValueType.Number && right.ObjectReference is CharObject charRight)
             {
-                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(new StringObject(charRight.Value.ToString()), left));
+                SetVariableOrRegister(instruction.Lhs, HandleStringRepetition(new StringObject(charRight.Value.ToString()), left), instruction);
                 return;
             }
 
             if (left.ObjectReference is ListObject listLeft && right.Type == RuntimeValueType.Number)
             {
-                SetVariableOrRegister(instruction.Lhs, HandleListRepetition(listLeft, right));
+                SetVariableOrRegister(instruction.Lhs, HandleListRepetition(listLeft, right), instruction);
                 return;
             }
             if (left.Type == RuntimeValueType.Number && right.ObjectReference is ListObject listRight)
             {
-                SetVariableOrRegister(instruction.Lhs, HandleListRepetition(listRight, left));
+                SetVariableOrRegister(instruction.Lhs, HandleListRepetition(listRight, left), instruction);
                 return;
             }
 
@@ -763,18 +772,18 @@ namespace Fluence.VirtualMachine
         /// <summary>Handles the ASSIGN_TWO instruction, which is used for variable assignment of two variables at once.</summary>
         private void ExecuteAssignTwo(InstructionLine instruction)
         {
-            AssignTo(instruction.Lhs, instruction.Rhs);
-            AssignTo(instruction.Rhs2, instruction.Rhs3);
+            AssignTo(instruction.Lhs, instruction.Rhs, instruction);
+            AssignTo(instruction.Rhs2, instruction.Rhs3, instruction);
         }
 
         /// <summary>Handles the ASSIGN instruction, which is used for variable assignment and range-to-list expansion.</summary>
         private void ExecuteAssign(InstructionLine instruction)
         {
-            AssignTo(instruction.Lhs, instruction.Rhs);
+            AssignTo(instruction.Lhs, instruction.Rhs, instruction);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void AssignTo(Value left, Value right)
+        private void AssignTo(Value left, Value right, InstructionLine insn)
         {
             RuntimeValue sourceValue = GetRuntimeValue(right);
 
@@ -807,13 +816,12 @@ namespace Fluence.VirtualMachine
                         list.Elements.Add(new RuntimeValue(i));
                     }
                 }
-                AssignVariable(destVar.Name, destVar.Hash, new RuntimeValue(list));
-                return;
+                AssignVariable(destVar.Name, destVar.Hash, new RuntimeValue(list), insn);
             }
             // Standard assignment.
             else if (left is VariableValue destVar2)
             {
-                AssignVariable(destVar2.Name, destVar2.Hash, sourceValue, destVar2.IsReadOnly);
+                AssignVariable(destVar2.Name, destVar2.Hash, sourceValue, insn, destVar2.IsReadOnly);
             }
             else if (left is TempValue destTemp) SetRegister(destTemp, sourceValue);
             else throw ConstructRuntimeException("Internal VM Error: Destination of 'Assign' must be a variable or temporary.");
@@ -872,7 +880,7 @@ namespace Fluence.VirtualMachine
                 _ => SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported left-hand number type."),
             };
 
-            SetVariableOrRegister(instruction.Lhs, result);
+            SetVariableOrRegister(instruction.Lhs, result, instruction);
         }
 
         /// <summary>
@@ -902,7 +910,7 @@ namespace Fluence.VirtualMachine
 
             if (instruction.Lhs is VariableValue var)
             {
-                AssignVariable(var.Name, var.Hash, new RuntimeValue(result), var.IsReadOnly);
+                AssignVariable(var.Name, var.Hash, new RuntimeValue(result), instruction, var.IsReadOnly);
                 return;
             }
 
@@ -1208,7 +1216,7 @@ namespace Fluence.VirtualMachine
                         }
                         int start = Convert.ToInt32(range.Start.IntValue);
                         int end = Convert.ToInt32(range.End.IntValue);
-                        length = (end < start) ? 0 : (end - start + 1);
+                        length = end < start ? 0 : end - start + 1;
                         break;
                     default:
                         SignalError($"Runtime Error: Cannot get the length of a value of type '{GetDetailedTypeName(collection)}'.");
@@ -1642,7 +1650,7 @@ namespace Fluence.VirtualMachine
             {
                 string typeName = typeNameValue.Value;
 
-                if (TryFindSymbol(typeName, out Symbol symbol, out FluenceScope symbolScope))
+                if (TryFindSymbol(typeName.GetHashCode(), out Symbol symbol, out FluenceScope symbolScope))
                 {
                     metadata = symbol switch
                     {
@@ -1711,9 +1719,9 @@ namespace Fluence.VirtualMachine
         /// <summary>
         /// A helper to search all relevant scopes for a named symbol.
         /// </summary>
-        private bool TryFindSymbol(string name, out Symbol symbol, out FluenceScope foundScope)
+        private bool TryFindSymbol(int hash, out Symbol symbol, out FluenceScope foundScope)
         {
-            if (CurrentFrame.Function.DefiningScope?.TryResolve(name, out symbol) ?? false)
+            if (CurrentFrame.Function.DefiningScope?.TryResolve(hash, out symbol) ?? false)
             {
                 foundScope = CurrentFrame.Function.DefiningScope;
                 return true;
@@ -1721,14 +1729,14 @@ namespace Fluence.VirtualMachine
 
             foreach (FluenceScope ns in Namespaces.Values)
             {
-                if (ns.TryResolve(name, out symbol))
+                if (ns.TryResolve(hash, out symbol))
                 {
                     foundScope = ns;
                     return true;
                 }
             }
 
-            if (_globalScope.TryResolve(name, out symbol))
+            if (_globalScope.TryResolve(hash, out symbol))
             {
                 foundScope = _globalScope;
                 return true;
@@ -1805,7 +1813,7 @@ namespace Fluence.VirtualMachine
 
             for (int i = function.Parameters.Count - 1; i >= 0; i--)
             {
-                int paramName = function.Parameters[i].GetHashCode();
+                int paramHash = function.ParametersHash[i];
                 bool isRefParam = function.ParametersByRef.Contains(function.Parameters[i]);
                 RuntimeValue argFromStack = _operandStack.Pop();
 
@@ -1813,17 +1821,17 @@ namespace Fluence.VirtualMachine
                 {
                     if (argFromStack.ObjectReference is not ReferenceValue)
                     {
-                        throw ConstructRuntimeException($"Internal VM Error: Argument '{paramName}' in function: \"{function.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                        throw ConstructRuntimeException($"Internal VM Error: Argument '{paramHash}' in function: \"{function.ToCodeLikeString()}\" must be passed by reference ('ref').");
                     }
 
                     VariableValue refVar = ((ReferenceValue)argFromStack.ObjectReference).Reference;
-                    newFrame.RefParameterMap[paramName] = refVar.Hash;
-                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
+                    newFrame.RefParameterMap[paramHash] = refVar.Hash;
+                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramHash, out _);
                     valueRef = GetRuntimeValue(refVar);
                 }
                 else // Pass by value.
                 {
-                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramName, out _);
+                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramHash, out _);
                     valueRef = argFromStack.ObjectReference is ReferenceValue refVal ? GetRuntimeValue(refVal.Reference) : argFromStack;
                 }
             }
@@ -1846,8 +1854,8 @@ namespace Fluence.VirtualMachine
             FunctionObject lambdaObject = CreateFunctionObject(lambdaValue.Function);
             lambdaObject.IsLambda = true;
 
-            AssignVariable(baseName, destination.Hash, new RuntimeValue(lambdaObject), destination.IsReadOnly);
-            AssignVariable(mangledName, destination.Hash, new RuntimeValue(lambdaObject), destination.IsReadOnly);
+            AssignVariable(baseName, destination.Hash, new RuntimeValue(lambdaObject), instruction, destination.IsReadOnly);
+            AssignVariable(mangledName, destination.Hash, new RuntimeValue(lambdaObject), instruction, destination.IsReadOnly);
         }
 
         /// <summary>
@@ -1877,7 +1885,7 @@ namespace Fluence.VirtualMachine
                 throw ConstructRuntimeException($"Internal VM Error: Cannot call method '{methodName}' on a non-instance object of type '{GetDetailedTypeName(instanceVal)}'.");
             }
 
-            FunctionValue methodBlueprint = null!;
+            FunctionValue methodBlueprint = null;
             FunctionObject functionToExecute = null;
 
             // <script> frame.
@@ -1910,6 +1918,7 @@ namespace Fluence.VirtualMachine
                     methodBlueprint.Name,
                     methodBlueprint.Arity,
                     methodBlueprint.Arguments,
+                    methodBlueprint.ArgumentsHash,
                     methodBlueprint.StartAddress,
                     methodBlueprint.FunctionScope
                 )
@@ -1937,13 +1946,13 @@ namespace Fluence.VirtualMachine
             newFrame.Initialize(functionToExecute, _ip, (TempValue)instruction.Lhs);
 
             // Implicitly pass 'self'.
-            newFrame.Registers["self".GetHashCode()] = instanceVal;
+            newFrame.Registers[_selfInstanceHashCode] = instanceVal;
 
             for (int i = functionToExecute.Parameters.Count - 1; i >= 0; i--)
             {
                 string paramName = functionToExecute.Parameters[i];
                 bool isRefParam = functionToExecute.ParametersByRef.Contains(paramName);
-                int paramHash = paramName.GetHashCode();
+                int paramHash = functionToExecute.ParametersHash[i];
                 RuntimeValue argFromStack = _operandStack.Pop();
 
                 if (isRefParam)
@@ -1986,7 +1995,7 @@ namespace Fluence.VirtualMachine
 
             newFrame.Initialize(functionToExecute, -1, null!);
 
-            newFrame.Registers["self".GetHashCode()] = new RuntimeValue(instance);
+            newFrame.Registers[_selfInstanceHashCode] = new RuntimeValue(instance);
 
             _callStack.Push(newFrame);
             _cachedRegisters = newFrame.Registers;
@@ -2064,6 +2073,7 @@ namespace Fluence.VirtualMachine
                 methodBlueprint.Name,
                 methodBlueprint.Arity,
                 methodBlueprint.Arguments,
+                methodBlueprint.ArgumentsHash,
                 methodBlueprint.StartAddress,
                 methodBlueprint.FunctionScope
             )
@@ -2092,7 +2102,7 @@ namespace Fluence.VirtualMachine
             for (int i = functionToExecute.Parameters.Count - 1; i >= 0; i--)
             {
                 string paramName = functionToExecute.Parameters[i];
-                int paramHash = paramName.GetHashCode();
+                int paramHash = functionToExecute.ParametersHash[i];
                 bool isRefParam = functionToExecute.ParametersByRef.Contains(paramName);
                 RuntimeValue argFromStack = _operandStack.Pop();
 
@@ -2164,33 +2174,15 @@ namespace Fluence.VirtualMachine
             _callFramePool.Return(finishedFrame);
         }
 
-        internal void SetVariableOrRegister(Value target, RuntimeValue value)
+        internal void SetVariableOrRegister(Value target, RuntimeValue value, InstructionLine insn)
         {
             if (target is VariableValue var)
             {
-                AssignVariable(var.Name, var.Hash, value, var.IsReadOnly);
+                AssignVariable(var.Name, var.Hash, value, insn, var.IsReadOnly);
                 return;
             }
 
             SetRegister((TempValue)target, value);
-        }
-
-        /// <summary>
-        /// Sets the value of a variable directly, avoiding extra checks.
-        /// </summary>
-        /// <param name="var">The Variable.</param>
-        /// <param name="val">The value to assign to.</param>
-        internal void SetVariable(VariableValue var, RuntimeValue val)
-        {
-            if (CurrentFrame.ReturnAddress != _byteCode.Count)
-            {
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, var.Hash, out _);
-                valueRef = val;
-                return;
-            }
-
-            ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, var.Hash, out _);
-            valueRef2 = val;
         }
 
         /// <summary>
@@ -2274,7 +2266,7 @@ namespace Fluence.VirtualMachine
             }
 
             FluenceScope lexicalScope = CurrentFrame.Function.DefiningScope;
-            if (lexicalScope.TryResolve(name, out Symbol symbol))
+            if (lexicalScope.TryResolve(hash, out Symbol symbol))
             {
                 return ResolveVariableFromScopeSymbol(symbol, lexicalScope);
             }
@@ -2285,7 +2277,7 @@ namespace Fluence.VirtualMachine
                 {
                     FluenceScope lexicalScope2 = item;
 
-                    if (lexicalScope2.TryResolve(name, out Symbol symb))
+                    if (lexicalScope2.TryResolve(hash, out Symbol symb))
                     {
                         return ResolveVariableFromScopeSymbol(symb, lexicalScope2);
                     }
@@ -2343,7 +2335,7 @@ namespace Fluence.VirtualMachine
 
                 foreach (FluenceScope item in Namespaces.Values)
                 {
-                    if (item.TryResolve(variable.Name, out Symbol symb))
+                    if (item.TryResolve(variable.Hash, out Symbol symb))
                     {
                         return GetRuntimeValue(((VariableSymbol)symb).Value);
                     }
@@ -2369,7 +2361,7 @@ namespace Fluence.VirtualMachine
                 return func;
             }
 
-            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.StartAddress, funcSymbol.DefiningScope, funcSymbol, funcSymbol.StartAddressInSource);
+            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.ArgumentsHash, funcSymbol.StartAddress, funcSymbol.DefiningScope, funcSymbol, funcSymbol.StartAddressInSource);
             func.ParametersByRef = funcSymbol.ArgumentsByRef;
             return func;
         }
@@ -2383,7 +2375,7 @@ namespace Fluence.VirtualMachine
         {
             FunctionObject func = _functionObjectPool.Get();
 
-            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.StartAddress, funcSymbol.FunctionScope, null!, funcSymbol.StartAddressInSource);
+            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.ArgumentsHash, funcSymbol.StartAddress, funcSymbol.FunctionScope, null!, funcSymbol.StartAddressInSource);
             func.ParametersByRef = funcSymbol.ArgumentsByRef;
             return func;
         }
@@ -2434,24 +2426,24 @@ namespace Fluence.VirtualMachine
         /// <summary>
         /// Assigns a value to a variable.
         /// </summary>
-        private void AssignVariable(string name, int hash, RuntimeValue value, bool readOnly = false)
+        private void AssignVariable(string name, int hash, RuntimeValue value, InstructionLine insn, bool readOnly = false)
         {
+            if (insn.AssignsVariableSafely)
+            {
+                SetVariable(hash, ref value);
+                return;
+            }
+
             ref bool isReadonlyRef = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentFrame.WritableCache, hash);
             ref bool isReadOnlyGlobalRef = ref CollectionsMarshal.GetValueRefOrNullRef(GlobalWritableCache, hash);
 
-            if (!Unsafe.IsNullRef(ref isReadonlyRef))
+            if (!Unsafe.IsNullRef(ref isReadonlyRef) && readOnly)
             {
-                if (isReadonlyRef)
-                {
-                    CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly variable '{name}'.");
-                }
+                CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly variable '{name}'.");
             }
-            else if (!Unsafe.IsNullRef(ref isReadOnlyGlobalRef))
+            else if (!Unsafe.IsNullRef(ref isReadOnlyGlobalRef) && readOnly)
             {
-                if (isReadOnlyGlobalRef)
-                {
-                    CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly global variable '{name}'.");
-                }
+                CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly global variable '{name}'.");
             }
             else
             {
@@ -2460,11 +2452,11 @@ namespace Fluence.VirtualMachine
                 {
                     isVariableReadonly = true;
                 }
-                else if (CurrentFrame.Function.DefiningScope.TryResolve(name, out Symbol symbol) && symbol is VariableSymbol { IsReadonly: true })
+                else if (CurrentFrame.Function.DefiningScope.TryResolve(hash, out Symbol symbol) && symbol is VariableSymbol { IsReadonly: true })
                 {
                     CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly or solid variable '{name}'.");
                 }
-                else if (_globalScope.TryResolve(name, out symbol) && symbol is VariableSymbol symb && symb.IsReadonly)
+                else if (_globalScope.TryResolve(hash, out symbol) && symbol is VariableSymbol symb && symb.IsReadonly)
                 {
                     CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly or solid variable '{name}'.");
                 }
@@ -2479,6 +2471,22 @@ namespace Fluence.VirtualMachine
                 }
             }
 
+            if (insn != null)
+            {
+                insn.AssignsVariableSafely = true;
+            }
+
+            SetVariable(hash, ref value);
+        }
+
+        /// <summary>
+        /// Sets the value of a variable directly, avoiding extra checks.
+        /// </summary>
+        /// <param name="var">The Variable.</param>
+        /// <param name="val">The value to assign to.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void SetVariable(int hash, ref RuntimeValue value)
+        {
             // If we are not in the top-level script, assign to the current frame's local registers.
             if (CurrentFrame.ReturnAddress != _byteCode.Count)
             {

@@ -1,6 +1,5 @@
 ﻿using Fluence.RuntimeTypes;
 using Fluence.VirtualMachine;
-using static Fluence.VirtualMachine.FluenceVirtualMachine;
 
 namespace Fluence
 {
@@ -16,7 +15,7 @@ namespace Fluence
         private RuntimeValue ToString(FluenceVirtualMachine vm, RuntimeValue self) => vm.ResolveStringObjectRuntimeValue(Value);
 
         /// <inheritdoc/>
-        public bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method)
+        public bool TryGetIntrinsicMethod(string name, out FluenceVirtualMachine.IntrinsicRuntimeMethod method)
         {
             method = name switch
             {

@@ -17,7 +17,7 @@ namespace Fluence
             // --- File Static Struct ---
             //
             StructSymbol file = new StructSymbol("File", ioNamespace);
-            ioNamespace.Declare("File", file);
+            ioNamespace.Declare("File".GetHashCode(), file);
 
             file.StaticIntrinsics.Add("write__2", new FunctionSymbol("write__2", 2, (vm, argCount) =>
             {
@@ -70,7 +70,7 @@ namespace Fluence
             // --- Path Static Struct ---
             //
             StructSymbol pathStruct = new StructSymbol("Path", ioNamespace);
-            ioNamespace.Declare("Path", pathStruct);
+            ioNamespace.Declare("Path".GetHashCode(), pathStruct);
 
             pathStruct.StaticIntrinsics.Add("dir_sep_char__0", new FunctionSymbol("dir_sep_char__0", 0, (vm, argCount) =>
             {
@@ -130,7 +130,7 @@ namespace Fluence
             // --- Directory Static Struct ---
             //
             StructSymbol dir = new StructSymbol("Dir", ioNamespace);
-            ioNamespace.Declare("Dir", dir);
+            ioNamespace.Declare("Dir".GetHashCode(), dir);
 
             dir.StaticIntrinsics.Add("create__1", new FunctionSymbol("create__1", 1, (vm, argCount) =>
             {

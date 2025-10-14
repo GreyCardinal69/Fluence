@@ -107,7 +107,7 @@ namespace Fluence.RuntimeTypes
             StringObject argStringObj = arg.As<StringObject>();
             if (argStringObj.Value is null)
             {
-                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.contains() expects a non-nil string argument, got {GetDetailedTypeName(arg)}.");
+                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.contains() expects a non-nil string argument, got {FluenceVirtualMachine.GetDetailedTypeName(arg)}.");
             }
 
             bool contains = selfStringObj.Value.Contains(argStringObj.Value, StringComparison.Ordinal);
@@ -126,7 +126,7 @@ namespace Fluence.RuntimeTypes
             StringObject argStringObj = arg.As<StringObject>();
             if (argStringObj.Value is null)
             {
-                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.ends_with() expects a non-nil string argument, got {GetDetailedTypeName(arg)}.");
+                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.ends_with() expects a non-nil string argument, got {FluenceVirtualMachine.GetDetailedTypeName(arg)}.");
             }
 
             bool endsWith = selfStringObj.Value.EndsWith(argStringObj.Value, StringComparison.Ordinal);
@@ -145,7 +145,7 @@ namespace Fluence.RuntimeTypes
             StringObject argStringObj = arg.As<StringObject>();
             if (argStringObj.Value is null)
             {
-                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.starts_with() expects a non-nil string argument, got {GetDetailedTypeName(arg)}.");
+                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.starts_with() expects a non-nil string argument, got {FluenceVirtualMachine.GetDetailedTypeName(arg)}.");
             }
 
             bool startsWith = selfStringObj.Value.StartsWith(argStringObj.Value, StringComparison.Ordinal);
@@ -166,7 +166,7 @@ namespace Fluence.RuntimeTypes
             StringObject argStringObj = arg.As<StringObject>();
             if (argStringObj.Value is null)
             {
-                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.insert() expects a non-nil string argument, got {GetDetailedTypeName(arg)}.");
+                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.insert() expects a non-nil string argument, got {FluenceVirtualMachine.GetDetailedTypeName(arg)}.");
             }
 
             if (index.Type != RuntimeValueType.Number || index.IntValue < 0 || index.IntValue > selfStringObj.Value.Length)
@@ -194,7 +194,7 @@ namespace Fluence.RuntimeTypes
                 return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Pad count must be a non-negative integer.");
             }
 
-            CharObject? argCharObj = arg.As<CharObject>() ?? vm.SignalError<CharObject>($"Runtime Error: string.pad_left() expects a character argument, got {GetDetailedTypeName(arg)}.");
+            CharObject? argCharObj = arg.As<CharObject>() ?? vm.SignalError<CharObject>($"Runtime Error: string.pad_left() expects a character argument, got {FluenceVirtualMachine.GetDetailedTypeName(arg)}.");
             string newValue = selfStringObj.Value.PadLeft(count.IntValue, argCharObj.Value);
             return vm.ResolveStringObjectRuntimeValue(newValue);
         }
@@ -215,7 +215,7 @@ namespace Fluence.RuntimeTypes
                 return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: Pad count must be a non-negative integer.");
             }
 
-            CharObject? argCharObj = arg.As<CharObject>() ?? vm.SignalError<CharObject>($"Runtime Error: string.pad_right() expects a character argument, got {GetDetailedTypeName(arg)}.");
+            CharObject? argCharObj = arg.As<CharObject>() ?? vm.SignalError<CharObject>($"Runtime Error: string.pad_right() expects a character argument, got {FluenceVirtualMachine.GetDetailedTypeName(arg)}.");
             string newValue = selfStringObj.Value.PadRight(count.IntValue, argCharObj.Value);
             return vm.ResolveStringObjectRuntimeValue(newValue);
         }
@@ -234,13 +234,13 @@ namespace Fluence.RuntimeTypes
             StringObject replaceStringObj = replace.As<StringObject>();
             if (replaceStringObj.Value is null)
             {
-                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.replace() expects a non-nil string argument for string to replace, got {GetDetailedTypeName(replace)}.");
+                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.replace() expects a non-nil string argument for string to replace, got {FluenceVirtualMachine.GetDetailedTypeName(replace)}.");
             }
 
             StringObject withStringObj = with.As<StringObject>();
             if (withStringObj.Value is null)
             {
-                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.replace() expects a non-nil string for string to replace with, got {GetDetailedTypeName(with)}.");
+                return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: string.replace() expects a non-nil string for string to replace with, got {FluenceVirtualMachine.GetDetailedTypeName(with)}.");
             }
 
             string newValue = selfStringObj.Value.Replace(replaceStringObj.Value, withStringObj.Value, StringComparison.Ordinal);

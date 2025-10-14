@@ -388,6 +388,7 @@ namespace Fluence
                     foreach (FunctionValue m in s.Functions.Values) m.SetStartAddress(MapAddr(m.StartAddress));
                 }
             }
+
             foreach (FluenceScope scope in state.NameSpaces.Values)
             {
                 foreach (Symbol symbol in scope.Symbols.Values)

@@ -90,26 +90,26 @@ namespace Fluence.ParserTests
             Assert.True(symbolTree.NameSpaces.ContainsKey("FluenceMath"));
 
             FluenceScope myProgram1Scope = symbolTree.NameSpaces["MyProgram_1"];
-            Assert.True(myProgram1Scope.ContainsLocal("Number_1"));
-            Assert.True(myProgram1Scope.ContainsLocal("Number_1Type"));
-            Assert.True(myProgram1Scope.ContainsLocal("Main_1__0"));
-            Assert.True(myProgram1Scope.ContainsLocal("Helper_1__0"));
-            Assert.True(myProgram1Scope.ContainsLocal("Vector3_1"));
-            Assert.True(myProgram1Scope.ContainsLocal("cos__1"));
-            Assert.False(myProgram1Scope.ContainsLocal("Globuloid_1"));
+            Assert.True(myProgram1Scope.ContainsLocal("Number_1".GetHashCode()));
+            Assert.True(myProgram1Scope.ContainsLocal("Number_1Type".GetHashCode()));
+            Assert.True(myProgram1Scope.ContainsLocal("Main_1__0".GetHashCode()));
+            Assert.True(myProgram1Scope.ContainsLocal("Helper_1__0".GetHashCode()));
+            Assert.True(myProgram1Scope.ContainsLocal("Vector3_1".GetHashCode()));
+            Assert.True(myProgram1Scope.ContainsLocal("cos__1".GetHashCode()));
+            Assert.False(myProgram1Scope.ContainsLocal("Globuloid_1".GetHashCode()));
 
             FluenceScope myMath2Scope = symbolTree.NameSpaces["MyMath_2"];
-            Assert.True(myMath2Scope.ContainsLocal("Vector3_2"));
-            Assert.False(myMath2Scope.ContainsLocal("Number_2"));
+            Assert.True(myMath2Scope.ContainsLocal("Vector3_2".GetHashCode()));
+            Assert.False(myMath2Scope.ContainsLocal("Number_2".GetHashCode()));
 
             FluenceScope myProgram3Scope = symbolTree.NameSpaces["MyProgram_3"];
-            Assert.True(myProgram3Scope.ContainsLocal("Number_3"));
-            Assert.True(myProgram3Scope.ContainsLocal("Main_3__0"));
-            Assert.True(myProgram3Scope.ContainsLocal("Vector3_3"));
+            Assert.True(myProgram3Scope.ContainsLocal("Number_3".GetHashCode()));
+            Assert.True(myProgram3Scope.ContainsLocal("Main_3__0".GetHashCode()));
+            Assert.True(myProgram3Scope.ContainsLocal("Vector3_3".GetHashCode()));
 
-            Assert.IsType<StructSymbol>(myProgram1Scope.Symbols["Vector3_1"]);
-            Assert.IsType<EnumSymbol>(myProgram1Scope.Symbols["Number_1Type"]);
-            Assert.IsType<FunctionSymbol>(myProgram1Scope.Symbols["Main_1__0"]);
+            Assert.IsType<StructSymbol>(myProgram1Scope.Symbols["Vector3_1".GetHashCode()]);
+            Assert.IsType<EnumSymbol>(myProgram1Scope.Symbols["Number_1Type".GetHashCode()]);
+            Assert.IsType<FunctionSymbol>(myProgram1Scope.Symbols["Main_1__0".GetHashCode()]);
         }
 
         [Fact]

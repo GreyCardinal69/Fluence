@@ -112,9 +112,9 @@ namespace Fluence
             else
             {
                 // Dump all symbols within the current scope.
-                foreach (KeyValuePair<string, Symbol> item in scope.Symbols)
+                foreach (KeyValuePair<int, Symbol> item in scope.Symbols)
                 {
-                    DumpSymbol(sb, item.Key, item.Value, indentationLevel + 1);
+                    DumpSymbol(sb, item.Value.Name, item.Value, indentationLevel + 1);
                 }
             }
 

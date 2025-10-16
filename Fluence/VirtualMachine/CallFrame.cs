@@ -77,10 +77,12 @@ namespace Fluence.VirtualMachine
         /// <param name="returnAddress">The instruction address to return to after function completion.</param>
         /// <param name="destination">The temporary register to store the return value, if any.</param>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="function"/> is null.</exception>
-        public void Initialize(FunctionObject function, int returnAddress, TempValue destination)
+        public void Initialize(FluenceVirtualMachine vm, FunctionObject function, int returnAddress, TempValue destination)
         {
-            ArgumentNullException.ThrowIfNull(function);
-            
+            if (function is null)
+            {
+                throw vm.ConstructRuntimeException("Internal VM Error: Can not initialize a new CallFrame with a null function blueprint.");
+            }
 
             int requiredSize = function.RegistersSize;
             EnsureRegisterCapacity(requiredSize);

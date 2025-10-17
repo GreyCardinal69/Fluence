@@ -206,14 +206,14 @@ namespace Fluence
             /// <inheritdoc />
             public override string ToString()
             {
-                string[] parts = new[]
-                {
+                string[] parts =
+                [
                     Instruction.ToString().PadRight(20),
-                    (Lhs?.ToString() ?? "null").PadRight(50),
-                    (Rhs?.ToString() ?? "null").PadRight(45),
-                    (Rhs2?.ToString() ?? "null").PadRight(40),
-                    (Rhs3?.ToString() ?? "null").PadRight(25)
-                };
+                    (Lhs?.ToByteCodeString() ?? "null").PadRight(40),
+                    (Rhs?.ToByteCodeString() ?? "null").PadRight(45),
+                    (Rhs2?.ToByteCodeString() ?? "null").PadRight(40),
+                    (Rhs3?.ToByteCodeString() ?? "null").PadRight(25)
+                ];
 
                 return string.Join(" ", parts);
             }

@@ -13,6 +13,12 @@ namespace Fluence
         /// when printed within the Fluence language itself.
         /// </summary>
         internal abstract string ToFluenceString();
+
+        /// <summary>
+        /// Returns a compact representation optimized for bytecode debugging display.
+        /// Designed to prevent column overflow in instruction listings.
+        /// </summary>
+        internal virtual string ToByteCodeString() => ToString();
     }
 
     /// <summary>Represents a single character literal.</summary>
@@ -25,16 +31,16 @@ namespace Fluence
     /// <summary>Represents a string literal.</summary>
     internal sealed record class StringValue(string Value) : Value
     {
-        internal override string ToFluenceString() => Value;
+        /// <summary>
+        /// Truncates long strings for bytecode display while preserving readability.
+        /// </summary>
+        private const int MaxDisplayLength = 15;
 
-        public override string ToString()
-        {
-            if (string.IsNullOrEmpty(Value)) return "StringValue: \"\"";
+        internal override string ToFluenceString() => $"\"{Value}\"";
 
-            // First 15 chars are enough.
-            string end = Value.Length > 15 ? "...\"" : "\"";
-            return $"StringValue: \"{Value[..Math.Min(15, Value.Length)]}{end}";
-        }
+        public override string ToString() => string.IsNullOrEmpty(Value)
+            ? "StringValue: \"\""
+            : $"StringValue: \"{Value[..Math.Min(MaxDisplayLength, Value.Length)]}{(Value.Length > MaxDisplayLength ? "..." : "")}\"";
     }
 
     /// <summary>Represents a boolean literal.</summary>
@@ -63,11 +69,21 @@ namespace Fluence
         public override string ToString() => $"NilValue";
     }
 
-    /// <summary>Represents a range literal.</summary>
+    /// <summary>
+    /// Represents a range expression with start and end bounds.
+    /// </summary>
+    /// <param name="Start">The inclusive start bound.</param>
+    /// <param name="End">The inclusive end bound.</param>
     internal sealed record class RangeValue(Value Start, Value End) : Value
     {
-        internal override string ToFluenceString() => $"<internal: range__{Start.ToFluenceString()}..{End.ToFluenceString()}>";
-        public override string ToString() => $"RangeValue: From {Start.ToFluenceString()} To {End}";
+        internal override string ToFluenceString() =>
+                    $"<internal: range_{Start.ToFluenceString()}..{End.ToFluenceString()}>";
+
+        internal override string ToByteCodeString() =>
+                    $"Range[{Start.ToByteCodeString()}..{End.ToByteCodeString()}]";
+
+        public override string ToString() =>
+                    $"RangeValue: {Start.ToFluenceString()}..{End.ToFluenceString()}";
     }
 
     /// <summary>Represents a numerical literal, which can be an Integer, Float, Long, or Double.</summary>
@@ -145,7 +161,17 @@ namespace Fluence
             throw new FormatException($"Invalid number format: '{lexemeSpan}'");
         }
 
+        private string GetTypeShorthand() => Type switch
+        {
+            NumberType.Double => "Double",
+            NumberType.Integer => "Int",
+            NumberType.Long => "Long",
+            NumberType.Float => "Float",
+            _ => throw new NotImplementedException()
+        };
+
         internal override string ToFluenceString() => Value.ToString();
+        internal override string ToByteCodeString() => $"{GetTypeShorthand()}_{Value}";
         public override string ToString() => $"NumberValue ({Type}): {Value}";
     }
 
@@ -165,6 +191,7 @@ namespace Fluence
     internal sealed record class ReferenceValue(VariableValue Reference) : Value
     {
         internal override string ToFluenceString() => $"<internal: reference_value__{Reference}";
+        internal override string ToByteCodeString() => $"<internal: reference_value__{Reference.ToByteCodeString()}";
         public override string ToString() => $"ReferenceValue: {Reference}";
     }
 
@@ -240,21 +267,56 @@ namespace Fluence
         internal string TempName { get; init; }
         internal int Hash { get; init; }
 
+        /// <summary>
+        /// The runtime register index (-1 = unallocated).
+        /// </summary>
+        internal int RegisterIndex { get; set; } = -1;
+
         internal TempValue(int num)
         {
             TempName = $"__Temp{num}";
             Hash = TempName.GetHashCode();
-            HashTable.Register(TempName, Hash);
-        }
-
-        internal TempValue(int num, string name)
-        {
-            TempName = $"__{name}{num}";
-            Hash = TempName.GetHashCode();
         }
 
         internal override string ToFluenceString() => "<internal: temp_register>";
-        public override string ToString() => $"TempValue: {TempName}";
+        internal override string ToByteCodeString() => $"{TempName}_{RegisterIndex}";
+        public override string ToString() => $"TempValue: {TempName}, Index: {RegisterIndex}";
+    }
+
+    /// <summary>
+    /// Represents a variable by its name. The VM resolves this to a value in the current scope.
+    /// </summary>
+    internal sealed record class VariableValue : Value
+    {
+        internal string Name { get; init; }
+        internal int Hash { get; init; }
+
+        /// <summary>
+        /// Mutable readonly flag - finalized during semantic analysis.
+        /// Allows deferred readonly determination across parser phases.
+        /// </summary>
+        internal bool IsReadOnly { get; set; }
+
+        /// <summary>
+        /// The runtime register index (-1 = unallocated).
+        /// </summary>
+        internal int RegisterIndex { get; set; } = -1;
+
+        /// <summary>
+        /// Indicates whether this variable is a global variable in the scope it is defined, outside of any function.
+        /// </summary>
+        internal bool IsGlobal { get; set; }
+
+        internal VariableValue(string identifierValue, bool readOnly = false)
+        {
+            IsReadOnly = readOnly;
+            Name = identifierValue;
+            Hash = Name.GetHashCode();
+        }
+
+        internal override string ToFluenceString() => $"<internal: variable_{(IsReadOnly ? "solid" : "fluid")}>";
+        internal override string ToByteCodeString() => $"Var_{Name}_{RegisterIndex}_{IsGlobal}";
+        public override string ToString() => $"VariableValue: {Name}:{(IsReadOnly ? "solid" : "fluid")}, Index: {RegisterIndex}, IsGlobal: {IsGlobal}";
     }
 
     /// <summary>
@@ -295,7 +357,7 @@ namespace Fluence
         /// <summary>
         /// The C# intrinsic body of the function, if it is intrinsic.
         /// </summary>
-        internal readonly IntrinsicMethod IntrinsicBody;
+        internal IntrinsicMethod IntrinsicBody { get; init; }
 
         /// <summary>
         /// Sets the bytecode start address for this function. Called by the parser during the second pass.
@@ -303,9 +365,14 @@ namespace Fluence
         internal int StartAddressInSource { get; init; }
 
         /// <summary>The scope (namespace) the function belongs to.</summary>
-        internal FluenceScope FunctionScope { get; private set; }
+        internal FluenceScope FunctionScope { get; init; }
 
-        internal FunctionValue(string name, int arity, int startAddress, int lineInSource, List<string> arguments, HashSet<string> argsByRef)
+        /// <summary>
+        /// The total amount of register slots this function requires to execute its bytecode.
+        /// </summary>
+        internal int TotalRegisterSlots { get; set; }
+
+        internal FunctionValue(string name, int arity, int startAddress, int lineInSource, List<string> arguments, HashSet<string> argsByRef, FluenceScope scope)
         {
             Name = name;
             Arity = arity;
@@ -320,21 +387,22 @@ namespace Fluence
 
             ArgumentsByRef = argsByRef;
             StartAddressInSource = lineInSource;
+            FunctionScope = scope;
         }
-
-        internal void SetScope(FluenceScope scope) => FunctionScope = scope;
 
         internal void SetStartAddress(int adr) => StartAddress = adr;
 
         internal void SetName(string name) => Name = name;
 
-        internal override string ToFluenceString() => $"<internal: function__{Name}/{Arity}>";
+        internal override string ToFluenceString() => $"<internal: function__{Name}/{Arity}, RegSize: {TotalRegisterSlots}>";
+
+        internal override string ToByteCodeString() => $"Func_{Name}_{Arity}_{TotalRegisterSlots}_{FunctionScope}";
 
         public override string ToString()
         {
             string args = (Arguments == null || Arguments.Count == 0) ? "None" : string.Join(", ", Arguments);
             string argsRef = (ArgumentsByRef == null || ArgumentsByRef.Count == 0) ? "None" : string.Join(", ", ArgumentsByRef);
-            return $"FunctionValue: {Name} {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} args: {args}. refArgs: {argsRef}";
+            return $"FunctionValue: {Name} {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} args: {args}. refArgs: {argsRef}, RegSize: {TotalRegisterSlots}, Scope: {FunctionScope}";
         }
     }
 
@@ -375,30 +443,6 @@ namespace Fluence
 
         internal override string ToFluenceString() => "<internal: property_access>";
         public override string ToString() => $"FieldAccess<{Target}:{FieldName}>";
-    }
-
-    /// <summary>
-    /// Represents a variable by its name. The VM resolves this to a value in the current scope.
-    /// </summary>
-    internal sealed record class VariableValue : Value
-    {
-        internal string Name { get; init; }
-        internal int Hash { get; init; }
-
-        // Whether it is readonly can't always be identified in the parser at the point of creation.
-        // Hence we keep this as mutable.
-        internal bool IsReadOnly { get; set; }
-
-        internal VariableValue(string identifierValue, bool readOnly = false)
-        {
-            IsReadOnly = readOnly;
-            Name = identifierValue;
-            Hash = Name.GetHashCode();
-            HashTable.Register(Name, Hash);
-        }
-
-        internal override string ToFluenceString() => $"<internal: variable_{(IsReadOnly ? "solid" : "fluid")}>";
-        public override string ToString() => $"VariableValue: {Name}:{(IsReadOnly ? "solid" : "fluid")}";
     }
 
     /// <summary>Represents a specific member of an enum, holding both its name and integer value.</summary>

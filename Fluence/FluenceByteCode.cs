@@ -172,10 +172,6 @@ namespace Fluence
             /// <param name="fileIndex">Project file index.</param>
             public void SetDebugInfo(int column, int line, int fileIndex)
             {
-                ArgumentOutOfRangeException.ThrowIfNegative(column);
-                ArgumentOutOfRangeException.ThrowIfNegative(line);
-                ArgumentOutOfRangeException.ThrowIfNegative(fileIndex);
-
                 ColumnInSourceCode = column;
                 LineInSourceCode = line;
                 ProjectFileIndex = fileIndex;

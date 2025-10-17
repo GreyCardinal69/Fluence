@@ -215,7 +215,7 @@ namespace Fluence
             stringBuilder.AppendLine("\nLast Virtual Machine Instruction and Function:\n");
             stringBuilder.AppendLine($"IP: {DebugContext.InstructionPointer:D4}   Function: {Mangler.Demangle(DebugContext.CurrentFunctionName, out _)}   Call Stack Depth: {DebugContext.CallStackDepth}");
             stringBuilder.AppendLine($"\nThe Error occured at the following bytecode instruction:\n");
-            stringBuilder.AppendLine($"{string.Format("{0,-20} {1,-50} {2,-45} {3,-40} {4, -25}", "TYPE", "LHS", "RHS", "RHS2", "RHS3")}");
+            stringBuilder.AppendLine($"{string.Format("{0,-20} {1,-40} {2,-45} {3,-40} {4, -25}", "TYPE", "LHS", "RHS", "RHS2", "RHS3")}");
             stringBuilder.AppendLine($"{DebugContext.CurrentInstruction}");
 
             stringBuilder.AppendLine($"\nStack Trace (most recent call last):");

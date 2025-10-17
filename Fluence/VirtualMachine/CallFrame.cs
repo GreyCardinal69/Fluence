@@ -84,12 +84,12 @@ namespace Fluence.VirtualMachine
                 throw vm.ConstructRuntimeException("Internal VM Error: Can not initialize a new CallFrame with a null function blueprint.");
             }
 
-            int requiredSize = function.RegistersSize;
+            int requiredSize = function.TotalRegisterSlots;
             EnsureRegisterCapacity(requiredSize);
 
             RegisterCount = requiredSize;
             Function = function;
-            Function.RegistersSize = function.RegistersSize;
+            Function.TotalRegisterSlots = function.TotalRegisterSlots;
             ReturnAddress = returnAddress;
             DestinationRegister = destination;
 

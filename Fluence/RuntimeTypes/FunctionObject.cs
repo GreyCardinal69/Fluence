@@ -28,6 +28,16 @@ namespace Fluence.RuntimeTypes
         /// </summary>
         internal bool IsLambda { get; set; }
 
+        /// <summary>
+        /// The total amount of register slots this function requires to execute its bytecode.
+        /// </summary>
+        internal int TotalRegisterSlots { get; set; }
+
+        /// <summary>
+        /// The address of the last instruction of the function's body in the bytecode.
+        /// </summary>
+        internal int EndAddress { get; set; }
+
         /// <summary>The names of the function's parameters.</summary>
         internal List<string> Parameters { get; private set; }
 

@@ -143,6 +143,11 @@ namespace Fluence
         internal int StartAddress { get; private set; }
 
         /// <summary>
+        /// The address of the last instruction of the function's body in the bytecode.
+        /// </summary>
+        internal int EndAddress { get; private set; }
+
+        /// <summary>
         /// Gets a value indicating whether this function is a native C# intrinsic.
         /// </summary>
         internal bool IsIntrinsic { get; init; }
@@ -176,9 +181,20 @@ namespace Fluence
         internal FluenceScope DefiningScope { get; init; }
 
         /// <summary>
+        /// The total amount of register slots this function requires to execute its bytecode.
+        /// </summary>
+        internal int TotalRegisterSlots { get; set; }
+
+        /// <summary>
         /// Sets the bytecode start address for this function. Called by the parser during the second pass.
         /// </summary>
         internal void SetStartAddress(int addr) => StartAddress = addr;
+
+        /// <summary>
+        /// Sets the bytecode end address for this function. Called by the parser during the second pass.
+        /// This is usually the final return instruction of the function's body.
+        /// </summary>
+        internal void SetEndAddress(int adr) => EndAddress = adr;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="FunctionSymbol"/> class for a native C# intrinsic.

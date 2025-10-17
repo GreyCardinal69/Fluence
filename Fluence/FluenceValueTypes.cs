@@ -343,6 +343,11 @@ namespace Fluence
         /// </summary>
         internal int StartAddress { get; private set; }
 
+        /// <summary>
+        /// The address of the last instruction of the function's body in the bytecode.
+        /// </summary>
+        internal int EndAddress { get; private set; }
+
         /// <summary>The arguments of the function by name.</summary>
         internal List<string> Arguments { get; init; }
 
@@ -390,13 +395,22 @@ namespace Fluence
             FunctionScope = scope;
         }
 
-        internal void SetStartAddress(int adr) => StartAddress = adr;
+        /// <summary>
+        /// Sets the bytecode start address for this function. Called by the parser during the second pass.
+        /// </summary>
+        internal void SetStartAddress(int addr) => StartAddress = addr;
+
+        /// <summary>
+        /// Sets the bytecode end address for this function. Called by the parser during the second pass.
+        /// This is usually the final return instruction of the function's body.
+        /// </summary>
+        internal void SetEndAddress(int adr) => EndAddress = adr;
 
         internal void SetName(string name) => Name = name;
 
         internal override string ToFluenceString() => $"<internal: function__{Name}/{Arity}, RegSize: {TotalRegisterSlots}>";
 
-        internal override string ToByteCodeString() => $"Func_{Name}_{Arity}_{TotalRegisterSlots}_{FunctionScope}";
+        internal override string ToByteCodeString() => $"Func_{Name}_{Arity}_{TotalRegisterSlots}_{FunctionScope}_{StartAddress}/{EndAddress}";
 
         public override string ToString()
         {

@@ -12,6 +12,7 @@ namespace Fluence
         private static readonly Dictionary<TempValue, Value> _constantsMap = new Dictionary<TempValue, Value>();
         private static readonly HashSet<int> _instructionsToRemove = new HashSet<int>();
         private static readonly Dictionary<TempValue, int> _registerAssignmentCounts = new Dictionary<TempValue, int>();
+        private static readonly HashSet<string> _visitedSymbols = new HashSet<string>();
 
         /// <summary>
         /// Incrementally optimizes a segment of the bytecode list..
@@ -34,6 +35,7 @@ namespace Fluence
             if (byteCodeChanged)
             {
                 CompactAndRealignFromBottomUp(ref bytecode, parseState);
+                _visitedSymbols.Clear();
             }
 
             if (constantFoldingDidWork)
@@ -70,7 +72,7 @@ namespace Fluence
                     line1.Lhs is TempValue l1Lhs &&
                     line2.Lhs is VariableValue &&
                     line2.Rhs is TempValue l2Rhs &&
-                    l1Lhs.TempName == l2Rhs.TempName)
+                    l1Lhs.Hash == l2Rhs.Hash)
                 {
                     byteCodeChanged = true;
                     bytecode[i].Instruction = opCode;
@@ -193,7 +195,7 @@ namespace Fluence
 
                 if (insn.Instruction == InstructionCode.Assign &&
                     insn.Lhs is TempValue temp &&
-                    IsConstantValue(insn.Rhs))
+                    IsAConstantValue(insn.Rhs))
                 {
                     // In some cases, we can have some temp register assigned to a constant as a temporary, say in a match
                     // Depending on the match case, it can be constant, or non constant, we look ahead, if we assign to this temp register later
@@ -267,7 +269,7 @@ namespace Fluence
                 if (op != InstructionCode.Skip &&
                     line1.Lhs is TempValue cResult &&
                     line2.Rhs is TempValue jCond &&
-                    cResult.TempName == jCond.TempName)
+                    cResult.Hash == jCond.Hash)
                 {
                     byteCodeChanged = true;
                     bytecode[i].Instruction = op;
@@ -285,7 +287,7 @@ namespace Fluence
         /// </summary>
         /// <param name="val">The Value to check.</param>
         /// <returns>True if the <see cref="Value"/> is considered constant.</returns>
-        private static bool IsConstantValue(Value val) => val is
+        private static bool IsAConstantValue(Value val) => val is
             NumberValue or
             StringValue or
             CharValue or
@@ -378,14 +380,26 @@ namespace Fluence
 
             foreach (Symbol symbol in state.GlobalScope.Symbols.Values)
             {
-                if (symbol is FunctionSymbol f) f.SetStartAddress(MapAddr(f.StartAddress));
+                _visitedSymbols.Add(symbol.Name);
+                if (symbol is FunctionSymbol f)
+                {
+                    f.SetStartAddress(MapAddr(f.StartAddress));
+                    f.SetEndAddress(MapAddr(f.EndAddress));
+                }
                 else if (symbol is StructSymbol s)
                 {
                     foreach (KeyValuePair<string, FunctionValue> item in s.Constructors)
                     {
+                        _visitedSymbols.Add(item.Key);
                         item.Value.SetStartAddress(MapAddr(item.Value.StartAddress));
+                        item.Value.SetEndAddress(MapAddr(item.Value.EndAddress));
                     }
-                    foreach (FunctionValue m in s.Functions.Values) m.SetStartAddress(MapAddr(m.StartAddress));
+                    foreach (FunctionValue m in s.Functions.Values)
+                    {
+                        _visitedSymbols.Add(m.Name);
+                        m.SetStartAddress(MapAddr(m.StartAddress));
+                        m.SetEndAddress(MapAddr(m.EndAddress));
+                    }
                 }
             }
 
@@ -393,14 +407,24 @@ namespace Fluence
             {
                 foreach (Symbol symbol in scope.Symbols.Values)
                 {
+                    if (_visitedSymbols.Contains(symbol.Name))
+                    {
+                        continue;
+                    }
+
                     if (symbol is FunctionSymbol f) f.SetStartAddress(MapAddr(f.StartAddress));
                     else if (symbol is StructSymbol s)
                     {
                         foreach (KeyValuePair<string, FunctionValue> item in s.Constructors)
                         {
                             item.Value.SetStartAddress(MapAddr(item.Value.StartAddress));
+                            item.Value.SetEndAddress(MapAddr(item.Value.EndAddress));
                         }
-                        foreach (FunctionValue m in s.Functions.Values) m.SetStartAddress(MapAddr(m.StartAddress));
+                        foreach (FunctionValue m in s.Functions.Values)
+                        {
+                            m.SetStartAddress(MapAddr(m.StartAddress));
+                            m.SetEndAddress(MapAddr(m.EndAddress));
+                        }
                     }
                 }
             }

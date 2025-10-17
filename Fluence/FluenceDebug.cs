@@ -40,6 +40,10 @@ namespace Fluence
         internal static void DumpByteCodeInstructions(List<InstructionLine> instructions, TextOutputMethod outMethod)
         {
             outMethod("--- Compiled Bytecode ---\n");
+            outMethod("Value types with unique print format:");
+            outMethod("VariableValue: Var_{Name}_{Register Index}_{Is Global?}");
+            outMethod("TempValue: {Name}_{Register Index}");
+            outMethod("FunctionValue: Func_{Name}_{Arity}_{TotalRegisters}_{Scope}\n");
             outMethod(string.Format("{0,-5} {1,-20} {2,-50} {3,-45} {4,-40} {5, -25}", "", "TYPE", "LHS", "RHS", "RHS2", "RHS3"));
             outMethod("");
 
@@ -145,7 +149,7 @@ namespace Fluence
                 case FunctionSymbol functionSymbol:
                     string scope = functionSymbol.DefiningScope == null || functionSymbol.Arguments == null ? $"None {(functionSymbol.IsIntrinsic ? "(Intrinsic)" : "Global?")}" : functionSymbol.DefiningScope.Name;
                     args = functionSymbol.Arguments == null ? "None" : string.Join(",", functionSymbol.Arguments);
-                    argsRef = functionSymbol.ArgumentsByRef == null ? "None" : string.Join(",", functionSymbol.ArgumentsByRef);
+                    argsRef = (functionSymbol.ArgumentsByRef == null || functionSymbol.ArgumentsByRef.Count == 0) ? "None" : string.Join(",", functionSymbol.ArgumentsByRef);
 
                     if (string.IsNullOrEmpty(args)) args = "None";
 
@@ -168,8 +172,8 @@ namespace Fluence
                             args = function.Value.Arguments == null ? "None" : string.Join(",", function.Value.Arguments);
                             argsRef = function.Value.ArgumentsByRef == null ? "None" : string.Join(",", function.Value.ArgumentsByRef);
 
-                            sb.Append(innerIndent).Append($"    Name: {function.Key}, Arity: {function.Value.Arity}, Start Address: {FluenceDebug.FormatByteCodeAddress(function.Value.StartAddress)}")
-                                .Append($" Args: {args}, ").Append($" RefArgs: {argsRef}, ").AppendLine();
+                            sb.Append(innerIndent).Append($"    Name: {function.Key}, Arity: {function.Value.Arity}, Start Address: {FormatByteCodeAddress(function.Value.StartAddress)}")
+                              .Append($" Args: {args}, ").Append($" RefArgs: {argsRef}, ").Append($"Scope: {function.Value.FunctionScope}, ").Append($"Registers Size: {function.Value.TotalRegisterSlots}").AppendLine();
                         }
                         sb.Append(innerIndent).AppendLine("}");
                     }

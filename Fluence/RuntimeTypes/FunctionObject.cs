@@ -39,13 +39,13 @@ namespace Fluence.RuntimeTypes
         internal int EndAddress { get; set; }
 
         /// <summary>The names of the function's parameters.</summary>
-        internal List<string> Parameters { get; private set; }
+        internal List<string> Arguments { get; private set; }
 
         /// <summary>The hash codes of the function's parameters.</summary>
-        internal List<int> ParametersHash { get; private set; }
+        internal List<int> ArgumentHashCodes { get; private set; }
 
         /// <summary>The names of the function's parameters passed by reference.</summary>
-        internal HashSet<string> ParametersByRef { get; set; }
+        internal HashSet<string> ArgumentsByRef { get; set; }
 
         /// <summary>The lexical scope in which the function was defined, used for resolving non-local variables.</summary>
         internal FluenceScope DefiningScope { get; private set; }
@@ -63,24 +63,11 @@ namespace Fluence.RuntimeTypes
         {
             Name = name;
             Arity = arity;
-            Parameters = parameters;
-            ParametersHash = parametersHash;
+            Arguments = parameters;
+            ArgumentHashCodes = parametersHash;
             StartAddress = startAddress;
             DefiningScope = definingScope;
             IsIntrinsic = false;
-        }
-
-        // Constructor for C# intrinsic functions.
-        internal FunctionObject(string name, int arity, IntrinsicMethod body, FluenceScope definingScope)
-        {
-            Name = name;
-            Arity = arity;
-            StartAddress = -1; // No bytecode address.
-            Parameters = new List<string>();
-            ParametersHash = new List<int>();
-            DefiningScope = definingScope;
-            IsIntrinsic = true;
-            IntrinsicBody = body;
         }
 
         /// <summary>
@@ -88,17 +75,33 @@ namespace Fluence.RuntimeTypes
         /// </summary>
         public FunctionObject() { }
 
-        internal void Initialize(string name, int arity, List<string> parameters, List<int> parametersHash, int startAddress, FluenceScope definingScope, FunctionSymbol symb, int lineInSource)
+        internal void Initialize(FunctionValue function)
         {
-            StartAddressInSource = lineInSource;
-            Name = name;
-            Arity = arity;
-            Parameters = parameters;
-            ParametersHash = parametersHash;
-            StartAddress = startAddress;
-            DefiningScope = definingScope;
-            IsIntrinsic = false;
-            BluePrint = symb;
+            Name = function.Name;
+            Arity = function.Arity;
+            Arguments = function.Arguments;
+            ArgumentHashCodes = function.ArgumentHashCodes;
+            StartAddress = function.StartAddress;
+            DefiningScope = function.DefiningScope;
+            StartAddressInSource = function.StartAddressInSource;
+            ArgumentsByRef = function.ArgumentsByRef;
+            TotalRegisterSlots = function.TotalRegisterSlots;
+            EndAddress = function.EndAddress;
+        }
+
+        internal void Initialize(FunctionSymbol function)
+        {
+            Name = function.Name;
+            Arity = function.Arity;
+            Arguments = function.Arguments;
+            ArgumentHashCodes = function.ArgumentHashCodes;
+            StartAddress = function.StartAddress;
+            DefiningScope = function.DefiningScope;
+            BluePrint = function;
+            StartAddressInSource = function.StartAddressInSource;
+            ArgumentsByRef = function.ArgumentsByRef;
+            TotalRegisterSlots = function.TotalRegisterSlots;
+            EndAddress = function.EndAddress;
         }
 
         internal void Initialize(string name, int arity, IntrinsicMethod body, FluenceScope definingScope, FunctionSymbol symb)
@@ -112,31 +115,27 @@ namespace Fluence.RuntimeTypes
             BluePrint = symb;
         }
 
-        internal void SetBluePrint(FunctionSymbol? symb) => BluePrint = symb;
-
         internal void Reset()
         {
             StartAddressInSource = 0;
             BluePrint = null;
             Name = null!;
             Arity = 0;
-            Parameters = null!;
+            Arguments = null!;
             StartAddress = 0;
             DefiningScope = null!;
             IsIntrinsic = false;
-            ParametersHash = null!;
-            ParametersByRef = null!;
+            ArgumentHashCodes = null!;
+            ArgumentsByRef = null!;
         }
-
-        public override string ToString() => $"<function {Name}/{Arity}>";
 
         internal string ToCodeLikeString()
         {
             StringBuilder sb = new StringBuilder($"func {Mangler.Demangle(Name)}(");
-            for (int i = 0; i < Parameters?.Count; i++)
+            for (int i = 0; i < Arguments?.Count; i++)
             {
-                string arg = Parameters[i];
-                if (ParametersByRef.Contains(arg))
+                string arg = Arguments[i];
+                if (ArgumentsByRef.Contains(arg))
                 {
                     sb.Append($"ref {arg}");
                 }
@@ -144,10 +143,12 @@ namespace Fluence.RuntimeTypes
                 {
                     sb.Append(arg);
                 }
-                if (i < Parameters.Count - 1) sb.Append(", ");
+                if (i < Arguments.Count - 1) sb.Append(", ");
             }
             sb.Append(") => ...");
             return sb.ToString();
         }
+
+        public override string ToString() => $"<function {Name}/{Arity}>";
     }
 }

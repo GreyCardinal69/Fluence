@@ -173,7 +173,7 @@ namespace Fluence
                             argsRef = function.Value.ArgumentsByRef == null ? "None" : string.Join(",", function.Value.ArgumentsByRef);
 
                             sb.Append(innerIndent).Append($"    Name: {function.Key}, Arity: {function.Value.Arity}, Start Address: {FormatByteCodeAddress(function.Value.StartAddress)}")
-                              .Append($" Args: {args}, ").Append($" RefArgs: {argsRef}, ").Append($"Scope: {function.Value.FunctionScope}, ").Append($"Registers Size: {function.Value.TotalRegisterSlots}").AppendLine();
+                              .Append($" Args: {args}, ").Append($" RefArgs: {argsRef}, ").Append($"Scope: {function.Value.DefiningScope}, ").Append($"Registers Size: {function.Value.TotalRegisterSlots}").AppendLine();
                         }
                         sb.Append(innerIndent).AppendLine("}");
                     }

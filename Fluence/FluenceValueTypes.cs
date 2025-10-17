@@ -352,7 +352,7 @@ namespace Fluence
         internal List<string> Arguments { get; init; }
 
         /// <summary>The hash codes of the function's arguments.</summary>
-        internal List<int> ArgumentsHash { get; private set; }
+        internal List<int> ArgumentHashCodes { get; private set; }
 
         /// <summary>
         /// The arguments of the function passed by reference by name.
@@ -370,7 +370,7 @@ namespace Fluence
         internal int StartAddressInSource { get; init; }
 
         /// <summary>The scope (namespace) the function belongs to.</summary>
-        internal FluenceScope FunctionScope { get; init; }
+        internal FluenceScope DefiningScope { get; init; }
 
         /// <summary>
         /// The total amount of register slots this function requires to execute its bytecode.
@@ -384,15 +384,15 @@ namespace Fluence
             StartAddress = startAddress;
             Arguments = arguments;
 
-            ArgumentsHash = new List<int>();
+            ArgumentHashCodes = new List<int>();
             for (int i = 0; i < Arguments.Count; i++)
             {
-                ArgumentsHash.Add(Arguments[i].GetHashCode());
+                ArgumentHashCodes.Add(Arguments[i].GetHashCode());
             }
 
             ArgumentsByRef = argsByRef;
             StartAddressInSource = lineInSource;
-            FunctionScope = scope;
+            DefiningScope = scope;
         }
 
         /// <summary>
@@ -410,13 +410,13 @@ namespace Fluence
 
         internal override string ToFluenceString() => $"<internal: function__{Name}/{Arity}, RegSize: {TotalRegisterSlots}>";
 
-        internal override string ToByteCodeString() => $"Func_{Name}_{Arity}_{TotalRegisterSlots}_{FunctionScope}_{StartAddress}/{EndAddress}";
+        internal override string ToByteCodeString() => $"Func_{Name}_{Arity}_{TotalRegisterSlots}_{DefiningScope}_{StartAddress}/{EndAddress}";
 
         public override string ToString()
         {
             string args = (Arguments == null || Arguments.Count == 0) ? "None" : string.Join(", ", Arguments);
             string argsRef = (ArgumentsByRef == null || ArgumentsByRef.Count == 0) ? "None" : string.Join(", ", ArgumentsByRef);
-            return $"FunctionValue: {Name} {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} args: {args}. refArgs: {argsRef}, RegSize: {TotalRegisterSlots}, Scope: {FunctionScope}";
+            return $"FunctionValue: {Name} {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} args: {args}. refArgs: {argsRef}, RegSize: {TotalRegisterSlots}, Scope: {DefiningScope}";
         }
     }
 

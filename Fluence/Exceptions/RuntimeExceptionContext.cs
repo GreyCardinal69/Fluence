@@ -100,7 +100,7 @@ namespace Fluence
                 filepath = Parser.CurrentParseState.ProjectFilePaths[InstructionLine.ProjectFileIndex]; ;
                 fileName = Path.GetFileName(filepath);
                 string[] lines = File.ReadAllLines(filepath);
-                faultyLine = lines[InstructionLine.LineInSourceCode == -1 ? 0 : InstructionLine.LineInSourceCode - 1];
+                faultyLine = lines[InstructionLine.LineInSourceCode == -1 ? 0 : (InstructionLine.LineInSourceCode == 0 ? 0 : InstructionLine.LineInSourceCode - 1)];
             }
             else
             {
@@ -147,11 +147,9 @@ namespace Fluence
             {
                 bool isFirstLocal = true;
                 List<(string Name, RuntimeValue Value)> displayItems = new List<(string Name, RuntimeValue Value)>();
-                foreach (KeyValuePair<int, RuntimeValue> local in DebugContext.CurrentLocals)
+                foreach (KeyValuePair<string, RuntimeValue> local in DebugContext.CurrentLocals)
                 {
-                    string name = HashTable.TryGetName(local.Key, out string? resolvedName)
-                                  ? resolvedName
-                                  : $"<hash:{local.Key}>";
+                    string name = local.Key;
                     displayItems.Add((name, local.Value));
                 }
 

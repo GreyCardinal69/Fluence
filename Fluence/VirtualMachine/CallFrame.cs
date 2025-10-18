@@ -8,6 +8,18 @@ namespace Fluence.VirtualMachine
     /// </summary>
     internal sealed record class CallFrame
     {
+        internal readonly record struct RefMappingInfo
+        {
+            internal int OriginalVarIndex { get; init; }
+            internal bool IsOriginalVarGlobal { get; init; }
+
+            internal RefMappingInfo(int originalVarIndex, bool isOriginalVarGlobal)
+            {
+                OriginalVarIndex = originalVarIndex;
+                IsOriginalVarGlobal = isOriginalVarGlobal;
+            }
+        }
+
         /// <summary>
         /// Local registers containing function local variables and temporary values.
         /// </summary>

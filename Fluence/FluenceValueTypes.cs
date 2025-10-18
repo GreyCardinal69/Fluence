@@ -433,14 +433,16 @@ namespace Fluence
     {
         internal int TryGoToIndex { get; set; }
         internal int CatchGoToIndex { get; set; }
-        internal string ExceptionAsVar { get; init; }
+        internal string? ExceptionVarName { get; set; }
+        internal int ExceptionAsVarRegisterIndex { get; set; }
         internal bool HasExceptionVar { get; init; }
         internal bool CaughtException { get; set; }
 
-        internal TryCatchValue(int tryGoToIndex, string? exceptionAsVar, int catchGoToIndex, bool hasExceptionVar)
+        internal TryCatchValue(int tryGoToIndex, string exceptionVarName, int exceptionVarRegisterIndex, int catchGoToIndex, bool hasExceptionVar)
         {
+            ExceptionVarName = exceptionVarName;
             TryGoToIndex = tryGoToIndex;
-            ExceptionAsVar = exceptionAsVar ?? "";
+            ExceptionAsVarRegisterIndex = exceptionVarRegisterIndex;
             HasExceptionVar = hasExceptionVar;
             CatchGoToIndex = catchGoToIndex;
         }

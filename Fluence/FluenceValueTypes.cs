@@ -191,7 +191,7 @@ namespace Fluence
     internal sealed record class ReferenceValue(VariableValue Reference) : Value
     {
         internal override string ToFluenceString() => $"<internal: reference_value__{Reference}";
-        internal override string ToByteCodeString() => $"<internal: reference_value__{Reference.ToByteCodeString()}";
+        internal override string ToByteCodeString() => $"Ref__{Reference.ToByteCodeString()}";
         public override string ToString() => $"ReferenceValue: {Reference}";
     }
 
@@ -360,6 +360,12 @@ namespace Fluence
         internal HashSet<string> ArgumentsByRef { get; init; }
 
         /// <summary>
+        /// A list of the register slot indices corresponding to the function's parameters, in order.
+        /// This is populated by the parser after the slot allocation pass.
+        /// </summary>
+        internal int[] ArgumentRegisterIndices { get; private set; }
+
+        /// <summary>
         /// The C# intrinsic body of the function, if it is intrinsic.
         /// </summary>
         internal IntrinsicMethod IntrinsicBody { get; init; }
@@ -399,6 +405,9 @@ namespace Fluence
         /// Sets the bytecode start address for this function. Called by the parser during the second pass.
         /// </summary>
         internal void SetStartAddress(int addr) => StartAddress = addr;
+
+        /// <summary>Sets the register indices of this functions arguments.</summary>>
+        internal void SetArgumentRegisterIndices(int[] indices) => ArgumentRegisterIndices = indices;
 
         /// <summary>
         /// Sets the bytecode end address for this function. Called by the parser during the second pass.

@@ -42,7 +42,7 @@ namespace Fluence.RuntimeTypes
         internal readonly float FloatValue;
 
         [FieldOffset(8)]
-        internal readonly object? ObjectReference;
+        internal readonly object ObjectReference;
         [FieldOffset(16)]
         internal readonly RuntimeValueType Type;
         [FieldOffset(17)]

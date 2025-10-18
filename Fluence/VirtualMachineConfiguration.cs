@@ -18,5 +18,11 @@
         /// <para>The default value is <c>true</c>.</para>
         /// </remarks>
         public bool OptimizeByteCode { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the parser should emit a <see cref="FluenceByteCode.InstructionLine.InstructionCode.SectionGlobal"/>
+        /// instruction after the main bytecode instructions marking the start of the setup phase of the script. This is only a debug option used for tests.
+        /// </summary>
+        internal bool EmitSectionGlobal { get; set; }
     }
 }

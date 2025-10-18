@@ -1,3 +1,4 @@
+using Fluence.VirtualMachine;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceParser;
@@ -21,7 +22,7 @@ namespace Fluence
         /// <param name="bytecode">The list of bytecode instructions to be modified. It is passed by reference and will be modified in-place.</param>
         /// <param name="parseState">The current state of the parser, containing symbol tables which are required for patching function and method start addresses.</param>
         /// <param name="startIndex">The index in the bytecode list from which to start scanning for optimizations.</param>
-        internal static void OptimizeChunk(ref List<InstructionLine> bytecode, ParseState parseState, int startIndex)
+        internal static void OptimizeChunk(ref List<InstructionLine> bytecode, ParseState parseState, int startIndex, VirtualMachineConfiguration config)
         {
             bool byteCodeChanged = false;
             bool constantFoldingDidWork = false;

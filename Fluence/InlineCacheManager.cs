@@ -254,7 +254,7 @@ namespace Fluence
             };
         }
 
-        private static bool AttemptToModifyReadonlyVariable(InstructionLine insn, FluenceVirtualMachine vm)
+        private static bool AttemptToModifyAReadonlyVariable(InstructionLine insn, FluenceVirtualMachine vm)
         {
             if (insn.Lhs is TempValue)
             {
@@ -292,9 +292,9 @@ namespace Fluence
         {
             if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number) return null;
 
-            if (AttemptToModifyReadonlyVariable(insn, vm))
+            if (AttemptToModifyAReadonlyVariable(insn, vm))
             {
-                vm.CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly or solid variable '{((VariableValue)insn.Lhs).Name}'.");
+                vm.CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly solid variable '{((VariableValue)insn.Lhs).Name}'.");
                 return null;
             }
 

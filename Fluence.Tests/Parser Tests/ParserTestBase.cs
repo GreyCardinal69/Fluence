@@ -1,5 +1,4 @@
-﻿using Microsoft.VisualStudio.TestPlatform.Utilities;
-using Xunit.Abstractions;
+﻿using Xunit.Abstractions;
 using static Fluence.FluenceByteCode;
 
 namespace Fluence.ParserTests
@@ -13,7 +12,8 @@ namespace Fluence.ParserTests
             FluenceLexer lexer = new FluenceLexer(source);
             FluenceParser parser = new FluenceParser(lexer, new()
             {
-                OptimizeByteCode = true
+                OptimizeByteCode = true,
+                EmitSectionGlobal = false,
             }, null!, null!, null!);
 
             parser.Parse(true);
@@ -22,8 +22,6 @@ namespace Fluence.ParserTests
 
         internal static void AssertBytecodeEqual(List<InstructionLine> expected, List<InstructionLine> actual)
         {
-            Assert.Equal(expected.Count, actual.Count);
-
             for (int i = 0; i < expected.Count; i++)
             {
                 InstructionLine exp = expected[i];
@@ -35,6 +33,8 @@ namespace Fluence.ParserTests
                 AssertValueEqual(exp.Rhs, act.Rhs, $"Rhs at instruction [{i:D4}]");
                 AssertValueEqual(exp.Rhs2, act.Rhs2, $"Rhs2 at instruction [{i:D4}]");
             }
+
+            Assert.Equal(expected.Count, actual.Count);
         }
 
         internal static void AssertValueEqual(Value expected, Value actual, string context)

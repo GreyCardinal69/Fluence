@@ -208,7 +208,7 @@ namespace Fluence
                     (Lhs?.ToByteCodeString() ?? "null").PadRight(40),
                     (Rhs?.ToByteCodeString() ?? "null").PadRight(45),
                     (Rhs2?.ToByteCodeString() ?? "null").PadRight(40),
-                    (Rhs3?.ToByteCodeString() ?? "null").PadRight(25)
+                    (Rhs3?.ToByteCodeString() ?? "null")
                 ];
 
                 return string.Join(" ", parts);

@@ -1,4 +1,3 @@
-using Fluence.VirtualMachine;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceParser;

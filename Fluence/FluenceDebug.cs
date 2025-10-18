@@ -44,7 +44,7 @@ namespace Fluence
             outMethod("VariableValue: Var_{Name}_{Register Index}_{Is Global?}");
             outMethod("TempValue: {Name}_{Register Index}");
             outMethod("FunctionValue: Func_{Name}_{Arity}_{TotalRegisters}_{Scope}_{StartAddress}/{EndAddress}\n");
-            outMethod(string.Format("{0,-5} {1,-20} {2,-40} {3,-45} {4,-40} {5, -25}", "", "TYPE", "LHS", "RHS", "RHS2", "RHS3"));
+            outMethod(string.Format("{0,-5} {1,-20} {2,-40} {3,-45} {4,-40} {5, -0}", "", "TYPE", "LHS", "RHS", "RHS2", "RHS3"));
             outMethod("");
 
             if (instructions == null || instructions.Count == 0)

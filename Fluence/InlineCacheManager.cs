@@ -1,7 +1,6 @@
 ﻿using Fluence.RuntimeTypes;
 using Fluence.VirtualMachine;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 
@@ -255,21 +254,14 @@ namespace Fluence
             };
         }
 
-        private static bool AttemptToModifyReadonlyVar(InstructionLine insn, FluenceVirtualMachine vm)
+        private static bool AttemptToModifyReadonlyVariable(InstructionLine insn, FluenceVirtualMachine vm)
         {
             if (insn.Lhs is TempValue)
             {
                 return false;
             }
 
-            string destName = ((VariableValue)insn.Lhs).Name;
-
-            if (vm.CurrentFrame.Function.DefiningScope.TryResolve(destName.GetHashCode(), out Symbol symbol) && symbol is VariableSymbol { IsReadonly: true })
-            {
-                return true;
-            }
-
-            return false;
+            return vm.VariableIsReadonly((VariableValue)insn.Lhs);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -293,371 +285,479 @@ namespace Fluence
 
         private static SpecializedOpcodeHandler? CreateBinaryNumericHandler(
             InstructionLine insn,
-            RuntimeValue left, RuntimeValue right,
+            RuntimeValue left,
+            RuntimeValue right,
             FluenceVirtualMachine vm,
             Func<FluenceVirtualMachine, RuntimeValue, RuntimeValue, RuntimeValue> opFunction)
         {
             if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number) return null;
 
-            if (AttemptToModifyReadonlyVar(insn, vm))
+            if (AttemptToModifyReadonlyVariable(insn, vm))
             {
-                throw vm.ConstructRuntimeException($"Runtime Error: Cannot assign to the readonly variable '{((VariableValue)insn.Lhs).Name}'.");
+                vm.CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly or solid variable '{((VariableValue)insn.Lhs).Name}'.");
+                return null;
             }
 
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;
-            int leftHash = 0;
-            int rightHash = 0;
-            int varHash = 0;
+            Value destOperand = insn.Lhs;
+            RuntimeValue[] globalRegisters = vm.GlobalRegisters;
 
             if (insn.Lhs is TempValue destTemp)
             {
+                int destIndex = destTemp.RegisterIndex;
+
+                // 1a: Temp = Var op Var.
                 if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
                 {
-                    leftHash = varLeft.Hash;
-                    rightHash = varRight.Hash;
+                    int leftIndex = varLeft.RegisterIndex;
+                    int rightIndex = varRight.RegisterIndex;
 
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
+                    if (varLeft.IsGlobal && varRight.IsGlobal)
+                        return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, globalRegisters[leftIndex], globalRegisters[rightIndex]);
 
-                        RuntimeValue result = opFunction(vm, val1, val2);
-                        vm.SetRegister(destTemp, result);
-                    };
+                    if (varLeft.IsGlobal && !varRight.IsGlobal)
+                        return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, globalRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
+
+                    if (!varLeft.IsGlobal && varRight.IsGlobal)
+                        return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], globalRegisters[rightIndex]);
+
+                    return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
                 }
 
+                // 1b: Temp = Temp op Temp.
                 if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
                 {
-                    leftHash = tempLeft.Hash;
-                    rightHash = tempRight.Hash;
-
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
-
-                        RuntimeValue result = opFunction(vm, val1, val2);
-                        vm.SetRegister(destTemp, result);
-                    };
+                    int leftIndex = tempLeft.RegisterIndex;
+                    int rightIndex = tempRight.RegisterIndex;
+                    return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
                 }
 
-                if (lhsOperand is TempValue tempLeft2 && rhsOperand is VariableValue varOp)
+                // 1c: Temp = Temp op Var.
+                if (lhsOperand is TempValue tempLeft2 && rhsOperand is VariableValue varRight2)
                 {
-                    leftHash = tempLeft2.Hash;
-                    rightHash = varOp.Hash;
+                    int leftIndex = tempLeft2.RegisterIndex;
+                    int rightIndex = varRight2.RegisterIndex;
 
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
+                    if (varRight2.IsGlobal)
+                        return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], globalRegisters[rightIndex]);
 
-                        RuntimeValue result = opFunction(vm, val1, val2);
-                        vm.SetRegister(destTemp, result);
-                    };
+                    return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
                 }
 
+                // 1d: Temp = Var op Temp.
                 if (lhsOperand is VariableValue varLeft2 && rhsOperand is TempValue tempRight2)
                 {
-                    leftHash = varLeft2.Hash;
-                    rightHash = tempRight2.Hash;
+                    int leftIndex = varLeft2.RegisterIndex;
+                    int rightIndex = tempRight2.RegisterIndex;
 
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
+                    if (varLeft2.IsGlobal)
+                        return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, globalRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
 
-                        RuntimeValue result = opFunction(vm, val1, val2);
-                        vm.SetRegister(destTemp, result);
-                    };
+                    return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
                 }
 
+                // 1e: Temp = Temp op Const.
                 if (lhsOperand is TempValue tempLeft3 && rhsOperand is NumberValue num2)
                 {
-                    leftHash = tempLeft3.Hash;
-
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
-
-                        RuntimeValue result = opFunction(vm, val1, vm.GetRuntimeValue(num2));
-                        vm.SetRegister(destTemp, result);
-                    };
+                    int leftIndex = tempLeft3.RegisterIndex;
+                    RuntimeValue rightConst = vm.GetRuntimeValue(num2, insn);
+                    return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], rightConst);
                 }
 
-                if (lhsOperand is VariableValue varOp2 && rhsOperand is NumberValue)
+                // 1f: Temp = Var op Const.
+                if (lhsOperand is VariableValue varOp2 && rhsOperand is NumberValue numConst)
                 {
-                    varHash = varOp2.Hash;
+                    int leftIndex = varOp2.RegisterIndex;
+                    RuntimeValue rightConst = vm.GetRuntimeValue(numConst, insn);
 
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varHash);
+                    if (varOp2.IsGlobal)
+                        return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, globalRegisters[leftIndex], rightConst);
 
-                        RuntimeValue result = opFunction(vm, val1, right);
-                        vm.SetRegister(destTemp, result);
-                    };
+                    return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], rightConst);
                 }
 
+                // 1g: Temp = Const op Const.
                 if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num3)
                 {
-                    return (instruction, vm) =>
-                    {
-                        RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num3));
-                        vm.SetRegister(destTemp, result);
-                    };
+                    RuntimeValue precalculated = opFunction(vm, vm.GetRuntimeValue(num1, insn), vm.GetRuntimeValue(num3, insn));
+                    return (i, v) => v.CurrentRegisters[destIndex] = precalculated;
                 }
 
+                // 1h: Temp = Const op Temp.
                 if (lhsOperand is NumberValue num4 && rhsOperand is TempValue temp4)
                 {
-                    rightHash = temp4.Hash;
-
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
-
-                        RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num4), val1);
-                        vm.SetRegister(destTemp, result);
-                    };
+                    RuntimeValue leftConst = vm.GetRuntimeValue(num4, insn);
+                    int rightIndex = temp4.RegisterIndex;
+                    return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, leftConst, v.CurrentRegisters[rightIndex]);
                 }
 
+                // 1i: Temp = Const op Var.
                 if (lhsOperand is NumberValue num5 && rhsOperand is VariableValue varRight3)
                 {
-                    rightHash = varRight3.Hash;
+                    RuntimeValue leftConst = vm.GetRuntimeValue(num5, insn);
+                    int rightIndex = varRight3.RegisterIndex;
 
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
+                    if (varRight3.IsGlobal)
+                        return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, leftConst, globalRegisters[rightIndex]);
 
-                        RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num5), val1);
-                        vm.SetRegister(destTemp, result);
-                    };
+                    return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, leftConst, v.CurrentRegisters[rightIndex]);
                 }
             }
             else if (insn.Lhs is VariableValue destVar)
             {
+                int destIndex = destVar.RegisterIndex;
+                bool destIsGlobal = destVar.IsGlobal;
+
+                // 2a: Var = Var op Var.
                 if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
                 {
-                    leftHash = varLeft.Hash;
-                    rightHash = varRight.Hash;
+                    int leftIndex = varLeft.RegisterIndex;
+                    int rightIndex = varRight.RegisterIndex;
 
-                    return (instruction, vm) =>
+                    if (destIsGlobal)
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
+                        if (varLeft.IsGlobal && varRight.IsGlobal)
+                            return (i, v) => globalRegisters[destIndex] = opFunction(v, globalRegisters[leftIndex], globalRegisters[rightIndex]);
 
-                        RuntimeValue result = opFunction(vm, val1, val2);
-                        vm.SetVariable(destVar.Hash, ref result);
-                    };
+                        if (varLeft.IsGlobal && !varRight.IsGlobal)
+                            return (i, v) => globalRegisters[destIndex] = opFunction(v, globalRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
+
+                        if (!varLeft.IsGlobal && varRight.IsGlobal)
+                            return (i, v) => globalRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], globalRegisters[rightIndex]);
+
+                        return (i, v) => globalRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
+                    }
+                    else
+                    {
+                        if (varLeft.IsGlobal && varRight.IsGlobal)
+                            return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, globalRegisters[leftIndex], globalRegisters[rightIndex]);
+
+                        if (varLeft.IsGlobal && !varRight.IsGlobal)
+                            return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, globalRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
+
+                        if (!varLeft.IsGlobal && varRight.IsGlobal)
+                            return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], globalRegisters[rightIndex]);
+
+                        return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
+                    }
                 }
 
+                // 2b: Var = Temp op Temp.
                 if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
                 {
-                    leftHash = tempLeft.Hash;
-                    rightHash = tempRight.Hash;
+                    int leftIndex = tempLeft.RegisterIndex;
+                    int rightIndex = tempRight.RegisterIndex;
 
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
+                    if (destIsGlobal)
+                        return (i, v) => globalRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
 
-                        RuntimeValue result = opFunction(vm, val1, val2);
-                        vm.SetVariable(destVar.Hash, ref result);
-                    };
+                    return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
                 }
 
-                if (lhsOperand is TempValue tempLeft2 && rhsOperand is VariableValue varOp)
+                // 2c: Var = Temp op Var.
+                if (lhsOperand is TempValue tempLeft2 && rhsOperand is VariableValue varRight2)
                 {
-                    leftHash = tempLeft2.Hash;
-                    rightHash = varOp.Hash;
+                    int leftIndex = tempLeft2.RegisterIndex;
+                    int rightIndex = varRight2.RegisterIndex;
 
-                    return (instruction, vm) =>
+                    if (destIsGlobal)
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
-
-                        RuntimeValue result = opFunction(vm, val1, val2);
-                        vm.SetVariable(destVar.Hash, ref result);
-                    };
+                        if (varRight2.IsGlobal)
+                            return (i, v) => globalRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], globalRegisters[rightIndex]);
+                        else
+                            return (i, v) => globalRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
+                    }
+                    else
+                    {
+                        if (varRight2.IsGlobal)
+                            return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], globalRegisters[rightIndex]);
+                        else
+                            return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
+                    }
                 }
 
+                // 2d: Var = Var op Temp.
                 if (lhsOperand is VariableValue varLeft2 && rhsOperand is TempValue tempRight2)
                 {
-                    leftHash = varLeft2.Hash;
-                    rightHash = tempRight2.Hash;
+                    int leftIndex = varLeft2.RegisterIndex;
+                    int rightIndex = tempRight2.RegisterIndex;
 
-                    return (instruction, vm) =>
+                    if (destIsGlobal)
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
-                        ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
-
-                        RuntimeValue result = opFunction(vm, val1, val2);
-                        vm.SetVariable(destVar.Hash, ref result);
-                    };
+                        if (varLeft2.IsGlobal)
+                            return (i, v) => globalRegisters[destIndex] = opFunction(v, globalRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
+                        else
+                            return (i, v) => globalRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
+                    }
+                    else
+                    {
+                        if (varLeft2.IsGlobal)
+                            return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, globalRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
+                        else
+                            return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
+                    }
                 }
 
+                // 2e: Var = Temp op Const.
                 if (lhsOperand is TempValue tempLeft3 && rhsOperand is NumberValue num2)
                 {
-                    leftHash = tempLeft3.Hash;
+                    int leftIndex = tempLeft3.RegisterIndex;
+                    RuntimeValue rightConst = vm.GetRuntimeValue(num2, insn);
 
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
+                    if (destIsGlobal)
+                        return (i, v) => globalRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], rightConst);
 
-                        RuntimeValue result = opFunction(vm, val1, vm.GetRuntimeValue(num2));
-                        vm.SetVariable(destVar.Hash, ref result);
-                    };
+                    return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], rightConst);
                 }
 
-                if (lhsOperand is VariableValue varOp2 && rhsOperand is NumberValue)
+                // 2f: Var = Var op Const.
+                if (lhsOperand is VariableValue varOp2 && rhsOperand is NumberValue numConst)
                 {
-                    varHash = varOp2.Hash;
+                    int leftIndex = varOp2.RegisterIndex;
+                    RuntimeValue rightConst = vm.GetRuntimeValue(numConst, insn);
 
-                    return (instruction, vm) =>
+                    if (destIsGlobal)
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varHash);
-
-                        RuntimeValue result = opFunction(vm, val1, right);
-                        vm.SetVariable(destVar.Hash, ref result);
-                    };
+                        if (varOp2.IsGlobal)
+                            return (i, v) => globalRegisters[destIndex] = opFunction(v, globalRegisters[leftIndex], rightConst);
+                        else
+                            return (i, v) => globalRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], rightConst);
+                    }
+                    else
+                    {
+                        if (varOp2.IsGlobal)
+                            return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, globalRegisters[leftIndex], rightConst);
+                        else
+                            return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], rightConst);
+                    }
                 }
 
-                if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num3)
+                // 2g: Var = Const op Const.
+                if (lhsOperand is NumberValue && rhsOperand is NumberValue)
                 {
-                    return (instruction, vm) =>
-                    {
-                        RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num1), vm.GetRuntimeValue(num3));
-                        vm.SetVariable(destVar.Hash, ref result);
-                    };
+                    RuntimeValue precalculated = opFunction(vm, vm.GetRuntimeValue(lhsOperand, insn), vm.GetRuntimeValue(rhsOperand, insn));
+
+                    if (destIsGlobal)
+                        return (i, v) => globalRegisters[destIndex] = precalculated;
+
+                    return (i, v) => v.CurrentRegisters[destIndex] = precalculated;
                 }
 
+                // 2h: Var = Const op Temp.
                 if (lhsOperand is NumberValue num4 && rhsOperand is TempValue temp4)
                 {
-                    rightHash = temp4.Hash;
+                    RuntimeValue leftConst = vm.GetRuntimeValue(num4, insn);
+                    int rightIndex = temp4.RegisterIndex;
 
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
+                    if (destIsGlobal)
+                        return (i, v) => globalRegisters[destIndex] = opFunction(v, leftConst, v.CurrentRegisters[rightIndex]);
 
-                        RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num4), val1);
-                        vm.SetVariable(destVar.Hash, ref result);
-                    };
+                    return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, leftConst, v.CurrentRegisters[rightIndex]);
                 }
 
+                // 2i: Var = Const op Var.
                 if (lhsOperand is NumberValue num5 && rhsOperand is VariableValue varRight3)
                 {
-                    rightHash = varRight3.Hash;
+                    RuntimeValue leftConst = vm.GetRuntimeValue(num5, insn);
+                    int rightIndex = varRight3.RegisterIndex;
 
-                    return (instruction, vm) =>
+                    if (destIsGlobal)
                     {
-                        ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
-
-                        RuntimeValue result = opFunction(vm, vm.GetRuntimeValue(num5), val1);
-                        vm.SetVariable(destVar.Hash, ref result);
-                    };
+                        if (varRight3.IsGlobal)
+                            return (i, v) => globalRegisters[destIndex] = opFunction(v, leftConst, globalRegisters[rightIndex]);
+                        else
+                            return (i, v) => globalRegisters[destIndex] = opFunction(v, leftConst, v.CurrentRegisters[rightIndex]);
+                    }
+                    else
+                    {
+                        if (varRight3.IsGlobal)
+                            return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, leftConst, globalRegisters[rightIndex]);
+                        else
+                            return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, leftConst, v.CurrentRegisters[rightIndex]);
+                    }
                 }
             }
 
             return null;
         }
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedAddHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
-        {
-            return CreateBinaryNumericHandler(insn, left, right, vm, AddValues);
-        }
+        internal static SpecializedOpcodeHandler? CreateSpecializedAddHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right) =>
+            CreateBinaryNumericHandler(insn, left, right, vm, AddValues);
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedSubtractionHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
-        {
-            return CreateBinaryNumericHandler(insn, left, right, vm, SubValues);
-        }
+        internal static SpecializedOpcodeHandler? CreateSpecializedSubtractionHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right) =>
+            CreateBinaryNumericHandler(insn, left, right, vm, SubValues);
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedDivHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
-        {
-            return CreateBinaryNumericHandler(insn, left, right, vm, DivValues);
-        }
+        internal static SpecializedOpcodeHandler? CreateSpecializedDivHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right) =>
+            CreateBinaryNumericHandler(insn, left, right, vm, DivValues);
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedMulHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
-        {
-            return CreateBinaryNumericHandler(insn, left, right, vm, MulValues);
-        }
+        internal static SpecializedOpcodeHandler? CreateSpecializedMulHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right) =>
+            CreateBinaryNumericHandler(insn, left, right, vm, MulValues);
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedModuloHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
-        {
-            return CreateBinaryNumericHandler(insn, left, right, vm, ModuloValues);
-        }
+        internal static SpecializedOpcodeHandler? CreateSpecializedModuloHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right) =>
+            CreateBinaryNumericHandler(insn, left, right, vm, ModuloValues);
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedPowerHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
-        {
-            return CreateBinaryNumericHandler(insn, left, right, vm, PowerValues);
-        }
+        internal static SpecializedOpcodeHandler? CreateSpecializedPowerHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right) =>
+            CreateBinaryNumericHandler(insn, left, right, vm, PowerValues);
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedBranchHandler(InstructionLine insn, RuntimeValue right, bool target)
+        internal static SpecializedOpcodeHandler? CreateSpecializedBranchHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue right, bool target)
         {
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;
             int jumpTarget = (int)((NumberValue)insn.Lhs).Value;
+            RuntimeValue[] globalRegisters = vm.GlobalRegisters;
 
-            if (lhsOperand is VariableValue varOp && rhsOperand is NumberValue)
+            if ((lhsOperand is VariableValue || lhsOperand is TempValue) &&
+                (rhsOperand is VariableValue || rhsOperand is TempValue))
             {
-                int varHash = varOp.Hash;
+                VariableValue? leftVar = lhsOperand as VariableValue;
+                int leftIndex = leftVar?.RegisterIndex ?? ((TempValue)lhsOperand).RegisterIndex;
+                bool leftIsGlobal = leftVar?.IsGlobal ?? false;
+
+                VariableValue? rightVar = rhsOperand as VariableValue;
+                int rightIndex = rightVar?.RegisterIndex ?? ((TempValue)rhsOperand).RegisterIndex;
+                bool rightIsGlobal = rightVar?.IsGlobal ?? false;
+
+                if (leftIsGlobal && rightIsGlobal)
+                    return (i, v) =>
+                    {
+                        if (AreEqual(globalRegisters[leftIndex], globalRegisters[rightIndex]) == target)
+                            v.SetInstructionPointer(jumpTarget);
+                    };
+
+                if (leftIsGlobal && !rightIsGlobal)
+                    return (i, v) =>
+                    {
+                        if (AreEqual(globalRegisters[leftIndex], v.CurrentRegisters[rightIndex]) == target)
+                            v.SetInstructionPointer(jumpTarget);
+                    };
+
+                if (!leftIsGlobal && rightIsGlobal)
+                    return (i, v) =>
+                    {
+                        if (AreEqual(v.CurrentRegisters[leftIndex], globalRegisters[rightIndex]) == target)
+                            v.SetInstructionPointer(jumpTarget);
+                    };
+
+                return (i, v) =>
+                {
+                    if (AreEqual(v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]) == target)
+                        v.SetInstructionPointer(jumpTarget);
+                };
+            }
+
+            if ((lhsOperand is VariableValue || lhsOperand is TempValue) && rhsOperand is NumberValue)
+            {
+                VariableValue? leftVar = lhsOperand as VariableValue;
+                int leftIndex = leftVar?.RegisterIndex ?? ((TempValue)lhsOperand).RegisterIndex;
+                bool leftIsGlobal = leftVar?.IsGlobal ?? false;
                 RuntimeValue constValue = right;
 
+                if (leftIsGlobal)
+                    return (i, v) =>
+                    {
+                        if (AreEqual(globalRegisters[leftIndex], constValue) == target)
+                            v.SetInstructionPointer(jumpTarget);
+                    };
+
+                return (i, v) =>
+                {
+                    if (AreEqual(v.CurrentRegisters[leftIndex], constValue) == target)
+                        v.SetInstructionPointer(jumpTarget);
+                };
+            }
+
+            if (lhsOperand is NumberValue && (rhsOperand is VariableValue || rhsOperand is TempValue))
+            {
+                RuntimeValue constValue = vm.GetRuntimeValue(lhsOperand, insn);
+                VariableValue? rightVar = rhsOperand as VariableValue;
+                int rightIndex = rightVar?.RegisterIndex ?? ((TempValue)rhsOperand).RegisterIndex;
+                bool rightIsGlobal = rightVar?.IsGlobal ?? false;
+
+                if (rightIsGlobal)
+                    return (i, v) =>
+                    {
+                        if (AreEqual(constValue, globalRegisters[rightIndex]) == target)
+                            v.SetInstructionPointer(jumpTarget);
+                    };
+
+                return (i, v) =>
+                {
+                    if (AreEqual(constValue, v.CurrentRegisters[rightIndex]) == target)
+                        v.SetInstructionPointer(jumpTarget);
+                };
+            }
+
+            if (lhsOperand is NumberValue && rhsOperand is NumberValue)
+            {
+                RuntimeValue leftConst = vm.GetRuntimeValue(lhsOperand, insn);
+                RuntimeValue rightConst = right;
+
+                if (AreEqual(leftConst, rightConst) == target)
+                {
+                    return (i, v) => v.SetInstructionPointer(jumpTarget);
+                }
+                else
+                {
+                    // The condition is always false, so this instruction does nothing.
+                    return (i, v) => { /*  */ };
+                }
+            }
+
+            return null;
+        }
+
+        internal static SpecializedOpcodeHandler? CreateSpecializedIterNextHandler(InstructionLine insn, IteratorObject iterator)
+        {
+            TempValue iteratorReg = (TempValue)insn.Lhs;
+            TempValue valueReg = (TempValue)insn.Rhs;
+            TempValue continueFlagReg = (TempValue)insn.Rhs2;
+
+            if (iterator.Iterable is RangeObject range)
+            {
+                int start = range.Start.IntValue;
+                int end = range.End.IntValue;
+                int step = start <= end ? 1 : -1;
+
                 return (instruction, vm) =>
                 {
-                    ref RuntimeValue register = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varHash);
+                    RuntimeValue iterVal = vm.CurrentRegisters[iteratorReg.RegisterIndex];
+                    IteratorObject iter = (IteratorObject)iterVal.ObjectReference;
 
-                    if (AreEqual(register, constValue) == target)
+                    int currentValue = start + iter.CurrentIndex;
+
+                    if (start <= end ? currentValue <= end : currentValue >= end)
                     {
-                        vm.SetInstructionPointer(jumpTarget);
+                        vm.SetRegister(valueReg, new RuntimeValue(currentValue));
+                        vm.SetRegister(continueFlagReg, RuntimeValue.True);
+                        iter.CurrentIndex += step;
+                    }
+                    else
+                    {
+                        vm.SetRegister(valueReg, RuntimeValue.Nil);
+                        vm.SetRegister(continueFlagReg, RuntimeValue.False);
                     }
                 };
             }
 
-            if (lhsOperand is TempValue temp && rhsOperand is NumberValue)
+            if (iterator.Iterable is ListObject)
             {
-                int varHash = temp.Hash;
-                RuntimeValue constValue = right;
-
                 return (instruction, vm) =>
                 {
-                    ref RuntimeValue register = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, varHash);
+                    RuntimeValue iterVal = vm.CurrentRegisters[iteratorReg.RegisterIndex];
+                    IteratorObject iter = (IteratorObject)iterVal.ObjectReference;
+                    ListObject listRef = (ListObject)iter.Iterable;
 
-                    if (AreEqual(register, constValue) == target)
+                    if (iter.CurrentIndex < listRef!.Elements.Count)
                     {
-                        vm.SetInstructionPointer(jumpTarget);
+                        vm.SetRegister(valueReg, listRef.Elements[iter.CurrentIndex]);
+                        vm.SetRegister(continueFlagReg, RuntimeValue.True);
+                        iter.CurrentIndex++;
                     }
-                };
-            }
-
-            if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
-            {
-                int leftHash = varLeft.Hash;
-                int rightHash = varRight.Hash;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
-
-                    if (AreEqual(val1, val2) == target)
+                    else
                     {
-                        vm.SetInstructionPointer(jumpTarget);
-                    }
-                };
-            }
-
-            if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
-            {
-                int leftHash = tempLeft.Hash;
-                int rightHash = tempRight.Hash;
-
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue val1 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, leftHash);
-                    ref RuntimeValue val2 = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, rightHash);
-
-                    if (AreEqual(val1, val2) == target)
-                    {
-                        vm.SetInstructionPointer(jumpTarget);
+                        vm.SetRegister(valueReg, RuntimeValue.Nil);
+                        vm.SetRegister(continueFlagReg, RuntimeValue.False);
                     }
                 };
             }
@@ -671,205 +771,83 @@ namespace Fluence
 
             Value collectionOperand = insn.Rhs;
             Value indexOperand = insn.Rhs2;
-            TempValue destRegister = (TempValue)insn.Lhs;
+            int destIndex = ((TempValue)insn.Lhs).RegisterIndex;
+            RuntimeValue[] globalRegisters = vm.GlobalRegisters;
 
             if (collection.ObjectReference is ListObject)
             {
-                int collectionHash = collectionOperand is VariableValue var ? var.Hash : ((TempValue)collectionOperand).Hash;
+                VariableValue? collectionVar = collectionOperand as VariableValue;
+                int collectionIndex = collectionVar?.RegisterIndex ?? ((TempValue)collectionOperand).RegisterIndex;
 
-                if (indexOperand is NumberValue num1)
+                // 1a: list[constant].
+                if (indexOperand is NumberValue num)
                 {
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collectionHash);
-
-                        int idx = (int)num1.Value;
-
-                        ListObject listRef = (ListObject)collRef.ObjectReference;
-
-                        if ((uint)idx < (uint)listRef!.Elements.Count)
-                        {
-                            vm.SetRegister(destRegister, listRef.Elements[idx]);
-                        }
-                        else
-                        {
-                            vm.SignalError($"Index out of range. Index was {idx}, list count is '{listRef.Elements.Count}'.");
-                        }
-                    };
+                    int constIndex = (int)num.Value;
+                    if (collectionVar?.IsGlobal ?? false)
+                        return (i, v) => v.CurrentRegisters[destIndex] = ((ListObject)globalRegisters[collectionIndex].ObjectReference).Elements[constIndex];
+                    else
+                        return (i, v) => v.CurrentRegisters[destIndex] = ((ListObject)v.CurrentRegisters[collectionIndex].ObjectReference).Elements[constIndex];
                 }
 
-                int indexHash = indexOperand is VariableValue var2 ? var2.Hash : ((TempValue)indexOperand).Hash;
-
-                return (instruction, vm) =>
+                // 1b: list[temp/var].
+                if (indexOperand is VariableValue or TempValue)
                 {
-                    ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collectionHash);
-                    ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexHash);
+                    VariableValue? indexVar = indexOperand as VariableValue;
+                    int indexRegIndex = indexVar?.RegisterIndex ?? ((TempValue)indexOperand).RegisterIndex;
 
-                    int idx = indexRef.IntValue;
-
-                    ListObject listRef = (ListObject)collRef.ObjectReference;
-
-                    if ((uint)idx < (uint)listRef!.Elements.Count)
+                    if (collectionVar?.IsGlobal ?? false)
                     {
-                        vm.SetRegister(destRegister, listRef.Elements[idx]);
+                        if (indexVar?.IsGlobal ?? false)
+                            return (i, v) => v.CurrentRegisters[destIndex] = ((ListObject)globalRegisters[collectionIndex].ObjectReference).Elements[globalRegisters[indexRegIndex].IntValue];
+                        else
+                            return (i, v) => v.CurrentRegisters[destIndex] = ((ListObject)globalRegisters[collectionIndex].ObjectReference).Elements[v.CurrentRegisters[indexRegIndex].IntValue];
                     }
                     else
                     {
-                        vm.SignalError($"Index out of range. Index was {idx}, list count is '{listRef.Elements.Count}'.");
+                        if (indexVar?.IsGlobal ?? false)
+                            return (i, v) => v.CurrentRegisters[destIndex] = ((ListObject)v.CurrentRegisters[collectionIndex].ObjectReference).Elements[globalRegisters[indexRegIndex].IntValue];
+                        else
+                            return (i, v) => v.CurrentRegisters[destIndex] = ((ListObject)v.CurrentRegisters[collectionIndex].ObjectReference).Elements[v.CurrentRegisters[indexRegIndex].IntValue];
                     }
-                };
+                }
             }
 
             if (collection.ObjectReference is StringObject)
             {
-                if (collectionOperand is VariableValue collVar3 && indexOperand is VariableValue indexVar3)
+                VariableValue? collectionVar = collectionOperand as VariableValue;
+                int collectionIndex = collectionVar?.RegisterIndex ?? ((TempValue)collectionOperand).RegisterIndex;
+
+                // 2a: string[constant].
+                if (indexOperand is NumberValue num)
                 {
-                    int collHash = collVar3.Hash;
-                    int indexHash = indexVar3.Hash;
-
-                    // TO DO, This check must be done for all handlers, all cases, since currently we search for values only in local function registers.
-                    // Any instruction handler that deals with a global variable will fail! (probably).
-
-                    bool isGlobal = vm.GlobalRegisters.ContainsKey(collHash);
-                    Dictionary<int, RuntimeValue> registers = isGlobal ? vm.GlobalRegisters : vm.CurrentRegisters;
-
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(registers, collHash);
-                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexHash);
-
-                        vm.TryReturnRegisterReferenceToPool(destRegister);
-                        StringObject actualString = (StringObject)collRef.ObjectReference;
-
-                        int idx = indexRef.IntValue;
-                        if ((uint)idx < (uint)actualString.Value.Length)
-                        {
-                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(actualString.Value[idx]));
-                        }
-                        else
-                        {
-                            vm.SignalError($"Index out of range. Index was {idx}, but string length is {actualString.Value.Length}.");
-                        }
-                    };
-                }
-
-                if (collectionOperand is VariableValue collVar4 && indexOperand is TempValue indextemp4)
-                {
-                    int collHash = collVar4.Hash;
-                    int indexHash = indextemp4.Hash;
-
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collHash);
-                        ref RuntimeValue indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, indexHash);
-
-                        vm.TryReturnRegisterReferenceToPool(destRegister);
-                        StringObject actualString = (StringObject)collRef.ObjectReference;
-
-                        int idx = indexRef.IntValue;
-                        if ((uint)idx < (uint)actualString.Value.Length)
-                        {
-                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(actualString.Value[idx]));
-                        }
-                        else
-                        {
-                            vm.SignalError($"Index out of range. Index was {idx}, but string length is {actualString.Value.Length}.");
-                        }
-                    };
-                }
-
-                if (collectionOperand is VariableValue collVar7 && indexOperand is NumberValue num)
-                {
-                    int collHash = collVar7.Hash;
                     int constIndex = (int)num.Value;
-
-                    return (instruction, vm) =>
-                    {
-                        ref RuntimeValue collRef = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, collHash);
-
-                        vm.TryReturnRegisterReferenceToPool(destRegister);
-                        StringObject actualString = (StringObject)collRef.ObjectReference;
-
-                        if ((uint)constIndex < (uint)actualString.Value.Length)
-                        {
-                            vm.SetRegister(destRegister, vm.ResolveCharObjectRuntimeValue(actualString.Value[constIndex]));
-                        }
-                        else
-                        {
-                            vm.SignalError($"Index out of range. Index was {constIndex}, but string length is {actualString.Value.Length}.");
-                        }
-                    };
+                    if (collectionVar?.IsGlobal ?? false)
+                        return (i, v) => v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)globalRegisters[collectionIndex].ObjectReference).Value[constIndex]);
+                    else
+                        return (i, v) => v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)v.CurrentRegisters[collectionIndex].ObjectReference).Value[constIndex]);
                 }
-            }
 
-            return null;
-        }
-
-        internal static SpecializedOpcodeHandler? CreateSpecializedIterNextHandler(InstructionLine insn, IteratorObject iterator)
-        {
-            TempValue iteratorReg = (TempValue)insn.Lhs;
-            TempValue valueReg = (TempValue)insn.Rhs;
-            TempValue continueFlagReg = (TempValue)insn.Rhs2;
-
-            if (iterator.Iterable is RangeObject)
-            {
-                return (instruction, vm) =>
+                // 2b: string[temp/var].
+                if (indexOperand is VariableValue or TempValue)
                 {
-                    ref RuntimeValue iterVal = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, iteratorReg.Hash);
+                    VariableValue? indexVar = indexOperand as VariableValue;
+                    int indexRegIndex = indexVar?.RegisterIndex ?? ((TempValue)indexOperand).RegisterIndex;
 
-                    if (iterVal.ObjectReference is IteratorObject iter && iter.Iterable is RangeObject range)
+                    if (collectionVar?.IsGlobal ?? false)
                     {
-                        int start = range.Start.IntValue;
-                        int end = range.End.IntValue;
-                        int step = start <= end ? 1 : -1;
-                        int currentValue = start + iter.CurrentIndex;
-
-                        if (start <= end ? currentValue <= end : currentValue >= end)
-                        {
-                            vm.SetRegister(valueReg, new RuntimeValue(currentValue));
-                            vm.SetRegister(continueFlagReg, RuntimeValue.True);
-                            iter.CurrentIndex += step;
-                        }
+                        if (indexVar?.IsGlobal ?? false)
+                            return (i, v) => v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)globalRegisters[collectionIndex].ObjectReference).Value[globalRegisters[indexRegIndex].IntValue]);
                         else
-                        {
-                            vm.SetRegister(valueReg, RuntimeValue.Nil);
-                            vm.SetRegister(continueFlagReg, RuntimeValue.False);
-                        }
+                            return (i, v) => v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)globalRegisters[collectionIndex].ObjectReference).Value[v.CurrentRegisters[indexRegIndex].IntValue]);
                     }
                     else
                     {
-                        instruction.SpecializedHandler = null;
-                        vm.ExecuteGenericIterNext(instruction);
-                    }
-                };
-            }
-
-            if (iterator.Iterable is ListObject)
-            {
-                return (instruction, vm) =>
-                {
-                    ref RuntimeValue iterVal = ref CollectionsMarshal.GetValueRefOrNullRef(vm.CurrentRegisters, iteratorReg.Hash);
-
-                    if (iterVal.ObjectReference is IteratorObject iter && iter.Iterable is ListObject listRef)
-                    {
-                        if (iter.CurrentIndex < listRef.Elements.Count)
-                        {
-                            vm.SetRegister(valueReg, listRef.Elements[iter.CurrentIndex]);
-                            vm.SetRegister(continueFlagReg, RuntimeValue.True);
-                            iter.CurrentIndex++;
-                        }
+                        if (indexVar?.IsGlobal ?? false)
+                            return (i, v) => v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)v.CurrentRegisters[collectionIndex].ObjectReference).Value[globalRegisters[indexRegIndex].IntValue]);
                         else
-                        {
-                            vm.SetRegister(valueReg, RuntimeValue.Nil);
-                            vm.SetRegister(continueFlagReg, RuntimeValue.False);
-                        }
+                            return (i, v) => v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)v.CurrentRegisters[collectionIndex].ObjectReference).Value[v.CurrentRegisters[indexRegIndex].IntValue]);
                     }
-                    else
-                    {
-                        instruction.SpecializedHandler = null;
-                        vm.ExecuteGenericIterNext(instruction);
-                    }
-                };
+                }
             }
 
             return null;
@@ -882,45 +860,62 @@ namespace Fluence
             FunctionSymbol functionBlueprint = func.BluePrint;
             TempValue destinationRegister = (TempValue)insn.Lhs;
             int argCount = functionBlueprint.Arguments.Count;
+            int destIndex = destinationRegister.RegisterIndex;
 
             if (func.IsIntrinsic)
             {
+                IntrinsicMethod? intrinsicBody = functionBlueprint.IntrinsicBody;
+
                 return (instruction, vm) =>
                 {
-                    FunctionObject function = vm.CreateFunctionObject(functionBlueprint);
-                    RuntimeValue resultValue = function.IntrinsicBody(vm, argCount);
-                    vm.SetRegister(destinationRegister, resultValue);
-                    vm.ReturnFunctionObjectToPool(function);
+                    RuntimeValue resultValue = intrinsicBody!(vm, argCount);
+                    vm.CurrentRegisters[destIndex] = resultValue;
                 };
+            }
+
+            int[] parameterIndices = new int[argCount];
+            for (int i = 0; i < argCount; i++)
+            {
+                parameterIndices[i] = functionBlueprint.ArgumentRegisterIndices[i];
+            }
+
+            bool[] isRefParameter = new bool[argCount];
+            for (int i = 0; i < argCount; i++)
+            {
+                if (functionBlueprint.ArgumentsByRef.Contains(functionBlueprint.Arguments[i]))
+                {
+                    isRefParameter[i] = true;
+                }
             }
 
             return (instruction, vm) =>
             {
                 FunctionObject function = vm.CreateFunctionObject(functionBlueprint);
                 CallFrame newFrame = vm.GetCallframe();
-                newFrame.Initialize(function, vm.CurrentInstructionPointer, destinationRegister);
+                newFrame.Initialize(vm, function, vm.CurrentInstructionPointer, destinationRegister);
 
                 for (int i = argCount - 1; i >= 0; i--)
                 {
-                    string paramName = function.Parameters[i];
-                    int paramHash = function.ParametersHash[i];
-                    bool isRefParam = function.ParametersByRef.Contains(paramName);
+                    int paramIndex = parameterIndices[i];
                     RuntimeValue argValue = vm.PopStack();
 
-                    if (isRefParam && argValue.ObjectReference is not ReferenceValue)
+                    if (isRefParameter[i])
                     {
-                        vm.SignalError($"Internal VM Error: Argument '{paramName}' in function: \"{function.ToCodeLikeString()}\" must be passed by reference ('ref').");
-                        return;
+                        if (argValue.ObjectReference is not ReferenceValue reference)
+                        {
+                            vm.SignalError($"Internal VM Error: Argument '{function.Arguments[i]}' in function: \"{function.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                            return;
+                        }
+                        else
+                        {
+                            newFrame.RefParameterMap[paramIndex] = reference.Reference.RegisterIndex;
+                            argValue = vm.GetRuntimeValue(reference.Reference, instruction); newFrame.Registers[paramIndex] = argValue;
+                        }
                     }
-
-                    if (argValue.ObjectReference is ReferenceValue reference)
+                    else
                     {
-                        newFrame.RefParameterMap[paramHash] = reference.Reference.Hash;
-                        argValue = vm.GetRuntimeValue(reference.Reference);
+                        newFrame.Registers[paramIndex] = argValue;
                     }
-
-                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramHash, out _);
-                    valueRef = argValue;
                 }
 
                 vm.PrepareFunctionCall(newFrame, function);

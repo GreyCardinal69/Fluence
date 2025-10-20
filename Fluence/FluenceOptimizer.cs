@@ -373,9 +373,21 @@ namespace Fluence
                     tryCatch.TryGoToIndex = MapAddr(tryCatch.TryGoToIndex);
                     tryCatch.CatchGoToIndex = MapAddr(tryCatch.CatchGoToIndex);
                 }
-                if (insn.Rhs is FunctionValue fvRhs) fvRhs.SetStartAddress(MapAddr(fvRhs.StartAddress));
-                if (insn.Rhs is LambdaValue lambda) lambda.Function.SetStartAddress(MapAddr(lambda.Function.StartAddress));
-                if (insn.Rhs2 is FunctionValue fvRhs2) fvRhs2.SetStartAddress(MapAddr(fvRhs2.StartAddress));
+                if (insn.Rhs is FunctionValue fvRhs)
+                {
+                    fvRhs.SetStartAddress(MapAddr(fvRhs.StartAddress));
+                    fvRhs.SetEndAddress(MapAddr(fvRhs.EndAddress));
+                }
+                if (insn.Rhs is LambdaValue lambda)
+                {
+                    lambda.Function.SetStartAddress(MapAddr(lambda.Function.StartAddress));
+                    lambda.Function.SetEndAddress(MapAddr(lambda.Function.EndAddress));
+                }
+                if (insn.Rhs2 is FunctionValue fvRhs2)
+                {
+                    fvRhs2.SetStartAddress(MapAddr(fvRhs2.StartAddress));
+                    fvRhs2.SetEndAddress(MapAddr(fvRhs2.EndAddress));
+                }
             }
 
             foreach (Symbol symbol in state.GlobalScope.Symbols.Values)

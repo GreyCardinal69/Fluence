@@ -822,9 +822,17 @@ namespace Fluence
                 {
                     int constIndex = (int)num.Value;
                     if (collectionVar?.IsGlobal ?? false)
-                        return (i, v) => v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)globalRegisters[collectionIndex].ObjectReference).Value[constIndex]);
+                        return (i, v) =>
+                        {
+                            vm.TryReturnRegisterReferenceToPool(destIndex);
+                            v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)globalRegisters[collectionIndex].ObjectReference).Value[constIndex]);
+                        };
                     else
-                        return (i, v) => v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)v.CurrentRegisters[collectionIndex].ObjectReference).Value[constIndex]);
+                        return (i, v) =>
+                        {
+                            vm.TryReturnRegisterReferenceToPool(destIndex);
+                            v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)v.CurrentRegisters[collectionIndex].ObjectReference).Value[constIndex]);
+                        };
                 }
 
                 // 2b: string[temp/var].
@@ -836,16 +844,32 @@ namespace Fluence
                     if (collectionVar?.IsGlobal ?? false)
                     {
                         if (indexVar?.IsGlobal ?? false)
-                            return (i, v) => v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)globalRegisters[collectionIndex].ObjectReference).Value[globalRegisters[indexRegIndex].IntValue]);
+                            return (i, v) =>
+                            {
+                                vm.TryReturnRegisterReferenceToPool(destIndex);
+                                v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)globalRegisters[collectionIndex].ObjectReference).Value[globalRegisters[indexRegIndex].IntValue]);
+                            };
                         else
-                            return (i, v) => v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)globalRegisters[collectionIndex].ObjectReference).Value[v.CurrentRegisters[indexRegIndex].IntValue]);
+                            return (i, v) =>
+                            {
+                                vm.TryReturnRegisterReferenceToPool(destIndex);
+                                v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)globalRegisters[collectionIndex].ObjectReference).Value[v.CurrentRegisters[indexRegIndex].IntValue]);
+                            };
                     }
                     else
                     {
                         if (indexVar?.IsGlobal ?? false)
-                            return (i, v) => v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)v.CurrentRegisters[collectionIndex].ObjectReference).Value[globalRegisters[indexRegIndex].IntValue]);
+                            return (i, v) =>
+                            {
+                                vm.TryReturnRegisterReferenceToPool(destIndex);
+                                v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)v.CurrentRegisters[collectionIndex].ObjectReference).Value[globalRegisters[indexRegIndex].IntValue]);
+                            };
                         else
-                            return (i, v) => v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)v.CurrentRegisters[collectionIndex].ObjectReference).Value[v.CurrentRegisters[indexRegIndex].IntValue]);
+                            return (i, v) =>
+                            {
+                                vm.TryReturnRegisterReferenceToPool(destIndex);
+                                v.CurrentRegisters[destIndex] = v.ResolveCharObjectRuntimeValue(((StringObject)v.CurrentRegisters[collectionIndex].ObjectReference).Value[v.CurrentRegisters[indexRegIndex].IntValue]);
+                            };
                     }
                 }
             }

@@ -933,7 +933,8 @@ namespace Fluence
                         else
                         {
                             newFrame.RefParameterMap[paramIndex] = reference.Reference.RegisterIndex;
-                            argValue = vm.GetRuntimeValue(reference.Reference, instruction); newFrame.Registers[paramIndex] = argValue;
+                            argValue = vm.GetRuntimeValue(reference.Reference, instruction);
+                            newFrame.Registers[paramIndex] = argValue;
                         }
                     }
                     else

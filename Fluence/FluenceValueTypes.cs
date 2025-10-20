@@ -326,7 +326,7 @@ namespace Fluence
     internal sealed record class LambdaValue(FunctionValue Function) : Value
     {
         internal override string ToFluenceString() => $"<internal: lambda__{Function.Name}__{Function.Arity}>";
-        public override string ToString() => $"LambdaValue: {Function.Name}__{Function.Arity}";
+        public override string ToString() => $"LambdaValue: {Function.Name}__{Function.Arity}_{Function.StartAddress}_{Function.EndAddress}";
     }
 
     /// <summary>Represents a function's compile-time blueprint, including its bytecode address or native implementation.</summary>
@@ -383,6 +383,11 @@ namespace Fluence
         /// </summary>
         internal int TotalRegisterSlots { get; set; }
 
+        /// <summary>
+        /// The register index of the implicit "self" instance object, if the function belongs to a struct, othwerwise -1.
+        /// </summary>
+        internal int SelfRegisterIndex { get; set; } = -1;
+
         internal FunctionValue(string name, int arity, int startAddress, int lineInSource, List<string> arguments, HashSet<string> argsByRef, FluenceScope scope)
         {
             Name = name;
@@ -419,7 +424,7 @@ namespace Fluence
 
         internal override string ToFluenceString() => $"<internal: function__{Name}/{Arity}, RegSize: {TotalRegisterSlots}>";
 
-        internal override string ToByteCodeString() => $"Func_{Name}_{Arity}_{TotalRegisterSlots}_{DefiningScope}_{StartAddress}/{EndAddress}";
+        internal override string ToByteCodeString() => $"Func_{Name}_{Arity}_{TotalRegisterSlots}_{DefiningScope}_{StartAddress}/{EndAddress}/{SelfRegisterIndex}";
 
         public override string ToString()
         {

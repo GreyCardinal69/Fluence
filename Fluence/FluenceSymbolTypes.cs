@@ -48,9 +48,9 @@ namespace Fluence
             IsReadonly = readOnly;
         }
 
-        internal override string ToFluenceString() => $"VariableSymbol: {Name}-{Value}";
+        internal override string ToFluenceString() => $"VariableSymbol: {Name}---{Value}";
 
-        public override string ToString() => $"VariableSymbol: {Name}-{Value}";
+        public override string ToString() => $"VariableSymbol: {Name}---{Value}";
     }
 
     /// <summary>
@@ -190,6 +190,11 @@ namespace Fluence
         /// The total amount of register slots this function requires to execute its bytecode.
         /// </summary>
         internal int TotalRegisterSlots { get; set; }
+
+        /// <summary>
+        /// The register index of the implicit "self" instance object, if the function belongs to a struct, othwerwise -1.
+        /// </summary>
+        internal int SelfRegisterIndex { get; set; } = -1;
 
         /// <summary>
         /// Sets the bytecode start address for this function. Called by the parser during the second pass.

@@ -65,6 +65,7 @@ namespace Fluence.RuntimeTypes
         /// <summary>The C# delegate that implements the body of an intrinsic function.</summary>
         internal IntrinsicMethod IntrinsicBody { get; private set; }
 
+        internal int SelfRegisterIndex { get; set; }
         internal FunctionObject(string name, int arity, List<string> parameters, List<int> parametersHash, int startAddress, FluenceScope definingScope)
         {
             Name = name;
@@ -83,6 +84,7 @@ namespace Fluence.RuntimeTypes
 
         internal void Initialize(FunctionValue function)
         {
+            SelfRegisterIndex = function.SelfRegisterIndex;
             Name = function.Name;
             Arity = function.Arity;
             Arguments = function.Arguments;
@@ -98,6 +100,7 @@ namespace Fluence.RuntimeTypes
 
         internal void Initialize(FunctionSymbol function)
         {
+            SelfRegisterIndex = function.SelfRegisterIndex;
             Name = function.Name;
             Arity = function.Arity;
             Arguments = function.Arguments;

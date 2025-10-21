@@ -1,5 +1,7 @@
 ﻿using Fluence.Exceptions;
 using Fluence.RuntimeTypes;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceInterpreter;
@@ -128,10 +130,24 @@ namespace Fluence
             internal readonly List<InstructionLine> ScriptInitializerCode = new List<InstructionLine>();
 
             /// <summary>
+            /// A temporary list that collects bytecode instructions for the initialization of scope global variables.
+            /// Those bytecodes are placed before call to main, after functions have been assigned.
+            /// </summary>
+            internal List<InstructionLine> LambdaBodyInstructions = new List<InstructionLine>();
+
+            /// <summary>
             /// Indicates whether the current expression, statement is inside a function, or within a raw scope.
             /// </summary>
             internal bool IsParsingFunctionBody { get; set; }
 
+            /// <summary>
+            /// Indicates whether the current expression, statement is inside a lambda.
+            /// </summary>
+            internal bool IsParsingLambdaBody { get; set; }
+
+            /// <summary>
+            /// Indicates whether the current expression, statement is static solid variable of a struct, or just a global static solid variable.
+            /// </summary>
             internal bool IsParsingStaticSolid { get; set; }
 
             /// <summary>The struct symbol currently being parsed, or null.</summary>
@@ -165,6 +181,12 @@ namespace Fluence
                 Token token = ParserInstance._lexer.PeekCurrentToken();
 
                 instructionLine.SetDebugInfo(token.ColumnInSourceCode, token.LineInSourceCode, ParserInstance._multiFileProject ? ProjectFilePaths.IndexOf(ParserInstance._currentParsingFileName) : -1);
+
+                if (IsParsingLambdaBody)
+                {
+                    LambdaBodyInstructions.Add(instructionLine);
+                    return;
+                }
 
                 if (!AllowTestCode && (!IsParsingFunctionBody || IsParsingStaticSolid))
                 {
@@ -252,6 +274,12 @@ namespace Fluence
                 }
 
                 _currentParseState.GlobalScope.Declare("Main".GetHashCode(), mainFunctionSymbol);
+            }
+
+            if (_vmConfiguration.EmitSectionGlobal)
+            {
+                // An indicator that we are entering the setup phase, and the global declarations.
+                _currentParseState.CodeInstructions.Add(new InstructionLine(InstructionCode.SectionGlobal, null!));
             }
 
             // We first insert the function declarations.
@@ -668,6 +696,7 @@ namespace Fluence
                 if (token.Type == TokenType.SOLID)
                 {
                     solidField = true;
+                    currentIndex++;
                     continue;
                 }
 
@@ -751,8 +780,7 @@ namespace Fluence
                         }
                     }
 
-                    FunctionValue functionValue = new FunctionValue(funcName, arity, -1, nameToken.LineInSourceCode, args, argsByRef);
-                    functionValue.SetScope(_currentParseState.CurrentScope);
+                    FunctionValue functionValue = new FunctionValue(funcName, arity, -1, nameToken.LineInSourceCode, args, argsByRef, _currentParseState.CurrentScope);
                     string templated;
 
                     if (funcName == "init")
@@ -979,7 +1007,7 @@ namespace Fluence
             ParseStatementBody("'catch' statement expects a '->' for a single line statement of code.");
 
             int catchBlockEnd = _currentParseState.CodeInstructions.Count;
-            _currentParseState.CodeInstructions[jumpPatch].Lhs = new TryCatchValue(tryBlockEnd, var?.Name, catchBlockEnd, var is not null);
+            _currentParseState.CodeInstructions[jumpPatch].Lhs = new TryCatchValue(tryBlockEnd, var?.Name!, -1, catchBlockEnd, var is not null);
         }
 
         /// <summary>
@@ -1167,15 +1195,15 @@ namespace Fluence
             }
             else
             {
-                TempValue indexVar = new TempValue(_currentParseState.NextTempNumber++, "ForInIndex");
-                TempValue collectionVar = new TempValue(_currentParseState.NextTempNumber++, "ForInCollectionCopy");
+                TempValue indexVar = new TempValue(_currentParseState.NextTempNumber++);
+                TempValue collectionVar = new TempValue(_currentParseState.NextTempNumber++);
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, collectionVar, collectionExpr));
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, NumberValue.Zero));
 
                 int loopTopAddress = _currentParseState.CodeInstructions.Count;
 
-                TempValue lengthVar = new TempValue(_currentParseState.NextTempNumber++, "ForInCollectionLen");
+                TempValue lengthVar = new TempValue(_currentParseState.NextTempNumber++);
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GetLength, lengthVar, collectionVar));
 
                 TempValue conditionVar = new TempValue(_currentParseState.NextTempNumber++);
@@ -1358,45 +1386,44 @@ namespace Fluence
 
                 StructSymbol structSymbol = (StructSymbol)symbol;
 
+                // Bytecode for solid, static fields must be generated before the application is run.
+                foreach (KeyValuePair<string, List<Token>> field in structSymbol.DefaultFieldValuesAsTokens)
+                {
+                    Value defaultValueResult;
+                    string fieldName = field.Key;
+                    List<Token> expressionTokens = field.Value;
+
+                    if (structSymbol.StaticFields.ContainsKey(fieldName) && !structSymbol.ParsedStaticFields.Contains(fieldName))
+                    {
+                        if (expressionTokens.Count == 0)
+                        {
+                            ConstructAndThrowParserException($"Expected an assignment of a value to a solid static struct field, value can not be Nil: {structSymbol}__Field:{fieldName}.", new Token());
+                            return;
+                        }
+                        structSymbol.ParsedStaticFields.Add(fieldName);
+                        _fieldLexer = _lexer;
+                        _lexer = new FluenceLexer(expressionTokens);
+
+                        _currentParseState.IsParsingStaticSolid = true;
+                        defaultValueResult = ResolveValue(ParseExpression());
+                        _currentParseState.IsParsingStaticSolid = false;
+
+                        _lexer = _fieldLexer; // Restore the main lexer.
+
+                        // We call SetStatic for static fields, and add to the initializer code list.
+                        // This way the values are assigned before the application runs.
+                        _currentParseState.ScriptInitializerCode.Add(new InstructionLine(InstructionCode.SetStatic, structSymbol, new StringValue(fieldName), defaultValueResult));
+                        continue;
+                    }
+                }
+
                 if (!isInit)
                 {
-                    // Bytecode for solid, static fields must be generated before the application is run.
-                    foreach (KeyValuePair<string, List<Token>> field in structSymbol.DefaultFieldValuesAsTokens)
-                    {
-                        Value defaultValueResult;
-                        string fieldName = field.Key;
-                        List<Token> expressionTokens = field.Value;
-
-                        if (structSymbol.StaticFields.ContainsKey(fieldName) && !structSymbol.ParsedStaticFields.Contains(fieldName))
-                        {
-                            if (expressionTokens.Count == 0)
-                            {
-                                ConstructAndThrowParserException($"Expected an assignment of a value to a solid static struct field, value can not be Nil: {structSymbol}__Field:{fieldName}.", new Token());
-                                return;
-                            }
-                            structSymbol.ParsedStaticFields.Add(fieldName);
-                            _fieldLexer = _lexer;
-                            _lexer = new FluenceLexer(expressionTokens);
-
-                            _currentParseState.IsParsingStaticSolid = true;
-                            defaultValueResult = ResolveValue(ParseExpression());
-                            _currentParseState.IsParsingStaticSolid = false;
-
-                            _lexer = _fieldLexer; // Restore the main lexer.
-
-                            // We call SetStatic for static fields, and add to the initializer code list.
-                            // This way the values are assigned before the application runs.
-                            _currentParseState.ScriptInitializerCode.Add(new InstructionLine(InstructionCode.SetStatic, structSymbol, new StringValue(fieldName), defaultValueResult));
-                            continue;
-                        }
-                    }
-
                     if (!structSymbol.Functions.TryGetValue(functionName, out FunctionValue functionValue))
                     {
                         ConstructAndThrowParserException($"Internal error: Method '{funcValue.Name}' not found in the symbol table for struct '{structName}'.", nameToken);
                     }
 
-                    functionValue!.SetScope(_currentParseState.CurrentScope);
                     functionValue!.SetStartAddress(functionStartAddress);
                     _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{functionValue.Name}"), functionValue));
 
@@ -1452,7 +1479,6 @@ namespace Fluence
 
                 FunctionValue constructor = structSymbol.Constructors[nameToken.Text];
                 constructor.SetStartAddress(functionStartAddress);
-                constructor.SetScope(_currentParseState.CurrentScope);
                 _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{constructor.Name}"), constructor));
             }
             // Standalone function.
@@ -1487,8 +1513,7 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
             int functionStartAddress = _currentParseState.CodeInstructions.Count;
 
-            FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress, nameToken.LineInSourceCode, parameters, parametersByRef);
-            func.SetScope(_currentParseState.CurrentScope);
+            FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress, nameToken.LineInSourceCode, parameters, parametersByRef, _currentParseState.CurrentScope);
             UpdateFunctionSymbolsAndGenerateDeclaration(func, nameToken, inStruct, isInit, structName);
 
             // Either => for one line, or => {...} for a block.
@@ -1518,15 +1543,153 @@ namespace Fluence
             }
 
             int afterBodyAddress = _currentParseState.CodeInstructions.Count;
-            _currentParseState.CodeInstructions[functionStartAddress - 1].Lhs = new NumberValue(afterBodyAddress);
+            _currentParseState.CodeInstructions[functionStartAddress - 1].Lhs = new NumberValue(afterBodyAddress + _currentParseState.LambdaBodyInstructions.Count);
             _currentParseState.IsParsingFunctionBody = false;
+
+            int functionCodeEnd = afterBodyAddress;
 
             if (_vmConfiguration.OptimizeByteCode)
             {
-                FluenceOptimizer.OptimizeChunk(ref _currentParseState.CodeInstructions, _currentParseState, _lastOptimizationIndex);
+                FluenceOptimizer.OptimizeChunk(
+                    ref _currentParseState.CodeInstructions,
+                    _currentParseState,
+                    _lastOptimizationIndex,
+                    _vmConfiguration
+                );
 
-                // Next time we call OptimizeChunk, all the bytecode before here will be skipped, to avoid repetitive, useless optimization passes.
-                _lastOptimizationIndex = functionStartAddress;
+                functionCodeEnd = _currentParseState.CodeInstructions.Count;
+                _lastOptimizationIndex = functionCodeEnd;
+            }
+
+            func.SetEndAddress(functionCodeEnd - 1);
+
+            Dictionary<string, int> variableSlotMap = new Dictionary<string, int>();
+            Dictionary<string, int> tempSlotMap = new Dictionary<string, int>();
+            int nextSlotIndex = 0;
+
+            // Methods have an implicit 'self'. It always gets slot 0.
+            if (inStruct)
+            {
+                int selfIndex = nextSlotIndex++;
+                variableSlotMap["self"] = selfIndex;
+                func.SelfRegisterIndex = selfIndex;
+            }
+
+            // Parameters get the next available slots.
+            foreach (string paramName in func.Arguments)
+            {
+                variableSlotMap[paramName] = nextSlotIndex++;
+            }
+
+            for (int i = functionStartAddress; i < functionCodeEnd; i++)
+            {
+                InstructionLine insn = _currentParseState.CodeInstructions[i];
+
+                ProcessValue(insn.Lhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                ProcessValue(insn.Rhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                ProcessValue(insn.Rhs2, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                ProcessValue(insn.Rhs3, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+            }
+
+            func.TotalRegisterSlots = nextSlotIndex;
+
+            int[] parameterIndices = new int[func.Arguments.Count];
+            for (int i = 0; i < func.Arguments.Count; i++)
+            {
+                parameterIndices[i] = variableSlotMap[func.Arguments[i]];
+            }
+            func.SetArgumentRegisterIndices(parameterIndices);
+
+            if (_currentParseState.CurrentScope.TryResolve(func.Name.GetHashCode(), out Symbol symbol) && symbol is FunctionSymbol funcSymbol)
+            {
+                funcSymbol.SelfRegisterIndex = func.SelfRegisterIndex;
+                funcSymbol.TotalRegisterSlots = func.TotalRegisterSlots;
+                funcSymbol.SetEndAddress(func.EndAddress);
+                funcSymbol.SetArgumentRegisterIndices(func.ArgumentRegisterIndices);
+            }
+
+            for (int i = 0; i < _currentParseState.FunctionVariableDeclarations.Count; i++)
+            {
+                InstructionLine line = _currentParseState.FunctionVariableDeclarations[i];
+                if (line.Rhs is FunctionValue fun && fun.HashCode == func.HashCode)
+                {
+                    _currentParseState.FunctionVariableDeclarations[i].Rhs = func;
+                    break;
+                }
+            }
+
+            if (inStruct)
+            {
+                // We need to update the stale FunctionValue in the StructSymbol's dictionary.
+                // with the new, fully compiled one.
+                if (isInit)
+                {
+                    _currentParseState.CurrentStructContext.Constructors[func.Name] = func;
+                }
+                else
+                {
+                    _currentParseState.CurrentStructContext.Functions[func.Name] = func;
+                }
+            }
+        }
+
+        private static void ProcessValue(Value val, Dictionary<string, int> variableSlotMap, Dictionary<string, int> tempSlotMap, ref int nextSlotIndex)
+        {
+            if (val == null) return;
+
+            if (val is VariableValue var)
+            {
+                if (var.IsGlobal) return; // Globals are handled by a separate pass.
+
+                ref int indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(variableSlotMap, var.Name);
+
+                if (!Unsafe.IsNullRef(ref indexRef))
+                {
+                    var.RegisterIndex = indexRef;
+                }
+                else
+                {
+                    int newIndex = nextSlotIndex++;
+                    variableSlotMap[var.Name] = newIndex;
+                    var.RegisterIndex = newIndex;
+                }
+            }
+            else if (val is TempValue temp)
+            {
+                ref int indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(tempSlotMap, temp.TempName);
+                if (!Unsafe.IsNullRef(ref indexRef))
+                {
+                    temp.RegisterIndex = indexRef;
+                }
+                else
+                {
+                    int newIndex = nextSlotIndex++;
+                    tempSlotMap[temp.TempName] = newIndex;
+                    temp.RegisterIndex = newIndex;
+                }
+            }
+            else if (val is ReferenceValue reference)
+            {
+                ProcessValue(reference.Reference, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+            }
+            else if (val is RangeValue range)
+            {
+                ProcessValue(range.Start, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                ProcessValue(range.End, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+            }
+            else if (val is TryCatchValue tryCatch && !string.IsNullOrEmpty(tryCatch.ExceptionVarName))
+            {
+                ref int indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(variableSlotMap, tryCatch.ExceptionVarName);
+                if (!Unsafe.IsNullRef(ref indexRef))
+                {
+                    tryCatch.ExceptionAsVarRegisterIndex = indexRef;
+                }
+                else
+                {
+                    int newIndex = nextSlotIndex++;
+                    variableSlotMap[tryCatch.ExceptionVarName] = newIndex;
+                    tryCatch.ExceptionAsVarRegisterIndex = newIndex;
+                }
             }
         }
 
@@ -2141,13 +2304,9 @@ namespace Fluence
 
                     _currentParseState.AddCodeInstruction(new InstructionLine(opCode, resolvedLhs, resolvedLhs, rhs));
 
-                    if (firstLhs is VariableValue variable)
+                    if (firstLhs is VariableValue variable && !_currentParseState.IsParsingFunctionBody)
                     {
                         _currentParseState.CurrentScope.Declare(variable.Hash, new VariableSymbol(variable.Name, resolvedLhs));
-                    }
-                    else
-                    {
-                        GenerateWriteBackInstruction(firstLhs, resolvedLhs);
                     }
                 }
             }
@@ -3846,15 +4005,13 @@ namespace Fluence
             if (_lexer.PeekNextTokenType() == TokenType.AS)
             {
                 _lexer.Advance();
-                bool isSolid = false;
 
                 if (_lexer.PeekNextTokenType() == TokenType.SOLID)
                 {
-                    isSolid = true;
                     _lexer.Advance();
                 }
                 Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected an identifier for a 'x times as y' statement");
-                condition = new VariableValue(nameToken.Text, isSolid);
+                condition = new VariableValue(nameToken.Text);
                 GenerateWriteBackInstruction(condition, NumberValue.Zero);
             }
             else
@@ -3968,9 +4125,7 @@ namespace Fluence
 
             _currentParseState.CodeInstructions[lambdaBodySkipIndex].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
 
-            FunctionValue lambdaFunction = new FunctionValue($"lambda__{args.Count}", args.Count, lambdaCodeStartIndex, startAddressInSource, args, argsByRef);
-            lambdaFunction.SetScope(_currentParseState.CurrentScope);
-
+            FunctionValue lambdaFunction = new FunctionValue($"lambda__{args.Count}", args.Count, lambdaCodeStartIndex, startAddressInSource, args, argsByRef, _currentParseState.CurrentScope);
             return new LambdaValue(lambdaFunction);
         }
 
@@ -4163,7 +4318,18 @@ namespace Fluence
                 case TokenType.CHARACTER: return new CharValue((char)token.Literal);
                 case TokenType.L_BRACKET: return ParseList();
                 case TokenType.MATCH: return ParseMatchStatement();
-                case TokenType.REF: return new ReferenceValue((VariableValue)ParseExpression());
+                case TokenType.REF:
+                    Value toRef = ParseExpression();
+
+                    if (toRef as VariableValue is not null)
+                    {
+                        return new ReferenceValue((VariableValue)toRef);
+                    }
+                    else
+                    {
+                        ConstructAndThrowParserException("Can not pass an argument to a function by reference if the argument is not a variable.", _lexer.PeekNextToken());
+                    }
+                    break;
                 case TokenType.SELF:
                     if (_currentParseState.CurrentStructContext == null)
                     {

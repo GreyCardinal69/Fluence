@@ -1563,22 +1563,22 @@ namespace Fluence
 
             func.SetEndAddress(functionCodeEnd - 1);
 
-            Dictionary<string, int> variableSlotMap = new Dictionary<string, int>();
-            Dictionary<string, int> tempSlotMap = new Dictionary<string, int>();
+            Dictionary<int, int> variableSlotMap = new Dictionary<int, int>();
+            Dictionary<int, int> tempSlotMap = new Dictionary<int, int>();
             int nextSlotIndex = 0;
 
             // Methods have an implicit 'self'. It always gets slot 0.
             if (inStruct)
             {
                 int selfIndex = nextSlotIndex++;
-                variableSlotMap["self"] = selfIndex;
+                variableSlotMap["self".GetHashCode()] = selfIndex;
                 func.SelfRegisterIndex = selfIndex;
             }
 
             // Parameters get the next available slots.
-            foreach (string paramName in func.Arguments)
+            for (int i = 0; i < func.Arguments.Count; i++)
             {
-                variableSlotMap[paramName] = nextSlotIndex++;
+                variableSlotMap[func.ArgumentHashCodes[i]] = nextSlotIndex++;
             }
 
             for (int i = functionStartAddress; i < functionCodeEnd; i++)
@@ -1596,7 +1596,7 @@ namespace Fluence
             int[] parameterIndices = new int[func.Arguments.Count];
             for (int i = 0; i < func.Arguments.Count; i++)
             {
-                parameterIndices[i] = variableSlotMap[func.Arguments[i]];
+                parameterIndices[i] = variableSlotMap[func.ArgumentHashCodes[i]];
             }
             func.SetArgumentRegisterIndices(parameterIndices);
 
@@ -1633,7 +1633,7 @@ namespace Fluence
             }
         }
 
-        private static void ProcessValue(Value val, Dictionary<string, int> variableSlotMap, Dictionary<string, int> tempSlotMap, ref int nextSlotIndex)
+        private static void ProcessValue(Value val, Dictionary<int, int> variableSlotMap, Dictionary<int, int> tempSlotMap, ref int nextSlotIndex)
         {
             if (val == null) return;
 
@@ -1641,7 +1641,7 @@ namespace Fluence
             {
                 if (var.IsGlobal) return; // Globals are handled by a separate pass.
 
-                ref int indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(variableSlotMap, var.Name);
+                ref int indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(variableSlotMap, var.Hash);
 
                 if (!Unsafe.IsNullRef(ref indexRef))
                 {
@@ -1650,13 +1650,13 @@ namespace Fluence
                 else
                 {
                     int newIndex = nextSlotIndex++;
-                    variableSlotMap[var.Name] = newIndex;
+                    variableSlotMap[var.Hash] = newIndex;
                     var.RegisterIndex = newIndex;
                 }
             }
             else if (val is TempValue temp)
             {
-                ref int indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(tempSlotMap, temp.TempName);
+                ref int indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(tempSlotMap, temp.Hash);
                 if (!Unsafe.IsNullRef(ref indexRef))
                 {
                     temp.RegisterIndex = indexRef;
@@ -1664,7 +1664,7 @@ namespace Fluence
                 else
                 {
                     int newIndex = nextSlotIndex++;
-                    tempSlotMap[temp.TempName] = newIndex;
+                    tempSlotMap[temp.Hash] = newIndex;
                     temp.RegisterIndex = newIndex;
                 }
             }
@@ -1679,7 +1679,8 @@ namespace Fluence
             }
             else if (val is TryCatchValue tryCatch && !string.IsNullOrEmpty(tryCatch.ExceptionVarName))
             {
-                ref int indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(variableSlotMap, tryCatch.ExceptionVarName);
+                int hash = tryCatch.ExceptionVarName.GetHashCode();
+                ref int indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(variableSlotMap, hash);
                 if (!Unsafe.IsNullRef(ref indexRef))
                 {
                     tryCatch.ExceptionAsVarRegisterIndex = indexRef;
@@ -1687,7 +1688,7 @@ namespace Fluence
                 else
                 {
                     int newIndex = nextSlotIndex++;
-                    variableSlotMap[tryCatch.ExceptionVarName] = newIndex;
+                    variableSlotMap[hash] = newIndex;
                     tryCatch.ExceptionAsVarRegisterIndex = newIndex;
                 }
             }

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceParser;
@@ -9,10 +10,20 @@ namespace Fluence
     /// </summary>
     internal static class FluenceOptimizer
     {
-        private static readonly Dictionary<TempValue, Value> _constantsMap = new Dictionary<TempValue, Value>();
-        private static readonly HashSet<int> _instructionsToRemove = new HashSet<int>();
-        private static readonly Dictionary<TempValue, int> _registerAssignmentCounts = new Dictionary<TempValue, int>();
-        private static readonly HashSet<string> _visitedSymbols = new HashSet<string>();
+        private static readonly Dictionary<int, RegisterInfo> _registerInfoMap = new();
+        private static readonly Dictionary<int, Value> _constantsMap = new();
+        private static readonly List<int> _instructionsToRemove = new();
+        private static readonly HashSet<string> _uniqueSymbols = new HashSet<string>();
+
+        /// <summary>
+        /// A private struct to hold information about a temporary register's assignments.
+        /// </summary>
+        private struct RegisterInfo
+        {
+            public int AssignmentCount;
+            public int AssignmentIndex;
+            public Value? ConstantValue;
+        }
 
         /// <summary>
         /// Incrementally optimizes a segment of the bytecode list..
@@ -35,14 +46,14 @@ namespace Fluence
             if (byteCodeChanged)
             {
                 CompactAndRealignFromBottomUp(ref bytecode, parseState);
-                _visitedSymbols.Clear();
+                _uniqueSymbols.Clear();
             }
 
             if (constantFoldingDidWork)
             {
+                _registerInfoMap.Clear();
                 _constantsMap.Clear();
                 _instructionsToRemove.Clear();
-                _registerAssignmentCounts.Clear();
             }
         }
 
@@ -54,11 +65,20 @@ namespace Fluence
         /// <param name="startIndex">The index from which to begin scanning.</param>
         private static void FuseCompoundAssignments(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
-            for (int i = startIndex; i < bytecode.Count - 1; i++)
+            Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
+            Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
+
+            int i = 0;
+            while (i < relevantSpan.Length - 1)
             {
-                InstructionLine line1 = bytecode[i];
-                InstructionLine line2 = bytecode[i + 1];
-                if (line1 == null || line2 == null) continue;
+                ref InstructionLine line1 = ref relevantSpan[i];
+                ref InstructionLine line2 = ref relevantSpan[i + 1];
+
+                if (line1 == null || line2 == null)
+                {
+                    i++;
+                    continue;
+                }
 
                 InstructionCode opCode = GetFusedOpcode(line1.Instruction);
 
@@ -70,16 +90,18 @@ namespace Fluence
                 if (opCode != InstructionCode.Skip &&
                     line2.Instruction == InstructionCode.Assign &&
                     line1.Lhs is TempValue l1Lhs &&
-                    line2.Lhs is VariableValue &&
                     line2.Rhs is TempValue l2Rhs &&
+                    line2.Lhs is VariableValue &&
                     l1Lhs.Hash == l2Rhs.Hash)
                 {
+                    line1.Instruction = opCode;
+                    line1.Lhs = line2.Lhs;
+                    relevantSpan[i + 1] = null!;
                     byteCodeChanged = true;
-                    bytecode[i].Instruction = opCode;
-                    bytecode[i].Lhs = line2.Lhs;
-                    bytecode[i].Rhs = line1.Rhs;
-                    bytecode[i].Rhs2 = line1.Rhs2;
-                    bytecode[i + 1] = null!;
+                    i += 2;
+                }
+                else
+                {
                     i++;
                 }
             }
@@ -92,47 +114,80 @@ namespace Fluence
         /// <param name="startIndex">The index from which to begin scanning.</param>
         private static void FusePushParams(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
-            for (int i = startIndex; i < bytecode.Count - 3; i++)
-            {
-                InstructionLine line1 = bytecode[i];
-                InstructionLine line2 = bytecode[i + 1];
-                InstructionLine line3 = bytecode[i + 2];
-                InstructionLine line4 = bytecode[i + 3];
-                if (line1 == null || line2 == null || line3 == null || line4 == null) continue;
+            Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
+            Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
 
-                if (line1.Instruction == InstructionCode.PushParam &&
-                    line2.Instruction == InstructionCode.PushParam &&
-                    line3.Instruction == InstructionCode.PushParam &&
-                    line4.Instruction == InstructionCode.PushParam)
+            int i = 0;
+            while (i < relevantSpan.Length - 1)
+            {
+                ref InstructionLine insn1 = ref relevantSpan[i];
+
+                if (insn1?.Instruction != InstructionCode.PushParam)
                 {
-                    byteCodeChanged = true;
-                    bytecode[i].Instruction = InstructionCode.PushFourParams;
-                    bytecode[i].Rhs = line2.Lhs;
-                    bytecode[i].Rhs2 = line3.Lhs;
-                    bytecode[i].Rhs3 = line4.Lhs;
-                    bytecode[i + 1] = null!;
-                    bytecode[i + 2] = null!;
-                    bytecode[i + 3] = null!;
-                    i += 3;
-                }
-                else if (line1.Instruction == InstructionCode.PushParam && line2.Instruction == InstructionCode.PushParam && line3.Instruction == InstructionCode.PushParam)
-                {
-                    byteCodeChanged = true;
-                    bytecode[i].Instruction = InstructionCode.PushThreeParams;
-                    bytecode[i].Rhs = line2.Lhs;
-                    bytecode[i].Rhs2 = line3.Lhs;
-                    bytecode[i + 1] = null!;
-                    bytecode[i + 2] = null!;
-                    i += 2;
-                }
-                else if (line1.Instruction == InstructionCode.PushParam && line2.Instruction == InstructionCode.PushParam)
-                {
-                    byteCodeChanged = true;
-                    bytecode[i].Instruction = InstructionCode.PushTwoParams;
-                    bytecode[i].Rhs = line2.Lhs;
-                    bytecode[i + 1] = null!;
                     i++;
+                    continue;
                 }
+
+                if (i + 3 < relevantSpan.Length)
+                {
+                    ref InstructionLine insn2 = ref relevantSpan[i + 1];
+                    ref InstructionLine insn3 = ref relevantSpan[i + 2];
+                    ref InstructionLine insn4 = ref relevantSpan[i + 3];
+
+                    if (insn2?.Instruction == InstructionCode.PushParam &&
+                        insn3?.Instruction == InstructionCode.PushParam &&
+                        insn4?.Instruction == InstructionCode.PushParam)
+                    {
+                        insn1.Instruction = InstructionCode.PushFourParams;
+                        insn1.Rhs = insn2.Lhs;
+                        insn1.Rhs2 = insn3.Lhs;
+                        insn1.Rhs3 = insn4.Lhs;
+
+                        relevantSpan[i + 1] = null!;
+                        relevantSpan[i + 2] = null!;
+                        relevantSpan[i + 3] = null!;
+
+                        byteCodeChanged = true;
+                        i += 4;
+                        continue;
+                    }
+                }
+
+                if (i + 2 < relevantSpan.Length)
+                {
+                    ref InstructionLine insn2 = ref relevantSpan[i + 1];
+                    ref InstructionLine insn3 = ref relevantSpan[i + 2];
+
+                    if (insn2?.Instruction == InstructionCode.PushParam &&
+                        insn3?.Instruction == InstructionCode.PushParam)
+                    {
+                        insn1.Instruction = InstructionCode.PushThreeParams;
+                        insn1.Rhs = insn2.Lhs;
+                        insn1.Rhs2 = insn3.Lhs;
+
+                        relevantSpan[i + 1] = null!;
+                        relevantSpan[i + 2] = null!;
+
+                        byteCodeChanged = true;
+                        i += 3;
+                        continue;
+                    }
+                }
+
+                ref InstructionLine insn2_two = ref relevantSpan[i + 1];
+                if (insn2_two?.Instruction == InstructionCode.PushParam)
+                {
+                    insn1.Instruction = InstructionCode.PushTwoParams;
+                    insn1.Rhs = insn2_two.Lhs;
+
+                    relevantSpan[i + 1] = null!;
+
+                    byteCodeChanged = true;
+                    i += 2;
+                    continue;
+                }
+
+                i++;
             }
         }
 
@@ -171,41 +226,46 @@ namespace Fluence
         /// <param name="startIndex">The index from which to begin scanning.</param>
         private static void RemoveConstTempRegisters(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged, ref bool constantFoldingDidWork)
         {
-            for (int i = startIndex; i < bytecode.Count; i++)
-            {
-                InstructionLine insn = bytecode[i];
-                if (insn == null) continue;
+            _registerInfoMap.Clear();
+            _constantsMap.Clear();
+            _instructionsToRemove.Clear();
 
-                if (insn.Lhs is TempValue temp)
+            Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
+            Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
+
+            for (int i = 0; i < relevantSpan.Length; i++)
+            {
+                ref InstructionLine? insn = ref relevantSpan[i];
+
+                if (insn is null) continue;
+
+                if (insn.Instruction == InstructionCode.Assign && insn.Lhs is TempValue temp)
                 {
-                    _registerAssignmentCounts.TryGetValue(temp, out int currentCount);
-                    _registerAssignmentCounts[temp] = currentCount + 1;
+                    ref RegisterInfo info = ref CollectionsMarshal.GetValueRefOrAddDefault(_registerInfoMap, temp.Hash, out bool exists);
+
+                    info.AssignmentCount++;
+
+                    if (!exists)
+                    {
+                        info.AssignmentIndex = startIndex + i;
+                        if (IsAConstantValue(insn.Rhs))
+                        {
+                            info.ConstantValue = insn.Rhs;
+                        }
+                    }
+                    else
+                    {
+                        info.ConstantValue = null;
+                    }
                 }
             }
 
-            if (_registerAssignmentCounts.Count == 0)
+            foreach (KeyValuePair<int, RegisterInfo> kvp in _registerInfoMap)
             {
-                return;
-            }
-
-            for (int i = startIndex; i < bytecode.Count; i++)
-            {
-                InstructionLine insn = bytecode[i];
-                if (insn == null) continue;
-
-                if (insn.Instruction == InstructionCode.Assign &&
-                    insn.Lhs is TempValue temp &&
-                    IsAConstantValue(insn.Rhs))
+                if (kvp.Value.AssignmentCount == 1 && kvp.Value.ConstantValue is not null)
                 {
-                    // In some cases, we can have some temp register assigned to a constant as a temporary, say in a match
-                    // Depending on the match case, it can be constant, or non constant, we look ahead, if we assign to this temp register later
-                    // We can't replace the register.
-                    // Constant folding is non error prone only for temp registers that are assigned to only once in the entire function.
-                    if (_registerAssignmentCounts.TryGetValue(temp, out int count) && count == 1)
-                    {
-                        _constantsMap[temp] = insn.Rhs;
-                        _instructionsToRemove.Add(i);
-                    }
+                    _constantsMap.Add(kvp.Key, kvp.Value.ConstantValue);
+                    _instructionsToRemove.Add(kvp.Value.AssignmentIndex);
                 }
             }
 
@@ -214,26 +274,31 @@ namespace Fluence
                 return;
             }
 
-            for (int i = startIndex; i < bytecode.Count; i++)
+            for (int i = 0; i < relevantSpan.Length; i++)
             {
-                InstructionLine insn = bytecode[i];
+                ref InstructionLine insn = ref relevantSpan[i];
                 if (insn == null) continue;
 
-                if (insn.Rhs is TempValue tempRhs && _constantsMap.TryGetValue(tempRhs, out Value? constValRhs))
+                bool changed = false;
+
+                if (insn.Rhs is TempValue tempRhs && _constantsMap.TryGetValue(tempRhs.Hash, out Value? constValRhs))
                 {
                     insn.Rhs = constValRhs;
-                    constantFoldingDidWork = true;
-                    byteCodeChanged = true;
+                    changed = true;
                 }
-                if (insn.Rhs2 is TempValue tempRhs2 && _constantsMap.TryGetValue(tempRhs2, out Value? constValRhs2))
+                if (insn.Rhs2 is TempValue tempRhs2 && _constantsMap.TryGetValue(tempRhs2.Hash, out Value? constValRhs2))
                 {
                     insn.Rhs2 = constValRhs2;
-                    constantFoldingDidWork = true;
-                    byteCodeChanged = true;
+                    changed = true;
                 }
-                if (insn.Rhs3 is TempValue tempRhs3 && _constantsMap.TryGetValue(tempRhs3, out Value? constValRhs3))
+                if (insn.Rhs3 is TempValue tempRhs3 && _constantsMap.TryGetValue(tempRhs3.Hash, out Value? constValRhs3))
                 {
                     insn.Rhs3 = constValRhs3;
+                    changed = true;
+                }
+
+                if (changed)
+                {
                     constantFoldingDidWork = true;
                     byteCodeChanged = true;
                 }
@@ -241,7 +306,7 @@ namespace Fluence
 
             foreach (int index in _instructionsToRemove)
             {
-                bytecode[index] = null!;
+                byteCodeSpan[index] = null!;
             }
         }
 
@@ -392,7 +457,7 @@ namespace Fluence
 
             foreach (Symbol symbol in state.GlobalScope.Symbols.Values)
             {
-                _visitedSymbols.Add(symbol.Name);
+                _uniqueSymbols.Add(symbol.Name);
                 if (symbol is FunctionSymbol f)
                 {
                     f.SetStartAddress(MapAddr(f.StartAddress));
@@ -402,13 +467,13 @@ namespace Fluence
                 {
                     foreach (KeyValuePair<string, FunctionValue> item in s.Constructors)
                     {
-                        _visitedSymbols.Add(item.Key);
+                        _uniqueSymbols.Add(item.Key);
                         item.Value.SetStartAddress(MapAddr(item.Value.StartAddress));
                         item.Value.SetEndAddress(MapAddr(item.Value.EndAddress));
                     }
                     foreach (FunctionValue m in s.Functions.Values)
                     {
-                        _visitedSymbols.Add(m.Name);
+                        _uniqueSymbols.Add(m.Name);
                         m.SetStartAddress(MapAddr(m.StartAddress));
                         m.SetEndAddress(MapAddr(m.EndAddress));
                     }
@@ -419,7 +484,7 @@ namespace Fluence
             {
                 foreach (Symbol symbol in scope.Symbols.Values)
                 {
-                    if (_visitedSymbols.Contains(symbol.Name))
+                    if (_uniqueSymbols.Contains(symbol.Name))
                     {
                         continue;
                     }

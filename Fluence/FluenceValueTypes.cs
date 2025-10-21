@@ -307,9 +307,8 @@ namespace Fluence
         /// </summary>
         internal bool IsGlobal { get; set; }
 
-        internal VariableValue(string identifierValue, bool readOnly = false)
+        internal VariableValue(string identifierValue)
         {
-            IsReadOnly = readOnly;
             Name = identifierValue;
             Hash = Name.GetHashCode();
         }
@@ -337,6 +336,11 @@ namespace Fluence
 
         /// <summary>The number of parameters the function expects.</summary>
         internal int Arity { get; init; }
+
+        /// <summary>
+        /// The hash code of the function obtained from its mangled name.
+        /// </summary>
+        internal int HashCode { get; init; }
 
         /// <summary>
         /// The address of the first instruction of the function's body in the bytecode.
@@ -404,6 +408,8 @@ namespace Fluence
             ArgumentsByRef = argsByRef;
             StartAddressInSource = lineInSource;
             DefiningScope = scope;
+
+            HashCode = name.GetHashCode();
         }
 
         /// <summary>

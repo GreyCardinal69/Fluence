@@ -54,6 +54,10 @@ namespace Fluence
         /// </summary>
         private readonly TextOutputMethod _outputLine;
 
+        private readonly Dictionary<int, int> _variableSlotMap = new Dictionary<int, int>();
+
+        private readonly Dictionary<int, int> _tempSlotMap = new Dictionary<int, int>();
+
         /// <summary>
         /// Exposes the global scope of the current parsing state, primarily for the intrinsic registrar.
         /// </summary>
@@ -1563,32 +1567,30 @@ namespace Fluence
 
             func.SetEndAddress(functionCodeEnd - 1);
 
-            Dictionary<int, int> variableSlotMap = new Dictionary<int, int>();
-            Dictionary<int, int> tempSlotMap = new Dictionary<int, int>();
             int nextSlotIndex = 0;
 
             // Methods have an implicit 'self'. It always gets slot 0.
             if (inStruct)
             {
                 int selfIndex = nextSlotIndex++;
-                variableSlotMap["self".GetHashCode()] = selfIndex;
+                _variableSlotMap["self".GetHashCode()] = selfIndex;
                 func.SelfRegisterIndex = selfIndex;
             }
 
             // Parameters get the next available slots.
             for (int i = 0; i < func.Arguments.Count; i++)
             {
-                variableSlotMap[func.ArgumentHashCodes[i]] = nextSlotIndex++;
+                _variableSlotMap[func.ArgumentHashCodes[i]] = nextSlotIndex++;
             }
 
             for (int i = functionStartAddress; i < functionCodeEnd; i++)
             {
                 InstructionLine insn = _currentParseState.CodeInstructions[i];
 
-                ProcessValue(insn.Lhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
-                ProcessValue(insn.Rhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
-                ProcessValue(insn.Rhs2, variableSlotMap, tempSlotMap, ref nextSlotIndex);
-                ProcessValue(insn.Rhs3, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                ProcessValue(insn.Lhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                ProcessValue(insn.Rhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                ProcessValue(insn.Rhs2, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                ProcessValue(insn.Rhs3, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
             }
 
             func.TotalRegisterSlots = nextSlotIndex;
@@ -1596,7 +1598,7 @@ namespace Fluence
             int[] parameterIndices = new int[func.Arguments.Count];
             for (int i = 0; i < func.Arguments.Count; i++)
             {
-                parameterIndices[i] = variableSlotMap[func.ArgumentHashCodes[i]];
+                parameterIndices[i] = _variableSlotMap[func.ArgumentHashCodes[i]];
             }
             func.SetArgumentRegisterIndices(parameterIndices);
 
@@ -1631,6 +1633,9 @@ namespace Fluence
                     _currentParseState.CurrentStructContext.Functions[func.Name] = func;
                 }
             }
+
+            _tempSlotMap.Clear();
+            _variableSlotMap.Clear();
         }
 
         private static void ProcessValue(Value val, Dictionary<int, int> variableSlotMap, Dictionary<int, int> tempSlotMap, ref int nextSlotIndex)

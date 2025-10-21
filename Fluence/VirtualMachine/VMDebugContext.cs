@@ -40,9 +40,9 @@ namespace Fluence.VirtualMachine
                 }
             }
 
-            if (func.SelfRegisterIndex != -1)
+            if (func.BelongsToAStruct)
             {
-                indexToNameMap[func.SelfRegisterIndex] = "self";
+                indexToNameMap[0] = "self";
             }
 
             for (int i = 0; i < currentFrame.Registers.Length; i++)

@@ -66,9 +66,9 @@ namespace Fluence.RuntimeTypes
         internal IntrinsicMethod IntrinsicBody { get; private set; }
 
         /// <summary>
-        /// The register index of the implicit "self" instance object, if the function belongs to a struct, othwerwise -1.
+        /// Indicates whether the function is an instance or a static method of some struct type.
         /// </summary>
-        internal int SelfRegisterIndex { get; set; } = -1;
+        internal bool BelongsToAStruct { get; private set; }
 
         internal FunctionObject(string name, int arity, List<string> parameters, List<int> parametersHash, int startAddress, FluenceScope definingScope)
         {
@@ -88,7 +88,7 @@ namespace Fluence.RuntimeTypes
 
         internal void Initialize(FunctionValue function)
         {
-            SelfRegisterIndex = function.SelfRegisterIndex;
+            BelongsToAStruct = function.BelongsToAStruct;
             Name = function.Name;
             Arity = function.Arity;
             Arguments = function.Arguments;
@@ -104,7 +104,7 @@ namespace Fluence.RuntimeTypes
 
         internal void Initialize(FunctionSymbol function)
         {
-            SelfRegisterIndex = function.SelfRegisterIndex;
+            BelongsToAStruct = function.BelongsToAStruct;
             Name = function.Name;
             Arity = function.Arity;
             Arguments = function.Arguments;

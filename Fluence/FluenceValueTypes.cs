@@ -388,12 +388,13 @@ namespace Fluence
         internal int TotalRegisterSlots { get; set; }
 
         /// <summary>
-        /// The register index of the implicit "self" instance object, if the function belongs to a struct, othwerwise -1.
+        /// Indicates whether the function is an instance or a static method of some struct type.
         /// </summary>
-        internal int SelfRegisterIndex { get; set; } = -1;
+        internal bool BelongsToAStruct { get; init; }
 
-        internal FunctionValue(string name, int arity, int startAddress, int lineInSource, List<string> arguments, HashSet<string> argsByRef, FluenceScope scope)
+        internal FunctionValue(string name, bool inStruct, int arity, int startAddress, int lineInSource, List<string> arguments, HashSet<string> argsByRef, FluenceScope scope)
         {
+            BelongsToAStruct = inStruct;
             Name = name;
             Arity = arity;
             StartAddress = startAddress;
@@ -430,7 +431,7 @@ namespace Fluence
 
         internal override string ToFluenceString() => $"<internal: function__{Name}/{Arity}, RegSize: {TotalRegisterSlots}>";
 
-        internal override string ToByteCodeString() => $"Func_{Name}_{Arity}_{TotalRegisterSlots}_{DefiningScope}_{StartAddress}/{EndAddress}/{SelfRegisterIndex}";
+        internal override string ToByteCodeString() => $"Func_{Name}_{Arity}_{TotalRegisterSlots}_{DefiningScope}_{StartAddress}/{EndAddress}";
 
         public override string ToString()
         {

@@ -1890,7 +1890,7 @@ namespace Fluence.VirtualMachine
             newFrame.Initialize(this, functionToExecute, _ip, (TempValue)instruction.Lhs);
 
             // Implicitly pass 'self'.
-            newFrame.Registers[functionToExecute.SelfRegisterIndex] = instanceVal;
+            newFrame.Registers[0] = instanceVal;
 
             for (int i = functionToExecute.Arity - 1; i >= 0; i--)
             {
@@ -1938,9 +1938,9 @@ namespace Fluence.VirtualMachine
             newFrame.Initialize(this, functionToExecute, -1, null!);
 
             // Sometimes a struct function may have no arguments, or no "self" used, no temps.
-            if (newFrame.Registers.Length > 0 && functionToExecute.SelfRegisterIndex != -1)
+            if (newFrame.Registers.Length > 0)
             {
-                newFrame.Registers[functionToExecute.SelfRegisterIndex] = new RuntimeValue(instance);
+                newFrame.Registers[0] = new RuntimeValue(instance);
             }
 
             _callStack.Push(newFrame);

@@ -784,7 +784,7 @@ namespace Fluence
                         }
                     }
 
-                    FunctionValue functionValue = new FunctionValue(funcName, arity, -1, nameToken.LineInSourceCode, args, argsByRef, _currentParseState.CurrentScope);
+                    FunctionValue functionValue = new FunctionValue(funcName, true, arity, -1, nameToken.LineInSourceCode, args, argsByRef, _currentParseState.CurrentScope);
                     string templated;
 
                     if (funcName == "init")
@@ -1517,7 +1517,7 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
             int functionStartAddress = _currentParseState.CodeInstructions.Count;
 
-            FunctionValue func = new FunctionValue(functionName, parameters.Count, functionStartAddress, nameToken.LineInSourceCode, parameters, parametersByRef, _currentParseState.CurrentScope);
+            FunctionValue func = new FunctionValue(functionName, inStruct, parameters.Count, functionStartAddress, nameToken.LineInSourceCode, parameters, parametersByRef, _currentParseState.CurrentScope);
             UpdateFunctionSymbolsAndGenerateDeclaration(func, nameToken, inStruct, isInit, structName);
 
             // Either => for one line, or => {...} for a block.
@@ -1574,7 +1574,6 @@ namespace Fluence
             {
                 int selfIndex = nextSlotIndex++;
                 _variableSlotMap["self".GetHashCode()] = selfIndex;
-                func.SelfRegisterIndex = selfIndex;
             }
 
             // Parameters get the next available slots.
@@ -1604,10 +1603,10 @@ namespace Fluence
 
             if (_currentParseState.CurrentScope.TryResolve(func.Name.GetHashCode(), out Symbol symbol) && symbol is FunctionSymbol funcSymbol)
             {
-                funcSymbol.SelfRegisterIndex = func.SelfRegisterIndex;
                 funcSymbol.TotalRegisterSlots = func.TotalRegisterSlots;
                 funcSymbol.SetEndAddress(func.EndAddress);
                 funcSymbol.SetArgumentRegisterIndices(func.ArgumentRegisterIndices);
+                funcSymbol.BelongsToAStruct = inStruct;
             }
 
             for (int i = 0; i < _currentParseState.FunctionVariableDeclarations.Count; i++)
@@ -4131,7 +4130,7 @@ namespace Fluence
 
             _currentParseState.CodeInstructions[lambdaBodySkipIndex].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
 
-            FunctionValue lambdaFunction = new FunctionValue($"lambda__{args.Count}", args.Count, lambdaCodeStartIndex, startAddressInSource, args, argsByRef, _currentParseState.CurrentScope);
+            FunctionValue lambdaFunction = new FunctionValue($"lambda__{args.Count}", false, args.Count, lambdaCodeStartIndex, startAddressInSource, args, argsByRef, _currentParseState.CurrentScope);
             return new LambdaValue(lambdaFunction);
         }
 

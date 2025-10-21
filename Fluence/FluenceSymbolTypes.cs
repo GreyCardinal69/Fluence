@@ -192,9 +192,9 @@ namespace Fluence
         internal int TotalRegisterSlots { get; set; }
 
         /// <summary>
-        /// The register index of the implicit "self" instance object, if the function belongs to a struct, othwerwise -1.
+        /// Indicates whether the function is an instance or a static method of some struct type.
         /// </summary>
-        internal int SelfRegisterIndex { get; set; } = -1;
+        internal bool BelongsToAStruct { get; set; }
 
         /// <summary>
         /// Sets the bytecode start address for this function. Called by the parser during the second pass.

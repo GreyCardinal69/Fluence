@@ -42,6 +42,7 @@ namespace Fluence
             FuseCompoundAssignments(ref bytecode, startIndex, ref byteCodeChanged);
             FuseSimpleAssignments(ref bytecode, startIndex, ref byteCodeChanged);
             FusePushParams(ref bytecode, startIndex, ref byteCodeChanged);
+            ConvertToIncrementsDecrements(ref bytecode, startIndex);
 
             if (byteCodeChanged)
             {
@@ -188,6 +189,38 @@ namespace Fluence
                 }
 
                 i++;
+            }
+        }
+
+        /// <summary>
+        /// Converts an Add or a Subtract instruction that simply increments or decrements a variable into a slightly more faster Increment
+        /// or Decrement instruction.
+        /// </summary>
+        /// <param name="bytecode">The bytecode list to modify.</param>
+        /// <param name="startIndex">The index from which to begin scanning.</param>
+        private static void ConvertToIncrementsDecrements(ref List<InstructionLine> bytecode, int startIndex)
+        {
+            for (int i = startIndex; i < bytecode.Count - 1; i++)
+            {
+                InstructionLine line1 = bytecode[i];
+                if (line1 == null) continue;
+
+                // Pattern Match:
+                // Add/Sub      Var     Var     1
+                // =>
+                // ++/--        Var     1
+                if ((line1.Instruction == InstructionCode.Add || line1.Instruction == InstructionCode.Subtract) &&
+                     line1.Lhs is VariableValue var &&
+                     line1.Rhs is VariableValue var2 &&
+                     var.Hash == var2.Hash)
+                {
+                    InstructionCode instruction = line1.Instruction == InstructionCode.Add ? InstructionCode.Increment : InstructionCode.Decrement;
+
+                    // This optimization does not change bytecode instructions to a considerable degree, no need to parch addresses.
+                    bytecode[i].Instruction = instruction;
+                    bytecode[i].Rhs = NumberValue.One;
+                    bytecode[i].Rhs2 = null!;
+                }
             }
         }
 

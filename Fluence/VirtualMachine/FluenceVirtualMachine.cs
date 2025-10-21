@@ -354,6 +354,9 @@ namespace Fluence.VirtualMachine
             _dispatchTable[(int)InstructionCode.ModAssign] = ExecuteModulo;
             _dispatchTable[(int)InstructionCode.SubAssign] = ExecuteSubtraction;
 
+            _dispatchTable[(int)InstructionCode.Increment] = ExecuteIncrement;
+            _dispatchTable[(int)InstructionCode.Decrement] = ExecuteDecrement;
+
             _dispatchTable[(int)InstructionCode.AssignTwo] = ExecuteAssignTwo;
 
             _dispatchTable[(int)InstructionCode.PushTwoParams] = ExecutePushTwoParam;
@@ -942,6 +945,24 @@ namespace Fluence.VirtualMachine
             };
 
             SetRegister(destination, result);
+        }
+
+        /// <summary>
+        /// Handles the INCREMENT instruction that increments a variable that is numeric.
+        /// </summary>
+        private void ExecuteIncrement(InstructionLine instruction)
+        {
+            VariableValue var = (VariableValue)instruction.Lhs;
+            AssignVariable(var, new RuntimeValue(_cachedRegisters[var.RegisterIndex].IntValue + 1), instruction, var.IsReadOnly);
+        }
+
+        /// <summary>
+        /// Handles the DECREMENT instruction that increments a variable that is numeric.
+        /// </summary>
+        private void ExecuteDecrement(InstructionLine instruction)
+        {
+            VariableValue var = (VariableValue)instruction.Lhs;
+            AssignVariable(var, new RuntimeValue(_cachedRegisters[var.RegisterIndex].IntValue - 1), instruction, var.IsReadOnly);
         }
 
         /// <summary>

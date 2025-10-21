@@ -100,6 +100,9 @@ namespace Fluence
                 DivAssign,
                 ModAssign,
 
+                Increment,
+                Decrement,
+
                 AssignTwo,
 
                 BranchIfEqual,

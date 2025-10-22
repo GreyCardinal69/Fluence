@@ -43,6 +43,7 @@ namespace Fluence
             FuseSimpleAssignments(ref bytecode, startIndex, ref byteCodeChanged);
             FusePushParams(ref bytecode, startIndex, ref byteCodeChanged);
             ConvertToIncrementsDecrements(ref bytecode, startIndex);
+            FuseComparisonBranches(ref bytecode, startIndex, ref byteCodeChanged);
 
             if (byteCodeChanged)
             {
@@ -218,7 +219,7 @@ namespace Fluence
 
                     // This optimization does not change bytecode instructions to a considerable degree, no need to parch addresses.
                     bytecode[i].Instruction = instruction;
-                    bytecode[i].Rhs = NumberValue.One;
+                    bytecode[i].Rhs = null!;
                     bytecode[i].Rhs2 = null!;
                 }
             }
@@ -381,6 +382,77 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Scans for a comparison operation (<, <=, >, >=) followed by a conditional jump
+        /// that uses its result, and fuses them into a single, efficient branch instruction.
+        /// </summary>
+        /// <param name="bytecode">The bytecode list to modify.</param>
+        /// <param name="startIndex">The index from which to begin scanning.</param>
+        /// <param name="byteCodeChanged">Flag to indicate if the bytecode was modified.</param>
+        private static void FuseComparisonBranches(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
+        {
+            Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
+            Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
+
+            int i = 0;
+            while (i < relevantSpan.Length - 1)
+            {
+                ref InstructionLine? line1 = ref relevantSpan[i]!;
+                InstructionLine? line2 = relevantSpan[i + 1];
+
+                if (line1 is null || line2 is null)
+                {
+                    i++;
+                    continue;
+                }
+
+                InstructionCode fusedOp = GetFusedBranchOpCode(line1.Instruction, line2.Instruction);
+
+                // Pattern Match:
+                // [Comparison] TempN    A          B
+                // [GotoIfTrue/False]    JMP        TempN      .
+                // =>
+                // [BranchIf...] JMP     A          B
+                if (fusedOp != InstructionCode.Skip &&
+                    line1.Lhs is TempValue comparisonResult &&
+                    line2.Rhs is TempValue jumpCondition &&
+                    comparisonResult.Hash == jumpCondition.Hash)
+                {
+                    line1.Instruction = fusedOp;
+                    line1.Lhs = line2.Lhs;
+                    relevantSpan[i + 1] = null!;
+                    byteCodeChanged = true;
+
+                    i += 2;
+                }
+                else
+                {
+                    i++;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the corresponding branch instruction for a given comparison and conditional goto pair.
+        /// </summary>
+        /// <returns>The fused instruction code, or <see cref="InstructionCode.Skip"/> if no pattern matches.</returns>
+        private static InstructionCode GetFusedBranchOpCode(InstructionCode comparisonOp, InstructionCode jumpOp) => (comparisonOp, jumpOp) switch
+        {
+            (InstructionCode.GreaterThan, InstructionCode.GotoIfTrue) => InstructionCode.BranchIfGreaterThan,
+            (InstructionCode.GreaterThan, InstructionCode.GotoIfFalse) => InstructionCode.BranchIfLessOrEqual,
+
+            (InstructionCode.LessThan, InstructionCode.GotoIfTrue) => InstructionCode.BranchIfLessThan,
+            (InstructionCode.LessThan, InstructionCode.GotoIfFalse) => InstructionCode.BranchIfGreaterOrEqual,
+
+            (InstructionCode.GreaterEqual, InstructionCode.GotoIfTrue) => InstructionCode.BranchIfGreaterOrEqual,
+            (InstructionCode.GreaterEqual, InstructionCode.GotoIfFalse) => InstructionCode.BranchIfLessThan,
+
+            (InstructionCode.LessEqual, InstructionCode.GotoIfTrue) => InstructionCode.BranchIfLessOrEqual,
+            (InstructionCode.LessEqual, InstructionCode.GotoIfFalse) => InstructionCode.BranchIfGreaterThan,
+
+            _ => InstructionCode.Skip,
+        };
+
+        /// <summary>
         /// Checks whether the given <see cref="Value"/> represents a constant value such as strings, chars, nil, bool or numeric.
         /// </summary>
         /// <param name="val">The Value to check.</param>
@@ -426,7 +498,11 @@ namespace Fluence
             or InstructionCode.GotoIfTrue
             or InstructionCode.GotoIfFalse
             or InstructionCode.BranchIfEqual
-            or InstructionCode.BranchIfNotEqual;
+            or InstructionCode.BranchIfNotEqual
+            or InstructionCode.BranchIfGreaterThan
+            or InstructionCode.BranchIfGreaterOrEqual
+            or InstructionCode.BranchIfLessThan
+            or InstructionCode.BranchIfLessOrEqual;
 
         /// <summary>
         /// Compacts the bytecode list by removing all null placeholders and realigns all absolute addresses.

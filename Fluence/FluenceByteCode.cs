@@ -107,6 +107,10 @@ namespace Fluence
 
                 BranchIfEqual,
                 BranchIfNotEqual,
+                BranchIfGreaterThan,
+                BranchIfGreaterOrEqual,
+                BranchIfLessThan,
+                BranchIfLessOrEqual,
 
                 PushTwoParams,
                 PushThreeParams,
@@ -207,7 +211,7 @@ namespace Fluence
             {
                 string[] parts =
                 [
-                    Instruction.ToString().PadRight(20),
+                    Instruction.ToString().PadRight(25),
                     (Lhs?.ToByteCodeString() ?? "null").PadRight(40),
                     (Rhs?.ToByteCodeString() ?? "null").PadRight(45),
                     (Rhs2?.ToByteCodeString() ?? "null").PadRight(40),

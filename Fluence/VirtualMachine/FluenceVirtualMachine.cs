@@ -8,6 +8,7 @@ using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceInterpreter;
 using static Fluence.FluenceParser;
+using static Fluence.InlineCacheManager;
 
 namespace Fluence.VirtualMachine
 {
@@ -191,7 +192,7 @@ namespace Fluence.VirtualMachine
             _outputLine($"Total Instructions Executed: {totalInstructions:N0}");
             _outputLine($"Total Execution Time: {new TimeSpan(totalTicks).TotalMilliseconds:N3} ms\n");
 
-            _outputLine($"{"OpCode",-20} | {"Count",-15} | {"% of Total",-12} | {"Total Time (ms)",-18} | {"% of Time",-12} | {"Avg. Ticks/Op",-15}");
+            _outputLine($"{"OpCode",-25} | {"Count",-15} | {"% of Total",-12} | {"Total Time (ms)",-18} | {"% of Time",-12} | {"Avg. Ticks/Op",-15}");
             _outputLine(new string('-', 110));
 
             profileData.Sort((a, b) => b.Ticks.CompareTo(a.Ticks));
@@ -210,7 +211,7 @@ namespace Fluence.VirtualMachine
                 string percentTimeStr = $"{percentOfTotalTime:F2}%";
                 string avgTicksStr = avgTicksPerOp.ToString("F2");
 
-                _outputLine($"{opCodeStr,-20} | {countStr,-15} | {percentCountStr,-12} | {totalMsStr,-18} | {percentTimeStr,-12} | {avgTicksStr,-15}");
+                _outputLine($"{opCodeStr,-25} | {countStr,-15} | {percentCountStr,-12} | {totalMsStr,-18} | {percentTimeStr,-12} | {avgTicksStr,-15}");
             }
             _outputLine(new string('-', 110));
             _outputLine(Environment.NewLine);
@@ -365,6 +366,11 @@ namespace Fluence.VirtualMachine
 
             _dispatchTable[(int)InstructionCode.BranchIfEqual] = (inst) => ExecuteBranchIfEqual(inst, true);
             _dispatchTable[(int)InstructionCode.BranchIfNotEqual] = (inst) => ExecuteBranchIfEqual(inst, false);
+
+            _dispatchTable[(int)InstructionCode.BranchIfGreaterThan] = ExecuteBranchIfGreaterThan;
+            _dispatchTable[(int)InstructionCode.BranchIfGreaterOrEqual] = ExecuteBranchIfGreaterOrEqual;
+            _dispatchTable[(int)InstructionCode.BranchIfLessThan] = ExecuteBranchIfLessThan;
+            _dispatchTable[(int)InstructionCode.BranchIfLessOrEqual] = ExecuteBranchIfLessOrEqual;
 
             // Simple case for Terminate.
             _dispatchTable[(int)InstructionCode.Terminate] = (inst) => _ip = _byteCode.Count;
@@ -1007,6 +1013,75 @@ namespace Fluence.VirtualMachine
             bool result = left.Equals(right);
 
             if (result == target)
+            {
+                _ip = (int)jmp.Value;
+            }
+        }
+
+        private void ExecuteBranchIfGreaterThan(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not NumberValue jmp)
+            {
+                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
+            }
+
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
+
+            instruction.SpecializedHandler = CreateSpecializedComparisonBranchHandler(instruction, this, ComparisonOperation.GreaterThan);
+
+            if (left.DoubleValue > right.DoubleValue)
+            {
+                _ip = (int)jmp.Value;
+            }
+        }
+
+        private void ExecuteBranchIfGreaterOrEqual(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not NumberValue jmp)
+            {
+                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
+            }
+
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
+            instruction.SpecializedHandler = CreateSpecializedComparisonBranchHandler(instruction, this, ComparisonOperation.GreaterOrEqual);
+
+            if (left.DoubleValue >= right.DoubleValue)
+            {
+                _ip = (int)jmp.Value;
+            }
+        }
+
+        private void ExecuteBranchIfLessThan(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not NumberValue jmp)
+            {
+                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
+            }
+
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
+            instruction.SpecializedHandler = CreateSpecializedComparisonBranchHandler(instruction, this, ComparisonOperation.LessThan);
+
+            if (left.DoubleValue < right.DoubleValue)
+            {
+                _ip = (int)jmp.Value;
+            }
+        }
+
+        private void ExecuteBranchIfLessOrEqual(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not NumberValue jmp)
+            {
+                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
+            }
+
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
+            instruction.SpecializedHandler = CreateSpecializedComparisonBranchHandler(instruction, this, ComparisonOperation.LessOrEqual);
+
+            if (left.DoubleValue <= right.DoubleValue)
             {
                 _ip = (int)jmp.Value;
             }
@@ -2227,7 +2302,7 @@ namespace Fluence.VirtualMachine
 
                     if (lexicalScope.TryResolve(var.Hash, out Symbol symbol))
                     {
-                        returnValue = ResolveVariableFromScopeSymbol(symbol, lexicalScope, instruction);
+                        returnValue = ResolveVariableFromScopeSymbol(symbol, instruction);
                         if (returnValue != RuntimeValue.Nil)
                         {
                             return returnValue;
@@ -2242,7 +2317,7 @@ namespace Fluence.VirtualMachine
 
                             if (lexicalScope2.TryResolve(var.Hash, out Symbol symb))
                             {
-                                returnValue = ResolveVariableFromScopeSymbol(symb, lexicalScope2, instruction);
+                                returnValue = ResolveVariableFromScopeSymbol(symb, instruction);
                                 if (returnValue != RuntimeValue.Nil)
                                 {
                                     return returnValue;
@@ -2279,7 +2354,7 @@ namespace Fluence.VirtualMachine
         /// <param name="symbol">The symbol to resolve from.</param>
         /// <param name="scope">The scope of the symbol</param>
         /// <returns>The <see cref="RuntimeValue"/> resolved from the symbol.</returns>
-        private RuntimeValue ResolveVariableFromScopeSymbol(Symbol symbol, FluenceScope scope, InstructionLine instruction)
+        private RuntimeValue ResolveVariableFromScopeSymbol(Symbol symbol, InstructionLine instruction)
         {
             if (symbol is FunctionSymbol funcSymbol)
             {
@@ -2287,14 +2362,15 @@ namespace Fluence.VirtualMachine
             }
             else if (symbol is VariableSymbol variable)
             {
-                if (variable.Value is TempValue temp)
+                if (variable.Value is TempValue temp && temp.RegisterIndex != -1)
                 {
                     return _cachedRegisters[temp.RegisterIndex];
                 }
-                else if (variable.Value is VariableValue var2)
+                else if (variable.Value is VariableValue var2 && var2.RegisterIndex != -1)
                 {
                     return var2.IsGlobal ? _globals[var2.RegisterIndex] : _cachedRegisters[var2.RegisterIndex];
                 }
+
                 foreach (FluenceScope item in Namespaces.Values)
                 {
                     if (item.TryResolve(variable.Hash, out Symbol symb))

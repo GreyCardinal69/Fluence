@@ -600,6 +600,29 @@ namespace Fluence
         internal static SpecializedOpcodeHandler? CreateSpecializedPowerHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right) =>
             CreateBinaryNumericHandler(insn, left, right, vm, PowerValues);
 
+        /// <summary>
+        /// Defines the type of comparison for a specialized branch handler.
+        /// </summary>
+        internal enum ComparisonOperation
+        {
+            GreaterThan,
+            GreaterOrEqual,
+            LessThan,
+            LessOrEqual
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsGreaterThan(RuntimeValue left, RuntimeValue right) => left.IntValue > right.IntValue;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsGreaterOrEqual(RuntimeValue left, RuntimeValue right) => left.IntValue >= right.IntValue;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsLessThan(RuntimeValue left, RuntimeValue right) => left.IntValue < right.IntValue;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsLessOrEqual(RuntimeValue left, RuntimeValue right) => left.IntValue <= right.IntValue;
+
         internal static SpecializedOpcodeHandler? CreateSpecializedBranchHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue right, bool target)
         {
             Value lhsOperand = insn.Rhs;
@@ -701,6 +724,110 @@ namespace Fluence
                 {
                     // The condition is always false, so this instruction does nothing.
                     return (i, v) => { /*  */ };
+                }
+            }
+
+            return null;
+        }
+
+        internal static SpecializedOpcodeHandler? CreateSpecializedComparisonBranchHandler(InstructionLine insn, FluenceVirtualMachine vm, ComparisonOperation op)
+        {
+            Value lhsOperand = insn.Rhs;
+            Value rhsOperand = insn.Rhs2;
+            int jumpTarget = (int)((NumberValue)insn.Lhs).Value;
+            RuntimeValue[] globalRegisters = vm.GlobalRegisters;
+
+            Func<RuntimeValue, RuntimeValue, bool> comparisonFunc = op switch
+            {
+                ComparisonOperation.GreaterThan => IsGreaterThan,
+                ComparisonOperation.GreaterOrEqual => IsGreaterOrEqual,
+                ComparisonOperation.LessThan => IsLessThan,
+                ComparisonOperation.LessOrEqual => IsLessOrEqual,
+                _ => throw new NotImplementedException(),
+            };
+
+            if ((lhsOperand is VariableValue or TempValue) && (rhsOperand is VariableValue or TempValue))
+            {
+                VariableValue? leftVar = lhsOperand as VariableValue;
+                int leftIndex = leftVar?.RegisterIndex ?? ((TempValue)lhsOperand).RegisterIndex;
+                bool leftIsGlobal = leftVar?.IsGlobal ?? false;
+
+                VariableValue? rightVar = rhsOperand as VariableValue;
+                int rightIndex = rightVar?.RegisterIndex ?? ((TempValue)rhsOperand).RegisterIndex;
+                bool rightIsGlobal = rightVar?.IsGlobal ?? false;
+
+                if (leftIsGlobal && rightIsGlobal)
+                    return (i, v) =>
+                    {
+                        if (comparisonFunc(globalRegisters[leftIndex], globalRegisters[rightIndex])) v.SetInstructionPointer(jumpTarget);
+                    };
+                if (leftIsGlobal && !rightIsGlobal)
+                    return (i, v) =>
+                    {
+                        if (comparisonFunc(globalRegisters[leftIndex], v.CurrentRegisters[rightIndex])) v.SetInstructionPointer(jumpTarget);
+                    };
+                if (!leftIsGlobal && rightIsGlobal)
+                    return (i, v) =>
+                    {
+                        if (comparisonFunc(v.CurrentRegisters[leftIndex], globalRegisters[rightIndex])) v.SetInstructionPointer(jumpTarget);
+                    };
+
+                return (i, v) =>
+                {
+                    if (comparisonFunc(v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex])) v.SetInstructionPointer(jumpTarget);
+                };
+            }
+
+            if ((lhsOperand is VariableValue or TempValue) && rhsOperand is NumberValue)
+            {
+                VariableValue? leftVar = lhsOperand as VariableValue;
+                int leftIndex = leftVar?.RegisterIndex ?? ((TempValue)lhsOperand).RegisterIndex;
+                bool leftIsGlobal = leftVar?.IsGlobal ?? false;
+                RuntimeValue constValue = vm.GetRuntimeValue(rhsOperand, insn);
+
+                if (leftIsGlobal)
+                    return (i, v) =>
+                    {
+                        if (comparisonFunc(globalRegisters[leftIndex], constValue)) v.SetInstructionPointer(jumpTarget);
+                    };
+
+                return (i, v) =>
+                {
+                    if (comparisonFunc(v.CurrentRegisters[leftIndex], constValue)) v.SetInstructionPointer(jumpTarget);
+                };
+            }
+
+            if (lhsOperand is NumberValue && (rhsOperand is VariableValue or TempValue))
+            {
+                RuntimeValue constValue = vm.GetRuntimeValue(lhsOperand, insn);
+                VariableValue? rightVar = rhsOperand as VariableValue;
+                int rightIndex = rightVar?.RegisterIndex ?? ((TempValue)rhsOperand).RegisterIndex;
+                bool rightIsGlobal = rightVar?.IsGlobal ?? false;
+
+                if (rightIsGlobal)
+                    return (i, v) =>
+                    {
+                        if (comparisonFunc(constValue, globalRegisters[rightIndex])) v.SetInstructionPointer(jumpTarget);
+                    };
+
+                return (i, v) =>
+                {
+                    if (comparisonFunc(constValue, v.CurrentRegisters[rightIndex])) v.SetInstructionPointer(jumpTarget);
+                };
+            }
+
+            if (lhsOperand is NumberValue && rhsOperand is NumberValue)
+            {
+                RuntimeValue leftConst = vm.GetRuntimeValue(lhsOperand, insn);
+                RuntimeValue rightConst = vm.GetRuntimeValue(rhsOperand, insn);
+
+                if (comparisonFunc(leftConst, rightConst))
+                {
+                    return (i, v) => v.SetInstructionPointer(jumpTarget);
+                }
+                else
+                {
+                    return (i, v) => { /* always false. */ };
                 }
             }
 

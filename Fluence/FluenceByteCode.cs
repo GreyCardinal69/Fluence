@@ -151,7 +151,7 @@ namespace Fluence
             /// The cached, optimized "fast path" for this instruction.
             /// If this is not null, it is executed by the generic opcode handler.
             /// </summary>
-            internal SpecializedOpcodeHandler? SpecializedHandler { get; set; }
+            internal SpecializedOpcodeHandler? SpecializedHandler { get; set; } = null!;
 
             /// <summary>The approximate line location the instruction points to in the source file.</summary>
             internal int LineInSourceCode { get; private set; }

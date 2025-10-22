@@ -8,7 +8,7 @@ using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceInterpreter;
 using static Fluence.FluenceParser;
-using static Fluence.InlineCacheManager;
+using static Fluence.VirtualMachine.InlineCacheManager;
 
 namespace Fluence.VirtualMachine
 {

@@ -1,10 +1,9 @@
 ﻿using Fluence.RuntimeTypes;
-using Fluence.VirtualMachine;
 using System.Runtime.CompilerServices;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 
-namespace Fluence
+namespace Fluence.VirtualMachine
 {
     internal static class InlineCacheManager
     {
@@ -746,7 +745,7 @@ namespace Fluence
                 _ => throw new NotImplementedException(),
             };
 
-            if ((lhsOperand is VariableValue or TempValue) && (rhsOperand is VariableValue or TempValue))
+            if (lhsOperand is VariableValue or TempValue && rhsOperand is VariableValue or TempValue)
             {
                 VariableValue? leftVar = lhsOperand as VariableValue;
                 int leftIndex = leftVar?.RegisterIndex ?? ((TempValue)lhsOperand).RegisterIndex;
@@ -778,7 +777,7 @@ namespace Fluence
                 };
             }
 
-            if ((lhsOperand is VariableValue or TempValue) && rhsOperand is NumberValue)
+            if (lhsOperand is VariableValue or TempValue && rhsOperand is NumberValue)
             {
                 VariableValue? leftVar = lhsOperand as VariableValue;
                 int leftIndex = leftVar?.RegisterIndex ?? ((TempValue)lhsOperand).RegisterIndex;
@@ -797,7 +796,7 @@ namespace Fluence
                 };
             }
 
-            if (lhsOperand is NumberValue && (rhsOperand is VariableValue or TempValue))
+            if (lhsOperand is NumberValue && rhsOperand is VariableValue or TempValue)
             {
                 RuntimeValue constValue = vm.GetRuntimeValue(lhsOperand, insn);
                 VariableValue? rightVar = rhsOperand as VariableValue;

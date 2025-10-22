@@ -3669,7 +3669,8 @@ namespace Fluence
             switch (descriptor)
             {
                 case VariableValue variable:
-                    _currentParseState.CurrentScope.Declare(variable.Hash, new VariableSymbol(variable.Name, valueToAssign, variable.IsReadOnly));
+                    // Obsolete artefact?
+                    // _currentParseState.CurrentScope.Declare(variable.Hash, new VariableSymbol(variable.Name, valueToAssign, variable.IsReadOnly));
 
                     if (valueToAssign is LambdaValue)
                     {

@@ -1865,7 +1865,7 @@ namespace Fluence.VirtualMachine
                 throw ConstructRuntimeException($"Internal VM Error: Mismatched arguments for function '{function.Name}'. Expected {function.Arity}, but got {argCount}.");
             }
 
-            SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedCallFunctionHandler(instruction, function);
+            SpecializedOpcodeHandler? handler = CreateSpecializedCallFunctionHandler(instruction, function);
             if (handler != null)
             {
                 instruction.SpecializedHandler = handler;

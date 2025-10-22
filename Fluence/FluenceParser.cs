@@ -1937,12 +1937,22 @@ namespace Fluence
                 {
                     Value pattern = ResolveValue(ParseTernary());
 
-                    TempValue condition = new TempValue(_currentParseState.NextTempNumber++);
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, condition, resolvedMatchOn, pattern));
+                    // This means that we are matching on some expression.
+                    if (pattern is TempValue temp)
+                    {
+                        // We'll patch later.
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, temp));
+                        nextCasePatchIndex = _currentParseState.CodeInstructions.Count - 1;
+                    }
+                    else
+                    {
+                        TempValue condition = new TempValue(_currentParseState.NextTempNumber++);
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, condition, resolvedMatchOn, pattern));
 
-                    // We'll patch later.
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
-                    nextCasePatchIndex = _currentParseState.CodeInstructions.Count - 1;
+                        // We'll patch later.
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, condition));
+                        nextCasePatchIndex = _currentParseState.CodeInstructions.Count - 1;
+                    }
                 }
 
                 if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)

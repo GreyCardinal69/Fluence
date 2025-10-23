@@ -303,7 +303,7 @@ namespace Fluence
         /// </summary>
         private void ConstructAndThrowException(FluenceException ex)
         {
-            OnErrorOutput(ex.ToString());
+            OnErrorOutput(ex.Message);
         }
     }
 }

@@ -116,6 +116,7 @@ namespace Fluence
                 ElaborateOnContext(ExceptionType);
             }
 
+            stringBuilder.AppendLine("Fluence.Exceptions.FluenceRuntimeException:");
             stringBuilder.AppendLine($"\nException occured in: {(string.IsNullOrEmpty(fileName) ? "Script" : fileName)}.");
 
             if (!string.IsNullOrEmpty(filepath))

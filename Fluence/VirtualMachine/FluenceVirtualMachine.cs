@@ -50,8 +50,6 @@ namespace Fluence.VirtualMachine
         /// <summary>The top-level global scope, used for resolving global functions and variables.</summary>
         private readonly FluenceScope _globalScope;
 
-        private static readonly int _selfInstanceHashCode = "self".GetHashCode();
-
         /// <summary>The stack used for passing arguments to functions and for temporary operand storage.</summary>
         private readonly Stack<RuntimeValue> _operandStack = new Stack<RuntimeValue>();
 
@@ -838,6 +836,20 @@ namespace Fluence.VirtualMachine
         /// <summary>Handles the ASSIGN_TWO instruction, which is used for variable assignment of two variables at once.</summary>
         private void ExecuteAssignTwo(InstructionLine instruction)
         {
+            if (!(instruction.Lhs is VariableValue && instruction.Rhs is RangeValue) && !(instruction.Rhs2 is VariableValue && instruction.Rhs3 is RangeValue))
+            {
+                if (instruction.SpecializedHandler == null)
+                {
+                    instruction.SpecializedHandler = CreateSpecializedAssignTwoHandler(instruction, this);
+
+                    if (instruction.SpecializedHandler != null)
+                    {
+                        instruction.SpecializedHandler(instruction, this);
+                        return;
+                    }
+                }
+            }
+
             AssignTo(instruction.Lhs, instruction.Rhs, instruction);
             AssignTo(instruction.Rhs2, instruction.Rhs3, instruction);
         }
@@ -845,6 +857,17 @@ namespace Fluence.VirtualMachine
         /// <summary>Handles the ASSIGN instruction, which is used for variable assignment and range-to-list expansion.</summary>
         private void ExecuteAssign(InstructionLine instruction)
         {
+            if (!(instruction.Lhs is VariableValue && instruction.Rhs is RangeValue))
+            {
+                instruction.SpecializedHandler = CreateSpecializedAssignHandler(instruction, this);
+
+                if (instruction.SpecializedHandler != null)
+                {
+                    instruction.SpecializedHandler(instruction, this);
+                    return;
+                }
+            }
+
             AssignTo(instruction.Lhs, instruction.Rhs, instruction);
         }
 

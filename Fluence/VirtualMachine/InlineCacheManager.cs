@@ -1003,6 +1003,432 @@ namespace Fluence.VirtualMachine
             return null;
         }
 
+        internal static SpecializedOpcodeHandler? CreateSpecializedAssignHandler(InstructionLine insn, FluenceVirtualMachine vm)
+        {
+            Value dest = insn.Lhs;
+            Value source = insn.Rhs;
+            RuntimeValue[] globalRegisters = vm.GlobalRegisters;
+
+            if (dest is not VariableValue && dest is not TempValue)
+            {
+                return null;
+            }
+
+            var destVar = dest as VariableValue;
+            int destIndex = destVar?.RegisterIndex ?? ((TempValue)dest).RegisterIndex;
+            bool destIsGlobal = destVar?.IsGlobal ?? false;
+
+            if (source is VariableValue sourceVar || source is TempValue)
+            {
+                int sourceIndex = (source as VariableValue)?.RegisterIndex ?? ((TempValue)source).RegisterIndex;
+                bool sourceIsGlobal = (source as VariableValue)?.IsGlobal ?? false;
+
+                if (!destIsGlobal && !sourceIsGlobal)
+                    return (i, v) => v.CurrentRegisters[destIndex] = v.CurrentRegisters[sourceIndex];
+
+                if (destIsGlobal && sourceIsGlobal)
+                    return (i, v) => globalRegisters[destIndex] = globalRegisters[sourceIndex];
+
+                if (!destIsGlobal && sourceIsGlobal)
+                    return (i, v) => v.CurrentRegisters[destIndex] = globalRegisters[sourceIndex];
+
+                if (destIsGlobal && !sourceIsGlobal)
+                    return (i, v) => globalRegisters[destIndex] = v.CurrentRegisters[sourceIndex];
+            }
+
+            if (IsAConstantValue(source))
+            {
+                RuntimeValue constValue = vm.GetRuntimeValue(source, insn);
+
+                if (!destIsGlobal)
+                    return (i, v) => v.CurrentRegisters[destIndex] = constValue;
+
+                if (destIsGlobal)
+                    return (i, v) => globalRegisters[destIndex] = constValue;
+            }
+
+            return null;
+        }
+
+        internal static SpecializedOpcodeHandler? CreateSpecializedAssignTwoHandler(InstructionLine insn, FluenceVirtualMachine vm)
+        {
+            Value dest1 = insn.Lhs;
+            Value source1 = insn.Rhs;
+            Value dest2 = insn.Rhs2;
+            Value source3 = insn.Rhs3;
+            RuntimeValue[] globalRegisters = vm.GlobalRegisters;
+
+            var dest1Var = dest1 as VariableValue;
+            int dest1Index = dest1Var?.RegisterIndex ?? ((TempValue)dest1).RegisterIndex;
+            bool dest1IsGlobal = dest1Var?.IsGlobal ?? false;
+
+            var source1Var = source1 as VariableValue;
+            int? source1Index = source1Var?.RegisterIndex ?? (source1 as TempValue)?.RegisterIndex;
+            bool source1IsGlobal = source1Var?.IsGlobal ?? false;
+            RuntimeValue? source1Const = IsAConstantValue(source1) ? vm.GetRuntimeValue(source1, insn) : null;
+
+            var dest2Var = dest2 as VariableValue;
+            int dest2Index = dest2Var?.RegisterIndex ?? ((TempValue)dest2).RegisterIndex;
+            bool dest2IsGlobal = dest2Var?.IsGlobal ?? false;
+
+            var source2Var = source3 as VariableValue;
+            int? source2Index = source2Var?.RegisterIndex ?? (source3 as TempValue)?.RegisterIndex;
+            bool source2IsGlobal = source2Var?.IsGlobal ?? false;
+            RuntimeValue? source2Const = IsAConstantValue(source3) ? vm.GetRuntimeValue(source3, insn) : null;
+
+            if (dest1IsGlobal)
+            {
+                if (dest2IsGlobal)
+                {
+                    if (source1Const.HasValue && source2Const.HasValue)
+                    {
+                        return (i, v) =>
+                        {
+                            globalRegisters[dest1Index] = source1Const.Value;
+                            globalRegisters[dest2Index] = source2Const.Value;
+                        };
+                    }
+                    if (source1Const.HasValue && source2Index.HasValue)
+                    {
+                        if (source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = source1Const.Value;
+                                globalRegisters[dest2Index] = globalRegisters[source2Index.Value];
+                            };
+                        }
+                        else
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = source1Const.Value;
+                                globalRegisters[dest2Index] = v.CurrentRegisters[source2Index.Value];
+                            };
+                        }
+                    }
+                    if (source1Index.HasValue && source2Const.HasValue)
+                    {
+                        if (source1IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = globalRegisters[source1Index.Value];
+                                globalRegisters[dest2Index] = source2Const.Value;
+                            };
+                        }
+                        else
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = v.CurrentRegisters[source1Index.Value];
+                                globalRegisters[dest2Index] = source2Const.Value;
+                            };
+                        }
+                    }
+                    if (source1Index.HasValue && source2Index.HasValue)
+                    {
+                        if (source1IsGlobal && source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = globalRegisters[source1Index.Value];
+                                globalRegisters[dest2Index] = globalRegisters[source2Index.Value];
+                            };
+                        }
+                        if (source1IsGlobal && !source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = globalRegisters[source1Index.Value];
+                                globalRegisters[dest2Index] = v.CurrentRegisters[source2Index.Value];
+                            };
+                        }
+                        if (!source1IsGlobal && source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = v.CurrentRegisters[source1Index.Value];
+                                globalRegisters[dest2Index] = globalRegisters[source2Index.Value];
+                            };
+                        }
+                        else
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = v.CurrentRegisters[source1Index.Value];
+                                globalRegisters[dest2Index] = v.CurrentRegisters[source2Index.Value];
+                            };
+                        }
+                    }
+                }
+                else
+                {
+                    if (source1Const.HasValue && source2Const.HasValue)
+                    {
+                        return (i, v) =>
+                        {
+                            globalRegisters[dest1Index] = source1Const.Value;
+                            v.CurrentRegisters[dest2Index] = source2Const.Value;
+                        };
+                    }
+                    if (source1Const.HasValue && source2Index.HasValue)
+                    {
+                        if (source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = source1Const.Value;
+                                v.CurrentRegisters[dest2Index] = globalRegisters[source2Index.Value];
+                            };
+                        }
+                        else
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = source1Const.Value;
+                                v.CurrentRegisters[dest2Index] = v.CurrentRegisters[source2Index.Value];
+                            };
+                        }
+                    }
+                    if (source1Index.HasValue && source2Const.HasValue)
+                    {
+                        if (source1IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = globalRegisters[source1Index.Value];
+                                v.CurrentRegisters[dest2Index] = source2Const.Value;
+                            };
+                        }
+                        else
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = v.CurrentRegisters[source1Index.Value];
+                                v.CurrentRegisters[dest2Index] = source2Const.Value;
+                            };
+                        }
+                    }
+                    if (source1Index.HasValue && source2Index.HasValue)
+                    {
+                        if (source1IsGlobal && source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = globalRegisters[source1Index.Value];
+                                v.CurrentRegisters[dest2Index] = globalRegisters[source2Index.Value];
+                            };
+                        }
+                        if (source1IsGlobal && !source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = globalRegisters[source1Index.Value];
+                                v.CurrentRegisters[dest2Index] = v.CurrentRegisters[source2Index.Value];
+                            };
+                        }
+                        if (!source1IsGlobal && source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = v.CurrentRegisters[source1Index.Value];
+                                v.CurrentRegisters[dest2Index] = globalRegisters[source2Index.Value];
+                            };
+                        }
+                        else
+                        {
+                            return (i, v) =>
+                            {
+                                globalRegisters[dest1Index] = v.CurrentRegisters[source1Index.Value];
+                                v.CurrentRegisters[dest2Index] = v.CurrentRegisters[source2Index.Value];
+                            };
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (dest2IsGlobal)
+                {
+                    if (source1Const.HasValue && source2Const.HasValue)
+                    {
+                        return (i, v) =>
+                        {
+                            v.CurrentRegisters[dest1Index] = source1Const.Value;
+                            globalRegisters[dest2Index] = source2Const.Value;
+                        };
+                    }
+                    if (source1Const.HasValue && source2Index.HasValue)
+                    {
+                        if (source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = source1Const.Value;
+                                globalRegisters[dest2Index] = globalRegisters[source2Index.Value];
+                            };
+                        }
+                        else
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = source1Const.Value;
+                                globalRegisters[dest2Index] = v.CurrentRegisters[source2Index.Value];
+                            };
+                        }
+                    }
+                    if (source1Index.HasValue && source2Const.HasValue)
+                    {
+                        if (source1IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = globalRegisters[source1Index.Value];
+                                globalRegisters[dest2Index] = source2Const.Value;
+                            };
+                        }
+                        else
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = v.CurrentRegisters[source1Index.Value];
+                                globalRegisters[dest2Index] = source2Const.Value;
+                            };
+                        }
+                    }
+                    if (source1Index.HasValue && source2Index.HasValue)
+                    {
+                        if (source1IsGlobal && source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = globalRegisters[source1Index.Value];
+                                globalRegisters[dest2Index] = globalRegisters[source2Index.Value];
+                            };
+                        }
+                        if (source1IsGlobal && !source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = globalRegisters[source1Index.Value];
+                                globalRegisters[dest2Index] = v.CurrentRegisters[source2Index.Value];
+                            };
+                        }
+                        if (!source1IsGlobal && source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = v.CurrentRegisters[source1Index.Value];
+                                globalRegisters[dest2Index] = globalRegisters[source2Index.Value];
+                            };
+                        }
+                        else
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = v.CurrentRegisters[source1Index.Value];
+                                globalRegisters[dest2Index] = v.CurrentRegisters[source2Index.Value];
+                            };
+                        }
+                    }
+                }
+                else
+                {
+                    if (source1Const.HasValue && source2Const.HasValue)
+                    {
+                        return (i, v) =>
+                        {
+                            v.CurrentRegisters[dest1Index] = source1Const.Value;
+                            v.CurrentRegisters[dest2Index] = source2Const.Value;
+                        };
+                    }
+                    if (source1Const.HasValue && source2Index.HasValue)
+                    {
+                        if (source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = source1Const.Value;
+                                v.CurrentRegisters[dest2Index] = globalRegisters[source2Index.Value];
+                            };
+                        }
+                        else
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = source1Const.Value;
+                                v.CurrentRegisters[dest2Index] = v.CurrentRegisters[source2Index.Value];
+                            };
+                        }
+                    }
+                    if (source1Index.HasValue && source2Const.HasValue)
+                    {
+                        if (source1IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = globalRegisters[source1Index.Value];
+                                v.CurrentRegisters[dest2Index] = source2Const.Value;
+                            };
+                        }
+                        else
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = v.CurrentRegisters[source1Index.Value];
+                                v.CurrentRegisters[dest2Index] = source2Const.Value;
+                            };
+                        }
+                    }
+                    if (source1Index.HasValue && source2Index.HasValue)
+                    {
+                        if (source1IsGlobal && source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = globalRegisters[source1Index.Value];
+                                v.CurrentRegisters[dest2Index] = globalRegisters[source2Index.Value];
+                            };
+                        }
+                        if (source1IsGlobal && !source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = globalRegisters[source1Index.Value];
+                                v.CurrentRegisters[dest2Index] = v.CurrentRegisters[source2Index.Value];
+                            };
+                        }
+                        if (!source1IsGlobal && source2IsGlobal)
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = v.CurrentRegisters[source1Index.Value];
+                                v.CurrentRegisters[dest2Index] = globalRegisters[source2Index.Value];
+                            };
+                        }
+                        else
+                        {
+                            return (i, v) =>
+                            {
+                                v.CurrentRegisters[dest1Index] = v.CurrentRegisters[source1Index.Value];
+                                v.CurrentRegisters[dest2Index] = v.CurrentRegisters[source2Index.Value];
+                            };
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private static bool IsAConstantValue(Value val) =>val is
+            NumberValue or
+            StringValue or
+            CharValue or
+            BooleanValue or
+            NilValue;
+
         internal static SpecializedOpcodeHandler? CreateSpecializedCallFunctionHandler(FluenceVirtualMachine vm, InstructionLine insn, FunctionObject func)
         {
             if (func.BluePrint == null) return null;

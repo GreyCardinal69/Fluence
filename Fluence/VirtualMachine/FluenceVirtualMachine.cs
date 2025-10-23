@@ -228,10 +228,10 @@ namespace Fluence.VirtualMachine
         /// <param name="input">The delegate to handle user input.</param>
         internal FluenceVirtualMachine(List<InstructionLine> bytecode, VirtualMachineConfiguration config, ParseState parseState, TextOutputMethod? output, TextOutputMethod? outputLine, TextInputMethod? input)
         {
-            _callFramePool = new ObjectPool<CallFrame>(frame => frame.Reset());
+            _callFramePool = new ObjectPool<CallFrame>(frame => frame.RefParameterMap.Clear());
             _iteratorObjectPool = new ObjectPool<IteratorObject>(iter => iter.Reset());
             _charObjectPool = new ObjectPool<CharObject>(chr => chr.Reset());
-            _functionObjectPool = new ObjectPool<FunctionObject>(func => func.Reset());
+            _functionObjectPool = new ObjectPool<FunctionObject>();
             _stringObjectPool = new ObjectPool<StringObject>(str => str.Reset());
             _rangeObjectPool = new ObjectPool<RangeObject>(range => range.Reset());
 
@@ -2168,7 +2168,6 @@ namespace Fluence.VirtualMachine
         private void ExecuteReturn(InstructionLine instruction)
         {
             RuntimeValue returnValue = GetRuntimeValue(instruction.Lhs, instruction);
-
             CallFrame finishedFrame = _callStack.Pop();
 
             _cachedRegisters = _callStack.Peek().Registers;
@@ -2182,19 +2181,19 @@ namespace Fluence.VirtualMachine
                 return;
             }
 
-            if (finishedFrame.DestinationRegister != null)
+            _cachedRegisters[finishedFrame.DestinationRegister.RegisterIndex] = returnValue;
+
+            if (finishedFrame.RefParameterMap.Count > 0)
             {
-                _cachedRegisters[finishedFrame.DestinationRegister.RegisterIndex] = returnValue;
-            }
+                foreach (KeyValuePair<int, int> mapping in finishedFrame.RefParameterMap)
+                {
+                    int paramIndexInFinishedFrame = mapping.Key;
+                    int originalVarIndexInCaller = mapping.Value;
 
-            foreach (KeyValuePair<int, int> mapping in finishedFrame.RefParameterMap)
-            {
-                int paramIndexInFinishedFrame = mapping.Key;
-                int originalVarIndexInCaller = mapping.Value;
+                    RuntimeValue finalValue = finishedFrame.Registers[paramIndexInFinishedFrame];
 
-                RuntimeValue finalValue = finishedFrame.Registers[paramIndexInFinishedFrame];
-
-                _cachedRegisters[originalVarIndexInCaller] = finalValue;
+                    _cachedRegisters[originalVarIndexInCaller] = finalValue;
+                }
             }
 
             _ip = finishedFrame.ReturnAddress;

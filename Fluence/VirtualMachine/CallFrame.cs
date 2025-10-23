@@ -62,25 +62,6 @@ namespace Fluence.VirtualMachine
             RegisterCount = 0;
         }
 
-        public void Reset()
-        {
-            RefParameterMap.Clear();
-
-            if (Registers.Length > 0)
-            {
-                for (int i = 0; i < RegisterCount; i++)
-                {
-                    WritableCache[i] = false;
-                    Registers[i] = RuntimeValue.Nil;
-                }
-            }
-
-            DestinationRegister = null!;
-            Function = null!;
-            ReturnAddress = 0;
-            RegisterCount = 0;
-        }
-
         /// <summary>
         /// Initializes this call frame for the execution of the specified function.
         /// Allocates and initializes registers based on the function's requirements.

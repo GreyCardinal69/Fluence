@@ -130,20 +130,6 @@ namespace Fluence.RuntimeTypes
             BluePrint = symb;
         }
 
-        internal void Reset()
-        {
-            StartAddressInSource = 0;
-            BluePrint = null;
-            Name = null!;
-            Arity = 0;
-            Arguments = null!;
-            StartAddress = 0;
-            DefiningScope = null!;
-            IsIntrinsic = false;
-            ArgumentHashCodes = null!;
-            ArgumentsByRef = null!;
-        }
-
         internal string ToCodeLikeString()
         {
             StringBuilder sb = new StringBuilder($"func {Mangler.Demangle(Name)}(");

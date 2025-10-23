@@ -1819,6 +1819,7 @@ namespace Fluence.VirtualMachine
             return false;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void PrepareFunctionCall(CallFrame frame, FunctionObject function)
         {
             _callStack.Push(frame);
@@ -1865,7 +1866,7 @@ namespace Fluence.VirtualMachine
                 throw ConstructRuntimeException($"Internal VM Error: Mismatched arguments for function '{function.Name}'. Expected {function.Arity}, but got {argCount}.");
             }
 
-            SpecializedOpcodeHandler? handler = CreateSpecializedCallFunctionHandler(instruction, function);
+            SpecializedOpcodeHandler? handler = CreateSpecializedCallFunctionHandler(this, instruction, function);
             if (handler != null)
             {
                 instruction.SpecializedHandler = handler;
@@ -2199,7 +2200,7 @@ namespace Fluence.VirtualMachine
             _ip = finishedFrame.ReturnAddress;
 
             // Lambdas don't return thier function object until their' parent call frame returns.
-            if (!finishedFrame.Function.IsLambda)
+            if (finishedFrame.Function.IsLambda)
             {
                 _functionObjectPool.Return(finishedFrame.Function);
             }

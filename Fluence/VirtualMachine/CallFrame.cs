@@ -78,7 +78,12 @@ namespace Fluence.VirtualMachine
             }
 
             int requiredSize = function.TotalRegisterSlots;
-            EnsureRegisterCapacity(requiredSize);
+
+            if (Registers.Length < requiredSize)
+            {
+                Registers = new RuntimeValue[requiredSize];
+                WritableCache = new bool[requiredSize];
+            }
 
             RegisterCount = requiredSize;
             Function = function;
@@ -86,24 +91,9 @@ namespace Fluence.VirtualMachine
             ReturnAddress = returnAddress;
             DestinationRegister = destination;
 
-            for (int i = 0; i < requiredSize; i++)
+            if (requiredSize > 0)
             {
-                Registers[i] = RuntimeValue.Nil;
-                WritableCache[i] = false;
-            }
-        }
-
-        /// <summary>
-        /// Ensures the registers arrays have sufficient capacity for the specified register count.
-        /// Resizes only when necessary to optimize memory allocation.
-        /// </summary>
-        /// <param name="requiredSize">The minimum number of registers needed.</param>
-        private void EnsureRegisterCapacity(int requiredSize)
-        {
-            if (Registers.Length < requiredSize)
-            {
-                Registers = new RuntimeValue[requiredSize];
-                WritableCache = new bool[requiredSize];
+                Array.Clear(WritableCache, 0, requiredSize);
             }
         }
     }

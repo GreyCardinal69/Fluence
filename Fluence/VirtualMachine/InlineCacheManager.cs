@@ -1003,7 +1003,7 @@ namespace Fluence.VirtualMachine
             return null;
         }
 
-        internal static SpecializedOpcodeHandler? CreateSpecializedCallFunctionHandler(InstructionLine insn, FunctionObject func)
+        internal static SpecializedOpcodeHandler? CreateSpecializedCallFunctionHandler(FluenceVirtualMachine vm, InstructionLine insn, FunctionObject func)
         {
             if (func.BluePrint == null) return null;
 
@@ -1038,9 +1038,10 @@ namespace Fluence.VirtualMachine
                 }
             }
 
+            FunctionObject function = function = vm.CreateFunctionObject(functionBlueprint);
+
             return (instruction, vm) =>
             {
-                FunctionObject function = vm.CreateFunctionObject(functionBlueprint);
                 CallFrame newFrame = vm.GetCallframe();
                 newFrame.Initialize(vm, function, vm.CurrentInstructionPointer, destinationRegister);
 

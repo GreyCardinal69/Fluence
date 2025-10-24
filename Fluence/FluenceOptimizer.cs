@@ -13,7 +13,7 @@ namespace Fluence
         private static readonly Dictionary<int, RegisterInfo> _registerInfoMap = new();
         private static readonly Dictionary<int, Value> _constantsMap = new();
         private static readonly List<int> _instructionsToRemove = new();
-        private static readonly HashSet<string> _uniqueSymbols = new HashSet<string>();
+        private static readonly HashSet<int> _uniqueSymbols = new HashSet<int>();
 
         /// <summary>
         /// A private struct to hold information about a temporary register's assignments.
@@ -568,7 +568,7 @@ namespace Fluence
 
             foreach (Symbol symbol in state.GlobalScope.Symbols.Values)
             {
-                _uniqueSymbols.Add(symbol.Name);
+                _uniqueSymbols.Add(symbol.Hash);
                 if (symbol is FunctionSymbol f)
                 {
                     f.SetStartAddress(MapAddr(f.StartAddress));
@@ -578,13 +578,13 @@ namespace Fluence
                 {
                     foreach (KeyValuePair<string, FunctionValue> item in s.Constructors)
                     {
-                        _uniqueSymbols.Add(item.Key);
+                        _uniqueSymbols.Add(item.Key.GetHashCode());
                         item.Value.SetStartAddress(MapAddr(item.Value.StartAddress));
                         item.Value.SetEndAddress(MapAddr(item.Value.EndAddress));
                     }
                     foreach (FunctionValue m in s.Functions.Values)
                     {
-                        _uniqueSymbols.Add(m.Name);
+                        _uniqueSymbols.Add(m.Hash);
                         m.SetStartAddress(MapAddr(m.StartAddress));
                         m.SetEndAddress(MapAddr(m.EndAddress));
                     }
@@ -595,7 +595,7 @@ namespace Fluence
             {
                 foreach (Symbol symbol in scope.Symbols.Values)
                 {
-                    if (_uniqueSymbols.Contains(symbol.Name))
+                    if (_uniqueSymbols.Contains(symbol.Hash))
                     {
                         continue;
                     }

@@ -16,12 +16,6 @@ namespace Fluence
         /// </summary>
         internal string Name { get; init; }
 
-        /// <summary>
-        /// The hash code of this symbol.
-        /// Taken from the name of the symbol.
-        /// </summary>
-        internal int Hash { get; init; }
-
         protected Symbol(string name)
         {
             Name = name;

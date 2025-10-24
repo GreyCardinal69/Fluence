@@ -347,11 +347,6 @@ namespace Fluence
         internal int Arity { get; init; }
 
         /// <summary>
-        /// The hash code of the function obtained from its mangled name.
-        /// </summary>
-        internal int HashCode { get; init; }
-
-        /// <summary>
         /// The address of the first instruction of the function's body in the bytecode.
         /// </summary>
         internal int StartAddress { get; private set; }
@@ -419,7 +414,7 @@ namespace Fluence
             StartAddressInSource = lineInSource;
             DefiningScope = scope;
 
-            HashCode = name.GetHashCode();
+            Hash = name.GetHashCode();
         }
 
         /// <summary>

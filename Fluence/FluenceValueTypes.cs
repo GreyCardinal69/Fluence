@@ -138,17 +138,22 @@ namespace Fluence
         {
             ReadOnlySpan<char> lexemeSpan = token.Text.AsSpan();
 
-            if (lexemeSpan.EndsWith("f", StringComparison.OrdinalIgnoreCase) && float.TryParse(lexemeSpan[..^1], out float floatVal))
+            if (int.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out int intVal))
             {
-                return new NumberValue(floatVal, NumberType.Float);
+                return intVal switch
+                {
+                    0 => Zero,
+                    1 => One,
+                    _ => new NumberValue(intVal, NumberType.Integer),
+                };
             }
-            if ((lexemeSpan.Contains('.') || lexemeSpan.Contains('e') || lexemeSpan.Contains('E')) && double.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleVal))
+            if ((lexemeSpan.Contains('.') || lexemeSpan.Contains("e", StringComparison.OrdinalIgnoreCase)) && double.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleVal))
             {
                 return new NumberValue(doubleVal, NumberType.Double);
             }
-            if (int.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out int intVal))
+            if (lexemeSpan.EndsWith("f", StringComparison.OrdinalIgnoreCase) && float.TryParse(lexemeSpan[..^1], out float floatVal))
             {
-                return new NumberValue(intVal, NumberType.Integer);
+                return new NumberValue(floatVal, NumberType.Float);
             }
             if (long.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out long longVal))
             {

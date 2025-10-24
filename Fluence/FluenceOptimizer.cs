@@ -241,7 +241,7 @@ namespace Fluence
                 InstructionLine line2 = bytecode[i + 1];
                 if (line1 == null || line2 == null) continue;
 
-                if (line1.Instruction == InstructionCode.Assign && line2.Instruction == InstructionCode.Assign && line2.Rhs != line1.Lhs)
+                if (line1.Instruction == InstructionCode.Assign && line2.Instruction == InstructionCode.Assign && line2.Rhs.Hash != line1.Lhs.Hash)
                 {
                     byteCodeChanged = true;
                     bytecode[i].Instruction = InstructionCode.AssignTwo;

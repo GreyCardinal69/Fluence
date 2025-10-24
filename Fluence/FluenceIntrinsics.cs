@@ -59,17 +59,16 @@ namespace Fluence
 
             if (!Unsafe.IsNullRef(ref registrationAction))
             {
-                int hash = registrationAction.GetHashCode();
-                if (_parser.CurrentParserStateGlobalScope.DeclaredSymbolNames.Contains(hash))
+                ref FluenceScope scope = ref CollectionsMarshal.GetValueRefOrNullRef(_parser.CurrentParseState.NameSpaces, namespaceName);
+
+                if (!Unsafe.IsNullRef(ref scope))
                 {
-                    return null;
+                    return scope;
                 }
 
                 FluenceScope newNamespaceScope = new FluenceScope(_parser.CurrentParserStateGlobalScope, namespaceName);
                 registrationAction(newNamespaceScope);
                 _parser.AddNameSpace(newNamespaceScope);
-
-                _parser.CurrentParserStateGlobalScope.DeclaredSymbolNames.Add(hash);
 
                 return newNamespaceScope;
             }

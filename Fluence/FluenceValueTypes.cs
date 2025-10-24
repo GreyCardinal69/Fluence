@@ -8,6 +8,8 @@ namespace Fluence
     /// </summary>
     internal abstract record class Value
     {
+        internal virtual int Hash { get; init; }
+
         /// <summary>
         /// Provides a user-facing string representation of the value, as it would appear
         /// when printed within the Fluence language itself.

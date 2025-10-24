@@ -38,7 +38,7 @@ namespace Fluence.Exceptions
                     .AppendLine($"LEXER ERROR at: line {LineNum}, Column {Column}")
                     .AppendLine($"\n{LineNum}.│ {FaultyLine}")
                     .AppendLine($"{new string(' ', lineNumLen + 1)}│{new string(' ', Column - 1)}^")
-                    .AppendLine($"{new string('─', lineNumLen + 1)}┴{new string('─', Column - lineNumLen)}┴{new string('─', FaultyLine.Length)}");
+                    .AppendLine($"{new string('─', lineNumLen + 1)}┴{new string('─', Column + 1 - lineNumLen)}┴{new string('─', FaultyLine.Length)}");
             }
 
             string tokenText = Token.Text is "\r" or "\n" or "\r\n" or ";\r\n" ? "NewLine" : Token.Text;

@@ -1,5 +1,6 @@
 ﻿using Fluence.Exceptions;
 using Fluence.RuntimeTypes;
+using Fluence.VirtualMachine;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using static Fluence.FluenceByteCode;
@@ -61,6 +62,11 @@ namespace Fluence
         private readonly Dictionary<int, int> _variableSlotMap = new Dictionary<int, int>();
 
         private readonly Dictionary<int, int> _tempSlotMap = new Dictionary<int, int>();
+
+        /// <summary>
+        /// A pool of lists for the initialization of arguments, be it expression, function call or other.
+        /// </summary>
+        readonly ObjectPool<List<Value>> _lhsPool = new ObjectPool<List<Value>>(list => list.Clear());
 
         /// <summary>
         /// Exposes the global scope of the current parsing state, primarily for the intrinsic registrar.
@@ -268,6 +274,8 @@ namespace Fluence
             {
                 ParseTokens();
             }
+
+            _lhsPool.Clear();
 
             if (!allowTestCode)
             {
@@ -1511,7 +1519,7 @@ namespace Fluence
                         _currentParseState.AddCodeInstruction(
                             new InstructionLine(
                                 InstructionCode.SetField,
-                                new VariableValue("self"),
+                                VariableValue.SelfVariable,
                                 new StringValue(fieldName),
                                 NilValue.NilInstance
                             )
@@ -1529,7 +1537,7 @@ namespace Fluence
                     _currentParseState.AddCodeInstruction(
                         new InstructionLine(
                             InstructionCode.SetField,
-                            new VariableValue("self"),
+                            VariableValue.SelfVariable,
                             new StringValue(fieldName),
                             defaultValueResult // This will be the TempValue from the 'Add' instruction.
                         )
@@ -1667,7 +1675,7 @@ namespace Fluence
             for (int i = 0; i < _currentParseState.FunctionVariableDeclarations.Count; i++)
             {
                 InstructionLine line = _currentParseState.FunctionVariableDeclarations[i];
-                if (line.Rhs is FunctionValue fun && fun.HashCode == func.HashCode)
+                if (line.Rhs is FunctionValue fun && fun.Hash == func.Hash)
                 {
                     _currentParseState.FunctionVariableDeclarations[i].Rhs = func;
                     break;
@@ -2314,6 +2322,7 @@ namespace Fluence
             if (IsMultiCompoundAssignmentOperator(opType))
             {
                 ParseMultiCompoundAssignment(lhsList);
+                _lhsPool.Return(lhsList);
                 return;
             }
 
@@ -2329,6 +2338,7 @@ namespace Fluence
                         ParseGuardChain(firstLhs);
                         break;
                 }
+                _lhsPool.Return(lhsList);
                 return;
             }
 
@@ -2337,15 +2347,18 @@ namespace Fluence
                 if (opType is TokenType.SEQUENTIAL_REST_ASSIGN or TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN)
                 {
                     ParseSequentialRestAssign(lhsList);
+                    _lhsPool.Return(lhsList);
                     return;
                 }
                 else if (opType is TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN or TokenType.CHAIN_N_UNIQUE_ASSIGN)
                 {
                     ParseUniqueChainAssignment(lhsList);
+                    _lhsPool.Return(lhsList);
                     return;
                 }
 
                 ParseChainAssignment(lhsList);
+                _lhsPool.Return(lhsList);
                 return;
             }
 
@@ -2389,6 +2402,7 @@ namespace Fluence
                     // Either a StatementCompleteValue and we do nothing.
                     // Or some nonsense like:
                     // list[0]; Not a write, but reading is pointless. Do nothing.
+                    _lhsPool.Return(lhsList);
                     return;
                 }
                 else if (firstLhs is VariableValue variable)
@@ -2437,7 +2451,9 @@ namespace Fluence
         {
             if (IsBroadCastPipeFunctionCall())
             {
-                return [ParseBroadcastCallTemplate()];
+                List<Value> list = _lhsPool.Get();
+                list.Add(ParseBroadcastCallTemplate());
+                return list;
             }
 
             return ParseTokenSeparatedArguments(TokenType.COMMA);
@@ -3109,6 +3125,8 @@ namespace Fluence
 
             TempValue result = new TempValue(_currentParseState.NextTempNumber++);
             string mangledMethodName = Mangler.Mangle(methodName, arguments.Count);
+
+            _lhsPool.Return(arguments);
 
             _currentParseState.AddCodeInstruction(new InstructionLine(
                 InstructionCode.CallMethod,
@@ -3880,6 +3898,8 @@ namespace Fluence
                 );
             }
 
+            _lhsPool.Return(arguments);
+
             return instance;
         }
 
@@ -4059,6 +4079,8 @@ namespace Fluence
                 ));
             }
 
+            _lhsPool.Return(arguments);
+
             return result;
         }
 
@@ -4205,7 +4227,7 @@ namespace Fluence
         /// <returns>A list of Values representing the parsed arguments.</returns>
         private List<Value> ParseArgumentList()
         {
-            List<Value> arguments = new List<Value>();
+            List<Value> arguments = _lhsPool.Get();
             if (!_lexer.TokenTypeMatches(TokenType.R_PAREN))
             {
                 do
@@ -4222,7 +4244,7 @@ namespace Fluence
         /// <returns>A list of Value objects representing the parsed expressions.</returns>
         private List<Value> ParseTokenSeparatedArguments(TokenType token)
         {
-            List<Value> arguments = new List<Value>();
+            List<Value> arguments = _lhsPool.Get();
             do
             {
                 arguments.Add(ParseTernary());
@@ -4407,7 +4429,7 @@ namespace Fluence
                     }
                     // The 'self' keyword is just a special, pre-defined local variable.
                     // At runtime, the VM will ensure the instance is available.
-                    return new VariableValue("self");
+                    return VariableValue.SelfVariable;
                 case TokenType.L_PAREN:
                     if (IsALambda())
                     {

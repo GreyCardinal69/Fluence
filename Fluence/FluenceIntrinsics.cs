@@ -1,4 +1,6 @@
 ﻿using Fluence.Global;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using static Fluence.FluenceInterpreter;
 
 namespace Fluence
@@ -53,9 +55,12 @@ namespace Fluence
         /// <returns>The newly created and populated scope if the library was found, otherwise null.</returns>
         internal FluenceScope? Use(string namespaceName)
         {
-            if (_libraryRegistry.TryGetValue(namespaceName, out Action<FluenceScope>? registrationAction))
+            ref Action<FluenceScope> registrationAction = ref CollectionsMarshal.GetValueRefOrNullRef(_libraryRegistry, namespaceName);
+
+            if (!Unsafe.IsNullRef(ref registrationAction))
             {
-                if (_parser.CurrentParserStateGlobalScope.DeclaredSymbolNames.Contains(namespaceName.GetHashCode()))
+                int hash = registrationAction.GetHashCode();
+                if (_parser.CurrentParserStateGlobalScope.DeclaredSymbolNames.Contains(hash))
                 {
                     return null;
                 }
@@ -63,6 +68,8 @@ namespace Fluence
                 FluenceScope newNamespaceScope = new FluenceScope(_parser.CurrentParserStateGlobalScope, namespaceName);
                 registrationAction(newNamespaceScope);
                 _parser.AddNameSpace(newNamespaceScope);
+
+                _parser.CurrentParserStateGlobalScope.DeclaredSymbolNames.Add(hash);
 
                 return newNamespaceScope;
             }

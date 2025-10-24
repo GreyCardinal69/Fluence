@@ -90,6 +90,12 @@ namespace Fluence
                 _lexer = lexer;
             }
 
+            internal void Reinitialize(List<Token> stream)
+            {
+                _buffer = stream;
+                _head = 0;
+            }
+
             /// <summary>
             /// Populates the current token bugger from a given token stream.
             /// </summary>
@@ -282,6 +288,11 @@ namespace Fluence
                     }
                 }
             }
+        }
+
+        internal void Reinitialize(List<Token> stream)
+        {
+            _tokenBuffer.Reinitialize(stream);
         }
 
         /// <summary>

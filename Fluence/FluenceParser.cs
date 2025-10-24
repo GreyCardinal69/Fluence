@@ -288,8 +288,7 @@ namespace Fluence
 
                 if (mainFunctionSymbol == null)
                 {
-                    ConstructAndThrowParserException("Could not find a 'Main' function entry point.", new Token(TokenType.UNKNOWN));
-                    return;
+                    throw ConstructParserException("Could not find a 'Main' function entry point.", new Token(TokenType.UNKNOWN));
                 }
 
                 _currentParseState.GlobalScope.Declare("Main".GetHashCode(), mainFunctionSymbol);
@@ -810,7 +809,7 @@ namespace Fluence
                     {
                         solidField = false;
                         // A workaround of sorts.
-                        structSymbol.StaticFields.Add(token.Text, new RuntimeValue(null!));
+                        structSymbol.StaticFields.Add(token.Text, RuntimeValue.Nil);
                     }
 
                     structSymbol.DefaultFieldValuesAsTokens.TryAdd(token.Text, defaultValueTokens);
@@ -1109,8 +1108,7 @@ namespace Fluence
 
             if (!_currentParseState.CurrentScope.TryResolve(structName.GetHashCode(), out Symbol symbol) || symbol is not StructSymbol structSymbol)
             {
-                ConstructAndThrowParserException($"Could not find the symbol for struct '{structName}'.", nameToken);
-                return; // Satisfies compiler.
+                throw ConstructParserException($"Could not find the symbol for struct '{structName}'.", nameToken);
             }
 
             _currentParseState.CurrentStructContext = structSymbol;
@@ -2246,14 +2244,14 @@ namespace Fluence
 
                 if (!_currentParseState.NameSpaces.TryGetValue(namespaceName.GetHashCode(), out FluenceScope namespaceToUse))
                 {
-                    ConstructAndThrowParserException($"Namespace '{namespaceName}' not found. Expected a defined namespace.", nameToken);
+                    throw ConstructParserException($"Namespace '{namespaceName}' not found. Expected a defined namespace.", nameToken);
                 }
 
-                foreach (KeyValuePair<int, Symbol> entry in namespaceToUse!.Symbols)
+                foreach (KeyValuePair<int, Symbol> entry in namespaceToUse.Symbols)
                 {
                     if (!_currentParseState.CurrentScope.Declare(entry.Key, entry.Value) && !_currentParseState.CurrentScope.DeclaredSymbolNames.Contains(entry.Key))
                     {
-                        ConstructAndThrowParserException($"Symbol '{entry.Key}' from namespace '{namespaceName}' conflicts with a symbol already defined in this scope.", nameToken);
+                        throw ConstructParserException($"Symbol '{entry.Key}' from namespace '{namespaceName}' conflicts with a symbol already defined in this scope.", nameToken);
                     }
                 }
             }
@@ -4551,6 +4549,19 @@ namespace Fluence
                 UnexpectedToken = token,
             };
             throw new FluenceParserException(errorMessage, context);
+        }
+
+        private FluenceParserException ConstructParserException(string errorMessage, Token token)
+        {
+            ParserExceptionContext context = new ParserExceptionContext()
+            {
+                FileName = _currentParsingFileName,
+                Column = token.ColumnInSourceCode,
+                FaultyLine = FluenceDebug.TruncateLine(FluenceLexer.GetCodeLineFromSource(_lexer.SourceCode, token.LineInSourceCode)),
+                LineNum = token.LineInSourceCode,
+                UnexpectedToken = token,
+            };
+            return new FluenceParserException(errorMessage, context);
         }
 
         /// <summary>

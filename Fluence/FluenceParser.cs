@@ -1,6 +1,7 @@
 ﻿using Fluence.Exceptions;
 using Fluence.RuntimeTypes;
 using Fluence.VirtualMachine;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using static Fluence.FluenceByteCode;
@@ -174,7 +175,11 @@ namespace Fluence
             internal FluenceScope CurrentScope { get; set; }
 
             /// <summary>A dictionary of all declared namespaces.</summary>
-            internal Dictionary<string, FluenceScope> NameSpaces { get; } = new Dictionary<string, FluenceScope>();
+            internal Dictionary<int, FluenceScope> NameSpaces { get; } = new Dictionary<int, FluenceScope>();
+
+#if DEBUG
+            internal Dictionary<string, FluenceScope> NameSpacesDebug { get; } = new Dictionary<string, FluenceScope>();
+#endif
 
             /// <summary>A counter for generating unique temporary variable names.</summary>
             internal int NextTempNumber;
@@ -374,7 +379,7 @@ namespace Fluence
 
         internal void AddNameSpace(FluenceScope nameSpace)
         {
-            _currentParseState.NameSpaces.TryAdd(nameSpace.Name, nameSpace);
+            _currentParseState.NameSpaces.TryAdd(nameSpace.Name.GetHashCode(), nameSpace);
         }
 
         private void ParseProjectTokens()
@@ -487,12 +492,18 @@ namespace Fluence
                     int namespaceEndIndex = FindMatchingBrace(namespaceNameIndex);
                     string namespaceName = _lexer.PeekAheadByN(namespaceNameIndex + 1).Text;
 
+                    int hash = namespaceName.GetHashCode();
+
                     FluenceScope parentScope = _currentParseState.CurrentScope;
-                    FluenceScope namespaceScope = _currentParseState.NameSpaces.TryGetValue(namespaceName, out FluenceScope scope)
+                    FluenceScope namespaceScope = _currentParseState.NameSpaces.TryGetValue(hash, out FluenceScope scope)
                         ? scope
                         : new FluenceScope(parentScope, namespaceName);
 
-                    _currentParseState.NameSpaces.Add(namespaceName, namespaceScope);
+                    _currentParseState.NameSpaces.Add(hash, namespaceScope);
+
+#if DEBUG
+                    _currentParseState.NameSpacesDebug.Add(namespaceName, namespaceScope);
+#endif
 
                     _currentParseState.CurrentScope = namespaceScope;
                     ParseDeclarations(namespaceNameIndex + 2, namespaceEndIndex + 1);
@@ -1022,7 +1033,7 @@ namespace Fluence
             Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a namespace name.");
             AdvanceAndExpect(TokenType.L_BRACE, "Expected an opening '{' for the namespace body.");
 
-            if (!_currentParseState.NameSpaces.TryGetValue(nameToken.Text, out FluenceScope? namespaceScope))
+            if (!_currentParseState.NameSpaces.TryGetValue(nameToken.Text.GetHashCode(), out FluenceScope? namespaceScope))
             {
                 ConstructAndThrowParserException($"Namespace '{nameToken.Text}' not found during second pass.", nameToken);
             }
@@ -2233,7 +2244,7 @@ namespace Fluence
 
                 _intrinsicsManager.Use(namespaceName);
 
-                if (!_currentParseState.NameSpaces.TryGetValue(namespaceName, out FluenceScope namespaceToUse))
+                if (!_currentParseState.NameSpaces.TryGetValue(namespaceName.GetHashCode(), out FluenceScope namespaceToUse))
                 {
                     ConstructAndThrowParserException($"Namespace '{namespaceName}' not found. Expected a defined namespace.", nameToken);
                 }

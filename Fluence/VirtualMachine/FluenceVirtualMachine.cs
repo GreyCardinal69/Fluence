@@ -108,7 +108,7 @@ namespace Fluence.VirtualMachine
         private readonly bool[] _globalWritableCache;
 
         /// <summary> The list of all namespaces in the source code. </summary>
-        private readonly Dictionary<string, FluenceScope> Namespaces;
+        private readonly Dictionary<int, FluenceScope> Namespaces;
 
         /// <summary>The Instruction Pointer, which holds the address of the *next* instruction to be executed.</summary>
         private int _ip;

@@ -81,15 +81,15 @@ namespace Fluence.ParserTests
             Assert.True(symbolTree.GlobalScope.Contains("Globuloid_3"));
             Assert.False(symbolTree.GlobalScope.Contains("MyProgram_1"));
 
-            Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_1"));
-            Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_1"));
-            Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_2"));
-            Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_2"));
-            Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_3"));
-            Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_3"));
-            Assert.True(symbolTree.NameSpaces.ContainsKey("FluenceMath"));
+            Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_1".GetHashCode()));
+            Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_1".GetHashCode()));
+            Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_2".GetHashCode()));
+            Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_2".GetHashCode()));
+            Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_3".GetHashCode()));
+            Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_3".GetHashCode()));
+            Assert.True(symbolTree.NameSpaces.ContainsKey("FluenceMath".GetHashCode()));
 
-            FluenceScope myProgram1Scope = symbolTree.NameSpaces["MyProgram_1"];
+            FluenceScope myProgram1Scope = symbolTree.NameSpaces["MyProgram_1".GetHashCode()];
             Assert.True(myProgram1Scope.ContainsLocal("Number_1".GetHashCode()));
             Assert.True(myProgram1Scope.ContainsLocal("Number_1Type".GetHashCode()));
             Assert.True(myProgram1Scope.ContainsLocal("Main_1__0".GetHashCode()));
@@ -98,11 +98,11 @@ namespace Fluence.ParserTests
             Assert.True(myProgram1Scope.ContainsLocal("cos__1".GetHashCode()));
             Assert.False(myProgram1Scope.ContainsLocal("Globuloid_1".GetHashCode()));
 
-            FluenceScope myMath2Scope = symbolTree.NameSpaces["MyMath_2"];
+            FluenceScope myMath2Scope = symbolTree.NameSpaces["MyMath_2".GetHashCode()];
             Assert.True(myMath2Scope.ContainsLocal("Vector3_2".GetHashCode()));
             Assert.False(myMath2Scope.ContainsLocal("Number_2".GetHashCode()));
 
-            FluenceScope myProgram3Scope = symbolTree.NameSpaces["MyProgram_3"];
+            FluenceScope myProgram3Scope = symbolTree.NameSpaces["MyProgram_3".GetHashCode()];
             Assert.True(myProgram3Scope.ContainsLocal("Number_3".GetHashCode()));
             Assert.True(myProgram3Scope.ContainsLocal("Main_3__0".GetHashCode()));
             Assert.True(myProgram3Scope.ContainsLocal("Vector3_3".GetHashCode()));

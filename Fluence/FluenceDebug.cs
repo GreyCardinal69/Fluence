@@ -81,16 +81,18 @@ namespace Fluence
 
             DumpScope(sb, parseState.GlobalScope, "Global Scope", 0);
 
+#if DEBUG
             // If there are any namespaces, dump them as separate top-level scopes.
             if (parseState.NameSpaces.Count != 0)
             {
                 sb.AppendLine();
-                foreach (KeyValuePair<string, FluenceScope> ns in parseState.NameSpaces)
+                foreach (KeyValuePair<string, FluenceScope> ns in parseState.NameSpacesDebug)
                 {
                     DumpScope(sb, ns.Value, $"Namespace: {ns.Key}", 0);
                     outMethod("\n");
                 }
             }
+#endif
 
             sb.AppendLine("------------------------------------");
             outMethod(sb.ToString());

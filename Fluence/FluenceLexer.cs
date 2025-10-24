@@ -267,6 +267,12 @@ namespace Fluence
                 while ((_buffer.Count - _head) < requiredCount)
                 {
                     Token nextToken = _lexer.GetNextToken();
+
+                    if (nextToken.Type == TokenType.NEW_LINE)
+                    {
+                        continue;
+                    }
+
                     _buffer.Add(nextToken);
 
                     if (nextToken.Type == TokenType.EOF)

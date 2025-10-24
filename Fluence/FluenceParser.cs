@@ -331,7 +331,7 @@ namespace Fluence
             string coreLibraryDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Core");
             if (!Directory.Exists(coreLibraryDir))
             {
-                Console.WriteLine("Warning: 'Core' library directory not found. Cannot stage intrinsic Fluence files.");
+                _outputLine("Warning: 'Core' library directory not found. Cannot stage intrinsic Fluence files.");
                 return;
             }
 
@@ -376,7 +376,10 @@ namespace Fluence
                 _currentParsingFileName = path;
                 FluenceLexer lexer = new FluenceLexer(File.ReadAllText(path), path);
                 lexer.LexFullSource();
-                lexer.RemoveLexerEOLS();
+
+#if DEBUG
+                lexer.DumpTokenStream($"Initial Token Stream (Before Pre-Parsing declarations) | {path}", _outputLine);
+#endif
 
                 _lexer = lexer;
                 ParseDeclarations(0, _lexer.TokenCount);
@@ -388,6 +391,10 @@ namespace Fluence
             {
                 _currentParsingFileName = _allProjectFiles[i];
                 _lexer = new FluenceLexer(_tokenStreams[i], _allProjectFiles[i]);
+
+#if DEBUG
+                _lexer.DumpTokenStream($"Token stream after parsing declarations. | {_currentParsingFileName}", _outputLine);
+#endif
 
                 while (!_lexer.HasReachedEnd)
                 {
@@ -405,7 +412,6 @@ namespace Fluence
         private void ParseTokens()
         {
             _lexer.LexFullSource();
-            _lexer.RemoveLexerEOLS();
 
 #if DEBUG
             _lexer.DumpTokenStream("Initial Token Stream (Before Pre-Parsing declarations)", _outputLine);
@@ -2168,7 +2174,6 @@ namespace Fluence
             {
                 _lexer = new FluenceLexer(source);
                 _lexer.LexFullSource();
-                _lexer.RemoveLexerEOLS();
                 return ResolveValue(ParseTernary());
             }
             catch (FluenceException)

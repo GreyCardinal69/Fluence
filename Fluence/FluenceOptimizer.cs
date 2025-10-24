@@ -213,7 +213,10 @@ namespace Fluence
                 if ((line1.Instruction == InstructionCode.Add || line1.Instruction == InstructionCode.Subtract) &&
                      line1.Lhs is VariableValue var &&
                      line1.Rhs is VariableValue var2 &&
-                     var.Hash == var2.Hash)
+                     var.Hash == var2.Hash &&
+                     line1.Rhs2 is NumberValue num &&
+                     num.Type == NumberValue.NumberType.Integer &&
+                     (int)num.Value == 1)
                 {
                     InstructionCode instruction = line1.Instruction == InstructionCode.Add ? InstructionCode.Increment : InstructionCode.Decrement;
 

@@ -29,6 +29,10 @@ namespace Fluence
 
         private readonly FluenceIntrinsics _intrinsicsManager;
 
+        private readonly List<string> _allProjectFiles = new List<string>();
+
+        private readonly List<List<Token>> _tokenStreams = new List<List<Token>>();
+
         /// <summary>
         /// Indicates that we are parsing a multi-file Fluence project.
         /// </summary>
@@ -226,11 +230,9 @@ namespace Fluence
             _multiFileProject = true;
             _fileStack = new Stack<string>();
 
-            foreach (string item in Directory.GetFiles(root, "*", SearchOption.AllDirectories))
-            {
-                _currentParseState.ProjectFilePaths.Add(item);
-                _fileStack.Push(item);
-            }
+            StageCoreLibraries(root);
+            _allProjectFiles.AddRange(Directory.GetFiles(root, "*.fl", SearchOption.AllDirectories));
+            _currentParseState.ProjectFilePaths.AddRange(_allProjectFiles);
 
             _outputLine = outLine;
             _intrinsicsManager = new FluenceIntrinsics(this, outLine, input, outNormal);
@@ -311,6 +313,57 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Terminate, null!));
         }
 
+        /// <summary>
+        /// Prepares a project directory for compilation by copying required core libraries.
+        /// It reads an 'Imports.fldef' file and copies the specified .fl files from the
+        /// application's 'Core' directory into the project directory.
+        /// </summary>
+        /// <param name="projectRoot">The root directory of the Fluence project to be compiled.</param>
+        public void StageCoreLibraries(string projectRoot)
+        {
+            string importFilePath = Path.Combine(projectRoot, "Imports.fldef");
+
+            if (!File.Exists(importFilePath))
+            {
+                return;
+            }
+
+            string coreLibraryDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Core");
+            if (!Directory.Exists(coreLibraryDir))
+            {
+                Console.WriteLine("Warning: 'Core' library directory not found. Cannot stage intrinsic Fluence files.");
+                return;
+            }
+
+            string[] libraryNames = File.ReadAllLines(importFilePath);
+
+            foreach (string libName in libraryNames)
+            {
+                string trimmedName = libName.Trim();
+                if (string.IsNullOrEmpty(trimmedName) || trimmedName.StartsWith('#'))
+                {
+                    continue;
+                }
+
+                string templatedName = $"{trimmedName}.fl";
+
+                string sourcePath = Path.Combine(coreLibraryDir, templatedName);
+                string destPath = Path.Combine(projectRoot, templatedName);
+
+                if (File.Exists(sourcePath) && !File.Exists(destPath))
+                {
+                    try
+                    {
+                        File.Copy(sourcePath, destPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        ConstructAndThrowParserException($"Error staging library '{trimmedName}': {ex.Message}", new Token());
+                    }
+                }
+            }
+        }
+
         internal void AddNameSpace(FluenceScope nameSpace)
         {
             _currentParseState.NameSpaces.TryAdd(nameSpace.Name, nameSpace);
@@ -318,30 +371,26 @@ namespace Fluence
 
         private void ParseProjectTokens()
         {
-            while (_fileStack.Count != 0)
+            foreach (string path in _allProjectFiles)
             {
-                string path = _fileStack.Pop();
-                using FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read);
-                using StreamReader sr = new StreamReader(fs);
-                _lexer = new FluenceLexer(sr.ReadToEnd(), path);
-                _lexer.LexFullSource();
-                _lexer.RemoveLexerEOLS();
-
                 _currentParsingFileName = path;
+                FluenceLexer lexer = new FluenceLexer(File.ReadAllText(path), path);
+                lexer.LexFullSource();
+                lexer.RemoveLexerEOLS();
 
-#if DEBUG
-                _lexer.DumpTokenStream("Initial Token Stream (Before Pre-Parsing declarations)", _outputLine);
-#endif
-
+                _lexer = lexer;
                 ParseDeclarations(0, _lexer.TokenCount);
 
-#if DEBUG
-                _lexer.DumpTokenStream("Token stream after parsing declarations.", _outputLine);
-#endif
+                _tokenStreams.Add(_lexer.AllTokens());
+            }
+
+            for (int i = 0; i < _allProjectFiles.Count; i++)
+            {
+                _currentParsingFileName = _allProjectFiles[i];
+                _lexer = new FluenceLexer(_tokenStreams[i], _allProjectFiles[i]);
 
                 while (!_lexer.HasReachedEnd)
                 {
-                    // We reached end of file, so we just quit.
                     if (_lexer.TokenTypeMatches(TokenType.EOF))
                     {
                         _lexer.Advance();

@@ -39,6 +39,16 @@ namespace Fluence
             _fileName = fileName;
         }
 
+        internal FluenceLexer(List<Token> stream, string fileName = null!)
+        {
+            _tokenBuffer = new TokenBuffer(this);
+            _tokenBuffer.SetTokens(stream);
+            _currentPosition = 0;
+            _currentLine = 1;
+            _currentColumn = 1;
+            _fileName = fileName;
+        }
+
         internal FluenceLexer(List<Token> tokens)
         {
             _tokenBuffer = new TokenBuffer(this);
@@ -47,7 +57,7 @@ namespace Fluence
 
         private sealed class TokenBuffer
         {
-            private readonly List<Token> _buffer = new List<Token>();
+            private List<Token> _buffer = new List<Token>();
             private readonly FluenceLexer _lexer;
             private int _head;
             private bool _lexerFinished;
@@ -79,6 +89,17 @@ namespace Fluence
             {
                 _lexer = lexer;
             }
+
+            /// <summary>
+            /// Populates the current token bugger from a given token stream.
+            /// </summary>
+            /// <param name="tokens">The token stream to populate the buffer with.</param>
+            internal void SetTokens(List<Token> tokens) => _buffer = tokens;
+
+            /// <summary>
+            /// Returns all the currently parsed tokens.
+            /// </summary>
+            internal List<Token> AllTokens() => _buffer;
 
             /// <summary>
             /// Consumes the next token from the buffer and advances the head.
@@ -271,6 +292,11 @@ namespace Fluence
         /// Advances the token stream by one position without returning the consumed token.
         /// </summary>
         internal void Advance() => _tokenBuffer.Advance();
+
+        /// <summary>
+        /// Returns all the currently parsed tokens.
+        /// </summary>
+        internal List<Token> AllTokens() => _tokenBuffer.AllTokens();
 
         /// <summary>
         /// Advances the token stream by a given amount of positions without returning the consumed token. Advances by 1 by default.

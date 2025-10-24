@@ -34,5 +34,11 @@
             _resetAction?.Invoke(item);
             _pool.Push(item);
         }
+
+        /// <summary>Empties the pool.</summary>
+        internal void Clear()
+        {
+            while (_pool.Count > 0) _pool.Pop();
+        }
     }
 }

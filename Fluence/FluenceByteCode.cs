@@ -213,7 +213,7 @@ namespace Fluence
                 [
                     Instruction.ToString().PadRight(25),
                     (Lhs?.ToByteCodeString() ?? "null").PadRight(40),
-                    (Rhs?.ToByteCodeString() ?? "null").PadRight(45),
+                    (Rhs?.ToByteCodeString() ?? "null").PadRight(55),
                     (Rhs2?.ToByteCodeString() ?? "null").PadRight(40),
                     (Rhs3?.ToByteCodeString() ?? "null").PadRight(40),
                 ];

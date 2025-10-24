@@ -424,7 +424,6 @@ namespace Fluence
                     line1.Lhs = line2.Lhs;
                     relevantSpan[i + 1] = null!;
                     byteCodeChanged = true;
-
                     i += 2;
                 }
                 else

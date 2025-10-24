@@ -312,6 +312,8 @@ namespace Fluence
         /// </summary>
         internal bool IsGlobal { get; set; }
 
+        internal static readonly VariableValue SelfVariable = new VariableValue("self");
+
         internal VariableValue(string identifierValue)
         {
             Name = identifierValue;

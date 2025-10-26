@@ -68,7 +68,7 @@ namespace Fluence
                     return scope;
                 }
 
-                FluenceScope newNamespaceScope = new FluenceScope(_parser.CurrentParserStateGlobalScope, namespaceName);
+                FluenceScope newNamespaceScope = new FluenceScope(_parser.CurrentParserStateGlobalScope, namespaceName, true);
                 registrationAction(newNamespaceScope);
                 _parser.AddNameSpace(newNamespaceScope);
 

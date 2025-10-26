@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Runtime.CompilerServices;
 
 namespace Fluence
 {
@@ -130,12 +131,13 @@ namespace Fluence
             };
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void ReAssign(object newValue)
         {
             Value = newValue;
-            AssignNumberType(newValue);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static NumberValue FromToken(Token token)
         {
             ReadOnlySpan<char> lexemeSpan = token.Text.AsSpan();
@@ -374,11 +376,6 @@ namespace Fluence
         internal int[] ArgumentRegisterIndices { get; private set; }
 
         /// <summary>
-        /// The C# intrinsic body of the function, if it is intrinsic.
-        /// </summary>
-        internal IntrinsicMethod IntrinsicBody { get; init; }
-
-        /// <summary>
         /// Sets the bytecode start address for this function. Called by the parser during the second pass.
         /// </summary>
         internal int StartAddressInSource { get; init; }
@@ -430,6 +427,13 @@ namespace Fluence
         /// This is usually the final return instruction of the function's body.
         /// </summary>
         internal void SetEndAddress(int adr) => EndAddress = adr;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void SetStartAndEndAddresses(int start, int end)
+        {
+            StartAddress = start;
+            EndAddress = end;
+        }
 
         internal void SetName(string name) => Name = name;
 

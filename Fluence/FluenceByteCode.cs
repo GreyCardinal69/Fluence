@@ -20,9 +20,6 @@ namespace Fluence
             internal enum InstructionCode
             {
                 Skip,           // NOP - No operation placeholder
-                Goto,
-                GotoIfTrue,
-                GotoIfFalse,
                 Return,
                 Terminate,      // Halt program execution.
 
@@ -90,10 +87,6 @@ namespace Fluence
                 NewLambda,
                 LoadAddress,    // Argument passed by reference.
 
-                //      ==!!==
-                //      The following are special bytecode instructions generated solely by the Optimizer during the parsing phase.
-
-                // Double compound ops, op + assign in one instruction.
                 AddAssign,
                 SubAssign,
                 MulAssign,
@@ -105,6 +98,9 @@ namespace Fluence
 
                 AssignTwo,
 
+                Goto,
+                GotoIfTrue,
+                GotoIfFalse,
                 BranchIfEqual,
                 BranchIfNotEqual,
                 BranchIfGreaterThan,

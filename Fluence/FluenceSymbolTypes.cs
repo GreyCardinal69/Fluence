@@ -1,5 +1,6 @@
 ﻿using Fluence.RuntimeTypes;
 using Fluence.VirtualMachine;
+using System.Runtime.CompilerServices;
 
 namespace Fluence
 {
@@ -203,6 +204,13 @@ namespace Fluence
 
         /// <summary>Sets the register indices of this functions arguments.</summary>>
         internal void SetArgumentRegisterIndices(int[] indices) => ArgumentRegisterIndices = indices;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void SetStartAndEndAddresses(int start, int end)
+        {
+            StartAddress = start;
+            EndAddress = end;
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="FunctionSymbol"/> class for a native C# intrinsic.

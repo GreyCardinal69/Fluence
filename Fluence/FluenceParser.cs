@@ -1,7 +1,6 @@
 ﻿using Fluence.Exceptions;
 using Fluence.RuntimeTypes;
 using Fluence.VirtualMachine;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using static Fluence.FluenceByteCode;
@@ -63,6 +62,8 @@ namespace Fluence
         private readonly Dictionary<int, int> _variableSlotMap = new Dictionary<int, int>();
 
         private readonly Dictionary<int, int> _tempSlotMap = new Dictionary<int, int>();
+
+        private readonly int SelfHashCode = "self".GetHashCode();
 
         /// <summary>
         /// A pool of lists for the initialization of arguments, be it expression, function call or other.
@@ -220,7 +221,7 @@ namespace Fluence
             {
                 ParserInstance = parser;
                 IsParsingFunctionBody = false;
-                GlobalScope = new FluenceScope(null!, "Global");
+                GlobalScope = new FluenceScope(null!, "Global", false);
                 CurrentScope = GlobalScope;
             }
 
@@ -496,7 +497,7 @@ namespace Fluence
                     FluenceScope parentScope = _currentParseState.CurrentScope;
                     FluenceScope namespaceScope = _currentParseState.NameSpaces.TryGetValue(hash, out FluenceScope scope)
                         ? scope
-                        : new FluenceScope(parentScope, namespaceName);
+                        : new FluenceScope(parentScope, namespaceName, false);
 
                     _currentParseState.NameSpaces.Add(hash, namespaceScope);
 
@@ -1645,7 +1646,7 @@ namespace Fluence
             if (inStruct)
             {
                 int selfIndex = nextSlotIndex++;
-                _variableSlotMap["self".GetHashCode()] = selfIndex;
+                _variableSlotMap[SelfHashCode] = selfIndex;
             }
 
             // Parameters get the next available slots.
@@ -1658,10 +1659,106 @@ namespace Fluence
             {
                 InstructionLine insn = _currentParseState.CodeInstructions[i];
 
-                ProcessValue(insn.Lhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
-                ProcessValue(insn.Rhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
-                ProcessValue(insn.Rhs2, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
-                ProcessValue(insn.Rhs3, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                switch (insn.Instruction)
+                {
+                    // Four operands.
+                    case InstructionCode.AssignTwo:
+                    case InstructionCode.PushFourParams:
+                        ProcessValue(insn.Lhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                        ProcessValue(insn.Rhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                        ProcessValue(insn.Rhs2, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                        ProcessValue(insn.Rhs3, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                        break;
+
+                    // Three operands.
+                    case InstructionCode.Add:
+                    case InstructionCode.Subtract:
+                    case InstructionCode.Multiply:
+                    case InstructionCode.Divide:
+                    case InstructionCode.Modulo:
+                    case InstructionCode.Power:
+                    case InstructionCode.Equal:
+                    case InstructionCode.NotEqual:
+                    case InstructionCode.LessThan:
+                    case InstructionCode.GreaterThan:
+                    case InstructionCode.LessEqual:
+                    case InstructionCode.GreaterEqual:
+                    case InstructionCode.And:
+                    case InstructionCode.Or:
+                    case InstructionCode.BitwiseAnd:
+                    case InstructionCode.BitwiseOr:
+                    case InstructionCode.BitwiseXor:
+                    case InstructionCode.BitwiseLShift:
+                    case InstructionCode.BitwiseRShift:
+                    case InstructionCode.SetField:
+                    case InstructionCode.GetElement:
+                    case InstructionCode.SetElement:
+                    case InstructionCode.CallFunction:
+                    case InstructionCode.CallMethod:
+                    case InstructionCode.CallStatic:
+                    case InstructionCode.SetStatic:
+                    case InstructionCode.AddAssign:
+                    case InstructionCode.SubAssign:
+                    case InstructionCode.MulAssign:
+                    case InstructionCode.DivAssign:
+                    case InstructionCode.ModAssign:
+                    case InstructionCode.BranchIfEqual:
+                    case InstructionCode.BranchIfNotEqual:
+                    case InstructionCode.BranchIfGreaterThan:
+                    case InstructionCode.BranchIfGreaterOrEqual:
+                    case InstructionCode.BranchIfLessThan:
+                    case InstructionCode.BranchIfLessOrEqual:
+                    case InstructionCode.PushThreeParams:
+                    case InstructionCode.IterNext:
+                        ProcessValue(insn.Lhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                        ProcessValue(insn.Rhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                        ProcessValue(insn.Rhs2, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                        break;
+
+                    // Two operands.
+                    case InstructionCode.Assign:
+                    case InstructionCode.GotoIfTrue:
+                    case InstructionCode.GotoIfFalse:
+                    case InstructionCode.Negate:
+                    case InstructionCode.Not:
+                    case InstructionCode.BitwiseNot:
+                    case InstructionCode.NewInstance:
+                    case InstructionCode.GetField:
+                    case InstructionCode.NewRange:
+                    case InstructionCode.PushElement:
+                    case InstructionCode.GetLength:
+                    case InstructionCode.GetStatic:
+                    case InstructionCode.ToString:
+                    case InstructionCode.NewLambda:
+                    case InstructionCode.PushTwoParams:
+                    case InstructionCode.NewIterator:
+                    case InstructionCode.GetType:
+                        ProcessValue(insn.Lhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                        ProcessValue(insn.Rhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                        break;
+
+                    // One operand.
+                    case InstructionCode.Return:
+                    case InstructionCode.PushParam:
+                    case InstructionCode.LoadAddress:
+                    case InstructionCode.Increment:
+                    case InstructionCode.Decrement:
+                    case InstructionCode.IncrementIntUnrestricted:
+                    case InstructionCode.NewList:
+                    case InstructionCode.Goto:
+                    case InstructionCode.TryBlock:
+                        ProcessValue(insn.Lhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                        break;
+
+                    case InstructionCode.Terminate:
+                    case InstructionCode.Skip:
+                    case InstructionCode.CatchBlock:
+                    case InstructionCode.SectionGlobal:
+                        break;
+
+                    default:
+                        throw new NotImplementedException($"Slot allocation not implemented for opcode: {insn.Instruction}");
+                }
             }
 
             func.TotalRegisterSlots = nextSlotIndex;
@@ -1673,12 +1770,13 @@ namespace Fluence
             }
             func.SetArgumentRegisterIndices(parameterIndices);
 
-            if (_currentParseState.CurrentScope.TryResolve(func.Name.GetHashCode(), out Symbol symbol) && symbol is FunctionSymbol funcSymbol)
+
+            if (_currentParseState.CurrentScope.TryResolve(func.Hash, out Symbol symbol) && symbol is FunctionSymbol funcSymbol)
             {
                 funcSymbol.TotalRegisterSlots = func.TotalRegisterSlots;
                 funcSymbol.SetEndAddress(func.EndAddress);
-                funcSymbol.SetArgumentRegisterIndices(func.ArgumentRegisterIndices);
                 funcSymbol.BelongsToAStruct = inStruct;
+                funcSymbol.SetArgumentRegisterIndices(parameterIndices);
             }
 
             for (int i = 0; i < _currentParseState.FunctionVariableDeclarations.Count; i++)
@@ -1711,8 +1809,6 @@ namespace Fluence
 
         private static void ProcessValue(Value val, Dictionary<int, int> variableSlotMap, Dictionary<int, int> tempSlotMap, ref int nextSlotIndex)
         {
-            if (val == null) return;
-
             if (val is VariableValue var)
             {
                 if (var.IsGlobal) return; // Globals are handled by a separate pass.

@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
@@ -263,10 +264,6 @@ namespace Fluence
         /// <param name="startIndex">The index from which to begin scanning.</param>
         private static void RemoveConstTempRegisters(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged, ref bool constantFoldingDidWork)
         {
-            _registerInfoMap.Clear();
-            _constantsMap.Clear();
-            _instructionsToRemove.Clear();
-
             Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
             Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
 
@@ -495,16 +492,7 @@ namespace Fluence
         /// Checks if the given instruction code is a type of jump.
         /// </summary>
         /// <returns>True if the instruction is a jump, otherwise false.</returns>
-        private static bool IsJumpInstruction(InstructionCode op) =>
-            op is InstructionCode.Goto
-            or InstructionCode.GotoIfTrue
-            or InstructionCode.GotoIfFalse
-            or InstructionCode.BranchIfEqual
-            or InstructionCode.BranchIfNotEqual
-            or InstructionCode.BranchIfGreaterThan
-            or InstructionCode.BranchIfGreaterOrEqual
-            or InstructionCode.BranchIfLessThan
-            or InstructionCode.BranchIfLessOrEqual;
+        private static bool IsJumpInstruction(InstructionCode op) => op >= InstructionCode.Goto && op <= InstructionCode.BranchIfLessOrEqual;
 
         /// <summary>
         /// Compacts the bytecode list by removing all null placeholders and realigns all absolute addresses.
@@ -530,6 +518,7 @@ namespace Fluence
         /// <param name="removedIndex">The index of the instruction that was just removed. All addresses greater than this index will be decremented.</param>
         private static void PatchAllAddressesAfterRemoval(ref List<InstructionLine> bytecode, ParseState state, int removedIndex)
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             int MapAddr(int oldAddr)
             {
                 return oldAddr > removedIndex ? oldAddr - 1 : oldAddr;
@@ -551,67 +540,39 @@ namespace Fluence
                 }
                 if (insn.Rhs is FunctionValue fvRhs)
                 {
-                    fvRhs.SetStartAddress(MapAddr(fvRhs.StartAddress));
-                    fvRhs.SetEndAddress(MapAddr(fvRhs.EndAddress));
+                    fvRhs.SetStartAndEndAddresses(MapAddr(fvRhs.StartAddress), MapAddr(fvRhs.EndAddress));
                 }
                 if (insn.Rhs is LambdaValue lambda)
                 {
-                    lambda.Function.SetStartAddress(MapAddr(lambda.Function.StartAddress));
-                    lambda.Function.SetEndAddress(MapAddr(lambda.Function.EndAddress));
+                    lambda.Function.SetStartAndEndAddresses(MapAddr(lambda.Function.StartAddress), MapAddr(lambda.Function.EndAddress));
                 }
                 if (insn.Rhs2 is FunctionValue fvRhs2)
                 {
-                    fvRhs2.SetStartAddress(MapAddr(fvRhs2.StartAddress));
-                    fvRhs2.SetEndAddress(MapAddr(fvRhs2.EndAddress));
+                    fvRhs2.SetStartAndEndAddresses(MapAddr(fvRhs2.StartAddress), MapAddr(fvRhs2.EndAddress));
                 }
             }
-
-            foreach (Symbol symbol in state.GlobalScope.Symbols.Values)
-            {
-                _uniqueSymbols.Add(symbol.Hash);
-                if (symbol is FunctionSymbol f)
-                {
-                    f.SetStartAddress(MapAddr(f.StartAddress));
-                    f.SetEndAddress(MapAddr(f.EndAddress));
-                }
-                else if (symbol is StructSymbol s)
-                {
-                    foreach (KeyValuePair<string, FunctionValue> item in s.Constructors)
-                    {
-                        _uniqueSymbols.Add(item.Key.GetHashCode());
-                        item.Value.SetStartAddress(MapAddr(item.Value.StartAddress));
-                        item.Value.SetEndAddress(MapAddr(item.Value.EndAddress));
-                    }
-                    foreach (FunctionValue m in s.Functions.Values)
-                    {
-                        _uniqueSymbols.Add(m.Hash);
-                        m.SetStartAddress(MapAddr(m.StartAddress));
-                        m.SetEndAddress(MapAddr(m.EndAddress));
-                    }
-                }
-            }
-
+             
             foreach (FluenceScope scope in state.NameSpaces.Values)
             {
+                if (scope.IsIntrinsicScope)
+                {
+                    continue;
+                }
                 foreach (Symbol symbol in scope.Symbols.Values)
                 {
-                    if (_uniqueSymbols.Contains(symbol.Hash))
+                    if (symbol is FunctionSymbol f)
                     {
-                        continue;
+                        f.SetStartAddress(MapAddr(f.StartAddress));
                     }
-
-                    if (symbol is FunctionSymbol f) f.SetStartAddress(MapAddr(f.StartAddress));
                     else if (symbol is StructSymbol s)
                     {
                         foreach (KeyValuePair<string, FunctionValue> item in s.Constructors)
                         {
-                            item.Value.SetStartAddress(MapAddr(item.Value.StartAddress));
-                            item.Value.SetEndAddress(MapAddr(item.Value.EndAddress));
+                            item.Value.SetStartAndEndAddresses(MapAddr(item.Value.StartAddress), MapAddr(item.Value.EndAddress));
                         }
                         foreach (FunctionValue m in s.Functions.Values)
                         {
-                            m.SetStartAddress(MapAddr(m.StartAddress));
-                            m.SetEndAddress(MapAddr(m.EndAddress));
+                            m.SetStartAndEndAddresses(MapAddr(m.StartAddress), MapAddr(m.EndAddress));
                         }
                     }
                 }

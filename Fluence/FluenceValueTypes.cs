@@ -11,6 +11,11 @@ namespace Fluence
     {
         internal virtual int Hash { get; init; }
 
+        internal Value()
+        {
+            Hash = GetHashCode();
+        }
+
         /// <summary>
         /// Provides a user-facing string representation of the value, as it would appear
         /// when printed within the Fluence language itself.
@@ -25,14 +30,14 @@ namespace Fluence
     }
 
     /// <summary>Represents a single character literal.</summary>
-    internal sealed record class CharValue(char Value) : Value
+    internal sealed record class CharValue(char Value) : Value()
     {
         internal override string ToFluenceString() => Value.ToString();
         public override string ToString() => $"CharValue: {Value}";
     }
 
     /// <summary>Represents a string literal.</summary>
-    internal sealed record class StringValue(string Value) : Value
+    internal sealed record class StringValue(string Value) : Value()
     {
         /// <summary>
         /// Truncates long strings for bytecode display while preserving readability.
@@ -47,14 +52,14 @@ namespace Fluence
     }
 
     /// <summary>Represents a boolean literal.</summary>
-    internal sealed record class BooleanValue : Value
+    internal sealed record class BooleanValue : Value 
     {
         internal bool Value { get; init; }
 
         internal static readonly BooleanValue True = new BooleanValue(true);
         internal static readonly BooleanValue False = new BooleanValue(false);
 
-        internal BooleanValue(bool value)
+        internal BooleanValue(bool value) : base()
         {
             Value = value;
         }
@@ -77,7 +82,7 @@ namespace Fluence
     /// </summary>
     /// <param name="Start">The inclusive start bound.</param>
     /// <param name="End">The inclusive end bound.</param>
-    internal sealed record class RangeValue(Value Start, Value End) : Value
+    internal sealed record class RangeValue(Value Start, Value End) : Value()
     {
         internal override string ToFluenceString() =>
                     $"<internal: range_{Start.ToFluenceString()}..{End.ToFluenceString()}>";
@@ -90,7 +95,7 @@ namespace Fluence
     }
 
     /// <summary>Represents a numerical literal, which can be an Integer, Float, Long, or Double.</summary>
-    internal sealed record class NumberValue : Value
+    internal sealed record class NumberValue : Value 
     {
         internal enum NumberType
         {
@@ -106,14 +111,14 @@ namespace Fluence
         internal object Value { get; private set; }
         internal NumberType Type { get; private set; }
 
-        internal NumberValue(object literal)
+        internal NumberValue(object literal) : base()
         {
             Value = literal;
 
             AssignNumberType(literal);
         }
 
-        internal NumberValue(object literal, NumberType type)
+        internal NumberValue(object literal, NumberType type) : base()
         {
             Value = literal;
             Type = type;
@@ -185,9 +190,11 @@ namespace Fluence
     }
 
     /// <summary>A special value indicating a completed statement with no return value..</summary>
-    internal sealed record class StatementCompleteValue : Value
+    internal sealed record class StatementCompleteValue : Value 
     {
         internal static readonly StatementCompleteValue StatementCompleted = new StatementCompleteValue();
+
+        internal StatementCompleteValue() : base() { } 
 
         internal override string ToFluenceString() => "<internal: statement_complete>";
         public override string ToString() => $"StatementCompletedValue";
@@ -197,7 +204,7 @@ namespace Fluence
     /// Represents a variable passed by reference.
     /// </summary>
     /// <param name="Reference">The variable to pass by reference.</param>
-    internal sealed record class ReferenceValue(VariableValue Reference) : Value
+    internal sealed record class ReferenceValue(VariableValue Reference) : Value()
     {
         internal override string ToFluenceString() => $"<internal: reference_value__{Reference}";
         internal override string ToByteCodeString() => $"Ref__{Reference.ToByteCodeString()}";
@@ -207,7 +214,7 @@ namespace Fluence
     /// <summary>
     /// A descriptor representing an access to a struct's static function, or a static and solid field.
     /// </summary>
-    internal sealed record class StaticStructAccess : Value
+    internal sealed record class StaticStructAccess : Value 
     {
         internal StructSymbol Struct { get; init; }
 
@@ -216,7 +223,7 @@ namespace Fluence
         /// </summary>
         internal string Name { get; init; }
 
-        internal StaticStructAccess(StructSymbol structType, string name)
+        internal StaticStructAccess(StructSymbol structType, string name) : base()
         {
             Struct = structType;
             Name = name;
@@ -230,12 +237,12 @@ namespace Fluence
     /// A descriptor representing an element access operation.
     /// The parser resolves this into GetElement or SetElement bytecode.
     /// </summary>
-    internal sealed record class ElementAccessValue : Value
+    internal sealed record class ElementAccessValue : Value 
     {
         internal Value Target { get; init; }
         internal Value Index { get; init; }
 
-        internal ElementAccessValue(Value target, Value index)
+        internal ElementAccessValue(Value target, Value index) : base()
         {
             Target = target;
             Index = index;
@@ -256,7 +263,7 @@ namespace Fluence
         /// <summary>The underscore used in pipes.</summary>
         internal int PlaceholderIndex { get; init; }
 
-        public BroadcastCallTemplate(Value callable, List<Value> args, int placeholderIndex)
+        public BroadcastCallTemplate(Value callable, List<Value> args, int placeholderIndex) : base()
         {
             Callable = callable;
             Arguments = args;
@@ -274,7 +281,6 @@ namespace Fluence
     internal sealed record class TempValue : Value
     {
         internal string TempName { get; init; }
-        internal int Hash { get; init; }
 
         /// <summary>
         /// The runtime register index (-1 = unallocated).
@@ -298,7 +304,6 @@ namespace Fluence
     internal sealed record class VariableValue : Value
     {
         internal string Name { get; init; }
-        internal int Hash { get; init; }
 
         /// <summary>
         /// Mutable readonly flag - finalized during semantic analysis.
@@ -333,7 +338,7 @@ namespace Fluence
     /// Represents a lambda function, holding a reference to its function body.
     /// </summary>
     /// <param name="Function">The function body of the lambda.</param>
-    internal sealed record class LambdaValue(FunctionValue Function) : Value
+    internal sealed record class LambdaValue(FunctionValue Function) : Value()
     {
         internal override string ToFluenceString() => $"<internal: lambda__{Function.Name}__{Function.Arity}>";
         public override string ToString() => $"LambdaValue: {Function.Name}__{Function.Arity}_{Function.StartAddress}_{Function.EndAddress}";
@@ -458,7 +463,7 @@ namespace Fluence
         internal bool HasExceptionVar { get; init; }
         internal bool CaughtException { get; set; }
 
-        internal TryCatchValue(int tryGoToIndex, string exceptionVarName, int exceptionVarRegisterIndex, int catchGoToIndex, bool hasExceptionVar)
+        internal TryCatchValue(int tryGoToIndex, string exceptionVarName, int exceptionVarRegisterIndex, int catchGoToIndex, bool hasExceptionVar) : base()
         {
             ExceptionVarName = exceptionVarName;
             TryGoToIndex = tryGoToIndex;
@@ -480,7 +485,7 @@ namespace Fluence
         internal Value Target { get; init; }
         internal string FieldName { get; init; }
 
-        internal PropertyAccessValue(Value target, string fieldName)
+        internal PropertyAccessValue(Value target, string fieldName) : base()
         {
             Target = target;
             FieldName = fieldName;
@@ -497,7 +502,7 @@ namespace Fluence
         internal string MemberName { get; init; }
         internal int Value { get; init; }
 
-        internal EnumValue(string enumTypeName, string memberName, int value)
+        internal EnumValue(string enumTypeName, string memberName, int value) : base()
         {
             EnumTypeName = enumTypeName;
             MemberName = memberName;

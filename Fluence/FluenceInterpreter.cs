@@ -141,6 +141,7 @@ namespace Fluence
                 FluenceParser parser = new FluenceParser(lexer, _vmConfiguration, OnOutputLine, OnOutput, OnInput);
                 _intrinsicsInstance = parser.Intrinsics;
                 parser.Parse(partialCode);
+
 #if DEBUG
                 FluenceDebug.DumpSymbolTables(parser.CurrentParseState, OnOutputLine);
 #endif

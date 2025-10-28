@@ -981,6 +981,15 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecuteIncrement(InstructionLine instruction)
         {
+            instruction.SpecializedHandler = CreateSpecializedIncrementDecrementHandler(instruction, this, true);
+
+            if (instruction.SpecializedHandler != null)
+            {
+                instruction.SpecializedHandler(instruction, this);
+                return;
+            }
+
+            // Fallback?
             VariableValue var = (VariableValue)instruction.Lhs;
             AssignVariable(var, new RuntimeValue(_cachedRegisters[var.RegisterIndex].IntValue + 1), instruction, var.IsReadOnly);
         }
@@ -990,6 +999,14 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecuteDecrement(InstructionLine instruction)
         {
+            instruction.SpecializedHandler = CreateSpecializedIncrementDecrementHandler(instruction, this, false);
+
+            if (instruction.SpecializedHandler != null)
+            {
+                instruction.SpecializedHandler(instruction, this);
+                return;
+            }
+
             VariableValue var = (VariableValue)instruction.Lhs;
             AssignVariable(var, new RuntimeValue(_cachedRegisters[var.RegisterIndex].IntValue - 1), instruction, var.IsReadOnly);
         }

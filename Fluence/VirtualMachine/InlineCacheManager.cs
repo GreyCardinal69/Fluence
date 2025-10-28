@@ -253,14 +253,43 @@ namespace Fluence.VirtualMachine
             };
         }
 
-        private static bool AttemptToModifyAReadonlyVariable(InstructionLine insn, FluenceVirtualMachine vm)
+        private static bool AttemptToModifyAReadonlyVariable(InstructionLine insn, FluenceVirtualMachine vm, out string name)
         {
-            if (insn.Lhs is TempValue)
+            if (insn.Instruction == InstructionCode.Assign)
             {
-                return false;
+                return IsReadonlyVariable(insn.Lhs, vm, out name);
+            }
+            else // Assign two.
+            {
+                if (IsReadonlyVariable(insn.Lhs, vm, out name))
+                {
+                    return true;
+                }
+
+                if (IsReadonlyVariable(insn.Rhs2, vm, out name))
+                {
+                    return true;
+                }
             }
 
-            return vm.VariableIsReadonly((VariableValue)insn.Lhs);
+            return false;
+        }
+
+        /// <summary>
+        /// A helper that checks if a Value is a variable and if that variable is readonly.
+        /// If it is, it extracts the name and returns true. Otherwise, it returns false.
+        /// </summary>
+        private static bool IsReadonlyVariable(Value value, FluenceVirtualMachine vm, out string name)
+        {
+            name = "";
+
+            if (value is VariableValue variable && vm.VariableIsReadonly(variable))
+            {
+                name = variable.Name;
+                return true;
+            }
+
+            return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -291,9 +320,9 @@ namespace Fluence.VirtualMachine
         {
             if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number) return null;
 
-            if (AttemptToModifyAReadonlyVariable(insn, vm))
+            if (AttemptToModifyAReadonlyVariable(insn, vm, out string name))
             {
-                vm.CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly solid variable '{((VariableValue)insn.Lhs).Name}'.");
+                vm.CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly solid variable '{name}'.");
                 return null;
             }
 
@@ -1050,8 +1079,41 @@ namespace Fluence.VirtualMachine
             return null;
         }
 
+        internal static SpecializedOpcodeHandler CreateSpecializedIncrementDecrementHandler(InstructionLine insn, FluenceVirtualMachine vm, bool increment)
+        {
+            if (AttemptToModifyAReadonlyVariable(insn, vm, out string name))
+            {
+                vm.CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly solid variable '{name}'.");
+                return null;
+            }
+
+            VariableValue var = (VariableValue)insn.Lhs;
+            int regIndex = var.RegisterIndex;
+            int amount = increment ? 1 : -1;
+
+            if (var.IsGlobal)
+            {
+                RuntimeValue[] globalRegisters = vm.GlobalRegisters;
+                return (Instruction, vm) =>
+                {
+                    globalRegisters[regIndex] = new RuntimeValue(globalRegisters[regIndex].IntValue + amount);
+                };
+            }
+
+            return (Instruction, vm) =>
+            {
+                vm.CurrentRegisters[regIndex] = new RuntimeValue(vm.CurrentRegisters[regIndex].IntValue + amount);
+            };
+        }
+
         internal static SpecializedOpcodeHandler? CreateSpecializedAssignTwoHandler(InstructionLine insn, FluenceVirtualMachine vm)
         {
+            if (AttemptToModifyAReadonlyVariable(insn, vm, out string name))
+            {
+                vm.CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly solid variable '{((VariableValue)insn.Lhs).Name}'.");
+                return null;
+            }
+
             Value dest1 = insn.Lhs;
             Value source1 = insn.Rhs;
             Value dest2 = insn.Rhs2;

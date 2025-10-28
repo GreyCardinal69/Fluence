@@ -293,7 +293,7 @@ namespace Fluence
 
             foreach (KeyValuePair<int, RegisterInfo> kvp in _registerInfoMap)
             {
-                if (kvp.Value.AssignmentCount == 1 && kvp.Value.ConstantValue is not null )
+                if (kvp.Value.AssignmentCount == 1 && kvp.Value.ConstantValue is not null)
                 {
                     _constantsMap.Add(kvp.Key, kvp.Value.ConstantValue);
                     _instructionsToRemove.Add(kvp.Value.AssignmentIndex);

@@ -120,6 +120,8 @@ namespace Fluence
 
                 /// <summary>Global setup section marker.</summary>
                 SectionGlobal,
+                SectionLambdaStart,
+                SectionLambdaEnd
             }
 
             /// <summary>The operation code for this instruction.</summary>
@@ -166,6 +168,9 @@ namespace Fluence
             /// checks of solid ( readonly ) variables, allowing the virtual machine to skip those expensive checks on the next iteration.
             /// </summary>
             internal bool AssignsVariableSafely;
+
+            internal static readonly InstructionLine LambdaEntrance = new InstructionLine(InstructionCode.SectionLambdaStart, null!);
+            internal static readonly InstructionLine LambdaClosure = new InstructionLine(InstructionCode.SectionLambdaEnd, null!);
 
             /// <summary>
             /// Sets debugging metadata for source code correlation.

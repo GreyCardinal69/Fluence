@@ -1655,10 +1655,34 @@ namespace Fluence
             {
                 _variableSlotMap[func.ArgumentHashCodes[i]] = nextSlotIndex++;
             }
-
+            FluenceDebug.DumpByteCodeInstructions(_currentParseState.CodeInstructions, _outputLine);
             for (int i = functionStartAddress; i < functionCodeEnd; i++)
             {
                 InstructionLine insn = _currentParseState.CodeInstructions[i];
+                if (insn.Instruction == InstructionCode.SectionLambdaStart)
+                {
+                    int nestingLevel = 1;
+                    i++;
+
+                    while (nestingLevel > 0 && i < functionCodeEnd)
+                    {
+                        insn = _currentParseState.CodeInstructions[i];
+
+                        if (insn.Instruction == InstructionCode.SectionLambdaStart)
+                        {
+                            nestingLevel++;
+                        }
+                        else if (insn.Instruction == InstructionCode.SectionLambdaEnd)
+                        {
+                            nestingLevel--;
+                        }
+
+                        i++;
+                    }
+
+                    i--;
+                    continue;
+                }
 
                 switch (insn.Instruction)
                 {
@@ -1755,6 +1779,8 @@ namespace Fluence
                     case InstructionCode.Skip:
                     case InstructionCode.CatchBlock:
                     case InstructionCode.SectionGlobal:
+                    case InstructionCode.SectionLambdaEnd:
+                    case InstructionCode.SectionLambdaStart:
                         break;
 
                     default:
@@ -3859,9 +3885,9 @@ namespace Fluence
                     // Obsolete artefact?
                     // _currentParseState.CurrentScope.Declare(variable.Hash, new VariableSymbol(variable.Name, valueToAssign, variable.IsReadOnly));
 
-                    if (valueToAssign is LambdaValue)
+                    if (valueToAssign is LambdaValue lambda)
                     {
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewLambda, variable, valueToAssign));
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewLambda, new VariableValue(Mangler.Mangle(variable.Name, lambda.Function.Arity)), valueToAssign));
                         return;
                     }
 
@@ -4171,9 +4197,8 @@ namespace Fluence
                     new NumberValue(arguments.Count)
                 ));
             }
-            else
+            else if (callable is VariableValue var)
             {
-                VariableValue var = (VariableValue)callable;
                 templated = Mangler.Mangle(var.Name, arguments.Count);
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(
@@ -4301,6 +4326,7 @@ namespace Fluence
 
             int lambdaBodySkipIndex = _currentParseState.CodeInstructions.Count;
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
+            _currentParseState.AddCodeInstruction(LambdaEntrance);
 
             int lambdaCodeStartIndex = _currentParseState.CodeInstructions.Count;
 
@@ -4320,9 +4346,188 @@ namespace Fluence
                 _currentParseState.CodeInstructions.Add(new InstructionLine(InstructionCode.Return, ret));
             }
 
-            _currentParseState.CodeInstructions[lambdaBodySkipIndex].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+            _currentParseState.AddCodeInstruction(LambdaClosure);
 
+            _currentParseState.CodeInstructions[lambdaBodySkipIndex].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
             FunctionValue lambdaFunction = new FunctionValue($"lambda__{args.Count}", false, args.Count, lambdaCodeStartIndex, startAddressInSource, args, argsByRef, _currentParseState.CurrentScope);
+
+            int functionCodeEnd = _currentParseState.CodeInstructions.Count;
+
+            if (_vmConfiguration.OptimizeByteCode)
+            {
+                FluenceOptimizer.OptimizeChunk(
+                    ref _currentParseState.CodeInstructions,
+                    _currentParseState,
+                    lambdaCodeStartIndex,
+                    _vmConfiguration
+                );
+
+                functionCodeEnd = _currentParseState.CodeInstructions.Count;
+            }
+
+            lambdaFunction.SetEndAddress(functionCodeEnd - 1);
+
+            int nextSlotIndex = 0;
+
+            Dictionary<int, int> variableSlotMap = new Dictionary<int, int>();
+            Dictionary<int, int> tempSlotMap = new Dictionary<int, int>();
+
+            for (int i = 0; i < lambdaFunction.Arguments.Count; i++)
+            {
+                variableSlotMap[lambdaFunction.ArgumentHashCodes[i]] = nextSlotIndex++;
+            }
+
+            for (int i = lambdaFunction.StartAddress; i < functionCodeEnd; i++)
+            {
+                InstructionLine insn = _currentParseState.CodeInstructions[i];
+                if (insn.Instruction == InstructionCode.SectionLambdaStart)
+                {
+                    int nestingLevel = 1;
+                    i++;
+
+                    while (nestingLevel > 0 && i < functionCodeEnd)
+                    {
+                        insn = _currentParseState.CodeInstructions[i];
+
+                        if (insn.Instruction == InstructionCode.SectionLambdaStart)
+                        {
+                            nestingLevel++;
+                        }
+                        else if (insn.Instruction == InstructionCode.SectionLambdaEnd)
+                        {
+                            nestingLevel--;
+                        }
+
+                        i++;
+                    }
+
+                    i--;
+                    continue;
+                }
+
+                switch (insn.Instruction)
+                {
+                    // Four operands.
+                    case InstructionCode.AssignTwo:
+                    case InstructionCode.PushFourParams:
+                        ProcessValue(insn.Lhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                        ProcessValue(insn.Rhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                        ProcessValue(insn.Rhs2, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                        ProcessValue(insn.Rhs3, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                        break;
+
+                    // Three operands.
+                    case InstructionCode.Add:
+                    case InstructionCode.Subtract:
+                    case InstructionCode.Multiply:
+                    case InstructionCode.Divide:
+                    case InstructionCode.Modulo:
+                    case InstructionCode.Power:
+                    case InstructionCode.Equal:
+                    case InstructionCode.NotEqual:
+                    case InstructionCode.LessThan:
+                    case InstructionCode.GreaterThan:
+                    case InstructionCode.LessEqual:
+                    case InstructionCode.GreaterEqual:
+                    case InstructionCode.And:
+                    case InstructionCode.Or:
+                    case InstructionCode.BitwiseAnd:
+                    case InstructionCode.BitwiseOr:
+                    case InstructionCode.BitwiseXor:
+                    case InstructionCode.BitwiseLShift:
+                    case InstructionCode.BitwiseRShift:
+                    case InstructionCode.SetField:
+                    case InstructionCode.GetElement:
+                    case InstructionCode.SetElement:
+                    case InstructionCode.CallFunction:
+                    case InstructionCode.CallMethod:
+                    case InstructionCode.CallStatic:
+                    case InstructionCode.SetStatic:
+                    case InstructionCode.AddAssign:
+                    case InstructionCode.SubAssign:
+                    case InstructionCode.MulAssign:
+                    case InstructionCode.DivAssign:
+                    case InstructionCode.ModAssign:
+                    case InstructionCode.BranchIfEqual:
+                    case InstructionCode.BranchIfNotEqual:
+                    case InstructionCode.BranchIfGreaterThan:
+                    case InstructionCode.BranchIfGreaterOrEqual:
+                    case InstructionCode.BranchIfLessThan:
+                    case InstructionCode.BranchIfLessOrEqual:
+                    case InstructionCode.PushThreeParams:
+                    case InstructionCode.IterNext:
+                        ProcessValue(insn.Lhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                        ProcessValue(insn.Rhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                        ProcessValue(insn.Rhs2, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                        break;
+
+                    // Two operands.
+                    case InstructionCode.Assign:
+                    case InstructionCode.GotoIfTrue:
+                    case InstructionCode.GotoIfFalse:
+                    case InstructionCode.Negate:
+                    case InstructionCode.Not:
+                    case InstructionCode.BitwiseNot:
+                    case InstructionCode.NewInstance:
+                    case InstructionCode.GetField:
+                    case InstructionCode.NewRange:
+                    case InstructionCode.PushElement:
+                    case InstructionCode.GetLength:
+                    case InstructionCode.GetStatic:
+                    case InstructionCode.ToString:
+                    case InstructionCode.NewLambda:
+                    case InstructionCode.PushTwoParams:
+                    case InstructionCode.NewIterator:
+                    case InstructionCode.GetType:
+                        ProcessValue(insn.Lhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                        ProcessValue(insn.Rhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                        break;
+
+                    // One operand.
+                    case InstructionCode.Return:
+                    case InstructionCode.PushParam:
+                    case InstructionCode.LoadAddress:
+                    case InstructionCode.Increment:
+                    case InstructionCode.Decrement:
+                    case InstructionCode.IncrementIntUnrestricted:
+                    case InstructionCode.NewList:
+                    case InstructionCode.Goto:
+                    case InstructionCode.TryBlock:
+                        ProcessValue(insn.Lhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                        break;
+
+                    case InstructionCode.Terminate:
+                    case InstructionCode.Skip:
+                    case InstructionCode.CatchBlock:
+                    case InstructionCode.SectionGlobal:
+                    case InstructionCode.SectionLambdaEnd:
+                    case InstructionCode.SectionLambdaStart:
+                        break;
+
+                    default:
+                        throw new NotImplementedException($"Slot allocation not implemented for opcode: {insn.Instruction}");
+                }
+            }
+
+            lambdaFunction.TotalRegisterSlots = nextSlotIndex;
+
+            int[] parameterIndices = new int[lambdaFunction.Arguments.Count];
+            for (int i = 0; i < lambdaFunction.Arguments.Count; i++)
+            {
+                parameterIndices[i] = variableSlotMap[lambdaFunction.ArgumentHashCodes[i]];
+            }
+            lambdaFunction.SetArgumentRegisterIndices(parameterIndices);
+
+            for (int i = 0; i < _currentParseState.FunctionVariableDeclarations.Count; i++)
+            {
+                InstructionLine line = _currentParseState.FunctionVariableDeclarations[i];
+                if (line.Rhs is FunctionValue fun && fun.Hash == lambdaFunction.Hash)
+                {
+                    _currentParseState.FunctionVariableDeclarations[i].Rhs = lambdaFunction;
+                    break;
+                }
+            }
+
             return new LambdaValue(lambdaFunction);
         }
 

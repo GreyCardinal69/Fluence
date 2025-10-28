@@ -1926,7 +1926,34 @@ namespace Fluence.VirtualMachine
             CallFrame newFrame = _callFramePool.Get();
             newFrame.Initialize(this, function, _ip, (TempValue)instruction.Lhs);
 
-            // TO DO LAMBDAS.
+            for (int i = argCount - 1; i >= 0; i--)
+            {
+                int paramIndex = function.ArgumentRegisterIndices[i];
+                RuntimeValue argValue = _operandStack.Pop();
+
+                if (function.ArgumentsByRef.Contains(function.Arguments[i]))
+                {
+                    if (argValue.ObjectReference is not ReferenceValue reference)
+                    {
+                        SignalError($"Internal VM Error: Argument '{function.Arguments[i]}' in function: \"{function.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                        return;
+                    }
+                    else
+                    {
+                        newFrame.RefParameterMap[paramIndex] = reference.Reference.RegisterIndex;
+                        argValue = GetRuntimeValue(reference.Reference, instruction);
+                        newFrame.Registers[paramIndex] = argValue;
+                    }
+                }
+                else
+                {
+                    newFrame.Registers[paramIndex] = argValue;
+                }
+            }
+
+            _callStack.Push(newFrame);
+            _cachedRegisters = newFrame.Registers;
+            _ip = function.StartAddress;
         }
 
         private void ExecuteNewLambda(InstructionLine instruction)

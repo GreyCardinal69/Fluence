@@ -10,10 +10,10 @@ namespace Fluence
 
         /// <summary> Mangles a base function name by appending a special separator at the end and appending its arity.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string Mangle(string baseName, int arity) => $"{baseName}{_separator}{arity}";
+        internal static string Mangle(string baseName, int arity) => $"{baseName}{_separator}{arity}";
 
         /// <summary> Demangles a name, separating it back into its base name and arity.</summary>
-        public static string Demangle(string mangledName, out int arity)
+        internal static string Demangle(string mangledName, out int arity)
         {
             int sepIndex = mangledName.LastIndexOf(_separator, StringComparison.Ordinal);
             if (sepIndex > 0 && int.TryParse(mangledName[(sepIndex + _separator.Length)..], out arity))
@@ -26,7 +26,7 @@ namespace Fluence
         }
 
         /// <summary> Demangles a name, separating it back into only its base name.</summary>
-        public static string Demangle(string mangledName)
+        internal static string Demangle(string mangledName)
         {
             int sepIndex = mangledName.LastIndexOf(_separator, StringComparison.Ordinal);
             if (sepIndex > 0 && int.TryParse(mangledName[(sepIndex + _separator.Length)..], out _))

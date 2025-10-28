@@ -8,13 +8,13 @@ namespace Fluence.RuntimeTypes
     /// </summary>
     internal sealed record class StringObject : IFluenceObject
     {
-        internal string? Value { get; private set; }
+        internal string Value { get; private set; }
 
         internal StringObject(string value) => Value = value;
 
         public StringObject() { }
 
-        internal void Reset() => Value = null;
+        internal void Reset() => Value = string.Empty;
 
         internal void Initialize(string str) => Value = str;
 

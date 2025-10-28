@@ -3,7 +3,7 @@
     internal sealed class ObjectPool<T> where T : class, new()
     {
         private readonly Stack<T> _pool = new Stack<T>();
-        private readonly Action<T> _resetAction;
+        private readonly Action<T>? _resetAction;
 
         internal ObjectPool(Action<T> resetAction = null!, int initialCapacity = 16)
         {
@@ -31,8 +31,14 @@
         /// </summary>
         internal void Return(T item)
         {
-            _resetAction.Invoke(item);
+            _resetAction?.Invoke(item);
             _pool.Push(item);
+        }
+
+        /// <summary>Empties the pool.</summary>
+        internal void Clear()
+        {
+            while (_pool.Count > 0) _pool.Pop();
         }
     }
 }

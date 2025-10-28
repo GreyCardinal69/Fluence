@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceParser;
@@ -9,9 +11,20 @@ namespace Fluence
     /// </summary>
     internal static class FluenceOptimizer
     {
-        private static readonly Dictionary<TempValue, Value> _constantsMap = new Dictionary<TempValue, Value>();
-        private static readonly HashSet<int> _instructionsToRemove = new HashSet<int>();
-        private static readonly Dictionary<TempValue, int> _registerAssignmentCounts = new Dictionary<TempValue, int>();
+        private static readonly Dictionary<int, RegisterInfo> _registerInfoMap = new();
+        private static readonly Dictionary<int, Value> _constantsMap = new();
+        private static readonly List<int> _instructionsToRemove = new();
+        private static readonly HashSet<int> _uniqueSymbols = new HashSet<int>();
+
+        /// <summary>
+        /// A private struct to hold information about a temporary register's assignments.
+        /// </summary>
+        private struct RegisterInfo
+        {
+            public int AssignmentCount;
+            public int AssignmentIndex;
+            public Value? ConstantValue;
+        }
 
         /// <summary>
         /// Incrementally optimizes a segment of the bytecode list..
@@ -20,7 +33,7 @@ namespace Fluence
         /// <param name="bytecode">The list of bytecode instructions to be modified. It is passed by reference and will be modified in-place.</param>
         /// <param name="parseState">The current state of the parser, containing symbol tables which are required for patching function and method start addresses.</param>
         /// <param name="startIndex">The index in the bytecode list from which to start scanning for optimizations.</param>
-        internal static void OptimizeChunk(ref List<InstructionLine> bytecode, ParseState parseState, int startIndex)
+        internal static void OptimizeChunk(ref List<InstructionLine> bytecode, ParseState parseState, int startIndex, VirtualMachineConfiguration config)
         {
             bool byteCodeChanged = false;
             bool constantFoldingDidWork = false;
@@ -30,17 +43,20 @@ namespace Fluence
             FuseCompoundAssignments(ref bytecode, startIndex, ref byteCodeChanged);
             FuseSimpleAssignments(ref bytecode, startIndex, ref byteCodeChanged);
             FusePushParams(ref bytecode, startIndex, ref byteCodeChanged);
+            ConvertToIncrementsDecrements(ref bytecode, startIndex);
+            FuseComparisonBranches(ref bytecode, startIndex, ref byteCodeChanged);
 
             if (byteCodeChanged)
             {
                 CompactAndRealignFromBottomUp(ref bytecode, parseState);
+                _uniqueSymbols.Clear();
             }
 
             if (constantFoldingDidWork)
             {
+                _registerInfoMap.Clear();
                 _constantsMap.Clear();
                 _instructionsToRemove.Clear();
-                _registerAssignmentCounts.Clear();
             }
         }
 
@@ -52,11 +68,20 @@ namespace Fluence
         /// <param name="startIndex">The index from which to begin scanning.</param>
         private static void FuseCompoundAssignments(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
-            for (int i = startIndex; i < bytecode.Count - 1; i++)
+            Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
+            Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
+
+            int i = 0;
+            while (i < relevantSpan.Length - 1)
             {
-                InstructionLine line1 = bytecode[i];
-                InstructionLine line2 = bytecode[i + 1];
-                if (line1 == null || line2 == null) continue;
+                ref InstructionLine line1 = ref relevantSpan[i];
+                ref InstructionLine line2 = ref relevantSpan[i + 1];
+
+                if (line1 == null || line2 == null)
+                {
+                    i++;
+                    continue;
+                }
 
                 InstructionCode opCode = GetFusedOpcode(line1.Instruction);
 
@@ -68,16 +93,18 @@ namespace Fluence
                 if (opCode != InstructionCode.Skip &&
                     line2.Instruction == InstructionCode.Assign &&
                     line1.Lhs is TempValue l1Lhs &&
-                    line2.Lhs is VariableValue &&
                     line2.Rhs is TempValue l2Rhs &&
-                    l1Lhs.TempName == l2Rhs.TempName)
+                    line2.Lhs is VariableValue &&
+                    l1Lhs.Hash == l2Rhs.Hash)
                 {
+                    line1.Instruction = opCode;
+                    line1.Lhs = line2.Lhs;
+                    relevantSpan[i + 1] = null!;
                     byteCodeChanged = true;
-                    bytecode[i].Instruction = opCode;
-                    bytecode[i].Lhs = line2.Lhs;
-                    bytecode[i].Rhs = line1.Rhs;
-                    bytecode[i].Rhs2 = line1.Rhs2;
-                    bytecode[i + 1] = null!;
+                    i += 2;
+                }
+                else
+                {
                     i++;
                 }
             }
@@ -90,46 +117,114 @@ namespace Fluence
         /// <param name="startIndex">The index from which to begin scanning.</param>
         private static void FusePushParams(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
-            for (int i = startIndex; i < bytecode.Count - 3; i++)
+            Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
+            Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
+
+            int i = 0;
+            while (i < relevantSpan.Length - 1)
+            {
+                ref InstructionLine insn1 = ref relevantSpan[i];
+
+                if (insn1?.Instruction != InstructionCode.PushParam)
+                {
+                    i++;
+                    continue;
+                }
+
+                if (i + 3 < relevantSpan.Length)
+                {
+                    ref InstructionLine insn2 = ref relevantSpan[i + 1];
+                    ref InstructionLine insn3 = ref relevantSpan[i + 2];
+                    ref InstructionLine insn4 = ref relevantSpan[i + 3];
+
+                    if (insn2?.Instruction == InstructionCode.PushParam &&
+                        insn3?.Instruction == InstructionCode.PushParam &&
+                        insn4?.Instruction == InstructionCode.PushParam)
+                    {
+                        insn1.Instruction = InstructionCode.PushFourParams;
+                        insn1.Rhs = insn2.Lhs;
+                        insn1.Rhs2 = insn3.Lhs;
+                        insn1.Rhs3 = insn4.Lhs;
+
+                        relevantSpan[i + 1] = null!;
+                        relevantSpan[i + 2] = null!;
+                        relevantSpan[i + 3] = null!;
+
+                        byteCodeChanged = true;
+                        i += 4;
+                        continue;
+                    }
+                }
+
+                if (i + 2 < relevantSpan.Length)
+                {
+                    ref InstructionLine insn2 = ref relevantSpan[i + 1];
+                    ref InstructionLine insn3 = ref relevantSpan[i + 2];
+
+                    if (insn2?.Instruction == InstructionCode.PushParam &&
+                        insn3?.Instruction == InstructionCode.PushParam)
+                    {
+                        insn1.Instruction = InstructionCode.PushThreeParams;
+                        insn1.Rhs = insn2.Lhs;
+                        insn1.Rhs2 = insn3.Lhs;
+
+                        relevantSpan[i + 1] = null!;
+                        relevantSpan[i + 2] = null!;
+
+                        byteCodeChanged = true;
+                        i += 3;
+                        continue;
+                    }
+                }
+
+                ref InstructionLine insn2_two = ref relevantSpan[i + 1];
+                if (insn2_two?.Instruction == InstructionCode.PushParam)
+                {
+                    insn1.Instruction = InstructionCode.PushTwoParams;
+                    insn1.Rhs = insn2_two.Lhs;
+
+                    relevantSpan[i + 1] = null!;
+
+                    byteCodeChanged = true;
+                    i += 2;
+                    continue;
+                }
+
+                i++;
+            }
+        }
+
+        /// <summary>
+        /// Converts an Add or a Subtract instruction that simply increments or decrements a variable into a slightly more faster Increment
+        /// or Decrement instruction.
+        /// </summary>
+        /// <param name="bytecode">The bytecode list to modify.</param>
+        /// <param name="startIndex">The index from which to begin scanning.</param>
+        private static void ConvertToIncrementsDecrements(ref List<InstructionLine> bytecode, int startIndex)
+        {
+            for (int i = startIndex; i < bytecode.Count - 1; i++)
             {
                 InstructionLine line1 = bytecode[i];
-                InstructionLine line2 = bytecode[i + 1];
-                InstructionLine line3 = bytecode[i + 2];
-                InstructionLine line4 = bytecode[i + 3];
-                if (line1 == null || line2 == null || line3 == null || line4 == null) continue;
+                if (line1 == null) continue;
 
-                if (line1.Instruction == InstructionCode.PushParam &&
-                    line2.Instruction == InstructionCode.PushParam &&
-                    line3.Instruction == InstructionCode.PushParam &&
-                    line4.Instruction == InstructionCode.PushParam)
+                // Pattern Match:
+                // Add/Sub      Var     Var     1
+                // =>
+                // ++/--        Var     1
+                if ((line1.Instruction == InstructionCode.Add || line1.Instruction == InstructionCode.Subtract) &&
+                     line1.Lhs is VariableValue var &&
+                     line1.Rhs is VariableValue var2 &&
+                     var.Hash == var2.Hash &&
+                     line1.Rhs2 is NumberValue num &&
+                     num.Type == NumberValue.NumberType.Integer &&
+                     (int)num.Value == 1)
                 {
-                    byteCodeChanged = true;
-                    bytecode[i].Instruction = InstructionCode.PushFourParams;
-                    bytecode[i].Rhs = line2.Lhs;
-                    bytecode[i].Rhs2 = line3.Lhs;
-                    bytecode[i].Rhs3 = line4.Lhs;
-                    bytecode[i + 1] = null!;
-                    bytecode[i + 2] = null!;
-                    bytecode[i + 3] = null!;
-                    i += 3;
-                }
-                else if (line1.Instruction == InstructionCode.PushParam && line2.Instruction == InstructionCode.PushParam && line3.Instruction == InstructionCode.PushParam)
-                {
-                    byteCodeChanged = true;
-                    bytecode[i].Instruction = InstructionCode.PushThreeParams;
-                    bytecode[i].Rhs = line2.Lhs;
-                    bytecode[i].Rhs2 = line3.Lhs;
-                    bytecode[i + 1] = null!;
-                    bytecode[i + 2] = null!;
-                    i += 2;
-                }
-                else if (line1.Instruction == InstructionCode.PushParam && line2.Instruction == InstructionCode.PushParam)
-                {
-                    byteCodeChanged = true;
-                    bytecode[i].Instruction = InstructionCode.PushTwoParams;
-                    bytecode[i].Rhs = line2.Lhs;
-                    bytecode[i + 1] = null!;
-                    i++;
+                    InstructionCode instruction = line1.Instruction == InstructionCode.Add ? InstructionCode.Increment : InstructionCode.Decrement;
+
+                    // This optimization does not change bytecode instructions to a considerable degree, no need to parch addresses.
+                    bytecode[i].Instruction = instruction;
+                    bytecode[i].Rhs = null!;
+                    bytecode[i].Rhs2 = null!;
                 }
             }
         }
@@ -147,12 +242,10 @@ namespace Fluence
                 InstructionLine line2 = bytecode[i + 1];
                 if (line1 == null || line2 == null) continue;
 
-                if (line1.Instruction == InstructionCode.Assign && line2.Instruction == InstructionCode.Assign && line2.Rhs != line1.Lhs)
+                if (line1.Instruction == InstructionCode.Assign && line2.Instruction == InstructionCode.Assign && line1.Lhs.Hash != line2.Rhs.Hash)
                 {
                     byteCodeChanged = true;
                     bytecode[i].Instruction = InstructionCode.AssignTwo;
-                    bytecode[i].Lhs = line1.Lhs;
-                    bytecode[i].Rhs = line1.Rhs;
                     bytecode[i].Rhs2 = line2.Lhs;
                     bytecode[i].Rhs3 = line2.Rhs;
                     bytecode[i + 1] = null!;
@@ -169,41 +262,41 @@ namespace Fluence
         /// <param name="startIndex">The index from which to begin scanning.</param>
         private static void RemoveConstTempRegisters(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged, ref bool constantFoldingDidWork)
         {
-            for (int i = startIndex; i < bytecode.Count; i++)
-            {
-                InstructionLine insn = bytecode[i];
-                if (insn == null) continue;
+            Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
+            Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
 
-                if (insn.Lhs is TempValue temp)
+            for (int i = 0; i < relevantSpan.Length; i++)
+            {
+                ref InstructionLine? insn = ref relevantSpan[i];
+
+                if (insn is null) continue;
+
+                if (insn?.Rhs is TempValue temp)
                 {
-                    _registerAssignmentCounts.TryGetValue(temp, out int currentCount);
-                    _registerAssignmentCounts[temp] = currentCount + 1;
+                    ref RegisterInfo info = ref CollectionsMarshal.GetValueRefOrAddDefault(_registerInfoMap, temp.Hash, out bool exists);
+                    info.AssignmentCount++;
+
+                    if (!exists)
+                    {
+                        info.AssignmentIndex = startIndex + i;
+                        if (IsAConstantValue(insn.Rhs))
+                        {
+                            info.ConstantValue = insn.Rhs;
+                        }
+                    }
+                    else
+                    {
+                        info.ConstantValue = null;
+                    }
                 }
             }
 
-            if (_registerAssignmentCounts.Count == 0)
+            foreach (KeyValuePair<int, RegisterInfo> kvp in _registerInfoMap)
             {
-                return;
-            }
-
-            for (int i = startIndex; i < bytecode.Count; i++)
-            {
-                InstructionLine insn = bytecode[i];
-                if (insn == null) continue;
-
-                if (insn.Instruction == InstructionCode.Assign &&
-                    insn.Lhs is TempValue temp &&
-                    IsConstantValue(insn.Rhs))
+                if (kvp.Value.AssignmentCount == 1 && kvp.Value.ConstantValue is not null)
                 {
-                    // In some cases, we can have some temp register assigned to a constant as a temporary, say in a match
-                    // Depending on the match case, it can be constant, or non constant, we look ahead, if we assign to this temp register later
-                    // We can't replace the register.
-                    // Constant folding is non error prone only for temp registers that are assigned to only once in the entire function.
-                    if (_registerAssignmentCounts.TryGetValue(temp, out int count) && count == 1)
-                    {
-                        _constantsMap[temp] = insn.Rhs;
-                        _instructionsToRemove.Add(i);
-                    }
+                    _constantsMap.Add(kvp.Key, kvp.Value.ConstantValue);
+                    _instructionsToRemove.Add(kvp.Value.AssignmentIndex);
                 }
             }
 
@@ -212,26 +305,31 @@ namespace Fluence
                 return;
             }
 
-            for (int i = startIndex; i < bytecode.Count; i++)
+            for (int i = 0; i < relevantSpan.Length; i++)
             {
-                InstructionLine insn = bytecode[i];
+                ref InstructionLine insn = ref relevantSpan[i];
                 if (insn == null) continue;
 
-                if (insn.Rhs is TempValue tempRhs && _constantsMap.TryGetValue(tempRhs, out Value? constValRhs))
+                bool changed = false;
+
+                if (insn.Rhs is TempValue tempRhs && _constantsMap.TryGetValue(tempRhs.Hash, out Value? constValRhs))
                 {
                     insn.Rhs = constValRhs;
-                    constantFoldingDidWork = true;
-                    byteCodeChanged = true;
+                    changed = true;
                 }
-                if (insn.Rhs2 is TempValue tempRhs2 && _constantsMap.TryGetValue(tempRhs2, out Value? constValRhs2))
+                if (insn.Rhs2 is TempValue tempRhs2 && _constantsMap.TryGetValue(tempRhs2.Hash, out Value? constValRhs2))
                 {
                     insn.Rhs2 = constValRhs2;
-                    constantFoldingDidWork = true;
-                    byteCodeChanged = true;
+                    changed = true;
                 }
-                if (insn.Rhs3 is TempValue tempRhs3 && _constantsMap.TryGetValue(tempRhs3, out Value? constValRhs3))
+                if (insn.Rhs3 is TempValue tempRhs3 && _constantsMap.TryGetValue(tempRhs3.Hash, out Value? constValRhs3))
                 {
                     insn.Rhs3 = constValRhs3;
+                    changed = true;
+                }
+
+                if (changed)
+                {
                     constantFoldingDidWork = true;
                     byteCodeChanged = true;
                 }
@@ -239,7 +337,7 @@ namespace Fluence
 
             foreach (int index in _instructionsToRemove)
             {
-                bytecode[index] = null!;
+                byteCodeSpan[index] = null!;
             }
         }
 
@@ -267,7 +365,7 @@ namespace Fluence
                 if (op != InstructionCode.Skip &&
                     line1.Lhs is TempValue cResult &&
                     line2.Rhs is TempValue jCond &&
-                    cResult.TempName == jCond.TempName)
+                    cResult.Hash == jCond.Hash)
                 {
                     byteCodeChanged = true;
                     bytecode[i].Instruction = op;
@@ -281,11 +379,81 @@ namespace Fluence
         }
 
         /// <summary>
+        /// Scans for a comparison operation (<, <=, >, >=) followed by a conditional jump
+        /// that uses its result, and fuses them into a single, efficient branch instruction.
+        /// </summary>
+        /// <param name="bytecode">The bytecode list to modify.</param>
+        /// <param name="startIndex">The index from which to begin scanning.</param>
+        /// <param name="byteCodeChanged">Flag to indicate if the bytecode was modified.</param>
+        private static void FuseComparisonBranches(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
+        {
+            Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
+            Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
+
+            int i = 0;
+            while (i < relevantSpan.Length - 1)
+            {
+                ref InstructionLine? line1 = ref relevantSpan[i]!;
+                InstructionLine? line2 = relevantSpan[i + 1];
+
+                if (line1 is null || line2 is null)
+                {
+                    i++;
+                    continue;
+                }
+
+                InstructionCode fusedOp = GetFusedBranchOpCode(line1.Instruction, line2.Instruction);
+
+                // Pattern Match:
+                // [Comparison] TempN    A          B
+                // [GotoIfTrue/False]    JMP        TempN      .
+                // =>
+                // [BranchIf...] JMP     A          B
+                if (fusedOp != InstructionCode.Skip &&
+                    line1.Lhs is TempValue comparisonResult &&
+                    line2.Rhs is TempValue jumpCondition &&
+                    comparisonResult.Hash == jumpCondition.Hash)
+                {
+                    line1.Instruction = fusedOp;
+                    line1.Lhs = line2.Lhs;
+                    relevantSpan[i + 1] = null!;
+                    byteCodeChanged = true;
+                    i += 2;
+                }
+                else
+                {
+                    i++;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the corresponding branch instruction for a given comparison and conditional goto pair.
+        /// </summary>
+        /// <returns>The fused instruction code, or <see cref="InstructionCode.Skip"/> if no pattern matches.</returns>
+        private static InstructionCode GetFusedBranchOpCode(InstructionCode comparisonOp, InstructionCode jumpOp) => (comparisonOp, jumpOp) switch
+        {
+            (InstructionCode.GreaterThan, InstructionCode.GotoIfTrue) => InstructionCode.BranchIfGreaterThan,
+            (InstructionCode.GreaterThan, InstructionCode.GotoIfFalse) => InstructionCode.BranchIfLessOrEqual,
+
+            (InstructionCode.LessThan, InstructionCode.GotoIfTrue) => InstructionCode.BranchIfLessThan,
+            (InstructionCode.LessThan, InstructionCode.GotoIfFalse) => InstructionCode.BranchIfGreaterOrEqual,
+
+            (InstructionCode.GreaterEqual, InstructionCode.GotoIfTrue) => InstructionCode.BranchIfGreaterOrEqual,
+            (InstructionCode.GreaterEqual, InstructionCode.GotoIfFalse) => InstructionCode.BranchIfLessThan,
+
+            (InstructionCode.LessEqual, InstructionCode.GotoIfTrue) => InstructionCode.BranchIfLessOrEqual,
+            (InstructionCode.LessEqual, InstructionCode.GotoIfFalse) => InstructionCode.BranchIfGreaterThan,
+
+            _ => InstructionCode.Skip,
+        };
+
+        /// <summary>
         /// Checks whether the given <see cref="Value"/> represents a constant value such as strings, chars, nil, bool or numeric.
         /// </summary>
         /// <param name="val">The Value to check.</param>
         /// <returns>True if the <see cref="Value"/> is considered constant.</returns>
-        private static bool IsConstantValue(Value val) => val is
+        private static bool IsAConstantValue(Value val) => val is
             NumberValue or
             StringValue or
             CharValue or
@@ -321,12 +489,8 @@ namespace Fluence
         /// Checks if the given instruction code is a type of jump.
         /// </summary>
         /// <returns>True if the instruction is a jump, otherwise false.</returns>
-        private static bool IsJumpInstruction(InstructionCode op) =>
-            op is InstructionCode.Goto
-            or InstructionCode.GotoIfTrue
-            or InstructionCode.GotoIfFalse
-            or InstructionCode.BranchIfEqual
-            or InstructionCode.BranchIfNotEqual;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsJumpInstruction(InstructionCode op) => op is >= InstructionCode.Goto and <= InstructionCode.BranchIfLessOrEqual;
 
         /// <summary>
         /// Compacts the bytecode list by removing all null placeholders and realigns all absolute addresses.
@@ -352,55 +516,70 @@ namespace Fluence
         /// <param name="removedIndex">The index of the instruction that was just removed. All addresses greater than this index will be decremented.</param>
         private static void PatchAllAddressesAfterRemoval(ref List<InstructionLine> bytecode, ParseState state, int removedIndex)
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             int MapAddr(int oldAddr)
             {
                 return oldAddr > removedIndex ? oldAddr - 1 : oldAddr;
             }
 
-            for (int i = 0; i < bytecode.Count; i++)
+            Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
+
+            for (int i = 0; i < byteCodeSpan.Length; i++)
             {
-                InstructionLine insn = bytecode[i];
+                ref InstructionLine insn = ref byteCodeSpan[i];
                 if (insn == null) continue;
 
                 if (IsJumpInstruction(insn.Instruction) && insn.Lhs is NumberValue targetAddr)
                 {
                     targetAddr.ReAssign(MapAddr((int)targetAddr.Value));
+                    // Goto here, no need to check other cases.
+                    continue;
                 }
-                if (insn.Lhs is TryCatchValue tryCatch)
+                else if (insn.Lhs is TryCatchValue tryCatch)
                 {
                     tryCatch.TryGoToIndex = MapAddr(tryCatch.TryGoToIndex);
                     tryCatch.CatchGoToIndex = MapAddr(tryCatch.CatchGoToIndex);
+                    // Try catch, same as goto, no rhs+ components.
+                    continue;
                 }
-                if (insn.Rhs is FunctionValue fvRhs) fvRhs.SetStartAddress(MapAddr(fvRhs.StartAddress));
-                if (insn.Rhs is LambdaValue lambda) lambda.Function.SetStartAddress(MapAddr(lambda.Function.StartAddress));
-                if (insn.Rhs2 is FunctionValue fvRhs2) fvRhs2.SetStartAddress(MapAddr(fvRhs2.StartAddress));
-            }
 
-            foreach (Symbol symbol in state.GlobalScope.Symbols.Values)
-            {
-                if (symbol is FunctionSymbol f) f.SetStartAddress(MapAddr(f.StartAddress));
-                else if (symbol is StructSymbol s)
+                if (insn.Rhs is FunctionValue fvRhs)
                 {
-                    foreach (KeyValuePair<string, FunctionValue> item in s.Constructors)
-                    {
-                        item.Value.SetStartAddress(MapAddr(item.Value.StartAddress));
-                    }
-                    foreach (FunctionValue m in s.Functions.Values) m.SetStartAddress(MapAddr(m.StartAddress));
+                    fvRhs.SetStartAndEndAddresses(MapAddr(fvRhs.StartAddress), MapAddr(fvRhs.EndAddress));
+                }
+                else if (insn.Rhs is LambdaValue lambda)
+                {
+                    lambda.Function.SetStartAndEndAddresses(MapAddr(lambda.Function.StartAddress), MapAddr(lambda.Function.EndAddress));
+                }
+
+                if (insn.Rhs2 is FunctionValue fvRhs2)
+                {
+                    fvRhs2.SetStartAndEndAddresses(MapAddr(fvRhs2.StartAddress), MapAddr(fvRhs2.EndAddress));
                 }
             }
 
             foreach (FluenceScope scope in state.NameSpaces.Values)
             {
+                if (scope.IsIntrinsicScope)
+                {
+                    continue;
+                }
                 foreach (Symbol symbol in scope.Symbols.Values)
                 {
-                    if (symbol is FunctionSymbol f) f.SetStartAddress(MapAddr(f.StartAddress));
+                    if (symbol is FunctionSymbol f)
+                    {
+                        f.SetStartAddress(MapAddr(f.StartAddress));
+                    }
                     else if (symbol is StructSymbol s)
                     {
                         foreach (KeyValuePair<string, FunctionValue> item in s.Constructors)
                         {
-                            item.Value.SetStartAddress(MapAddr(item.Value.StartAddress));
+                            item.Value.SetStartAndEndAddresses(MapAddr(item.Value.StartAddress), MapAddr(item.Value.EndAddress));
                         }
-                        foreach (FunctionValue m in s.Functions.Values) m.SetStartAddress(MapAddr(m.StartAddress));
+                        foreach (FunctionValue m in s.Functions.Values)
+                        {
+                            m.SetStartAndEndAddresses(MapAddr(m.StartAddress), MapAddr(m.EndAddress));
+                        }
                     }
                 }
             }

@@ -1,4 +1,6 @@
 ﻿using Fluence.Global;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using static Fluence.FluenceInterpreter;
 
 namespace Fluence
@@ -12,7 +14,7 @@ namespace Fluence
         /// <summary>
         /// A dictionary mapping namespace names to their registration actions.
         /// </summary>
-        private readonly Dictionary<string, Action<FluenceScope>> _libraryRegistry = new();
+        private readonly Dictionary<int, Action<FluenceScope>> _libraryRegistry = new();
         private readonly FluenceParser _parser;
 
         private readonly TextOutputMethod _outputLine;
@@ -27,10 +29,10 @@ namespace Fluence
             _output = output;
 
             // Pre-register all known standard libraries.
-            _libraryRegistry[FluenceMath.NamespaceName] = FluenceMath.Register;
-            _libraryRegistry[FluenceIO.NamespaceName] = FluenceIO.Register;
+            _libraryRegistry[FluenceMath.NamespaceName.GetHashCode()] = FluenceMath.Register;
+            _libraryRegistry[FluenceIO.NamespaceName.GetHashCode()] = FluenceIO.Register;
 
-            _libraryRegistry[FluenceUnsafe.NamespaceName] = (scope) =>
+            _libraryRegistry[FluenceUnsafe.NamespaceName.GetHashCode()] = (scope) =>
             {
                 FluenceUnsafe.Register(scope, _outputLine, _input, _output);
             };
@@ -53,14 +55,20 @@ namespace Fluence
         /// <returns>The newly created and populated scope if the library was found, otherwise null.</returns>
         internal FluenceScope? Use(string namespaceName)
         {
-            if (_libraryRegistry.TryGetValue(namespaceName, out Action<FluenceScope>? registrationAction))
+            int hash = namespaceName.GetHashCode();
+
+            ref Action<FluenceScope> registrationAction = ref CollectionsMarshal.GetValueRefOrNullRef(_libraryRegistry, hash);
+
+            if (!Unsafe.IsNullRef(ref registrationAction))
             {
-                if (_parser.CurrentParserStateGlobalScope.DeclaredSymbolNames.Contains(namespaceName.GetHashCode()))
+                ref FluenceScope scope = ref CollectionsMarshal.GetValueRefOrNullRef(_parser.CurrentParseState.NameSpaces, hash);
+
+                if (!Unsafe.IsNullRef(ref scope))
                 {
-                    return null;
+                    return scope;
                 }
 
-                FluenceScope newNamespaceScope = new FluenceScope(_parser.CurrentParserStateGlobalScope, namespaceName);
+                FluenceScope newNamespaceScope = new FluenceScope(_parser.CurrentParserStateGlobalScope, namespaceName, true);
                 registrationAction(newNamespaceScope);
                 _parser.AddNameSpace(newNamespaceScope);
 

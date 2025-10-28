@@ -2,7 +2,6 @@ using Fluence.Exceptions;
 using Fluence.Global;
 using Fluence.RuntimeTypes;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -10,12 +9,13 @@ using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceInterpreter;
 using static Fluence.FluenceParser;
+using static Fluence.VirtualMachine.InlineCacheManager;
 
 namespace Fluence.VirtualMachine
 {
     /// <summary>
-    /// The core execution engine for Fluence bytecode. It manages the call stack, instruction pointer,
-    /// memory (registers and globals), and the main execution loop.
+    /// The core execution engine for Fluence bytecode. It manages the call stack, the instruction pointer,
+    /// the memory (registers and globals), and the main execution loop.
     /// </summary>
     internal sealed class FluenceVirtualMachine
     {
@@ -34,22 +34,29 @@ namespace Fluence.VirtualMachine
         /// <summary>The call stack, containing a <see cref="CallFrame"/> for each active function call.</summary>
         private readonly Stack<CallFrame> _callStack;
 
-        /// <summary>
-        /// A direct, cached reference to the registers of the currently executing function's call frame.
-        /// </summary>
-        private Dictionary<int, RuntimeValue> _cachedRegisters;
+        /// <summary>A direct, cached reference to the registers of the currently executing function's call frame.</summary>
+        private RuntimeValue[] _cachedRegisters;
+
+        /// <summary>A direct, cached reference to the writeable cache of the currently executing function's call frame.</summary>
+        private bool[] _cachedWritableCache;
 
         /// <summary>A dictionary holding all global variables.</summary>
-        private readonly Dictionary<int, RuntimeValue> _globals;
+        private readonly RuntimeValue[] _globals;
+
+        /// <summary>
+        /// A dictionary of all global variable values in the bytecode by their names.
+        /// </summary>
+        private readonly Dictionary<string, VariableValue> _globalVariableRegister = new Dictionary<string, VariableValue>();
 
         /// <summary>The top-level global scope, used for resolving global functions and variables.</summary>
         private readonly FluenceScope _globalScope;
 
-        private static readonly int _selfInstanceHashCode = "self".GetHashCode();
-
         /// <summary>The stack used for passing arguments to functions and for temporary operand storage.</summary>
         private readonly Stack<RuntimeValue> _operandStack = new Stack<RuntimeValue>();
 
+        /// <summary>
+        /// The stack used for the tracking of try-catch blocks, if the stack is empty and an error occurs, the vm will crash regardless if the error can be caught.
+        /// </summary>
         private readonly Stack<TryCatchValue> _tryCatchBlocks = new Stack<TryCatchValue>();
 
         /// <summary>
@@ -99,10 +106,10 @@ namespace Fluence.VirtualMachine
         /// <summary>
         /// A cache to store the readonly status of variables in the global scope.
         /// </summary>
-        internal readonly Dictionary<int, bool> GlobalWritableCache = new();
+        private readonly bool[] _globalWritableCache;
 
         /// <summary> The list of all namespaces in the source code. </summary>
-        private readonly Dictionary<string, FluenceScope> Namespaces;
+        private readonly Dictionary<int, FluenceScope> Namespaces;
 
         /// <summary>The Instruction Pointer, which holds the address of the *next* instruction to be executed.</summary>
         private int _ip;
@@ -129,18 +136,13 @@ namespace Fluence.VirtualMachine
         /// <summary>Gets the currently active call frame from the top of the call stack.</summary>
         internal CallFrame CurrentFrame => _callStack.Peek();
 
-        /// <summary>Gets the registers for the current call frame via the cached reference.</summary>
-        internal Dictionary<int, RuntimeValue> CurrentRegisters => _cachedRegisters;
+        /// <summary>Gets the registers for the current call frame.</summary>
+        internal RuntimeValue[] CurrentRegisters => _cachedRegisters;
 
-        internal Dictionary<int, RuntimeValue> GlobalRegisters => _globals;
+        /// <summary>Gets the global registers of the current vm run.</summary>
+        internal RuntimeValue[] GlobalRegisters => _globals;
 
         internal int CurrentInstructionPointer => _ip;
-
-        internal List<InstructionLine> ByteCode => _byteCode;
-
-        internal FluenceParser Parser => _parser;
-
-        internal FluenceScope GlobalScope => _globalScope;
 
         /// <summary>
         /// The current state of the Virtual Machine.
@@ -189,7 +191,7 @@ namespace Fluence.VirtualMachine
             _outputLine($"Total Instructions Executed: {totalInstructions:N0}");
             _outputLine($"Total Execution Time: {new TimeSpan(totalTicks).TotalMilliseconds:N3} ms\n");
 
-            _outputLine($"{"OpCode",-20} | {"Count",-15} | {"% of Total",-12} | {"Total Time (ms)",-18} | {"% of Time",-12} | {"Avg. Ticks/Op",-15}");
+            _outputLine($"{"OpCode",-25} | {"Count",-15} | {"% of Total",-12} | {"Total Time (ms)",-18} | {"% of Time",-12} | {"Avg. Ticks/Op",-15}");
             _outputLine(new string('-', 110));
 
             profileData.Sort((a, b) => b.Ticks.CompareTo(a.Ticks));
@@ -208,7 +210,7 @@ namespace Fluence.VirtualMachine
                 string percentTimeStr = $"{percentOfTotalTime:F2}%";
                 string avgTicksStr = avgTicksPerOp.ToString("F2");
 
-                _outputLine($"{opCodeStr,-20} | {countStr,-15} | {percentCountStr,-12} | {totalMsStr,-18} | {percentTimeStr,-12} | {avgTicksStr,-15}");
+                _outputLine($"{opCodeStr,-25} | {countStr,-15} | {percentCountStr,-12} | {totalMsStr,-18} | {percentTimeStr,-12} | {avgTicksStr,-15}");
             }
             _outputLine(new string('-', 110));
             _outputLine(Environment.NewLine);
@@ -225,16 +227,17 @@ namespace Fluence.VirtualMachine
         /// <param name="input">The delegate to handle user input.</param>
         internal FluenceVirtualMachine(List<InstructionLine> bytecode, VirtualMachineConfiguration config, ParseState parseState, TextOutputMethod? output, TextOutputMethod? outputLine, TextInputMethod? input)
         {
-            _callFramePool = new ObjectPool<CallFrame>(frame => frame.Reset());
+            _callFramePool = new ObjectPool<CallFrame>(frame => frame.RefParameterMap.Clear());
             _iteratorObjectPool = new ObjectPool<IteratorObject>(iter => iter.Reset());
             _charObjectPool = new ObjectPool<CharObject>(chr => chr.Reset());
-            _functionObjectPool = new ObjectPool<FunctionObject>(func => func.Reset());
+            _functionObjectPool = new ObjectPool<FunctionObject>();
             _stringObjectPool = new ObjectPool<StringObject>(str => str.Reset());
             _rangeObjectPool = new ObjectPool<RangeObject>(range => range.Reset());
+
             _parser = parseState.ParserInstance;
             _byteCode = bytecode;
             _globalScope = parseState.GlobalScope;
-            _globals = new Dictionary<int, RuntimeValue>();
+
             _callStack = new Stack<CallFrame>();
 
             _output = output ?? Console.Write;
@@ -242,21 +245,32 @@ namespace Fluence.VirtualMachine
 
             _configuration = config;
 
-            // TO DO, Needs testing.
             _input = input ?? Console.ReadLine!;
 
             // This represents the top-level global execution context.
             FunctionObject mainScriptFunc = new FunctionObject("<script>", 0, new List<string>(), new List<int>(), 0, _globalScope);
 
+            InstructionCode[] opCodeValues = Enum.GetValues<InstructionCode>();
+            int maxOpCode = 0;
+
+            int globalRegisterSlotCount = PrepareGlobalRegistry();
+
+            mainScriptFunc.TotalRegisterSlots = globalRegisterSlotCount + 1;
+
             CallFrame initialFrame = new CallFrame();
-            initialFrame.Initialize(mainScriptFunc, _byteCode.Count, null!);
+            initialFrame.Initialize(this, mainScriptFunc, _byteCode.Count, null!);
 
             _callStack.Push(initialFrame);
 
             _cachedRegisters = initialFrame.Registers;
 
-            InstructionCode[] opCodeValues = Enum.GetValues<InstructionCode>();
-            int maxOpCode = 0;
+            _globals = new RuntimeValue[globalRegisterSlotCount];
+            _globalWritableCache = new bool[globalRegisterSlotCount];
+
+#if DEBUG
+            FluenceDebug.DumpByteCodeInstructions(_parser.CompiledCode, _outputLine);
+            BytecodeTestGenerator.GenerateCSharpCodeForInstructionList(_parser.CurrentParseState.CodeInstructions, _outputLine);
+#endif
 
             foreach (InstructionCode value in opCodeValues)
             {
@@ -287,8 +301,10 @@ namespace Fluence.VirtualMachine
             _dispatchTable[(int)InstructionCode.NewRange] = ExecuteNewRange;
             _dispatchTable[(int)InstructionCode.GetLength] = ExecuteGetLength;
             _dispatchTable[(int)InstructionCode.ToString] = ExecuteToString;
+
             // Inlined directly in Run function.
-            // _dispatchTable[(int)InstructionCode.Goto] = ExecuteGoto;
+            _dispatchTable[(int)InstructionCode.Goto] = ExecuteGoto;
+
             _dispatchTable[(int)InstructionCode.NewIterator] = ExecuteNewIterator;
             _dispatchTable[(int)InstructionCode.IterNext] = ExecuteIterNext;
             _dispatchTable[(int)InstructionCode.PushParam] = ExecutePushParam;
@@ -338,6 +354,9 @@ namespace Fluence.VirtualMachine
             _dispatchTable[(int)InstructionCode.ModAssign] = ExecuteModulo;
             _dispatchTable[(int)InstructionCode.SubAssign] = ExecuteSubtraction;
 
+            _dispatchTable[(int)InstructionCode.Increment] = ExecuteIncrement;
+            _dispatchTable[(int)InstructionCode.Decrement] = ExecuteDecrement;
+
             _dispatchTable[(int)InstructionCode.AssignTwo] = ExecuteAssignTwo;
 
             _dispatchTable[(int)InstructionCode.PushTwoParams] = ExecutePushTwoParam;
@@ -347,6 +366,11 @@ namespace Fluence.VirtualMachine
             _dispatchTable[(int)InstructionCode.BranchIfEqual] = (inst) => ExecuteBranchIfEqual(inst, true);
             _dispatchTable[(int)InstructionCode.BranchIfNotEqual] = (inst) => ExecuteBranchIfEqual(inst, false);
 
+            _dispatchTable[(int)InstructionCode.BranchIfGreaterThan] = ExecuteBranchIfGreaterThan;
+            _dispatchTable[(int)InstructionCode.BranchIfGreaterOrEqual] = ExecuteBranchIfGreaterOrEqual;
+            _dispatchTable[(int)InstructionCode.BranchIfLessThan] = ExecuteBranchIfLessThan;
+            _dispatchTable[(int)InstructionCode.BranchIfLessOrEqual] = ExecuteBranchIfLessOrEqual;
+
             // Simple case for Terminate.
             _dispatchTable[(int)InstructionCode.Terminate] = (inst) => _ip = _byteCode.Count;
 
@@ -354,12 +378,104 @@ namespace Fluence.VirtualMachine
         }
 
         /// <summary>
+        /// Calculates the total amount of register slots the global frame requires to store its
+        /// global variables and patches the indecies of its global variables.
+        /// </summary>
+        /// <returns>The total number of unique global variable slots required.</returns>
+        private int PrepareGlobalRegistry()
+        {
+            HashSet<string> globalVars = new HashSet<string>();
+            int index = 0;
+            int startIndex = 0;
+
+            for (int i = 0; i < _byteCode.Count; i++)
+            {
+                if (_byteCode[i].Instruction == InstructionCode.SectionGlobal)
+                {
+                    startIndex = i;
+                    break;
+                }
+            }
+
+            // We no longer need the indicator, it will result in time wasted.
+            _byteCode.RemoveAt(startIndex);
+
+            for (int i = startIndex; i < _byteCode.Count; i++)
+            {
+                InstructionLine insn = _byteCode[i];
+                if (insn.Instruction == InstructionCode.Assign && insn.Lhs is VariableValue variable && !globalVars.Contains(variable.Name))
+                {
+                    globalVars.Add(variable.Name);
+                    variable.IsGlobal = true;
+                    variable.RegisterIndex = index;
+                    index++;
+
+                    // We store the global variables to allow the access and setting of their values by the interpreter.
+                    _globalVariableRegister.Add(variable.Name, variable);
+                }
+                // In a few cases there are temporary registers in the global section, such as the mandatory call to the main function.
+                // Or if any global variables call a function to get their value.
+                else if (insn.Lhs is TempValue temp)
+                {
+                    temp.RegisterIndex = index;
+                    index++;
+                }
+                else if (insn.Rhs is TempValue temp2)
+                {
+                    temp2.RegisterIndex = index;
+                    index++;
+                }
+                else if (insn.Rhs2 is TempValue temp3)
+                {
+                    temp3.RegisterIndex = index;
+                    index++;
+                }
+                else if (insn.Rhs3 is TempValue temp4)
+                {
+                    temp4.RegisterIndex = index;
+                    index++;
+                }
+            }
+
+            void PatchOperand(Value operand)
+            {
+                if (operand is VariableValue var && _globalVariableRegister.TryGetValue(var.Name, out VariableValue outVar))
+                {
+                    var.IsGlobal = true;
+                    var.RegisterIndex = outVar.RegisterIndex;
+                }
+            }
+
+            for (int i = 0; i < _byteCode.Count; i++)
+            {
+                InstructionLine insn = _byteCode[i];
+
+                PatchOperand(insn.Lhs);
+                PatchOperand(insn.Rhs);
+                PatchOperand(insn.Rhs2);
+                PatchOperand(insn.Rhs3);
+            }
+
+            return index;
+        }
+
+        /// <summary>
         /// Tries to retrieve a global variable by name.
         /// </summary>
         /// <param name="name">The name of the global variable.</param>
-        /// <param name="val">When this method returns, contains the value of the global variable, if found; otherwise, the default value.</param>
+        /// <param name="val">When this method returns, contains the value of the global variable, if found; otherwise, the default value (Nil).</param>
         /// <returns>True if the global variable was found; otherwise, false.</returns>
-        internal bool TryGetGlobalVariable(string name, out RuntimeValue val) => _globals.TryGetValue(name.GetHashCode(), out val);
+        internal bool TryGetGlobalVariable(string name, out RuntimeValue val)
+        {
+            if (_globalVariableRegister.TryGetValue(name, out VariableValue var))
+            {
+                val = _globals[var.RegisterIndex];
+                return true;
+            }
+
+            val = RuntimeValue.Nil;
+            return false;
+        }
 
         /// <summary>
         /// Returns a reusable CallFrame insitance from the CallFrame pool or creates one if non are available.
@@ -399,7 +515,14 @@ namespace Fluence.VirtualMachine
                     "Supported types are null, bool, int, long, float, double, string, char.")
             };
 
-            AssignVariable(name, name.GetHashCode(), runtimeValue, null!);
+            if (_globalVariableRegister.TryGetValue(name, out VariableValue var))
+            {
+                AssignVariable(var, runtimeValue, null!);
+            }
+            else
+            {
+                throw ConstructRuntimeException($"Invalid global variable name: {name}, unable to set new value.");
+            }
         }
 
         /// <summary>
@@ -426,12 +549,15 @@ namespace Fluence.VirtualMachine
             int instructionsUntilNextCheck = _timeCheckInterval;
             bool willRunUntilDone = duration == TimeSpan.MaxValue;
 
+            int instructionCount = _byteCode.Count;
+            Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(_byteCode);
+
             if (willRunUntilDone)
             {
                 stopwatch.Stop();
             }
 
-            while (_ip < _byteCode.Count)
+            while (_ip < instructionCount)
             {
                 if (_stopRequested)
                 {
@@ -456,18 +582,12 @@ namespace Fluence.VirtualMachine
                     }
                 }
 
-                InstructionLine instruction = _byteCode[_ip];
+                ref InstructionLine instruction = ref byteCodeSpan[_ip];
                 _ip++;
 
 #if DEBUG
                 _stopwatch.Restart();
 #endif
-
-                if (instruction.Instruction is InstructionCode.Goto)
-                {
-                    _ip = (int)((NumberValue)instruction.Lhs).Value;
-                    continue;
-                }
 
                 if (instruction.SpecializedHandler != null)
                 {
@@ -477,6 +597,7 @@ namespace Fluence.VirtualMachine
                 {
                     _dispatchTable[(int)instruction.Instruction](instruction);
                 }
+
 #if DEBUG
                 _stopwatch.Stop();
                 _instructionCounts.TryAdd(instruction.Instruction, 0);
@@ -508,48 +629,8 @@ namespace Fluence.VirtualMachine
         /// <summary>Handles the ADD instruction, which performs numeric addition, string concatenation, or list concatenation.</summary>
         private void ExecuteAdd(InstructionLine instruction)
         {
-            if (instruction.SpecializedHandler != null)
-            {
-                instruction.SpecializedHandler(instruction, this);
-                return;
-            }
-
-            ExecuteGenericAdd(instruction);
-        }
-
-        private void ExecuteIncrementIntUnrestricted(InstructionLine instruction)
-        {
-            if (instruction.Lhs is TempValue temp)
-            {
-                SetRegister(temp, new RuntimeValue(GetRuntimeValue(temp).IntValue + 1));
-                return;
-            }
-
-            VariableValue var = (VariableValue)instruction.Lhs;
-            RuntimeValue result = new RuntimeValue(GetRuntimeValue(var).IntValue + 1);
-            SetVariable(var.Hash, ref result);
-        }
-
-        private void ExecuteLoadAddress(InstructionLine instruction)
-        {
-            ReferenceValue reference = (ReferenceValue)instruction.Lhs;
-            _operandStack.Push(new RuntimeValue(reference));
-        }
-
-        /// <summary>
-        /// The generic, "slow path" handler for the ADD instruction. It performs the full operation
-        /// and attempts to create and cache a specialized handler for future executions.
-        /// </summary>
-        internal void ExecuteGenericAdd(InstructionLine instruction)
-        {
-            if (instruction.SpecializedHandler != null)
-            {
-                instruction.SpecializedHandler(instruction, this);
-                return;
-            }
-
-            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
-            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
@@ -560,15 +641,17 @@ namespace Fluence.VirtualMachine
                     handler(instruction, this);
                     return;
                 }
+
+                // Fallback.
+                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(left.IntValue + right.IntValue), instruction);
+                return;
             }
 
             // String concatenation.
             if ((left.Type == RuntimeValueType.Object && left.Is<StringObject>()) ||
                 (right.Type == RuntimeValueType.Object && right.Is<StringObject>()))
             {
-                string resultString = string.Concat(left.ToString(), right.ToString());
-
-                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(new StringObject(resultString)), instruction);
+                SetVariableOrRegister(instruction.Lhs, ResolveStringObjectRuntimeValue(string.Concat(left.ToString(), right.ToString())), instruction);
                 return;
             }
 
@@ -587,26 +670,30 @@ namespace Fluence.VirtualMachine
             SignalError($"Runtime Error: Cannot apply operator '+' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
-        /// <summary>Handles the SUBTRACT instruction for numeric subtraction or list difference.</summary>
-        private void ExecuteSubtraction(InstructionLine instruction)
+        private void ExecuteIncrementIntUnrestricted(InstructionLine instruction)
         {
-            if (instruction.SpecializedHandler != null)
+            if (instruction.Lhs is TempValue temp)
             {
-                instruction.SpecializedHandler(instruction, this);
+                SetRegister(temp, new RuntimeValue(GetRuntimeValue(temp, instruction).IntValue + 1));
                 return;
             }
 
-            ExecuteGenericSubtraction(instruction);
+            VariableValue var = (VariableValue)instruction.Lhs;
+            RuntimeValue result = new RuntimeValue(GetRuntimeValue(var, instruction).IntValue + 1);
+            SetVariable(var, result);
         }
 
-        /// <summary>
-        /// The generic, "slow path" handler for the SUBTRACT instruction. It performs the full operation
-        /// and attempts to create and cache a specialized handler for future executions.
-        /// </summary>
-        internal void ExecuteGenericSubtraction(InstructionLine instruction)
+        private void ExecuteLoadAddress(InstructionLine instruction)
         {
-            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
-            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
+            ReferenceValue reference = (ReferenceValue)instruction.Lhs;
+            _operandStack.Push(new RuntimeValue(reference));
+        }
+
+        /// <summary>Handles the SUBTRACT instruction for numeric subtraction or list difference.</summary>
+        private void ExecuteSubtraction(InstructionLine instruction)
+        {
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
@@ -617,12 +704,17 @@ namespace Fluence.VirtualMachine
                     handler(instruction, this);
                     return;
                 }
+
+                // Fallback.
+                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(left.IntValue - right.IntValue), instruction);
+                return;
             }
 
             if (left.Type == RuntimeValueType.Object && left.ObjectReference is ListObject leftList &&
                 right.Type == RuntimeValueType.Object && right.ObjectReference is ListObject rightList)
             {
                 ListObject concatenatedList = new ListObject();
+
                 // This performs a set difference, which is the intuitive meaning of list subtraction.
                 concatenatedList.Elements.AddRange(leftList.Elements.Except(rightList.Elements));
                 SetRegister((TempValue)instruction.Lhs, new RuntimeValue(concatenatedList));
@@ -635,23 +727,8 @@ namespace Fluence.VirtualMachine
         /// <summary>Handles the MULTIPLY instruction for numeric subtraction or list difference.</summary>
         private void ExecuteMultiplication(InstructionLine instruction)
         {
-            if (instruction.SpecializedHandler != null)
-            {
-                instruction.SpecializedHandler(instruction, this);
-                return;
-            }
-
-            ExecuteGenericMultiplication(instruction);
-        }
-
-        /// <summary>
-        /// The generic, "slow path" handler for the MULTIPLY instruction. It performs the full operation
-        /// and attempts to create and cache a specialized handler for future executions.
-        /// </summary>
-        internal void ExecuteGenericMultiplication(InstructionLine instruction)
-        {
-            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
-            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
 
             if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
             {
@@ -662,6 +739,10 @@ namespace Fluence.VirtualMachine
                     handler(instruction, this);
                     return;
                 }
+
+                // Fallback.
+                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(left.IntValue * right.IntValue), instruction);
+                return;
             }
 
             if (left.ObjectReference is StringObject strLeft && right.Type == RuntimeValueType.Number)
@@ -703,14 +784,8 @@ namespace Fluence.VirtualMachine
         /// <summary>Handles the DIVIDE instruction for numeric subtraction or list difference.</summary>
         internal void ExecuteDivision(InstructionLine instruction)
         {
-            if (instruction.SpecializedHandler != null)
-            {
-                instruction.SpecializedHandler(instruction, this);
-                return;
-            }
-
-            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
-            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
 
             SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedDivHandler(instruction, this, left, right);
             if (handler != null)
@@ -726,14 +801,8 @@ namespace Fluence.VirtualMachine
         /// <summary>Handles the MULTIPLY instruction for numeric subtraction or list difference.</summary>
         private void ExecuteModulo(InstructionLine instruction)
         {
-            if (instruction.SpecializedHandler != null)
-            {
-                instruction.SpecializedHandler(instruction, this);
-                return;
-            }
-
-            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
-            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
 
             SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedModuloHandler(instruction, this, left, right);
             if (handler != null)
@@ -749,14 +818,8 @@ namespace Fluence.VirtualMachine
         /// <summary>Handles the POWER instruction.</summary>
         private void ExecutePower(InstructionLine instruction)
         {
-            if (instruction.SpecializedHandler != null)
-            {
-                instruction.SpecializedHandler(instruction, this);
-                return;
-            }
-
-            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
-            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
 
             SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedPowerHandler(instruction, this, left, right);
             if (handler != null)
@@ -772,20 +835,51 @@ namespace Fluence.VirtualMachine
         /// <summary>Handles the ASSIGN_TWO instruction, which is used for variable assignment of two variables at once.</summary>
         private void ExecuteAssignTwo(InstructionLine instruction)
         {
+            if (!(instruction.Lhs is VariableValue && instruction.Rhs is RangeValue) && !(instruction.Rhs2 is VariableValue && instruction.Rhs3 is RangeValue))
+            {
+                if (instruction.SpecializedHandler == null)
+                {
+                    instruction.SpecializedHandler = CreateSpecializedAssignTwoHandler(instruction, this);
+
+                    if (instruction.SpecializedHandler != null)
+                    {
+                        instruction.SpecializedHandler(instruction, this);
+                        return;
+                    }
+                }
+            }
+
             AssignTo(instruction.Lhs, instruction.Rhs, instruction);
             AssignTo(instruction.Rhs2, instruction.Rhs3, instruction);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void ExecuteGoto(InstructionLine insn)
+        {
+            _ip = (int)((NumberValue)insn.Lhs).Value;
         }
 
         /// <summary>Handles the ASSIGN instruction, which is used for variable assignment and range-to-list expansion.</summary>
         private void ExecuteAssign(InstructionLine instruction)
         {
+            if (!(instruction.Lhs is VariableValue && instruction.Rhs is RangeValue))
+            {
+                instruction.SpecializedHandler = CreateSpecializedAssignHandler(instruction, this);
+
+                if (instruction.SpecializedHandler != null)
+                {
+                    instruction.SpecializedHandler(instruction, this);
+                    return;
+                }
+            }
+
             AssignTo(instruction.Lhs, instruction.Rhs, instruction);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void AssignTo(Value left, Value right, InstructionLine insn)
         {
-            RuntimeValue sourceValue = GetRuntimeValue(right);
+            RuntimeValue sourceValue = GetRuntimeValue(right, insn);
 
             if (left is VariableValue destVar && sourceValue.ObjectReference is RangeObject range)
             {
@@ -809,78 +903,22 @@ namespace Fluence.VirtualMachine
                         list.Elements.Add(new RuntimeValue(i));
                     }
                 }
-                else // Decreasing range
+                else // Decreasing range.
                 {
                     for (int i = start; i >= end; i--)
                     {
                         list.Elements.Add(new RuntimeValue(i));
                     }
                 }
-                AssignVariable(destVar.Name, destVar.Hash, new RuntimeValue(list), insn);
+                AssignVariable(destVar, new RuntimeValue(list), insn, destVar.IsReadOnly);
             }
             // Standard assignment.
             else if (left is VariableValue destVar2)
             {
-                AssignVariable(destVar2.Name, destVar2.Hash, sourceValue, insn, destVar2.IsReadOnly);
+                AssignVariable(destVar2, sourceValue, insn, destVar2.IsReadOnly);
             }
             else if (left is TempValue destTemp) SetRegister(destTemp, sourceValue);
-            else throw ConstructRuntimeException("Internal VM Error: Destination of 'Assign' must be a variable or temporary.");
-        }
-
-        /// <summary>
-        /// A generic handler for all binary numeric operations. It correctly handles type promotion
-        ///  and dispatches to the appropriate C# operator.
-        /// </summary>
-        internal void ExecuteNumericBinaryOperation(
-            InstructionLine instruction, RuntimeValue left, RuntimeValue right,
-            Func<int, int, RuntimeValue> intOp,
-            Func<long, long, RuntimeValue> longOp,
-            Func<float, float, RuntimeValue> floatOp,
-            Func<double, double, RuntimeValue> doubleOp)
-        {
-            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
-            {
-                SignalError($"Internal VM Error: ExecuteNumericBinaryOperation called with non-numeric types.");
-            }
-
-            RuntimeValue result = left.NumberType switch
-            {
-                RuntimeNumberType.Int => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => intOp(left.IntValue, right.IntValue),
-                    RuntimeNumberType.Long => longOp(left.IntValue, right.LongValue),
-                    RuntimeNumberType.Float => floatOp(left.IntValue, right.FloatValue),
-                    RuntimeNumberType.Double => doubleOp(left.IntValue, right.DoubleValue),
-                    _ => SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type."),
-                },
-                RuntimeNumberType.Long => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => longOp(left.LongValue, right.IntValue),
-                    RuntimeNumberType.Long => longOp(left.LongValue, right.LongValue),
-                    RuntimeNumberType.Float => floatOp(left.LongValue, right.FloatValue),
-                    RuntimeNumberType.Double => doubleOp(left.LongValue, right.DoubleValue),
-                    _ => SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type."),
-                },
-                RuntimeNumberType.Float => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => floatOp(left.FloatValue, right.IntValue),
-                    RuntimeNumberType.Long => floatOp(left.FloatValue, right.LongValue),
-                    RuntimeNumberType.Float => floatOp(left.FloatValue, right.FloatValue),
-                    RuntimeNumberType.Double => doubleOp(left.FloatValue, right.DoubleValue),
-                    _ => SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type."),
-                },
-                RuntimeNumberType.Double => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => doubleOp(left.DoubleValue, right.IntValue),
-                    RuntimeNumberType.Long => doubleOp(left.DoubleValue, right.LongValue),
-                    RuntimeNumberType.Float => doubleOp(left.DoubleValue, right.FloatValue),
-                    RuntimeNumberType.Double => doubleOp(left.DoubleValue, right.DoubleValue),
-                    _ => SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type."),
-                },
-                _ => SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported left-hand number type."),
-            };
-
-            SetVariableOrRegister(instruction.Lhs, result, instruction);
+            else throw ConstructRuntimeException("Internal VM Error: Destination of 'Assign' must be a variable or a temporary register.");
         }
 
         /// <summary>
@@ -888,7 +926,7 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecuteBitwiseOperation(InstructionLine instruction)
         {
-            RuntimeValue leftValue = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue leftValue = GetRuntimeValue(instruction.Rhs, instruction);
             long leftLong = ToLong(leftValue);
 
             if (instruction.Instruction == InstructionCode.BitwiseNot)
@@ -897,7 +935,7 @@ namespace Fluence.VirtualMachine
                 return;
             }
 
-            RuntimeValue rightValue = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue rightValue = GetRuntimeValue(instruction.Rhs2, instruction);
             long result = instruction.Instruction switch
             {
                 InstructionCode.BitwiseAnd => leftLong & ToLong(rightValue),
@@ -910,7 +948,7 @@ namespace Fluence.VirtualMachine
 
             if (instruction.Lhs is VariableValue var)
             {
-                AssignVariable(var.Name, var.Hash, new RuntimeValue(result), instruction, var.IsReadOnly);
+                AssignVariable(var, new RuntimeValue(result), instruction, var.IsReadOnly);
                 return;
             }
 
@@ -923,7 +961,7 @@ namespace Fluence.VirtualMachine
         private void ExecuteNegate(InstructionLine instruction)
         {
             TempValue destination = (TempValue)instruction.Lhs;
-            RuntimeValue value = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue value = GetRuntimeValue(instruction.Rhs, instruction);
 
             if (value.Type != RuntimeValueType.Number)
             {
@@ -944,11 +982,47 @@ namespace Fluence.VirtualMachine
         }
 
         /// <summary>
+        /// Handles the INCREMENT instruction that increments a variable that is numeric.
+        /// </summary>
+        private void ExecuteIncrement(InstructionLine instruction)
+        {
+            instruction.SpecializedHandler = CreateSpecializedIncrementDecrementHandler(instruction, this, true);
+
+            if (instruction.SpecializedHandler != null)
+            {
+                instruction.SpecializedHandler(instruction, this);
+                return;
+            }
+
+            // Fallback?
+            VariableValue var = (VariableValue)instruction.Lhs;
+            AssignVariable(var, new RuntimeValue(_cachedRegisters[var.RegisterIndex].IntValue + 1), instruction, var.IsReadOnly);
+        }
+
+        /// <summary>
+        /// Handles the DECREMENT instruction that increments a variable that is numeric.
+        /// </summary>
+        private void ExecuteDecrement(InstructionLine instruction)
+        {
+            instruction.SpecializedHandler = CreateSpecializedIncrementDecrementHandler(instruction, this, false);
+
+            if (instruction.SpecializedHandler != null)
+            {
+                instruction.SpecializedHandler(instruction, this);
+                return;
+            }
+
+            // Fallback?
+            VariableValue var = (VariableValue)instruction.Lhs;
+            AssignVariable(var, new RuntimeValue(_cachedRegisters[var.RegisterIndex].IntValue - 1), instruction, var.IsReadOnly);
+        }
+
+        /// <summary>
         /// Handles the NOT instruction (logical not).
         /// </summary>
         private void ExecuteNot(InstructionLine instruction)
         {
-            RuntimeValue value = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue value = GetRuntimeValue(instruction.Rhs, instruction);
             SetRegister((TempValue)instruction.Lhs, new RuntimeValue(!value.IsTruthy));
         }
 
@@ -958,7 +1032,7 @@ namespace Fluence.VirtualMachine
         /// <param name="requiredCondition">The truthiness value that triggers the jump (true for GotoIfTrue, false for GotoIfFalse).</param>
         private void ExecuteGotoIf(InstructionLine instruction, bool requiredCondition)
         {
-            RuntimeValue condition = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue condition = GetRuntimeValue(instruction.Rhs, instruction);
 
             if (instruction.Lhs is not NumberValue target)
             {
@@ -973,24 +1047,87 @@ namespace Fluence.VirtualMachine
 
         internal void ExecuteBranchIfEqual(InstructionLine instruction, bool target)
         {
-            if (instruction.SpecializedHandler != null)
-            {
-                instruction.SpecializedHandler(instruction, this);
-                return;
-            }
-
             if (instruction.Lhs is not NumberValue jmp)
             {
                 throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
             }
 
-            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
-            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
 
-            instruction.SpecializedHandler = InlineCacheManager.CreateSpecializedBranchHandler(instruction, right, target);
+            instruction.SpecializedHandler = InlineCacheManager.CreateSpecializedBranchHandler(instruction, this, right, target);
             bool result = left.Equals(right);
 
             if (result == target)
+            {
+                _ip = (int)jmp.Value;
+            }
+        }
+
+        private void ExecuteBranchIfGreaterThan(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not NumberValue jmp)
+            {
+                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
+            }
+
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
+
+            instruction.SpecializedHandler = CreateSpecializedComparisonBranchHandler(instruction, this, ComparisonOperation.GreaterThan);
+
+            if (left.DoubleValue > right.DoubleValue)
+            {
+                _ip = (int)jmp.Value;
+            }
+        }
+
+        private void ExecuteBranchIfGreaterOrEqual(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not NumberValue jmp)
+            {
+                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
+            }
+
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
+            instruction.SpecializedHandler = CreateSpecializedComparisonBranchHandler(instruction, this, ComparisonOperation.GreaterOrEqual);
+
+            if (left.DoubleValue >= right.DoubleValue)
+            {
+                _ip = (int)jmp.Value;
+            }
+        }
+
+        private void ExecuteBranchIfLessThan(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not NumberValue jmp)
+            {
+                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
+            }
+
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
+            instruction.SpecializedHandler = CreateSpecializedComparisonBranchHandler(instruction, this, ComparisonOperation.LessThan);
+
+            if (left.DoubleValue < right.DoubleValue)
+            {
+                _ip = (int)jmp.Value;
+            }
+        }
+
+        private void ExecuteBranchIfLessOrEqual(InstructionLine instruction)
+        {
+            if (instruction.Lhs is not NumberValue jmp)
+            {
+                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
+            }
+
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
+            instruction.SpecializedHandler = CreateSpecializedComparisonBranchHandler(instruction, this, ComparisonOperation.LessOrEqual);
+
+            if (left.DoubleValue <= right.DoubleValue)
             {
                 _ip = (int)jmp.Value;
             }
@@ -1002,7 +1139,7 @@ namespace Fluence.VirtualMachine
         /// <param name="isAnd">True if the operation is a logical AND, false for logical OR.</param>
         private void ExecuteLogicalOp(InstructionLine instruction, bool isAnd)
         {
-            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
 
             // Short-circuiting for efficiency.
             if (isAnd)
@@ -1022,7 +1159,7 @@ namespace Fluence.VirtualMachine
                 }
             }
 
-            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
             SetRegister((TempValue)instruction.Lhs, new RuntimeValue(right.IsTruthy));
         }
 
@@ -1031,9 +1168,9 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecuteToString(InstructionLine instruction)
         {
-            RuntimeValue valueToConvert = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue valueToConvert = GetRuntimeValue(instruction.Rhs, instruction);
 
-            SetRegister((TempValue)instruction.Lhs, new RuntimeValue(new StringObject(IntrinsicHelpers.ConvertRuntimeValueToString(this, valueToConvert))));
+            SetRegister((TempValue)instruction.Lhs, ResolveStringObjectRuntimeValue(IntrinsicHelpers.ConvertRuntimeValueToString(this, valueToConvert)));
         }
 
         /// <summary>
@@ -1042,8 +1179,8 @@ namespace Fluence.VirtualMachine
         /// <param name="isEqual">True if the operation is for equality (==), false for inequality (!=).</param>
         private void ExecuteEqualityComparison(InstructionLine instruction, bool isEqual)
         {
-            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
-            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
             bool result = left.Equals(right);
             SetRegister((TempValue)instruction.Lhs, new RuntimeValue(isEqual ? result : !result));
         }
@@ -1112,8 +1249,8 @@ namespace Fluence.VirtualMachine
             Func<double, double, bool> doubleOp)
         {
             TempValue destination = (TempValue)instruction.Lhs;
-            RuntimeValue left = GetRuntimeValue(instruction.Rhs);
-            RuntimeValue right = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
 
             if (left.ObjectReference is StringObject leftStr && right.ObjectReference is StringObject rightStr)
             {
@@ -1186,7 +1323,7 @@ namespace Fluence.VirtualMachine
 
             TryReturnRegisterReferenceToPool((TempValue)instruction.Lhs);
 
-            RuntimeValue rangeRuntimeValue = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue rangeRuntimeValue = GetRuntimeValue(instruction.Rhs, instruction);
             SetRegister((TempValue)instruction.Lhs, rangeRuntimeValue);
         }
 
@@ -1195,7 +1332,7 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecuteGetLength(InstructionLine instruction)
         {
-            RuntimeValue collection = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue collection = GetRuntimeValue(instruction.Rhs, instruction);
             int length;
 
             if (collection.Type == RuntimeValueType.Object)
@@ -1237,14 +1374,14 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecutePushElement(InstructionLine instruction)
         {
-            RuntimeValue listVal = GetRuntimeValue(instruction.Lhs);
+            RuntimeValue listVal = GetRuntimeValue(instruction.Lhs, instruction);
             if (listVal.ObjectReference is not ListObject list)
             {
                 SignalError($"Runtime Error: Cannot push an element to a non-list value (got type '{GetDetailedTypeName(listVal)}').");
                 return;
             }
 
-            RuntimeValue elementToAdd = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue elementToAdd = GetRuntimeValue(instruction.Rhs, instruction);
 
             if (elementToAdd.ObjectReference is RangeObject range)
             {
@@ -1253,7 +1390,7 @@ namespace Fluence.VirtualMachine
 
                 if (startValue.Type != RuntimeValueType.Number || endValue.Type != RuntimeValueType.Number)
                 {
-                    SignalError($"Runtime Error: Range bounds must be numbers, not {GetDetailedTypeName(range.Start)} and {GetDetailedTypeName(range.End)}.");
+                    SignalError($"Runtime Error: Range bounds must be numbers, not '{GetDetailedTypeName(range.Start)}' and '{GetDetailedTypeName(range.End)}'.");
                     return;
                 }
 
@@ -1286,7 +1423,6 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecuteNewInstance(InstructionLine instruction)
         {
-            // The RHS is the StructSymbol from the bytecode.
             if (instruction.Rhs is not StructSymbol classSymbol)
             {
                 throw ConstructRuntimeException("Internal VM Error: NewInstance requires a StructSymbol as its operand.");
@@ -1306,7 +1442,7 @@ namespace Fluence.VirtualMachine
                 throw ConstructRuntimeException("Internal VM Error: GetField requires a string literal for the field name.");
             }
 
-            RuntimeValue instanceValue = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue instanceValue = GetRuntimeValue(instruction.Rhs, instruction);
             if (instanceValue.ObjectReference is not InstanceObject instance)
             {
                 throw ConstructRuntimeException($"Runtime Error: Cannot access property '{fieldName.Value}' on a non-instance value (got type '{GetDetailedTypeName(instanceValue)}').");
@@ -1345,7 +1481,7 @@ namespace Fluence.VirtualMachine
                 throw ConstructRuntimeException("Internal VM Error: Invalid operands for SET_STATIC. Expected StructSymbol and StringValue.");
             }
 
-            RuntimeValue valueToSet = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue valueToSet = GetRuntimeValue(instruction.Rhs2, instruction);
             structSymbol.StaticFields[fieldName.Value] = valueToSet;
         }
 
@@ -1363,7 +1499,7 @@ namespace Fluence.VirtualMachine
                 throw ConstructRuntimeException("Internal VM Error: SetField requires a string literal for the field name.");
             }
 
-            RuntimeValue instanceValue = GetRuntimeValue(instruction.Lhs);
+            RuntimeValue instanceValue = GetRuntimeValue(instruction.Lhs, instruction);
             if (instanceValue.ObjectReference is not InstanceObject instance)
             {
                 throw ConstructRuntimeException($"Runtime Error: Cannot set property '{fieldName.Value}' on a non-instance value (got type '{GetDetailedTypeName(instanceValue)}').");
@@ -1374,7 +1510,7 @@ namespace Fluence.VirtualMachine
                 throw ConstructRuntimeException($"Runtime Error: Cannot set solid ( static ) property '{fieldName.Value}' of a struct.");
             }
 
-            RuntimeValue valueToSet = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue valueToSet = GetRuntimeValue(instruction.Rhs2, instruction);
             instance.SetField(fieldName.Value, valueToSet);
         }
 
@@ -1383,19 +1519,8 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecuteGetElement(InstructionLine instruction)
         {
-            if (instruction.SpecializedHandler != null)
-            {
-                instruction.SpecializedHandler(instruction, this);
-                return;
-            }
-
-            ExecuteGenericGetElement(instruction);
-        }
-
-        internal void ExecuteGenericGetElement(InstructionLine instruction)
-        {
-            RuntimeValue collection = GetRuntimeValue(instruction.Rhs);
-            RuntimeValue indexVal = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue collection = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue indexVal = GetRuntimeValue(instruction.Rhs2, instruction);
 
             switch (collection.ObjectReference)
             {
@@ -1454,9 +1579,9 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecuteSetElement(InstructionLine instruction)
         {
-            RuntimeValue collection = GetRuntimeValue(instruction.Lhs);
-            RuntimeValue indexVal = GetRuntimeValue(instruction.Rhs);
-            RuntimeValue valueToSet = GetRuntimeValue(instruction.Rhs2);
+            RuntimeValue collection = GetRuntimeValue(instruction.Lhs, instruction);
+            RuntimeValue indexVal = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue valueToSet = GetRuntimeValue(instruction.Rhs2, instruction);
 
             if (collection.As<ListObject>() is not ListObject list)
             {
@@ -1481,6 +1606,9 @@ namespace Fluence.VirtualMachine
             list.Elements[index] = valueToSet;
         }
 
+        /// <summary>
+        /// Handles the TRY_BLOCK instruction, pushing a new try-catch context block onto the error stack.
+        /// </summary>
         private void ExecuteTryBlock(InstructionLine instruction)
         {
             TryCatchValue context = (TryCatchValue)instruction.Lhs;
@@ -1488,6 +1616,10 @@ namespace Fluence.VirtualMachine
             _tryCatchBlocks.Push(context);
         }
 
+        /// <summary>
+        /// Handles the CATCH_BLOCK instruction, popping a try-catch context block from the error stack, signaling that the 
+        /// try block executed without any runtime errors.
+        /// </summary>
         private void ExecuteCatchBlock(InstructionLine instruction)
         {
             TryCatchValue context = _tryCatchBlocks.Pop();
@@ -1505,7 +1637,7 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecuteNewIterator(InstructionLine instruction)
         {
-            RuntimeValue iterable = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue iterable = GetRuntimeValue(instruction.Rhs, instruction);
 
             if (iterable.ObjectReference is ListObject or RangeObject)
             {
@@ -1525,20 +1657,6 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecuteIterNext(InstructionLine instruction)
         {
-            if (instruction.SpecializedHandler != null)
-            {
-                instruction.SpecializedHandler(instruction, this);
-                return;
-            }
-
-            ExecuteGenericIterNext(instruction);
-        }
-
-        /// <summary>
-        /// Handles the ITER_NEXT instruction, which advances an iterator and retrieves the next value.
-        /// </summary>
-        internal void ExecuteGenericIterNext(InstructionLine instruction)
-        {
             // Lhs:  The source iterator register.
             // Rhs:  The destination register for the value.
             // Rhs2: The destination register for the continue flag.
@@ -1550,7 +1668,7 @@ namespace Fluence.VirtualMachine
                 throw ConstructRuntimeException("Internal VM Error: Invalid operands for IterNext. Expected (Source Iterator, Dest Value, Dest Flag).");
             }
 
-            RuntimeValue iteratorVal = _cachedRegisters[iteratorReg.Hash];
+            RuntimeValue iteratorVal = _cachedRegisters[iteratorReg.RegisterIndex];
 
             if (iteratorVal.As<IteratorObject>() is not IteratorObject iterator)
             {
@@ -1565,6 +1683,7 @@ namespace Fluence.VirtualMachine
                 return;
             }
 
+            // Fallback.
             bool continueLoop = false;
             RuntimeValue nextValue = RuntimeValue.Nil;
 
@@ -1601,7 +1720,7 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecutePushParam(InstructionLine instruction)
         {
-            _operandStack.Push(GetRuntimeValue(instruction.Lhs));
+            _operandStack.Push(GetRuntimeValue(instruction.Lhs, instruction));
         }
 
         /// <summary>
@@ -1609,8 +1728,8 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecutePushTwoParam(InstructionLine instruction)
         {
-            _operandStack.Push(GetRuntimeValue(instruction.Lhs));
-            _operandStack.Push(GetRuntimeValue(instruction.Rhs));
+            _operandStack.Push(GetRuntimeValue(instruction.Lhs, instruction));
+            _operandStack.Push(GetRuntimeValue(instruction.Rhs, instruction));
         }
 
         /// <summary>
@@ -1618,9 +1737,9 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecutePushThreeParam(InstructionLine instruction)
         {
-            _operandStack.Push(GetRuntimeValue(instruction.Lhs));
-            _operandStack.Push(GetRuntimeValue(instruction.Rhs));
-            _operandStack.Push(GetRuntimeValue(instruction.Rhs2));
+            _operandStack.Push(GetRuntimeValue(instruction.Lhs, instruction));
+            _operandStack.Push(GetRuntimeValue(instruction.Rhs, instruction));
+            _operandStack.Push(GetRuntimeValue(instruction.Rhs2, instruction));
         }
 
         /// <summary>
@@ -1629,10 +1748,10 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecutePushFourParam(InstructionLine instruction)
         {
-            _operandStack.Push(GetRuntimeValue(instruction.Lhs));
-            _operandStack.Push(GetRuntimeValue(instruction.Rhs));
-            _operandStack.Push(GetRuntimeValue(instruction.Rhs2));
-            _operandStack.Push(GetRuntimeValue(instruction.Rhs3));
+            _operandStack.Push(GetRuntimeValue(instruction.Lhs, instruction));
+            _operandStack.Push(GetRuntimeValue(instruction.Rhs, instruction));
+            _operandStack.Push(GetRuntimeValue(instruction.Rhs2, instruction));
+            _operandStack.Push(GetRuntimeValue(instruction.Rhs3, instruction));
         }
 
         /// <summary>
@@ -1667,7 +1786,7 @@ namespace Fluence.VirtualMachine
             // Variable or expression.
             else
             {
-                RuntimeValue value = GetRuntimeValue(operand);
+                RuntimeValue value = GetRuntimeValue(operand, instruction);
 
                 string name = IntrinsicHelpers.GetRuntimeTypeName(value);
 
@@ -1687,8 +1806,8 @@ namespace Fluence.VirtualMachine
                     case FunctionObject func:
                         bool isLambda = operand is LambdaValue;
 
-                        MethodMetadata methodMeta = new MethodMetadata(func.Name, func.Arity, false, func.Parameters, func.ParametersByRef);
-                        metadata = new TypeMetadata("function", "function", TypeCategory.Function, func.Arity, isLambda, null, null, null, [methodMeta], null, func.Parameters, func.ParametersByRef);
+                        MethodMetadata methodMeta = new MethodMetadata(func.Name, func.Arity, false, func.Arguments, func.ArgumentsByRef);
+                        metadata = new TypeMetadata("function", "function", TypeCategory.Function, func.Arity, isLambda, null, null, null, [methodMeta], null, func.Arguments, func.ArgumentsByRef);
                         break;
                     default:
                         metadata = new TypeMetadata(name, name, TypeCategory.Primitive, 0, false);
@@ -1746,10 +1865,12 @@ namespace Fluence.VirtualMachine
             return false;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void PrepareFunctionCall(CallFrame frame, FunctionObject function)
         {
             _callStack.Push(frame);
             _cachedRegisters = frame.Registers;
+            _cachedWritableCache = frame.WritableCache;
             _ip = function.StartAddress;
         }
 
@@ -1768,13 +1889,7 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecuteCallFunction(InstructionLine instruction)
         {
-            if (instruction.SpecializedHandler != null)
-            {
-                instruction.SpecializedHandler(instruction, this);
-                return;
-            }
-
-            RuntimeValue functionVal = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue functionVal = GetRuntimeValue(instruction.Rhs, instruction);
 
             if (functionVal.ObjectReference is not FunctionObject function)
             {
@@ -1790,14 +1905,14 @@ namespace Fluence.VirtualMachine
                 }
             }
 
-            int argCount = GetRuntimeValue(instruction.Rhs2).IntValue;
+            int argCount = GetRuntimeValue(instruction.Rhs2, instruction).IntValue;
 
             if (function.Arity != argCount && function.Arity != -100)
             {
                 throw ConstructRuntimeException($"Internal VM Error: Mismatched arguments for function '{function.Name}'. Expected {function.Arity}, but got {argCount}.");
             }
 
-            SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedCallFunctionHandler(instruction, function);
+            SpecializedOpcodeHandler? handler = CreateSpecializedCallFunctionHandler(this, instruction, function);
             if (handler != null)
             {
                 instruction.SpecializedHandler = handler;
@@ -1809,30 +1924,30 @@ namespace Fluence.VirtualMachine
             // If we get here then we are dealing with a lambda function.
 
             CallFrame newFrame = _callFramePool.Get();
-            newFrame.Initialize(function, _ip, (TempValue)instruction.Lhs);
+            newFrame.Initialize(this, function, _ip, (TempValue)instruction.Lhs);
 
-            for (int i = function.Parameters.Count - 1; i >= 0; i--)
+            for (int i = argCount - 1; i >= 0; i--)
             {
-                int paramHash = function.ParametersHash[i];
-                bool isRefParam = function.ParametersByRef.Contains(function.Parameters[i]);
-                RuntimeValue argFromStack = _operandStack.Pop();
+                int paramIndex = function.ArgumentRegisterIndices[i];
+                RuntimeValue argValue = _operandStack.Pop();
 
-                if (isRefParam)
+                if (function.ArgumentsByRef.Contains(function.Arguments[i]))
                 {
-                    if (argFromStack.ObjectReference is not ReferenceValue)
+                    if (argValue.ObjectReference is not ReferenceValue reference)
                     {
-                        throw ConstructRuntimeException($"Internal VM Error: Argument '{paramHash}' in function: \"{function.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                        SignalError($"Internal VM Error: Argument '{function.Arguments[i]}' in function: \"{function.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                        return;
                     }
-
-                    VariableValue refVar = ((ReferenceValue)argFromStack.ObjectReference).Reference;
-                    newFrame.RefParameterMap[paramHash] = refVar.Hash;
-                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramHash, out _);
-                    valueRef = GetRuntimeValue(refVar);
+                    else
+                    {
+                        newFrame.RefParameterMap[paramIndex] = reference.Reference.RegisterIndex;
+                        argValue = GetRuntimeValue(reference.Reference, instruction);
+                        newFrame.Registers[paramIndex] = argValue;
+                    }
                 }
-                else // Pass by value.
+                else
                 {
-                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramHash, out _);
-                    valueRef = argFromStack.ObjectReference is ReferenceValue refVal ? GetRuntimeValue(refVal.Reference) : argFromStack;
+                    newFrame.Registers[paramIndex] = argValue;
                 }
             }
 
@@ -1854,8 +1969,8 @@ namespace Fluence.VirtualMachine
             FunctionObject lambdaObject = CreateFunctionObject(lambdaValue.Function);
             lambdaObject.IsLambda = true;
 
-            AssignVariable(baseName, destination.Hash, new RuntimeValue(lambdaObject), instruction, destination.IsReadOnly);
-            AssignVariable(mangledName, destination.Hash, new RuntimeValue(lambdaObject), instruction, destination.IsReadOnly);
+            AssignVariable(destination, new RuntimeValue(lambdaObject), instruction, destination.IsReadOnly);
+            AssignVariable(destination, new RuntimeValue(lambdaObject), instruction, destination.IsReadOnly);
         }
 
         /// <summary>
@@ -1869,7 +1984,7 @@ namespace Fluence.VirtualMachine
             }
 
             string methodName = methodNameVal.Value;
-            RuntimeValue instanceVal = GetRuntimeValue(instruction.Rhs);
+            RuntimeValue instanceVal = GetRuntimeValue(instruction.Rhs, instruction);
 
             if (instanceVal.ObjectReference is IFluenceObject fluenceObject)
             {
@@ -1885,13 +2000,21 @@ namespace Fluence.VirtualMachine
                 throw ConstructRuntimeException($"Internal VM Error: Cannot call method '{methodName}' on a non-instance object of type '{GetDetailedTypeName(instanceVal)}'.");
             }
 
-            FunctionValue methodBlueprint = null;
             FunctionObject functionToExecute = null;
+            FunctionValue methodBlueprint;
+
+            if (methodName.StartsWith("init__", StringComparison.InvariantCulture))
+            {
+                methodBlueprint = instance.Class.Constructors[methodName];
+            }
+            else
+            {
+                methodBlueprint = instance.Class.Functions[methodName];
+            }
 
             // <script> frame.
             if (CurrentFrame.ReturnAddress == _byteCode.Count)
             {
-                methodBlueprint = instance.Class.Constructors[methodNameVal.Value];
                 if (methodBlueprint == null)
                 {
                     SetRegister((TempValue)instruction.Lhs, instanceVal);
@@ -1900,10 +2023,11 @@ namespace Fluence.VirtualMachine
             }
             else
             {
+                string demangledMethodName = Mangler.Demangle(methodName);
                 // A class field that is a function, that is currently a lambda.
-                if (instance.Class.Fields.Contains(Mangler.Demangle(methodName)))
+                if (instance.Class.Fields.Contains(demangledMethodName))
                 {
-                    functionToExecute = (FunctionObject)instance.GetField(Mangler.Demangle(methodName), this).ObjectReference;
+                    functionToExecute = (FunctionObject)instance.GetField(demangledMethodName, this).ObjectReference;
                     functionToExecute!.IsLambda = true;
                 }
                 else if (!instance.Class.Functions.TryGetValue(methodName, out methodBlueprint) && !instance.Class.Constructors.TryGetValue(methodName, out methodBlueprint))
@@ -1914,17 +2038,7 @@ namespace Fluence.VirtualMachine
 
             if (functionToExecute == null)
             {
-                functionToExecute = new FunctionObject(
-                    methodBlueprint.Name,
-                    methodBlueprint.Arity,
-                    methodBlueprint.Arguments,
-                    methodBlueprint.ArgumentsHash,
-                    methodBlueprint.StartAddress,
-                    methodBlueprint.FunctionScope
-                )
-                {
-                    ParametersByRef = methodBlueprint.ArgumentsByRef
-                };
+                functionToExecute = CreateFunctionObject(methodBlueprint);
             }
 
             if (!functionToExecute.DefiningScope.IsTheGlobalScope)
@@ -1943,34 +2057,32 @@ namespace Fluence.VirtualMachine
             }
 
             CallFrame newFrame = _callFramePool.Get();
-            newFrame.Initialize(functionToExecute, _ip, (TempValue)instruction.Lhs);
+            newFrame.Initialize(this, functionToExecute, _ip, (TempValue)instruction.Lhs);
 
             // Implicitly pass 'self'.
-            newFrame.Registers[_selfInstanceHashCode] = instanceVal;
+            newFrame.Registers[0] = instanceVal;
 
-            for (int i = functionToExecute.Parameters.Count - 1; i >= 0; i--)
+            for (int i = functionToExecute.Arity - 1; i >= 0; i--)
             {
-                string paramName = functionToExecute.Parameters[i];
-                bool isRefParam = functionToExecute.ParametersByRef.Contains(paramName);
-                int paramHash = functionToExecute.ParametersHash[i];
-                RuntimeValue argFromStack = _operandStack.Pop();
+                int paramIndex = functionToExecute.ArgumentRegisterIndices[i];
+                RuntimeValue argValue = _operandStack.Pop();
 
-                if (isRefParam)
+                if (functionToExecute.ArgumentsByRef.Contains(functionToExecute.Arguments[i]))
                 {
-                    if (argFromStack.ObjectReference is not ReferenceValue)
+                    if (argValue.ObjectReference is not ReferenceValue reference)
                     {
-                        throw ConstructRuntimeException($"Internal VM Error: Argument '{paramName}' in function: \"{functionToExecute.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                        throw ConstructRuntimeException($"Internal VM Error: Argument '{functionToExecute.Arguments[i]}' in function: \"{functionToExecute.ToCodeLikeString()}\" must be passed by reference ('ref').");
                     }
-
-                    VariableValue refVar = ((ReferenceValue)argFromStack.ObjectReference).Reference;
-                    newFrame.RefParameterMap[paramHash] = refVar.Hash;
-                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramHash, out _);
-                    valueRef = GetRuntimeValue(refVar);
+                    else
+                    {
+                        newFrame.RefParameterMap[paramIndex] = reference.Reference.RegisterIndex;
+                        argValue = GetRuntimeValue(reference.Reference, instruction);
+                        newFrame.Registers[paramIndex] = argValue;
+                    }
                 }
-                else // Pass by value.
+                else
                 {
-                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramHash, out _);
-                    valueRef = argFromStack.ObjectReference is ReferenceValue refVal ? GetRuntimeValue(refVal.Reference) : argFromStack;
+                    newFrame.Registers[paramIndex] = argValue;
                 }
             }
 
@@ -1988,14 +2100,18 @@ namespace Fluence.VirtualMachine
         internal RuntimeValue ExecuteManualMethodCall(InstanceObject instance, FunctionValue func)
         {
             int savedIp = _ip;
-            Dictionary<int, RuntimeValue> savedRegisters = _cachedRegisters;
+            RuntimeValue[] savedRegisters = _cachedRegisters;
 
             FunctionObject functionToExecute = CreateFunctionObject(func);
             CallFrame newFrame = _callFramePool.Get();
 
-            newFrame.Initialize(functionToExecute, -1, null!);
+            newFrame.Initialize(this, functionToExecute, -1, null!);
 
-            newFrame.Registers[_selfInstanceHashCode] = new RuntimeValue(instance);
+            // Sometimes a struct function may have no arguments, or no "self" used, no temps.
+            if (newFrame.Registers.Length > 0)
+            {
+                newFrame.Registers[0] = new RuntimeValue(instance);
+            }
 
             _callStack.Push(newFrame);
             _cachedRegisters = newFrame.Registers;
@@ -2015,7 +2131,7 @@ namespace Fluence.VirtualMachine
 
                 if (instruction.Instruction == InstructionCode.Return)
                 {
-                    returnValue = GetRuntimeValue(instruction.Lhs);
+                    returnValue = GetRuntimeValue(instruction.Lhs, instruction);
 
                     _callStack.Pop();
                     _callFramePool.Return(newFrame);
@@ -2039,10 +2155,12 @@ namespace Fluence.VirtualMachine
 
             _ip = savedIp;
             _cachedRegisters = savedRegisters;
-
             return returnValue;
         }
 
+        /// <summary>
+        /// Handles the CAll_STATIC instruction, which executes a static method of a struct type.
+        /// </summary>
         private void ExecuteCallStatic(InstructionLine instruction)
         {
             if (instruction.Rhs is not StructSymbol structSymbol ||
@@ -2069,17 +2187,7 @@ namespace Fluence.VirtualMachine
                 throw ConstructRuntimeException($"Runtime Error: Static function '{methodName.Value}' not found on struct '{structSymbol.Name}'.");
             }
 
-            FunctionObject functionToExecute = new FunctionObject(
-                methodBlueprint.Name,
-                methodBlueprint.Arity,
-                methodBlueprint.Arguments,
-                methodBlueprint.ArgumentsHash,
-                methodBlueprint.StartAddress,
-                methodBlueprint.FunctionScope
-            )
-            {
-                ParametersByRef = methodBlueprint.ArgumentsByRef
-            };
+            FunctionObject functionToExecute = CreateFunctionObject(methodBlueprint);
 
             int argCountOnStack = _operandStack.Count;
             if (functionToExecute.Arity != argCountOnStack)
@@ -2097,31 +2205,29 @@ namespace Fluence.VirtualMachine
             }
 
             CallFrame newFrame = _callFramePool.Get();
-            newFrame.Initialize(functionToExecute, _ip, (TempValue)instruction.Lhs);
+            newFrame.Initialize(this, functionToExecute, _ip, (TempValue)instruction.Lhs);
 
-            for (int i = functionToExecute.Parameters.Count - 1; i >= 0; i--)
+            for (int i = functionToExecute.Arity - 1; i >= 0; i--)
             {
-                string paramName = functionToExecute.Parameters[i];
-                int paramHash = functionToExecute.ParametersHash[i];
-                bool isRefParam = functionToExecute.ParametersByRef.Contains(paramName);
-                RuntimeValue argFromStack = _operandStack.Pop();
+                int paramIndex = functionToExecute.ArgumentRegisterIndices[i];
+                RuntimeValue argValue = _operandStack.Pop();
 
-                if (isRefParam)
+                if (functionToExecute.ArgumentsByRef.Contains(functionToExecute.Arguments[i]))
                 {
-                    if (argFromStack.ObjectReference is not ReferenceValue)
+                    if (argValue.ObjectReference is not ReferenceValue reference)
                     {
-                        throw CreateRuntimeException($"Internal VM Error: Argument '{paramName}' in function: \"{functionToExecute.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                        throw ConstructRuntimeException($"Internal VM Error: Argument '{functionToExecute.Arguments[i]}' in function: \"{functionToExecute.ToCodeLikeString()}\" must be passed by reference ('ref').");
                     }
-
-                    VariableValue refVar = ((ReferenceValue)argFromStack.ObjectReference).Reference;
-                    newFrame.RefParameterMap[paramHash] = refVar.Hash;
-                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramHash, out _);
-                    valueRef = GetRuntimeValue(refVar);
+                    else
+                    {
+                        newFrame.RefParameterMap[paramIndex] = reference.Reference.RegisterIndex;
+                        argValue = GetRuntimeValue(reference.Reference, instruction);
+                        newFrame.Registers[paramIndex] = argValue;
+                    }
                 }
-                else // Pass by value.
+                else
                 {
-                    ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(newFrame.Registers, paramHash, out _);
-                    valueRef = argFromStack.ObjectReference is ReferenceValue refVal ? GetRuntimeValue(refVal.Reference) : argFromStack;
+                    newFrame.Registers[paramIndex] = argValue;
                 }
             }
 
@@ -2135,9 +2241,9 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecuteReturn(InstructionLine instruction)
         {
-            RuntimeValue returnValue = GetRuntimeValue(instruction.Lhs);
-
+            RuntimeValue returnValue = GetRuntimeValue(instruction.Lhs, instruction);
             CallFrame finishedFrame = _callStack.Pop();
+
             _cachedRegisters = _callStack.Peek().Registers;
 
             if (_callStack.Count == 0)
@@ -2149,25 +2255,25 @@ namespace Fluence.VirtualMachine
                 return;
             }
 
-            if (finishedFrame.DestinationRegister != null)
-            {
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, finishedFrame.DestinationRegister.Hash, out _);
-                valueRef = returnValue;
-            }
+            _cachedRegisters[finishedFrame.DestinationRegister.RegisterIndex] = returnValue;
 
-            foreach (KeyValuePair<int, int> mapping in finishedFrame.RefParameterMap)
+            if (finishedFrame.RefParameterMap.Count > 0)
             {
-                int paramName = mapping.Key;
-                int originalVarName = mapping.Value;
+                foreach (KeyValuePair<int, int> mapping in finishedFrame.RefParameterMap)
+                {
+                    int paramIndexInFinishedFrame = mapping.Key;
+                    int originalVarIndexInCaller = mapping.Value;
 
-                RuntimeValue finalValue = finishedFrame.Registers[paramName];
-                _cachedRegisters[originalVarName] = finalValue;
+                    RuntimeValue finalValue = finishedFrame.Registers[paramIndexInFinishedFrame];
+
+                    _cachedRegisters[originalVarIndexInCaller] = finalValue;
+                }
             }
 
             _ip = finishedFrame.ReturnAddress;
 
             // Lambdas don't return thier function object until their' parent call frame returns.
-            if (!finishedFrame.Function.IsLambda)
+            if (finishedFrame.Function.IsLambda)
             {
                 _functionObjectPool.Return(finishedFrame.Function);
             }
@@ -2178,56 +2284,11 @@ namespace Fluence.VirtualMachine
         {
             if (target is VariableValue var)
             {
-                AssignVariable(var.Name, var.Hash, value, insn, var.IsReadOnly);
+                AssignVariable(var, value, insn, var.IsReadOnly);
                 return;
             }
 
             SetRegister((TempValue)target, value);
-        }
-
-        /// <summary>
-        /// Converts a compile-time <see cref="Value"/> from bytecode into a runtime <see cref="RuntimeValue"/>.
-        /// </summary>
-        internal RuntimeValue GetRuntimeValue(Value val)
-        {
-            if (val is TempValue temp)
-            {
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, temp.Hash);
-
-                return !Unsafe.IsNullRef(ref valueRef) ? valueRef : RuntimeValue.Nil;
-            }
-
-            if (val is VariableValue variable)
-            {
-                return ResolveVariable(variable.Name, variable.Hash, val);
-            }
-
-            if (val is FunctionValue func)
-            {
-                // A FunctionValue from the bytecode is just a blueprint.
-                // We must convert it into a live, runtime FunctionObject.
-                return new RuntimeValue(CreateFunctionObject(func));
-            }
-
-            return val switch
-            {
-                CharValue ch => ResolveCharObjectRuntimeValue(ch.Value),
-                EnumValue enumVal => new RuntimeValue(enumVal.Value),
-                NumberValue num => num.Type switch
-                {
-                    NumberValue.NumberType.Integer => new RuntimeValue((int)num.Value),
-                    NumberValue.NumberType.Float => new RuntimeValue((float)num.Value),
-                    NumberValue.NumberType.Double => new RuntimeValue((double)num.Value),
-                    NumberValue.NumberType.Long => new RuntimeValue((long)num.Value),
-                    _ => SignalRecoverableErrorAndReturnNil($"Internal VM Error: Unrecognized NumberType '{num.Type}' in bytecode.")
-                },
-                BooleanValue boolean => new RuntimeValue(boolean.Value),
-                NilValue => RuntimeValue.Nil,
-                StringValue str => ResolveStringObjectRuntimeValue(str.Value),
-                RangeValue range => ResolveRangeObjectRuntimeValue(GetRuntimeValue(range.Start), GetRuntimeValue(range.End)),
-                LambdaValue lambda => new RuntimeValue(CreateFunctionObject(lambda.Function)),
-                _ => SignalRecoverableErrorAndReturnNil($"Internal VM Error: Unrecognized Value type '{val.GetType().Name}' during conversion.")
-            };
         }
 
         internal RuntimeValue ResolveCharObjectRuntimeValue(char ch)
@@ -2252,58 +2313,112 @@ namespace Fluence.VirtualMachine
         }
 
         /// <summary>
+        /// Converts a compile-time <see cref="Value"/> from bytecode into a runtime <see cref="RuntimeValue"/>.
+        /// </summary>
+        internal RuntimeValue GetRuntimeValue(Value val, InstructionLine instruction)
+        {
+            if (val is TempValue temp)
+            {
+                return _cachedRegisters[temp.RegisterIndex];
+            }
+
+            if (val is VariableValue variable)
+            {
+                return ResolveVariable(variable, instruction);
+            }
+
+            if (val is FunctionValue func)
+            {
+                // A FunctionValue from the bytecode is just a blueprint.
+                // We must convert it into a live, runtime FunctionObject.
+                return new RuntimeValue(CreateFunctionObject(func));
+            }
+
+            return val switch
+            {
+                CharValue ch => ResolveCharObjectRuntimeValue(ch.Value),
+                EnumValue enumVal => new RuntimeValue(enumVal.Value),
+                NumberValue num => num.Type switch
+                {
+                    NumberValue.NumberType.Integer => new RuntimeValue((int)num.Value),
+                    NumberValue.NumberType.Float => new RuntimeValue((float)num.Value),
+                    NumberValue.NumberType.Double => new RuntimeValue((double)num.Value),
+                    NumberValue.NumberType.Long => new RuntimeValue((long)num.Value),
+                    _ => SignalRecoverableErrorAndReturnNil($"Internal VM Error: Unrecognized NumberType '{num.Type}' in bytecode.")
+                },
+                BooleanValue boolean => new RuntimeValue(boolean.Value),
+                NilValue => RuntimeValue.Nil,
+                StringValue str => ResolveStringObjectRuntimeValue(str.Value),
+                RangeValue range => ResolveRangeObjectRuntimeValue(GetRuntimeValue(range.Start, instruction), GetRuntimeValue(range.End, instruction)),
+                LambdaValue lambda => new RuntimeValue(CreateFunctionObject(lambda.Function)),
+                _ => SignalRecoverableErrorAndReturnNil($"Internal VM Error: Unrecognized Value type '{val.GetType().Name}' during conversion.")
+            };
+        }
+
+        /// <summary>
         /// Resolves a variable name to its runtime value by searching the current scope hierarchy.
         /// </summary>
         /// <param name="name">The name of the variable to resolve.</param>
         /// <returns>The <see cref="RuntimeValue"/> associated with the variable name.</returns>
         /// <exception cref="FluenceRuntimeException">Thrown if the variable is not defined in any accessible scope.</exception>
-        private RuntimeValue ResolveVariable(string name, int hash, Value val = null!)
+        private RuntimeValue ResolveVariable(VariableValue var, InstructionLine instruction)
         {
-            ref RuntimeValue localValue = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, hash);
-            if (!Unsafe.IsNullRef(ref localValue))
+            if (instruction.Instruction is InstructionCode.CallFunction
+                                        or InstructionCode.CallMethod
+                                        or InstructionCode.CallStatic)
             {
-                return localValue;
-            }
+                FluenceScope lexicalScope = CurrentFrame.Function?.DefiningScope;
 
-            FluenceScope lexicalScope = CurrentFrame.Function.DefiningScope;
-            if (lexicalScope.TryResolve(hash, out Symbol symbol))
-            {
-                return ResolveVariableFromScopeSymbol(symbol, lexicalScope);
-            }
-
-            if (CurrentFrame.ReturnAddress == _byteCode.Count)
-            {
-                foreach (FluenceScope item in Namespaces.Values)
+                if (lexicalScope != null)
                 {
-                    FluenceScope lexicalScope2 = item;
+                    RuntimeValue returnValue;
 
-                    if (lexicalScope2.TryResolve(hash, out Symbol symb))
+                    if (lexicalScope.TryResolve(var.Hash, out Symbol symbol))
                     {
-                        return ResolveVariableFromScopeSymbol(symb, lexicalScope2);
+                        returnValue = ResolveVariableFromScopeSymbol(symbol, instruction);
+                        if (returnValue != RuntimeValue.Nil)
+                        {
+                            return returnValue;
+                        }
+                    }
+
+                    if (CurrentFrame.ReturnAddress == _byteCode.Count)
+                    {
+                        foreach (FluenceScope item in Namespaces.Values)
+                        {
+                            FluenceScope lexicalScope2 = item;
+
+                            if (lexicalScope2.TryResolve(var.Hash, out Symbol symb))
+                            {
+                                returnValue = ResolveVariableFromScopeSymbol(symb, instruction);
+                                if (returnValue != RuntimeValue.Nil)
+                                {
+                                    return returnValue;
+                                }
+                            }
+                        }
+                    }
+
+                    foreach (Symbol valSymbol in _globalScope.Symbols.Values)
+                    {
+                        if (valSymbol is VariableSymbol varSymbol && varSymbol.Hash == var.Hash)
+                        {
+                            returnValue = GetRuntimeValue(varSymbol.Value, instruction);
+                            if (returnValue != RuntimeValue.Nil)
+                            {
+                                return returnValue;
+                            }
+                        }
                     }
                 }
             }
 
-            foreach (Symbol valSymbol in _globalScope.Symbols.Values)
+            if (var.IsGlobal)
             {
-                if (valSymbol is VariableSymbol varSymbol && varSymbol.Hash == hash)
-                {
-                    return GetRuntimeValue(varSymbol.Value);
-                }
+                return _globals[var.RegisterIndex];
             }
 
-            // Last case, a Lambda, and if not undefined.
-            if (val is not null and VariableValue)
-            {
-                // TO DO, hash lambda names.
-                ref RuntimeValue lambda = ref CollectionsMarshal.GetValueRefOrNullRef(_cachedRegisters, Mangler.Demangle(name).GetHashCode());
-                if (!Unsafe.IsNullRef(ref lambda))
-                {
-                    return lambda;
-                }
-            }
-
-            throw ConstructRuntimeException($"Runtime Error: Undefined variable '{name}'.", RuntimeExceptionType.UnknownVariable);
+            return _cachedRegisters[var.RegisterIndex];
         }
 
         /// <summary>
@@ -2312,38 +2427,38 @@ namespace Fluence.VirtualMachine
         /// <param name="symbol">The symbol to resolve from.</param>
         /// <param name="scope">The scope of the symbol</param>
         /// <returns>The <see cref="RuntimeValue"/> resolved from the symbol.</returns>
-        private RuntimeValue ResolveVariableFromScopeSymbol(Symbol symbol, FluenceScope scope)
+        private RuntimeValue ResolveVariableFromScopeSymbol(Symbol symbol, InstructionLine instruction)
         {
-            if (symbol is FunctionSymbol funcSymbol2)
+            if (symbol is FunctionSymbol funcSymbol)
             {
-                return new RuntimeValue(CreateFunctionObject(funcSymbol2));
+                return new RuntimeValue(CreateFunctionObject(funcSymbol));
             }
             else if (symbol is VariableSymbol variable)
             {
-                // Current scopt also contains all symbols from namespaces it uses.
-                ref RuntimeValue namespaceRuntimeValue = ref CollectionsMarshal.GetValueRefOrNullRef(scope.RuntimeStorage, variable.Hash);
-                if (!Unsafe.IsNullRef(ref namespaceRuntimeValue))
+                if (variable.Value is TempValue temp && temp.RegisterIndex != -1)
                 {
-                    return namespaceRuntimeValue;
+                    return _cachedRegisters[temp.RegisterIndex];
                 }
-
-                ref RuntimeValue namespaceRuntimeValue2 = ref CollectionsMarshal.GetValueRefOrNullRef(_globals, variable.Hash);
-                if (!Unsafe.IsNullRef(ref namespaceRuntimeValue2))
+                else if (variable.Value is VariableValue var2 && var2.RegisterIndex != -1)
                 {
-                    return namespaceRuntimeValue2;
+                    return var2.IsGlobal ? _globals[var2.RegisterIndex] : _cachedRegisters[var2.RegisterIndex];
                 }
 
                 foreach (FluenceScope item in Namespaces.Values)
                 {
                     if (item.TryResolve(variable.Hash, out Symbol symb))
                     {
-                        return GetRuntimeValue(((VariableSymbol)symb).Value);
+                        return GetRuntimeValue(((VariableSymbol)symb).Value, instruction);
                     }
+                }
+
+                if (_globalVariableRegister.TryGetValue(symbol.Name, out VariableValue var))
+                {
+                    return _globals[var.RegisterIndex];
                 }
             }
 
-            // Won't reach here, but satisfies compiler.
-            return new();
+            return RuntimeValue.Nil;
         }
 
         /// <summary>
@@ -2361,8 +2476,7 @@ namespace Fluence.VirtualMachine
                 return func;
             }
 
-            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.ArgumentsHash, funcSymbol.StartAddress, funcSymbol.DefiningScope, funcSymbol, funcSymbol.StartAddressInSource);
-            func.ParametersByRef = funcSymbol.ArgumentsByRef;
+            func.Initialize(funcSymbol);
             return func;
         }
 
@@ -2371,19 +2485,46 @@ namespace Fluence.VirtualMachine
         /// </summary>
         /// <param name="funcSymbol">The blueprint for the <see cref="FunctionObject"/> to create.</param>
         /// <returns>The initialized <see cref="FunctionObject"/>.</returns>
-        private FunctionObject CreateFunctionObject(FunctionValue funcSymbol)
+        private FunctionObject CreateFunctionObject(FunctionValue funcValue)
         {
             FunctionObject func = _functionObjectPool.Get();
-
-            func.Initialize(funcSymbol.Name, funcSymbol.Arity, funcSymbol.Arguments, funcSymbol.ArgumentsHash, funcSymbol.StartAddress, funcSymbol.FunctionScope, null!, funcSymbol.StartAddressInSource);
-            func.ParametersByRef = funcSymbol.ArgumentsByRef;
+            func.Initialize(funcValue);
             return func;
         }
 
+        /// <summary>
+        /// Attemps to return the current object reference of the temporary register to its appropriate pool if available
+        /// for further reuse.
+        /// </summary>
+        /// <param name="register"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void TryReturnRegisterReferenceToPool(TempValue register)
         {
-            RuntimeValue registerValue = GetRegisterValue(register.Hash);
+            RuntimeValue registerValue = _cachedRegisters[register.RegisterIndex];
+
+            switch (registerValue.ObjectReference)
+            {
+                case RangeObject range:
+                    _rangeObjectPool.Return(range);
+                    break;
+                case IteratorObject iter:
+                    _iteratorObjectPool.Return(iter);
+                    break;
+                case CharObject chr:
+                    _charObjectPool.Return(chr);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Attemps to return the current object reference of the temporary register to its appropriate pool if available
+        /// for further reuse.
+        /// </summary>
+        /// <param name="registerIndex">The index of the register the value of which needs to be returned to its pool.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void TryReturnRegisterReferenceToPool(int registerIndex)
+        {
+            RuntimeValue registerValue = _cachedRegisters[registerIndex];
 
             switch (registerValue.ObjectReference)
             {
@@ -2402,72 +2543,71 @@ namespace Fluence.VirtualMachine
         /// <summary>
         /// Writes a value to a specified temporary register in the current call frame.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void SetRegister(TempValue destination, RuntimeValue value)
         {
-            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, destination.Hash, out _);
-            valueRef = value;
+            _cachedRegisters[destination.RegisterIndex] = value;
         }
 
         /// <summary>
-        /// Returns the current <see cref="RuntimeValue"/> of the given register of the local CallFrame.
+        /// Checks whether the given local or global variable is a readonly solid variable.
         /// </summary>
-        /// <param name="name">The name of the temporary register.</param>
-        internal RuntimeValue GetRegisterValue(int hash)
+        /// <param name="variable">The variable to check.</param>
+        /// <returns>True if the variable is readonly.</returns>
+        internal bool VariableIsReadonly(VariableValue variable)
         {
-            ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentFrame.Registers, hash, out _);
-            return valueRef;
-        }
-
-        internal void ReturnCharObjectToPool(CharObject chr) => _charObjectPool.Return(chr);
-        internal void ReturnIteratorObjectToPool(IteratorObject iter) => _iteratorObjectPool.Return(iter);
-        internal void ReturnRangeObjectToPool(RangeObject range) => _rangeObjectPool.Return(range);
-        internal void ReturnFunctionObjectToPool(FunctionObject func) => _functionObjectPool.Return(func);
-
-        /// <summary>
-        /// Assigns a value to a variable.
-        /// </summary>
-        private void AssignVariable(string name, int hash, RuntimeValue value, InstructionLine insn, bool readOnly = false)
-        {
-            if (insn.AssignsVariableSafely)
+            if (variable.IsGlobal && _globalWritableCache[variable.RegisterIndex])
             {
-                SetVariable(hash, ref value);
+                return true;
+            }
+
+            if (_cachedWritableCache[variable.RegisterIndex])
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Assigns a value to a variable, going through all the necessary readonly rule checks.
+        /// </summary>
+        private void AssignVariable(VariableValue var, RuntimeValue value, InstructionLine insn, bool readOnly = false)
+        {
+            if (insn != null && insn.AssignsVariableSafely)
+            {
+                SetVariable(var, value);
                 return;
             }
 
-            ref bool isReadonlyRef = ref CollectionsMarshal.GetValueRefOrNullRef(CurrentFrame.WritableCache, hash);
-            ref bool isReadOnlyGlobalRef = ref CollectionsMarshal.GetValueRefOrNullRef(GlobalWritableCache, hash);
+            // Write caches initialized as [ false, false, false, ... ] by default.
+            // True in the cache means not readonly.
+            // First assignment is always not readonly.
 
-            if (!Unsafe.IsNullRef(ref isReadonlyRef) && readOnly)
+            if (var.IsGlobal)
             {
-                CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly variable '{name}'.");
-            }
-            else if (!Unsafe.IsNullRef(ref isReadOnlyGlobalRef) && readOnly)
-            {
-                CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly global variable '{name}'.");
+                bool isReadonlyGlobalVar = _globalWritableCache[var.RegisterIndex];
+
+                if (isReadonlyGlobalVar)
+                {
+                    throw CreateRuntimeException($"Runtime Error: Cannot assign to the readonly or solid variable '{var.Name}'.");
+                }
+                else if (readOnly)
+                {
+                    _globalWritableCache[var.RegisterIndex] = true;
+                }
             }
             else
             {
-                bool isVariableReadonly = false;
-                if (readOnly)
-                {
-                    isVariableReadonly = true;
-                }
-                else if (CurrentFrame.Function.DefiningScope.TryResolve(hash, out Symbol symbol) && symbol is VariableSymbol { IsReadonly: true })
-                {
-                    CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly or solid variable '{name}'.");
-                }
-                else if (_globalScope.TryResolve(hash, out symbol) && symbol is VariableSymbol symb && symb.IsReadonly)
-                {
-                    CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly or solid variable '{name}'.");
-                }
+                bool isReadonlyLocalVar = CurrentFrame.WritableCache[var.RegisterIndex];
 
-                ref bool cacheSlot = ref CollectionsMarshal.GetValueRefOrAddDefault(CurrentFrame.WritableCache, hash, out _);
-                cacheSlot = isVariableReadonly;
-
-                if (CurrentFrame.ReturnAddress == _byteCode.Count)
+                if (isReadonlyLocalVar)
                 {
-                    ref bool globalCacheSlot = ref CollectionsMarshal.GetValueRefOrAddDefault(GlobalWritableCache, hash, out _);
-                    globalCacheSlot = isVariableReadonly;
+                    throw CreateRuntimeException($"Runtime Error: Cannot assign to the readonly or solid variable '{var.Name}'.");
+                }
+                else if (readOnly)
+                {
+                    CurrentFrame.WritableCache[var.RegisterIndex] = true;
                 }
             }
 
@@ -2476,7 +2616,7 @@ namespace Fluence.VirtualMachine
                 insn.AssignsVariableSafely = true;
             }
 
-            SetVariable(hash, ref value);
+            SetVariable(var, value);
         }
 
         /// <summary>
@@ -2485,18 +2625,15 @@ namespace Fluence.VirtualMachine
         /// <param name="var">The Variable.</param>
         /// <param name="val">The value to assign to.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void SetVariable(int hash, ref RuntimeValue value)
+        internal void SetVariable(VariableValue var, RuntimeValue value)
         {
-            // If we are not in the top-level script, assign to the current frame's local registers.
-            if (CurrentFrame.ReturnAddress != _byteCode.Count)
+            if (var.IsGlobal)
             {
-                ref RuntimeValue valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(_cachedRegisters, hash, out _);
-                valueRef = value;
+                _globals[var.RegisterIndex] = value;
                 return;
             }
 
-            ref RuntimeValue valueRef2 = ref CollectionsMarshal.GetValueRefOrAddDefault(_globals, hash, out _);
-            valueRef2 = value;
+            _cachedRegisters[var.RegisterIndex] = value;
         }
 
         /// <summary>
@@ -2548,7 +2685,6 @@ namespace Fluence.VirtualMachine
 
             if (count > 0)
             {
-                // Pre-allocate capacity for efficiency.
                 repeatedList.Elements.Capacity = list.Elements.Count * count;
                 for (int i = 0; i < count; i++)
                 {
@@ -2626,6 +2762,10 @@ namespace Fluence.VirtualMachine
         {
             if (value.Type == RuntimeValueType.Object && value.ObjectReference != null)
             {
+                if (value.ObjectReference is Wrapper wrapper)
+                {
+                    return wrapper.Instance.GetType().Name;
+                }
                 return value.ObjectReference.GetType().Name;
             }
 
@@ -2638,7 +2778,6 @@ namespace Fluence.VirtualMachine
         /// to the catch block. Otherwise, it throws an unhandled exception, terminating the VM.
         /// </summary>
         /// <param name="exception">The error message.</param>
-        [DoesNotReturn]
         internal void SignalError(string exception, RuntimeExceptionType exceptionType = RuntimeExceptionType.NonSpecific)
         {
             if (_tryCatchBlocks.Count > 0)
@@ -2648,9 +2787,9 @@ namespace Fluence.VirtualMachine
                 // Error in try block.
                 if (_ip < tryCatchContext.TryGoToIndex)
                 {
-                    if (tryCatchContext.HasExceptionVar && !string.IsNullOrEmpty(tryCatchContext.ExceptionAsVar))
+                    if (tryCatchContext.HasExceptionVar && !string.IsNullOrEmpty(tryCatchContext.ExceptionVarName))
                     {
-                        _cachedRegisters[tryCatchContext.ExceptionAsVar.GetHashCode()] = new RuntimeValue(new ExceptionObject(exception));
+                        _cachedRegisters[tryCatchContext.ExceptionAsVarRegisterIndex] = new RuntimeValue(new ExceptionObject(exception));
                     }
 
                     // Jumps to catch block.
@@ -2735,7 +2874,7 @@ namespace Fluence.VirtualMachine
         /// <param name="exception">The exception message.</param>
         private FluenceRuntimeException CreateRuntimeException(string exception, RuntimeExceptionType excType = RuntimeExceptionType.NonSpecific)
         {
-            VMDebugContext debugCtx = new VMDebugContext(this, _operandStack, _callStack.Count);
+            VMDebugContext debugCtx = new VMDebugContext(this, CurrentFrame, _byteCode, _operandStack, _callStack.Count);
             List<StackFrameInfo> stackFrames = new List<StackFrameInfo>();
 
             while (_callStack.Count != 0)

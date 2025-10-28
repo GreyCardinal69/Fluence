@@ -1,5 +1,6 @@
 ﻿using Fluence.RuntimeTypes;
 using Fluence.VirtualMachine;
+using System.Runtime.CompilerServices;
 
 namespace Fluence
 {
@@ -15,12 +16,6 @@ namespace Fluence
         /// Always non-null for any valid symbol.
         /// </summary>
         internal string Name { get; init; }
-
-        /// <summary>
-        /// The hash code of this symbol.
-        /// Taken from the name of the symbol.
-        /// </summary>
-        internal int Hash { get; init; }
 
         protected Symbol(string name)
         {
@@ -48,9 +43,9 @@ namespace Fluence
             IsReadonly = readOnly;
         }
 
-        internal override string ToFluenceString() => $"VariableSymbol: {Name}{Value}";
+        internal override string ToFluenceString() => $"VariableSymbol: {Name}---{Value}";
 
-        public override string ToString() => $"VariableSymbol: {Name}{Value}";
+        public override string ToString() => $"VariableSymbol: {Name}---{Value}";
     }
 
     /// <summary>
@@ -143,6 +138,11 @@ namespace Fluence
         internal int StartAddress { get; private set; }
 
         /// <summary>
+        /// The address of the last instruction of the function's body in the bytecode.
+        /// </summary>
+        internal int EndAddress { get; private set; }
+
+        /// <summary>
         /// Gets a value indicating whether this function is a native C# intrinsic.
         /// </summary>
         internal bool IsIntrinsic { get; init; }
@@ -163,7 +163,7 @@ namespace Fluence
         internal List<string> Arguments { get; init; }
 
         /// <summary>The hash codes of the function's arguments.</summary>
-        internal List<int> ArgumentsHash { get; private set; }
+        internal List<int> ArgumentHashCodes { get; private set; }
 
         /// <summary>
         /// The arguments of the function passed by reference by name.
@@ -171,14 +171,46 @@ namespace Fluence
         internal HashSet<string> ArgumentsByRef { get; private set; }
 
         /// <summary>
+        /// A list of the register slot indices corresponding to the function's parameters, in order.
+        /// This is populated by the parser after the slot allocation pass.
+        /// </summary>
+        internal int[] ArgumentRegisterIndices { get; private set; }
+
+        /// <summary>
         /// Keeps track which namespace the function is defined in.
         /// </summary>
         internal FluenceScope DefiningScope { get; init; }
 
         /// <summary>
+        /// The total amount of register slots this function requires to execute its bytecode.
+        /// </summary>
+        internal int TotalRegisterSlots { get; set; }
+
+        /// <summary>
+        /// Indicates whether the function is an instance or a static method of some struct type.
+        /// </summary>
+        internal bool BelongsToAStruct { get; set; }
+
+        /// <summary>
         /// Sets the bytecode start address for this function. Called by the parser during the second pass.
         /// </summary>
         internal void SetStartAddress(int addr) => StartAddress = addr;
+
+        /// <summary>
+        /// Sets the bytecode end address for this function. Called by the parser during the second pass.
+        /// This is usually the final return instruction of the function's body.
+        /// </summary>
+        internal void SetEndAddress(int adr) => EndAddress = adr;
+
+        /// <summary>Sets the register indices of this functions arguments.</summary>>
+        internal void SetArgumentRegisterIndices(int[] indices) => ArgumentRegisterIndices = indices;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void SetStartAndEndAddresses(int start, int end)
+        {
+            StartAddress = start;
+            EndAddress = end;
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="FunctionSymbol"/> class for a native C# intrinsic.
@@ -194,10 +226,10 @@ namespace Fluence
             IntrinsicBody = body;
             Arguments = arguments;
 
-            ArgumentsHash = new List<int>();
+            ArgumentHashCodes = new List<int>();
             for (int i = 0; i < Arguments.Count; i++)
             {
-                ArgumentsHash.Add(Arguments[i].GetHashCode());
+                ArgumentHashCodes.Add(Arguments[i].GetHashCode());
             }
 
             DefiningScope = definingScope;
@@ -217,10 +249,10 @@ namespace Fluence
             IsIntrinsic = false;
             Arguments = arguments;
 
-            ArgumentsHash = new List<int>();
+            ArgumentHashCodes = new List<int>();
             for (int i = 0; i < Arguments.Count; i++)
             {
-                ArgumentsHash.Add(Arguments[i].GetHashCode());
+                ArgumentHashCodes.Add(Arguments[i].GetHashCode());
             }
 
             ArgumentsByRef = argumentsByRef;

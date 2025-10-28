@@ -22,6 +22,8 @@ namespace Fluence
         /// <summary>Indicates whether this scope is the global scope.</summary>
         internal readonly bool IsTheGlobalScope;
 
+        internal readonly bool IsIntrinsicScope;
+
         /// <summary>
         /// Keeps track of declared symbol names for name conflict detection.
         /// </summary>
@@ -43,8 +45,9 @@ namespace Fluence
         internal bool ContainsLocal(int name) => TryGetLocalSymbol(name, out _);
         internal bool TryGetLocalSymbol(int hash, out Symbol symbol) => Symbols.TryGetValue(hash, out symbol!);
 
-        internal FluenceScope(FluenceScope parentScope, string name)
+        internal FluenceScope(FluenceScope parentScope, string name, bool isIntrinsic)
         {
+            IsIntrinsicScope = isIntrinsic;
             ParentScope = parentScope;
             Name = name;
             IsTheGlobalScope = string.Equals(name, "Global", StringComparison.Ordinal);

@@ -100,7 +100,7 @@ namespace Fluence
                 filepath = Parser.CurrentParseState.ProjectFilePaths[InstructionLine.ProjectFileIndex]; ;
                 fileName = Path.GetFileName(filepath);
                 string[] lines = File.ReadAllLines(filepath);
-                faultyLine = lines[InstructionLine.LineInSourceCode == -1 ? 0 : InstructionLine.LineInSourceCode - 1];
+                faultyLine = lines[InstructionLine.LineInSourceCode == -1 ? 0 : (InstructionLine.LineInSourceCode == 0 ? 0 : InstructionLine.LineInSourceCode - 1)];
             }
             else
             {
@@ -116,6 +116,7 @@ namespace Fluence
                 ElaborateOnContext(ExceptionType);
             }
 
+            stringBuilder.AppendLine("Fluence.Exceptions.FluenceRuntimeException:");
             stringBuilder.AppendLine($"\nException occured in: {(string.IsNullOrEmpty(fileName) ? "Script" : fileName)}.");
 
             if (!string.IsNullOrEmpty(filepath))
@@ -147,11 +148,9 @@ namespace Fluence
             {
                 bool isFirstLocal = true;
                 List<(string Name, RuntimeValue Value)> displayItems = new List<(string Name, RuntimeValue Value)>();
-                foreach (KeyValuePair<int, RuntimeValue> local in DebugContext.CurrentLocals)
+                foreach (KeyValuePair<string, RuntimeValue> local in DebugContext.CurrentLocals)
                 {
-                    string name = HashTable.TryGetName(local.Key, out string? resolvedName)
-                                  ? resolvedName
-                                  : $"<hash:{local.Key}>";
+                    string name = local.Key;
                     displayItems.Add((name, local.Value));
                 }
 
@@ -217,7 +216,7 @@ namespace Fluence
             stringBuilder.AppendLine("\nLast Virtual Machine Instruction and Function:\n");
             stringBuilder.AppendLine($"IP: {DebugContext.InstructionPointer:D4}   Function: {Mangler.Demangle(DebugContext.CurrentFunctionName, out _)}   Call Stack Depth: {DebugContext.CallStackDepth}");
             stringBuilder.AppendLine($"\nThe Error occured at the following bytecode instruction:\n");
-            stringBuilder.AppendLine($"{string.Format("{0,-20} {1,-50} {2,-45} {3,-40} {4, -25}", "TYPE", "LHS", "RHS", "RHS2", "RHS3")}");
+            stringBuilder.AppendLine($"{string.Format("{0,-25} {1,-40} {2,-55} {3,-40} {4, -25}", "TYPE", "LHS", "RHS", "RHS2", "RHS3")}");
             stringBuilder.AppendLine($"{DebugContext.CurrentInstruction}");
 
             stringBuilder.AppendLine($"\nStack Trace (most recent call last):");

@@ -40,7 +40,11 @@ namespace Fluence
         internal static void DumpByteCodeInstructions(List<InstructionLine> instructions, TextOutputMethod outMethod)
         {
             outMethod("--- Compiled Bytecode ---\n");
-            outMethod(string.Format("{0,-5} {1,-20} {2,-50} {3,-45} {4,-40} {5, -25}", "", "TYPE", "LHS", "RHS", "RHS2", "RHS3"));
+            outMethod("Value types with unique print format:");
+            outMethod("VariableValue: Var_{Name}_{Register Index}_{Is Global?}");
+            outMethod("TempValue: {Name}_{Register Index}");
+            outMethod("FunctionValue: Func_{Name}_{Arity}_{TotalRegisters}_{Scope}_{StartAddress}_{EndAddress}\n");
+            outMethod(string.Format("{0,-5} {1,-25} {2,-40} {3,-55} {4,-40} {5, -40}", "", "TYPE", "LHS", "RHS", "RHS2", "RHS3"));
             outMethod("");
 
             if (instructions == null || instructions.Count == 0)
@@ -77,16 +81,18 @@ namespace Fluence
 
             DumpScope(sb, parseState.GlobalScope, "Global Scope", 0);
 
+#if DEBUG
             // If there are any namespaces, dump them as separate top-level scopes.
             if (parseState.NameSpaces.Count != 0)
             {
                 sb.AppendLine();
-                foreach (KeyValuePair<string, FluenceScope> ns in parseState.NameSpaces)
+                foreach (KeyValuePair<string, FluenceScope> ns in parseState.NameSpacesDebug)
                 {
                     DumpScope(sb, ns.Value, $"Namespace: {ns.Key}", 0);
                     outMethod("\n");
                 }
             }
+#endif
 
             sb.AppendLine("------------------------------------");
             outMethod(sb.ToString());
@@ -145,7 +151,7 @@ namespace Fluence
                 case FunctionSymbol functionSymbol:
                     string scope = functionSymbol.DefiningScope == null || functionSymbol.Arguments == null ? $"None {(functionSymbol.IsIntrinsic ? "(Intrinsic)" : "Global?")}" : functionSymbol.DefiningScope.Name;
                     args = functionSymbol.Arguments == null ? "None" : string.Join(",", functionSymbol.Arguments);
-                    argsRef = functionSymbol.ArgumentsByRef == null ? "None" : string.Join(",", functionSymbol.ArgumentsByRef);
+                    argsRef = (functionSymbol.ArgumentsByRef == null || functionSymbol.ArgumentsByRef.Count == 0) ? "None" : string.Join(",", functionSymbol.ArgumentsByRef);
 
                     if (string.IsNullOrEmpty(args)) args = "None";
 
@@ -154,7 +160,7 @@ namespace Fluence
                     sb.Append($" Args: {args}, ").Append($" RefArgs: {argsRef}, ").Append($" LocationInSource: {functionSymbol.StartAddressInSource}").AppendLine();
                     break;
                 case VariableSymbol variableSymbol:
-                    sb.Append(indent).Append($"Symbol: {symbolName}, type VariableSymbol: {variableSymbol}.").AppendLine();
+                    sb.Append(indent).Append($"Symbol: {symbolName}, {variableSymbol}.").AppendLine();
                     break;
                 case StructSymbol structSymbol:
                     sb.Append(indent).Append($"Symbol: {symbolName}, type Struct {{").AppendLine();
@@ -168,8 +174,8 @@ namespace Fluence
                             args = function.Value.Arguments == null ? "None" : string.Join(",", function.Value.Arguments);
                             argsRef = function.Value.ArgumentsByRef == null ? "None" : string.Join(",", function.Value.ArgumentsByRef);
 
-                            sb.Append(innerIndent).Append($"    Name: {function.Key}, Arity: {function.Value.Arity}, Start Address: {FluenceDebug.FormatByteCodeAddress(function.Value.StartAddress)}")
-                                .Append($" Args: {args}, ").Append($" RefArgs: {argsRef}, ").AppendLine();
+                            sb.Append(innerIndent).Append($"    Name: {function.Key}, Arity: {function.Value.Arity}, Start Address: {FormatByteCodeAddress(function.Value.StartAddress)}")
+                              .Append($" Args: {args}, ").Append($" RefArgs: {argsRef}, ").Append($"Scope: {function.Value.DefiningScope}, ").Append($"Registers Size: {function.Value.TotalRegisterSlots}").AppendLine();
                         }
                         sb.Append(innerIndent).AppendLine("}");
                     }

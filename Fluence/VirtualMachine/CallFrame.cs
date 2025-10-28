@@ -3,42 +3,98 @@
 namespace Fluence.VirtualMachine
 {
     /// <summary>
-    /// Represents the state of a single function call on the stack. It contains the function being executed,
-    /// its local variables (registers), the return address, and the destination for the return value.
+    /// Represents the execution context of a single function call on the call stack.
+    /// Manages local registers, temporary values, return information, and reference parameter tracking.
     /// </summary>
     internal sealed record class CallFrame
     {
-        internal Dictionary<int, RuntimeValue> Registers { get; } = new();
-        internal TempValue DestinationRegister { get; private set; }
-        internal FunctionObject Function { get; private set; }
-        internal int ReturnAddress { get; private set; }
-        internal Dictionary<int, int> RefParameterMap { get; } = new();
+        internal readonly record struct RefMappingInfo
+        {
+            internal int OriginalVarIndex { get; init; }
+            internal bool IsOriginalVarGlobal { get; init; }
+
+            internal RefMappingInfo(int originalVarIndex, bool isOriginalVarGlobal)
+            {
+                OriginalVarIndex = originalVarIndex;
+                IsOriginalVarGlobal = isOriginalVarGlobal;
+            }
+        }
 
         /// <summary>
-        /// A cache to store the readonly status of variables in this scope.
-        /// Key: variable name. Value: true if readonly, false if writable.
+        /// Local registers containing function local variables and temporary values.
         /// </summary>
-        internal readonly Dictionary<int, bool> WritableCache = new();
+        internal RuntimeValue[] Registers { get; private set; }
+
+        /// <summary>
+        /// Tracks writability status of each register to enforce readonly rules.
+        /// </summary>
+        internal bool[] WritableCache { get; private set; }
+
+        /// <summary>
+        /// The number of total register slots the current frame is allocated to have.
+        /// </summary>
+        internal int RegisterCount { get; private set; }
+
+        /// <summary>
+        /// Destination register for the function's return value.
+        /// </summary>
+        internal TempValue DestinationRegister { get; private set; }
+
+        /// <summary>
+        /// The function object being executed in this call frame.
+        /// </summary>
+        internal FunctionObject Function { get; private set; }
+
+        /// <summary>
+        /// Instruction pointer for return address after function completion.
+        /// </summary>
+        internal int ReturnAddress { get; private set; }
+
+        /// <summary>
+        /// Maps reference parameters to their corresponding register indices in the parent call frame.
+        /// </summary>
+        internal Dictionary<int, int> RefParameterMap { get; } = new();
 
         public CallFrame()
         {
+            Registers = [];
+            WritableCache = [];
+            RegisterCount = 0;
         }
 
-        public void Reset()
+        /// <summary>
+        /// Initializes this call frame for the execution of the specified function.
+        /// Allocates and initializes registers based on the function's requirements.
+        /// </summary>
+        /// <param name="function">The function to execute in this call frame.</param>
+        /// <param name="returnAddress">The instruction address to return to after function completion.</param>
+        /// <param name="destination">The temporary register to store the return value, if any.</param>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="function"/> is null.</exception>
+        public void Initialize(FluenceVirtualMachine vm, FunctionObject function, int returnAddress, TempValue destination)
         {
-            RefParameterMap.Clear();
-            Registers.Clear();
-            WritableCache.Clear();
-            DestinationRegister = null!;
-            Function = null!;
-            ReturnAddress = 0;
-        }
+            if (function is null)
+            {
+                throw vm.ConstructRuntimeException("Internal VM Error: Can not initialize a new CallFrame with a null function blueprint.");
+            }
 
-        public void Initialize(FunctionObject function, int returnAddress, TempValue destination)
-        {
+            int requiredSize = function.TotalRegisterSlots;
+
+            if (Registers.Length < requiredSize)
+            {
+                Registers = new RuntimeValue[requiredSize];
+                WritableCache = new bool[requiredSize];
+            }
+
+            RegisterCount = requiredSize;
             Function = function;
+            Function.TotalRegisterSlots = function.TotalRegisterSlots;
             ReturnAddress = returnAddress;
             DestinationRegister = destination;
+
+            if (requiredSize > 0)
+            {
+                Array.Clear(WritableCache, 0, requiredSize);
+            }
         }
     }
 }

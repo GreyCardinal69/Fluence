@@ -3,25 +3,23 @@
 namespace Fluence
 {
     /// <summary>
-    /// A static class containing definitions for Fluence bytecode.
+    /// Defines the bytecode instruction set for the Fluence Virtual Machine.
+    /// Provides structured representation of executable instructions with opcodes and operands.
     /// </summary>
     internal static class FluenceByteCode
     {
         /// <summary>
-        /// Represents a single line of executable Fluence bytecode.
-        /// An instruction consists of an opcode and up to four operands (LHS, RHS, RHS2, RHS3).
+        /// Represents a single executable instruction in Fluence bytecode.
+        /// Each instruction consists of an <see cref="InstructionCode"/> opcode and up to four operands.
         /// </summary>
         internal sealed class InstructionLine
         {
             /// <summary>
-            /// Defines all possible operation codes (opcodes) for the Fluence VM.
+            /// Defines all operation codes supported by the Fluence Virtual Machine.
             /// </summary>
             internal enum InstructionCode
             {
-                Skip,           // No operation. Placeholder.
-                Goto,
-                GotoIfTrue,
-                GotoIfFalse,
+                Skip,           // NOP - No operation placeholder
                 Return,
                 Terminate,      // Halt program execution.
 
@@ -41,9 +39,10 @@ namespace Fluence
                 GreaterThan,
                 LessEqual,
                 GreaterEqual,
-                And,            // Logical &&
-                Or,             // Logical ||
-                Not,            // Logical !
+
+                And,
+                Or,
+                Not,            // Logical NOT (!).
 
                 BitwiseAnd,
                 BitwiseOr,
@@ -61,7 +60,7 @@ namespace Fluence
                 CatchBlock,
 
                 // Function & Method Calls.
-                PushParam,      // Pushes a value (Lhs) onto the argument stack.
+                PushParam,
                 CallFunction,
                 CallMethod,
 
@@ -86,29 +85,43 @@ namespace Fluence
                 ToString,
 
                 NewLambda,
-                LoadAddress,    // REF
+                LoadAddress,    // Argument passed by reference.
 
-                /// <summary> Increments an integer variable, even if it is readonly. </summary>
-                IncrementIntUnrestricted,
-
-                //      ==!!==
-                //      The following are special bytecode instructions generated solely by the Optimizer class after the parsing phase.
-
-                // Double compound ops, op + assign in one instruction.
                 AddAssign,
                 SubAssign,
                 MulAssign,
                 DivAssign,
                 ModAssign,
 
+                Increment,
+                Decrement,
+
                 AssignTwo,
 
+                Goto,
+                GotoIfTrue,
+                GotoIfFalse,
                 BranchIfEqual,
                 BranchIfNotEqual,
+                BranchIfGreaterThan,
+                BranchIfGreaterOrEqual,
+                BranchIfLessThan,
+                BranchIfLessOrEqual,
 
                 PushTwoParams,
                 PushThreeParams,
                 PushFourParams,
+
+                //      ==!!==
+                // Low-Level/Internal Operations.
+
+                /// <summary> Increments an integer variable, even if it is readonly.</summary>
+                IncrementIntUnrestricted,
+
+                /// <summary>Global setup section marker.</summary>
+                SectionGlobal,
+                SectionLambdaStart,
+                SectionLambdaEnd
             }
 
             /// <summary>The operation code for this instruction.</summary>
@@ -132,6 +145,12 @@ namespace Fluence
             /// </summary>
             internal delegate void SpecializedOpcodeHandler(InstructionLine instruction, FluenceVirtualMachine vm);
 
+            /// <summary>
+            /// The cached, optimized "fast path" for this instruction.
+            /// If this is not null, it is executed by the generic opcode handler.
+            /// </summary>
+            internal SpecializedOpcodeHandler? SpecializedHandler { get; set; } = null!;
+
             /// <summary>The approximate line location the instruction points to in the source file.</summary>
             internal int LineInSourceCode { get; private set; }
 
@@ -150,7 +169,16 @@ namespace Fluence
             /// </summary>
             internal bool AssignsVariableSafely;
 
-            internal void SetDebugInfo(int column, int line, int fileIndex)
+            internal static readonly InstructionLine LambdaEntrance = new InstructionLine(InstructionCode.SectionLambdaStart, null!);
+            internal static readonly InstructionLine LambdaClosure = new InstructionLine(InstructionCode.SectionLambdaEnd, null!);
+
+            /// <summary>
+            /// Sets debugging metadata for source code correlation.
+            /// </summary>
+            /// <param name="column">Source column number.</param>
+            /// <param name="line">Source line number.</param>
+            /// <param name="fileIndex">Project file index.</param>
+            public void SetDebugInfo(int column, int line, int fileIndex)
             {
                 ColumnInSourceCode = column;
                 LineInSourceCode = line;
@@ -158,12 +186,19 @@ namespace Fluence
             }
 
             /// <summary>
-            /// The cached, optimized "fast path" for this instruction.
-            /// If this is not null, it is executed by the generic opcode handler.
+            /// Creates a new instruction with the specified opcode and operands.
             /// </summary>
-            internal SpecializedOpcodeHandler? SpecializedHandler { get; set; }
-
-            internal InstructionLine(InstructionCode instruction, Value lhs, Value rhs = null!, Value rhs2 = null!, Value rhs3 = null!)
+            /// <param name="instruction">The operation code.</param>
+            /// <param name="lhs">Primary operand (destination/target).</param>
+            /// <param name="rhs">First source operand. Can be null for unary operations.</param>
+            /// <param name="rhs2">Second source operand. Can be null.</param>
+            /// <param name="rhs3">Third source operand (optimizer use only). Can be null.</param>
+            internal InstructionLine(
+                InstructionCode instruction,
+                Value lhs,
+                Value rhs = null!,
+                Value rhs2 = null!,
+                Value rhs3 = null!)
             {
                 Instruction = instruction;
                 Lhs = lhs;
@@ -172,14 +207,19 @@ namespace Fluence
                 Rhs3 = rhs3;
             }
 
+            /// <inheritdoc />
             public override string ToString()
             {
-                string instruction = Instruction.ToString();
-                string lhs = Lhs != null ? Lhs.ToString() : "Null";
-                string rhs = Rhs != null ? Rhs.ToString() : "Null";
-                string rhs2 = Rhs2 != null ? Rhs2.ToString() : "Null";
-                string rhs3 = Rhs3 != null ? Rhs3.ToString() : "Null";
-                return string.Format("{0,-20} {1,-50} {2,-45} {3,-40} {4, -25}", instruction, lhs, rhs, rhs2, rhs3);
+                string[] parts =
+                [
+                    Instruction.ToString().PadRight(25),
+                    (Lhs?.ToByteCodeString() ?? "null").PadRight(40),
+                    (Rhs?.ToByteCodeString() ?? "null").PadRight(55),
+                    (Rhs2?.ToByteCodeString() ?? "null").PadRight(40),
+                    (Rhs3?.ToByteCodeString() ?? "null").PadRight(40),
+                ];
+
+                return string.Join(" ", parts);
             }
         }
     }

@@ -62,9 +62,6 @@ namespace Fluence
             private int _head;
             private bool _lexerFinished;
 
-            // A reasonable threshold for trimming the buffer.
-            private const int _trimThreshold = 16;
-
             internal int TokenCount => _buffer.Count;
 
             internal bool HasReachedEnd
@@ -114,13 +111,7 @@ namespace Fluence
                 {
                     _head++;
                 }
-
-                // Periodically trims the buffer to conserve memory.
-                if (_head >= _trimThreshold)
-                {
-                    Compact();
-                }
-
+                 
                 return token;
             }
 
@@ -168,16 +159,9 @@ namespace Fluence
                 _buffer.RemoveAll(token => token.Type == TokenType.NEW_LINE);
             }
 
-            /// <summary>
-            /// Removes consumed tokens from the beginning of the list.
-            /// </summary>
-            private void Compact()
+            internal void ClearTokens()
             {
-                if (_head > 0)
-                {
-                    _buffer.RemoveRange(0, _head);
-                    _head = 0;
-                }
+                _buffer.Clear();
             }
 
             /// <summary>
@@ -212,12 +196,7 @@ namespace Fluence
                 else
                 {
                     _head = _buffer.Count;
-                }
-
-                if (_head >= _trimThreshold)
-                {
-                    Compact();
-                }
+                }                 
             }
 
             /// <summary>
@@ -298,6 +277,8 @@ namespace Fluence
         /// Advances the token stream by one position without returning the consumed token.
         /// </summary>
         internal void Advance() => _tokenBuffer.Advance();
+
+        internal void ClearTokens() => _tokenBuffer.ClearTokens();
 
         /// <summary>
         /// Returns all the currently parsed tokens.

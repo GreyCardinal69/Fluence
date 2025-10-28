@@ -242,12 +242,10 @@ namespace Fluence
                 InstructionLine line2 = bytecode[i + 1];
                 if (line1 == null || line2 == null) continue;
 
-                if (line1.Instruction == InstructionCode.Assign && line2.Instruction == InstructionCode.Assign && line2.Rhs.Hash != line1.Lhs.Hash)
+                if (line1.Instruction == InstructionCode.Assign && line2.Instruction == InstructionCode.Assign)
                 {
                     byteCodeChanged = true;
                     bytecode[i].Instruction = InstructionCode.AssignTwo;
-                    bytecode[i].Lhs = line1.Lhs;
-                    bytecode[i].Rhs = line1.Rhs;
                     bytecode[i].Rhs2 = line2.Lhs;
                     bytecode[i].Rhs3 = line2.Rhs;
                     bytecode[i + 1] = null!;
@@ -492,6 +490,7 @@ namespace Fluence
         /// Checks if the given instruction code is a type of jump.
         /// </summary>
         /// <returns>True if the instruction is a jump, otherwise false.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool IsJumpInstruction(InstructionCode op) => op >= InstructionCode.Goto && op <= InstructionCode.BranchIfLessOrEqual;
 
         /// <summary>
@@ -524,28 +523,37 @@ namespace Fluence
                 return oldAddr > removedIndex ? oldAddr - 1 : oldAddr;
             }
 
-            for (int i = 0; i < bytecode.Count; i++)
+
+            Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
+
+            for (int i = 0; i < byteCodeSpan.Length; i++)
             {
-                InstructionLine insn = bytecode[i];
+                ref InstructionLine insn = ref byteCodeSpan[i];
                 if (insn == null) continue;
 
                 if (IsJumpInstruction(insn.Instruction) && insn.Lhs is NumberValue targetAddr)
                 {
                     targetAddr.ReAssign(MapAddr((int)targetAddr.Value));
+                    // Go to here, no need to check other cases.
+                    continue;
                 }
-                if (insn.Lhs is TryCatchValue tryCatch)
+                else if (insn.Lhs is TryCatchValue tryCatch)
                 {
                     tryCatch.TryGoToIndex = MapAddr(tryCatch.TryGoToIndex);
                     tryCatch.CatchGoToIndex = MapAddr(tryCatch.CatchGoToIndex);
+                    // Try catch, same as goto, no rhs+ components.
+                    continue;
                 }
+
                 if (insn.Rhs is FunctionValue fvRhs)
                 {
                     fvRhs.SetStartAndEndAddresses(MapAddr(fvRhs.StartAddress), MapAddr(fvRhs.EndAddress));
                 }
-                if (insn.Rhs is LambdaValue lambda)
+                else if (insn.Rhs is LambdaValue lambda)
                 {
                     lambda.Function.SetStartAndEndAddresses(MapAddr(lambda.Function.StartAddress), MapAddr(lambda.Function.EndAddress));
                 }
+
                 if (insn.Rhs2 is FunctionValue fvRhs2)
                 {
                     fvRhs2.SetStartAndEndAddresses(MapAddr(fvRhs2.StartAddress), MapAddr(fvRhs2.EndAddress));

@@ -3,6 +3,7 @@ using Fluence.Global;
 using Fluence.RuntimeTypes;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
@@ -302,7 +303,7 @@ namespace Fluence.VirtualMachine
             _dispatchTable[(int)InstructionCode.ToString] = ExecuteToString;
 
             // Inlined directly in Run function.
-            // _dispatchTable[(int)InstructionCode.Goto] = ExecuteGoto;
+            _dispatchTable[(int)InstructionCode.Goto] = ExecuteGoto;
 
             _dispatchTable[(int)InstructionCode.NewIterator] = ExecuteNewIterator;
             _dispatchTable[(int)InstructionCode.IterNext] = ExecuteIterNext;
@@ -548,12 +549,15 @@ namespace Fluence.VirtualMachine
             int instructionsUntilNextCheck = _timeCheckInterval;
             bool willRunUntilDone = duration == TimeSpan.MaxValue;
 
+            int instructionCount = _byteCode.Count;
+            Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(_byteCode);
+
             if (willRunUntilDone)
             {
                 stopwatch.Stop();
             }
 
-            while (_ip < _byteCode.Count)
+            while (_ip < instructionCount)
             {
                 if (_stopRequested)
                 {
@@ -578,7 +582,7 @@ namespace Fluence.VirtualMachine
                     }
                 }
 
-                InstructionLine instruction = _byteCode[_ip];
+                ref InstructionLine instruction = ref byteCodeSpan[_ip];
                 _ip++;
 
 #if DEBUG
@@ -591,14 +595,9 @@ namespace Fluence.VirtualMachine
                 }
                 else
                 {
-                    if (instruction.Instruction is InstructionCode.Goto)
-                    {
-                        _ip = (int)((NumberValue)instruction.Lhs).Value;
-                        continue;
-                    }
-
                     _dispatchTable[(int)instruction.Instruction](instruction);
                 }
+
 #if DEBUG
                 _stopwatch.Stop();
                 _instructionCounts.TryAdd(instruction.Instruction, 0);
@@ -852,6 +851,12 @@ namespace Fluence.VirtualMachine
 
             AssignTo(instruction.Lhs, instruction.Rhs, instruction);
             AssignTo(instruction.Rhs2, instruction.Rhs3, instruction);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void ExecuteGoto(InstructionLine insn)
+        {
+            _ip = (int)((NumberValue)insn.Lhs).Value;
         }
 
         /// <summary>Handles the ASSIGN instruction, which is used for variable assignment and range-to-list expansion.</summary>

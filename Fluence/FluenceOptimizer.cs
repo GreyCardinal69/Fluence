@@ -523,7 +523,6 @@ namespace Fluence
                 return oldAddr > removedIndex ? oldAddr - 1 : oldAddr;
             }
 
-
             Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
 
             for (int i = 0; i < byteCodeSpan.Length; i++)
@@ -534,7 +533,7 @@ namespace Fluence
                 if (IsJumpInstruction(insn.Instruction) && insn.Lhs is NumberValue targetAddr)
                 {
                     targetAddr.ReAssign(MapAddr((int)targetAddr.Value));
-                    // Go to here, no need to check other cases.
+                    // Goto here, no need to check other cases.
                     continue;
                 }
                 else if (insn.Lhs is TryCatchValue tryCatch)

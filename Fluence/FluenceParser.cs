@@ -65,6 +65,74 @@ namespace Fluence
 
         private readonly int SelfHashCode = "self".GetHashCode();
 
+        [Flags]
+        internal enum OperandUsage
+        {
+            None = 0,
+            Lhs = 1 << 0,
+            Rhs = 1 << 1,
+            Rhs2 = 1 << 2,
+            Rhs3 = 1 << 3,
+
+            LhsAndRhs = Lhs | Rhs,
+            AllThree = Lhs | Rhs | Rhs2,
+            AllFour = Lhs | Rhs | Rhs2 | Rhs3
+        }
+
+        private static readonly OperandUsage[] _operandUsageMap;
+
+        static FluenceParser()
+        {
+            var opcodes = Enum.GetValues<InstructionCode>();
+            _operandUsageMap = new OperandUsage[opcodes.Max(op => (int)op) + 1];
+
+            static void SetUsage(OperandUsage usage, params InstructionCode[] codes)
+            {
+                foreach (var code in codes)
+                {
+                    _operandUsageMap[(int)code] = usage;
+                }
+            }
+
+            // Four operands
+            SetUsage(OperandUsage.AllFour,
+                InstructionCode.AssignTwo, InstructionCode.PushFourParams);
+
+            // Three operands
+            SetUsage(OperandUsage.AllThree,
+                InstructionCode.Add, InstructionCode.Subtract, InstructionCode.Multiply, InstructionCode.Divide,
+                InstructionCode.Modulo, InstructionCode.Power, InstructionCode.Equal, InstructionCode.NotEqual,
+                InstructionCode.LessThan, InstructionCode.GreaterThan, InstructionCode.LessEqual, InstructionCode.GreaterEqual,
+                InstructionCode.And, InstructionCode.Or, InstructionCode.BitwiseAnd, InstructionCode.BitwiseOr,
+                InstructionCode.BitwiseXor, InstructionCode.BitwiseLShift, InstructionCode.BitwiseRShift,
+                InstructionCode.SetField, InstructionCode.GetElement, InstructionCode.SetElement,
+                InstructionCode.CallFunction, InstructionCode.CallMethod, InstructionCode.CallStatic, InstructionCode.SetStatic,
+                InstructionCode.AddAssign, InstructionCode.SubAssign, InstructionCode.MulAssign, InstructionCode.DivAssign,
+                InstructionCode.ModAssign, InstructionCode.BranchIfEqual, InstructionCode.BranchIfNotEqual,
+                InstructionCode.BranchIfGreaterThan, InstructionCode.BranchIfGreaterOrEqual, InstructionCode.BranchIfLessThan,
+                InstructionCode.BranchIfLessOrEqual, InstructionCode.PushThreeParams, InstructionCode.IterNext);
+
+            // Two operands
+            SetUsage(OperandUsage.LhsAndRhs,
+                InstructionCode.Assign, InstructionCode.GotoIfTrue, InstructionCode.GotoIfFalse,
+                InstructionCode.Negate, InstructionCode.Not, InstructionCode.BitwiseNot,
+                InstructionCode.NewInstance, InstructionCode.GetField, InstructionCode.NewRange,
+                InstructionCode.PushElement, InstructionCode.GetLength, InstructionCode.GetStatic,
+                InstructionCode.ToString, InstructionCode.NewLambda, InstructionCode.PushTwoParams,
+                InstructionCode.NewIterator, InstructionCode.GetType);
+
+            // One operand
+            SetUsage(OperandUsage.Lhs,
+                InstructionCode.Return, InstructionCode.PushParam, InstructionCode.LoadAddress,
+                InstructionCode.Increment, InstructionCode.Decrement, InstructionCode.IncrementIntUnrestricted,
+                InstructionCode.NewList, InstructionCode.Goto, InstructionCode.TryBlock);
+
+            // Zero operands.
+            SetUsage(OperandUsage.None,
+                InstructionCode.Terminate, InstructionCode.Skip, InstructionCode.CatchBlock,
+                InstructionCode.SectionGlobal, InstructionCode.SectionLambdaEnd, InstructionCode.SectionLambdaStart);
+        }
+
         /// <summary>
         /// A pool of lists for the initialization of arguments, be it expression, function call or other.
         /// </summary>
@@ -1655,7 +1723,7 @@ namespace Fluence
             {
                 _variableSlotMap[func.ArgumentHashCodes[i]] = nextSlotIndex++;
             }
-            FluenceDebug.DumpByteCodeInstructions(_currentParseState.CodeInstructions, _outputLine);
+
             for (int i = functionStartAddress; i < functionCodeEnd; i++)
             {
                 InstructionLine insn = _currentParseState.CodeInstructions[i];
@@ -1665,108 +1733,16 @@ namespace Fluence
                     continue;
                 }
 
-                switch (insn.Instruction)
-                {
-                    // Four operands.
-                    case InstructionCode.AssignTwo:
-                    case InstructionCode.PushFourParams:
-                        ProcessValue(insn.Lhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
-                        ProcessValue(insn.Rhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
-                        ProcessValue(insn.Rhs2, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
-                        ProcessValue(insn.Rhs3, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
-                        break;
+                OperandUsage usage = _operandUsageMap[(int)insn.Instruction];
 
-                    // Three operands.
-                    case InstructionCode.Add:
-                    case InstructionCode.Subtract:
-                    case InstructionCode.Multiply:
-                    case InstructionCode.Divide:
-                    case InstructionCode.Modulo:
-                    case InstructionCode.Power:
-                    case InstructionCode.Equal:
-                    case InstructionCode.NotEqual:
-                    case InstructionCode.LessThan:
-                    case InstructionCode.GreaterThan:
-                    case InstructionCode.LessEqual:
-                    case InstructionCode.GreaterEqual:
-                    case InstructionCode.And:
-                    case InstructionCode.Or:
-                    case InstructionCode.BitwiseAnd:
-                    case InstructionCode.BitwiseOr:
-                    case InstructionCode.BitwiseXor:
-                    case InstructionCode.BitwiseLShift:
-                    case InstructionCode.BitwiseRShift:
-                    case InstructionCode.SetField:
-                    case InstructionCode.GetElement:
-                    case InstructionCode.SetElement:
-                    case InstructionCode.CallFunction:
-                    case InstructionCode.CallMethod:
-                    case InstructionCode.CallStatic:
-                    case InstructionCode.SetStatic:
-                    case InstructionCode.AddAssign:
-                    case InstructionCode.SubAssign:
-                    case InstructionCode.MulAssign:
-                    case InstructionCode.DivAssign:
-                    case InstructionCode.ModAssign:
-                    case InstructionCode.BranchIfEqual:
-                    case InstructionCode.BranchIfNotEqual:
-                    case InstructionCode.BranchIfGreaterThan:
-                    case InstructionCode.BranchIfGreaterOrEqual:
-                    case InstructionCode.BranchIfLessThan:
-                    case InstructionCode.BranchIfLessOrEqual:
-                    case InstructionCode.PushThreeParams:
-                    case InstructionCode.IterNext:
-                        ProcessValue(insn.Lhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
-                        ProcessValue(insn.Rhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
-                        ProcessValue(insn.Rhs2, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
-                        break;
-
-                    // Two operands.
-                    case InstructionCode.Assign:
-                    case InstructionCode.GotoIfTrue:
-                    case InstructionCode.GotoIfFalse:
-                    case InstructionCode.Negate:
-                    case InstructionCode.Not:
-                    case InstructionCode.BitwiseNot:
-                    case InstructionCode.NewInstance:
-                    case InstructionCode.GetField:
-                    case InstructionCode.NewRange:
-                    case InstructionCode.PushElement:
-                    case InstructionCode.GetLength:
-                    case InstructionCode.GetStatic:
-                    case InstructionCode.ToString:
-                    case InstructionCode.NewLambda:
-                    case InstructionCode.PushTwoParams:
-                    case InstructionCode.NewIterator:
-                    case InstructionCode.GetType:
-                        ProcessValue(insn.Lhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
-                        ProcessValue(insn.Rhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
-                        break;
-
-                    // One operand.
-                    case InstructionCode.Return:
-                    case InstructionCode.PushParam:
-                    case InstructionCode.LoadAddress:
-                    case InstructionCode.Increment:
-                    case InstructionCode.Decrement:
-                    case InstructionCode.IncrementIntUnrestricted:
-                    case InstructionCode.NewList:
-                    case InstructionCode.Goto:
-                    case InstructionCode.TryBlock:
-                        ProcessValue(insn.Lhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
-                        break;
-
-                    case InstructionCode.Terminate:
-                    case InstructionCode.Skip:
-                    case InstructionCode.CatchBlock:
-                    case InstructionCode.SectionGlobal:
-                    case InstructionCode.SectionLambdaEnd:
-                    case InstructionCode.SectionLambdaStart:
-                        break;
-
-                    default:
-                        throw new NotImplementedException($"Slot allocation not implemented for opcode: {insn.Instruction}");
-                }
+                if (usage.HasFlag(OperandUsage.Lhs))
+                    ProcessValue(insn.Lhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                if (usage.HasFlag(OperandUsage.Rhs))
+                    ProcessValue(insn.Rhs, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                if (usage.HasFlag(OperandUsage.Rhs2))
+                    ProcessValue(insn.Rhs2, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
+                if (usage.HasFlag(OperandUsage.Rhs3))
+                    ProcessValue(insn.Rhs3, _variableSlotMap, _tempSlotMap, ref nextSlotIndex);
             }
 
             func.TotalRegisterSlots = nextSlotIndex;
@@ -4367,108 +4343,16 @@ namespace Fluence
                     continue;
                 }
 
-                switch (insn.Instruction)
-                {
-                    // Four operands.
-                    case InstructionCode.AssignTwo:
-                    case InstructionCode.PushFourParams:
-                        ProcessValue(insn.Lhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
-                        ProcessValue(insn.Rhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
-                        ProcessValue(insn.Rhs2, variableSlotMap, tempSlotMap, ref nextSlotIndex);
-                        ProcessValue(insn.Rhs3, variableSlotMap, tempSlotMap, ref nextSlotIndex);
-                        break;
+                OperandUsage usage = _operandUsageMap[(int)insn.Instruction];
 
-                    // Three operands.
-                    case InstructionCode.Add:
-                    case InstructionCode.Subtract:
-                    case InstructionCode.Multiply:
-                    case InstructionCode.Divide:
-                    case InstructionCode.Modulo:
-                    case InstructionCode.Power:
-                    case InstructionCode.Equal:
-                    case InstructionCode.NotEqual:
-                    case InstructionCode.LessThan:
-                    case InstructionCode.GreaterThan:
-                    case InstructionCode.LessEqual:
-                    case InstructionCode.GreaterEqual:
-                    case InstructionCode.And:
-                    case InstructionCode.Or:
-                    case InstructionCode.BitwiseAnd:
-                    case InstructionCode.BitwiseOr:
-                    case InstructionCode.BitwiseXor:
-                    case InstructionCode.BitwiseLShift:
-                    case InstructionCode.BitwiseRShift:
-                    case InstructionCode.SetField:
-                    case InstructionCode.GetElement:
-                    case InstructionCode.SetElement:
-                    case InstructionCode.CallFunction:
-                    case InstructionCode.CallMethod:
-                    case InstructionCode.CallStatic:
-                    case InstructionCode.SetStatic:
-                    case InstructionCode.AddAssign:
-                    case InstructionCode.SubAssign:
-                    case InstructionCode.MulAssign:
-                    case InstructionCode.DivAssign:
-                    case InstructionCode.ModAssign:
-                    case InstructionCode.BranchIfEqual:
-                    case InstructionCode.BranchIfNotEqual:
-                    case InstructionCode.BranchIfGreaterThan:
-                    case InstructionCode.BranchIfGreaterOrEqual:
-                    case InstructionCode.BranchIfLessThan:
-                    case InstructionCode.BranchIfLessOrEqual:
-                    case InstructionCode.PushThreeParams:
-                    case InstructionCode.IterNext:
-                        ProcessValue(insn.Lhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
-                        ProcessValue(insn.Rhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
-                        ProcessValue(insn.Rhs2, variableSlotMap, tempSlotMap, ref nextSlotIndex);
-                        break;
-
-                    // Two operands.
-                    case InstructionCode.Assign:
-                    case InstructionCode.GotoIfTrue:
-                    case InstructionCode.GotoIfFalse:
-                    case InstructionCode.Negate:
-                    case InstructionCode.Not:
-                    case InstructionCode.BitwiseNot:
-                    case InstructionCode.NewInstance:
-                    case InstructionCode.GetField:
-                    case InstructionCode.NewRange:
-                    case InstructionCode.PushElement:
-                    case InstructionCode.GetLength:
-                    case InstructionCode.GetStatic:
-                    case InstructionCode.ToString:
-                    case InstructionCode.NewLambda:
-                    case InstructionCode.PushTwoParams:
-                    case InstructionCode.NewIterator:
-                    case InstructionCode.GetType:
-                        ProcessValue(insn.Lhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
-                        ProcessValue(insn.Rhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
-                        break;
-
-                    // One operand.
-                    case InstructionCode.Return:
-                    case InstructionCode.PushParam:
-                    case InstructionCode.LoadAddress:
-                    case InstructionCode.Increment:
-                    case InstructionCode.Decrement:
-                    case InstructionCode.IncrementIntUnrestricted:
-                    case InstructionCode.NewList:
-                    case InstructionCode.Goto:
-                    case InstructionCode.TryBlock:
-                        ProcessValue(insn.Lhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
-                        break;
-
-                    case InstructionCode.Terminate:
-                    case InstructionCode.Skip:
-                    case InstructionCode.CatchBlock:
-                    case InstructionCode.SectionGlobal:
-                    case InstructionCode.SectionLambdaEnd:
-                    case InstructionCode.SectionLambdaStart:
-                        break;
-
-                    default:
-                        throw new NotImplementedException($"Slot allocation not implemented for opcode: {insn.Instruction}");
-                }
+                if (usage.HasFlag(OperandUsage.Lhs))
+                    ProcessValue(insn.Lhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                if (usage.HasFlag(OperandUsage.Rhs))
+                    ProcessValue(insn.Rhs, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                if (usage.HasFlag(OperandUsage.Rhs2))
+                    ProcessValue(insn.Rhs2, variableSlotMap, tempSlotMap, ref nextSlotIndex);
+                if (usage.HasFlag(OperandUsage.Rhs3))
+                    ProcessValue(insn.Rhs3, variableSlotMap, tempSlotMap, ref nextSlotIndex);
             }
 
             lambdaFunction.TotalRegisterSlots = nextSlotIndex;

@@ -1007,6 +1007,7 @@ namespace Fluence.VirtualMachine
                 return;
             }
 
+            // Fallback?
             VariableValue var = (VariableValue)instruction.Lhs;
             AssignVariable(var, new RuntimeValue(_cachedRegisters[var.RegisterIndex].IntValue - 1), instruction, var.IsReadOnly);
         }

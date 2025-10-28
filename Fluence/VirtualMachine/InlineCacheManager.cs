@@ -10,247 +10,121 @@ namespace Fluence.VirtualMachine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static RuntimeValue AddValues(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            return left.NumberType switch
+            if (left.NumberType >= RuntimeNumberType.Float || right.NumberType >= RuntimeNumberType.Float)
             {
-                RuntimeNumberType.Int => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.IntValue + right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.IntValue + right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.IntValue + right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.IntValue + right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type in specialized Add."),
-                },
-                RuntimeNumberType.Long => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.LongValue + right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.LongValue + right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.LongValue + right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.LongValue + right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type in specialized Add."),
-                },
-                RuntimeNumberType.Float => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.FloatValue + right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.FloatValue + right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.FloatValue + right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.FloatValue + right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type in specialized Add."),
-                },
-                RuntimeNumberType.Double => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.DoubleValue + right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.DoubleValue + right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.DoubleValue + right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.DoubleValue + right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type in specialized Add."),
-                },
-                _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported left-hand number type in specialized Add."),
-            };
+                double leftVal = left.ToDouble();
+                double rightVal = right.ToDouble();
+                return new RuntimeValue(leftVal + rightVal);
+            }
+
+            if (left.NumberType == RuntimeNumberType.Long || right.NumberType == RuntimeNumberType.Long)
+            {
+                long leftVal = left.ToLong();
+                long rightVal = right.ToLong();
+                return new RuntimeValue(leftVal + rightVal);
+            }
+
+            return new RuntimeValue(left.IntValue + right.IntValue);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static RuntimeValue SubValues(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            return left.NumberType switch
+            if (left.NumberType >= RuntimeNumberType.Float || right.NumberType >= RuntimeNumberType.Float)
             {
-                RuntimeNumberType.Int => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.IntValue - right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.IntValue - right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.IntValue - right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.IntValue - right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type in specialized Sub."),
-                },
-                RuntimeNumberType.Long => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.LongValue - right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.LongValue - right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.LongValue - right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.LongValue - right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type in specialized Sub."),
-                },
-                RuntimeNumberType.Float => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.FloatValue - right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.FloatValue - right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.FloatValue - right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.FloatValue - right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type in specialized Sub."),
-                },
-                RuntimeNumberType.Double => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.DoubleValue - right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.DoubleValue - right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.DoubleValue - right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.DoubleValue - right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type in specialized Sub."),
-                },
-                _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported left-hand number type in specialized Sub."),
-            };
+                double leftVal = left.ToDouble();
+                double rightVal = right.ToDouble();
+                return new RuntimeValue(leftVal - rightVal);
+            }
+
+            if (left.NumberType == RuntimeNumberType.Long || right.NumberType == RuntimeNumberType.Long)
+            {
+                long leftVal = left.ToLong();
+                long rightVal = right.ToLong();
+                return new RuntimeValue(leftVal - rightVal);
+            }
+
+            return new RuntimeValue(left.IntValue - right.IntValue);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static RuntimeValue DivValues(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            return left.NumberType switch
+            if (left.NumberType >= RuntimeNumberType.Float || right.NumberType >= RuntimeNumberType.Float)
             {
-                RuntimeNumberType.Int => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.IntValue / right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.IntValue / right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.IntValue / right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.IntValue / right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right/hand number type in specialized Div."),
-                },
-                RuntimeNumberType.Long => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.LongValue / right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.LongValue / right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.LongValue / right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.LongValue / right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right/hand number type in specialized Div."),
-                },
-                RuntimeNumberType.Float => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.FloatValue / right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.FloatValue / right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.FloatValue / right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.FloatValue / right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right/hand number type in specialized Div."),
-                },
-                RuntimeNumberType.Double => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.DoubleValue / right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.DoubleValue / right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.DoubleValue / right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.DoubleValue / right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right/hand number type in specialized Div."),
-                },
-                _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported left/hand number type in specialized Div."),
-            };
+                double leftVal = left.ToDouble();
+                double rightVal = right.ToDouble();
+                return new RuntimeValue(leftVal / rightVal);
+            }
+
+            if (left.NumberType == RuntimeNumberType.Long || right.NumberType == RuntimeNumberType.Long)
+            {
+                long leftVal = left.ToLong();
+                long rightVal = right.ToLong();
+                return new RuntimeValue(leftVal / rightVal);
+            }
+
+            return new RuntimeValue(left.IntValue / right.IntValue);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static RuntimeValue MulValues(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            return left.NumberType switch
+            if (left.NumberType >= RuntimeNumberType.Float || right.NumberType >= RuntimeNumberType.Float)
             {
-                RuntimeNumberType.Int => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.IntValue * right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.IntValue * right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.IntValue * right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.IntValue * right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right*hand number type in specialized Mul."),
-                },
-                RuntimeNumberType.Long => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.LongValue * right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.LongValue * right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.LongValue * right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.LongValue * right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right*hand number type in specialized Mul."),
-                },
-                RuntimeNumberType.Float => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.FloatValue * right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.FloatValue * right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.FloatValue * right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.FloatValue * right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right*hand number type in specialized Mul."),
-                },
-                RuntimeNumberType.Double => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.DoubleValue * right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.DoubleValue * right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.DoubleValue * right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.DoubleValue * right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right*hand number type in specialized Mul."),
-                },
-                _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported left*hand number type in specialized Mul."),
-            };
+                double leftVal = left.ToDouble();
+                double rightVal = right.ToDouble();
+                return new RuntimeValue(leftVal * rightVal);
+            }
+
+            if (left.NumberType == RuntimeNumberType.Long || right.NumberType == RuntimeNumberType.Long)
+            {
+                long leftVal = left.ToLong();
+                long rightVal = right.ToLong();
+                return new RuntimeValue(leftVal * rightVal);
+            }
+
+            return new RuntimeValue(left.IntValue * right.IntValue);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static RuntimeValue ModuloValues(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            return left.NumberType switch
+            if (left.NumberType >= RuntimeNumberType.Float || right.NumberType >= RuntimeNumberType.Float)
             {
-                RuntimeNumberType.Int => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.IntValue % right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.IntValue % right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.IntValue % right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.IntValue % right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right%hand number type in specialized Modulo."),
-                },
-                RuntimeNumberType.Long => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.LongValue % right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.LongValue % right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.LongValue % right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.LongValue % right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right%hand number type in specialized Modulo."),
-                },
-                RuntimeNumberType.Float => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.FloatValue % right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.FloatValue % right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.FloatValue % right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.FloatValue % right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right%hand number type in specialized Modulo."),
-                },
-                RuntimeNumberType.Double => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(left.DoubleValue % right.IntValue),
-                    RuntimeNumberType.Long => new RuntimeValue(left.DoubleValue % right.LongValue),
-                    RuntimeNumberType.Float => new RuntimeValue(left.DoubleValue % right.FloatValue),
-                    RuntimeNumberType.Double => new RuntimeValue(left.DoubleValue % right.DoubleValue),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right%hand number type in specialized Modulo."),
-                },
-                _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported left%hand number type in specialized Modulo."),
-            };
+                double leftVal = left.ToDouble();
+                double rightVal = right.ToDouble();
+                return new RuntimeValue(leftVal % rightVal);
+            }
+
+            if (left.NumberType == RuntimeNumberType.Long || right.NumberType == RuntimeNumberType.Long)
+            {
+                long leftVal = left.ToLong();
+                long rightVal = right.ToLong();
+                return new RuntimeValue(leftVal % rightVal);
+            }
+
+            return new RuntimeValue(left.IntValue % right.IntValue);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static RuntimeValue PowerValues(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
         {
-            return left.NumberType switch
+            if (left.NumberType >= RuntimeNumberType.Float || right.NumberType >= RuntimeNumberType.Float)
             {
-                RuntimeNumberType.Int => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(Math.Pow(left.IntValue, right.IntValue)),
-                    RuntimeNumberType.Long => new RuntimeValue(Math.Pow(left.IntValue, right.LongValue)),
-                    RuntimeNumberType.Float => new RuntimeValue(Math.Pow(left.IntValue, right.FloatValue)),
-                    RuntimeNumberType.Double => new RuntimeValue(Math.Pow(left.IntValue, right.DoubleValue)),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type in specialized Power."),
-                },
-                RuntimeNumberType.Long => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(Math.Pow(left.LongValue, right.IntValue)),
-                    RuntimeNumberType.Long => new RuntimeValue(Math.Pow(left.LongValue, right.LongValue)),
-                    RuntimeNumberType.Float => new RuntimeValue(Math.Pow(left.LongValue, right.FloatValue)),
-                    RuntimeNumberType.Double => new RuntimeValue(Math.Pow(left.LongValue, right.DoubleValue)),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type in specialized Power."),
-                },
-                RuntimeNumberType.Float => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(Math.Pow(left.FloatValue, right.IntValue)),
-                    RuntimeNumberType.Long => new RuntimeValue(Math.Pow(left.FloatValue, right.LongValue)),
-                    RuntimeNumberType.Float => new RuntimeValue(Math.Pow(left.FloatValue, right.FloatValue)),
-                    RuntimeNumberType.Double => new RuntimeValue(Math.Pow(left.FloatValue, right.DoubleValue)),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type in specialized Power."),
-                },
-                RuntimeNumberType.Double => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => new RuntimeValue(Math.Pow(left.DoubleValue, right.IntValue)),
-                    RuntimeNumberType.Long => new RuntimeValue(Math.Pow(left.DoubleValue, right.LongValue)),
-                    RuntimeNumberType.Float => new RuntimeValue(Math.Pow(left.DoubleValue, right.FloatValue)),
-                    RuntimeNumberType.Double => new RuntimeValue(Math.Pow(left.DoubleValue, right.DoubleValue)),
-                    _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported right-hand number type in specialized Power."),
-                },
-                _ => vm.SignalRecoverableErrorAndReturnNil("Internal VM Error: Unsupported left-hand number type in specialized Power."),
-            };
+                double leftVal = left.ToDouble();
+                double rightVal = right.ToDouble();
+                return new RuntimeValue(Math.Pow(leftVal, rightVal));
+            }
+
+            if (left.NumberType == RuntimeNumberType.Long || right.NumberType == RuntimeNumberType.Long)
+            {
+                long leftVal = left.ToLong();
+                long rightVal = right.ToLong();
+                return new RuntimeValue(Math.Pow(leftVal, rightVal));
+            }
+
+            return new RuntimeValue(Math.Pow(left.IntValue, right.IntValue));
         }
 
         private static bool AttemptToModifyAReadonlyVariable(InstructionLine insn, FluenceVirtualMachine vm, out string name)
@@ -324,6 +198,14 @@ namespace Fluence.VirtualMachine
             {
                 vm.CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly solid variable '{name}'.");
                 return null;
+            }
+
+            if (insn.Rhs2 is NumberValue num && (int)num.Value == 0)
+            {
+                if (insn.Instruction is InstructionCode.Divide or InstructionCode.Modulo)
+                {
+                    vm.SignalError($"Runtime Error: Division by zero in {(insn.Instruction == InstructionCode.Modulo ? "Modulo" : "Division")} operation.");
+                }
             }
 
             Value lhsOperand = insn.Rhs;

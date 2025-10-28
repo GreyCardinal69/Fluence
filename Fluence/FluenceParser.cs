@@ -1661,26 +1661,7 @@ namespace Fluence
                 InstructionLine insn = _currentParseState.CodeInstructions[i];
                 if (insn.Instruction == InstructionCode.SectionLambdaStart)
                 {
-                    int nestingLevel = 1;
-                    i++;
-
-                    while (nestingLevel > 0 && i < functionCodeEnd)
-                    {
-                        insn = _currentParseState.CodeInstructions[i];
-
-                        if (insn.Instruction == InstructionCode.SectionLambdaStart)
-                        {
-                            nestingLevel++;
-                        }
-                        else if (insn.Instruction == InstructionCode.SectionLambdaEnd)
-                        {
-                            nestingLevel--;
-                        }
-
-                        i++;
-                    }
-
-                    i--;
+                    SkipNestedLambdaBlock(_currentParseState.CodeInstructions, ref i, functionCodeEnd);
                     continue;
                 }
 
@@ -4382,26 +4363,7 @@ namespace Fluence
                 InstructionLine insn = _currentParseState.CodeInstructions[i];
                 if (insn.Instruction == InstructionCode.SectionLambdaStart)
                 {
-                    int nestingLevel = 1;
-                    i++;
-
-                    while (nestingLevel > 0 && i < functionCodeEnd)
-                    {
-                        insn = _currentParseState.CodeInstructions[i];
-
-                        if (insn.Instruction == InstructionCode.SectionLambdaStart)
-                        {
-                            nestingLevel++;
-                        }
-                        else if (insn.Instruction == InstructionCode.SectionLambdaEnd)
-                        {
-                            nestingLevel--;
-                        }
-
-                        i++;
-                    }
-
-                    i--;
+                    SkipNestedLambdaBlock(_currentParseState.CodeInstructions, ref i, functionCodeEnd);
                     continue;
                 }
 
@@ -4577,6 +4539,38 @@ namespace Fluence
             // Creates a descriptor for the access. This will be resolved into a GetElement
             // or SetElement instruction by a higher-level parsing method.
             return new ElementAccessValue(left, index);
+        }
+
+        /// <summary>
+        /// Scans forward in the bytecode to find the matching SectionLambdaEnd for a nested block,
+        /// correctly handling nested lambdas.
+        /// </summary>
+        /// <param name="bytecode">The list of bytecode instructions.</param>
+        /// <param name="currentIndex">The current instruction index, passed by reference. It will be updated to the index of the matching SectionLambdaEnd.</param>
+        /// <param name="endOffset">The exclusive end index for the scan.</param>
+        private static void SkipNestedLambdaBlock(List<InstructionLine> bytecode, ref int currentIndex, int endOffset)
+        {
+            int nestingLevel = 1;
+            currentIndex++;
+
+            while (nestingLevel > 0 && currentIndex < endOffset)
+            {
+                InstructionLine insn = bytecode[currentIndex];
+
+                if (insn.Instruction == InstructionCode.SectionLambdaStart)
+                {
+                    nestingLevel++;
+                }
+                else if (insn.Instruction == InstructionCode.SectionLambdaEnd)
+                {
+                    nestingLevel--;
+                }
+
+                if (nestingLevel > 0)
+                {
+                    currentIndex++;
+                }
+            }
         }
 
         /// <summary>

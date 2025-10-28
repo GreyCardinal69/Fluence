@@ -56,7 +56,7 @@ namespace Fluence
                 case NilValue: return "new NilValue()";
                 case TempValue tempVal: return $"new TempValue({tempVal.TempName[6..]})";
                 case VariableValue varVal: return $"new VariableValue(\"{varVal.Name}\")";
-                case FunctionValue funcVal: return $"new FunctionValue(\"{funcVal.Name}\", {funcVal.StartAddress}, {funcVal.Arity}, {funcVal.StartAddressInSource}, [], [])";
+                case FunctionValue funcVal: return $"new FunctionValue(\"{funcVal.Name}\", {funcVal.StartAddress}, {funcVal.Arity}, {funcVal.StartAddressInSource}, [], [], null!)";
                 default: return "";
             }
         }

@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Fluence.RuntimeTypes
@@ -17,13 +18,32 @@ namespace Fluence.RuntimeTypes
     /// <summary>
     /// A sub-discriminator used when <see cref="RuntimeValueType"/> is <see cref="RuntimeValueType.Number"/>.
     /// </summary>
-    internal enum RuntimeNumberType
+    internal enum RuntimeNumberType : byte
     {
-        Int,
-        Float,
-        Double,
-        Long,
-        Unknown,
+        /// <summary>
+        /// System.Int32 (32-bit integer).
+        /// </summary>
+        Int = 0,
+
+        /// <summary>
+        /// System.Int64 (64-bit integer).
+        /// </summary>
+        Long = 1,
+
+        /// <summary>
+        /// System.Single (32-bit floating-point).
+        /// </summary>
+        Float = 2,
+
+        /// <summary>
+        /// System.Double (64-bit floating-point).
+        /// </summary>
+        Double = 3,
+
+        /// <summary>
+        /// Represents a non-numeric or uninitialized state. Should not appear in arithmetic.
+        /// </summary>
+        Unknown = 255
     }
 
     /// <summary>
@@ -42,7 +62,7 @@ namespace Fluence.RuntimeTypes
         internal readonly float FloatValue;
 
         [FieldOffset(8)]
-        internal readonly object? ObjectReference;
+        internal readonly object ObjectReference;
         [FieldOffset(16)]
         internal readonly RuntimeValueType Type;
         [FieldOffset(17)]
@@ -112,6 +132,47 @@ namespace Fluence.RuntimeTypes
             value = ObjectReference as T;
             return true;
         }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal readonly double ToDouble() => NumberType switch
+        {
+            RuntimeNumberType.Int => IntValue,
+            RuntimeNumberType.Long => LongValue,
+            RuntimeNumberType.Float => FloatValue,
+            RuntimeNumberType.Double => DoubleValue,
+            _ => double.NaN,
+        };
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal readonly float ToFloat() => NumberType switch
+        {
+            RuntimeNumberType.Int => IntValue,
+            RuntimeNumberType.Long => LongValue,
+            RuntimeNumberType.Float => FloatValue,
+            RuntimeNumberType.Double => (float)DoubleValue,
+            _ => float.NaN,
+        };
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal readonly long ToLong() => NumberType switch
+        {
+            RuntimeNumberType.Int => IntValue,
+            RuntimeNumberType.Long => LongValue,
+            RuntimeNumberType.Float => (long)FloatValue,
+            RuntimeNumberType.Double => (long)DoubleValue,
+            _ => 0,
+        };
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal readonly int ToInt() => NumberType switch
+        {
+            RuntimeNumberType.Int => IntValue,
+            RuntimeNumberType.Long => (int)LongValue,
+            RuntimeNumberType.Float => (int)FloatValue,
+            RuntimeNumberType.Double => (int)DoubleValue,
+            _ => 0,
+        };
 
         /// <summary>
         /// Safely casts the internal <see cref="ObjectReference"/> to the specified type.

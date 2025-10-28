@@ -37,6 +37,7 @@ namespace Fluence
         private VirtualMachineConfiguration _vmConfiguration = new VirtualMachineConfiguration()
         {
             OptimizeByteCode = true,
+            EmitSectionGlobal = true
         };
 
         /// <summary>
@@ -140,10 +141,9 @@ namespace Fluence
                 FluenceParser parser = new FluenceParser(lexer, _vmConfiguration, OnOutputLine, OnOutput, OnInput);
                 _intrinsicsInstance = parser.Intrinsics;
                 parser.Parse(partialCode);
+
 #if DEBUG
                 FluenceDebug.DumpSymbolTables(parser.CurrentParseState, OnOutputLine);
-                FluenceDebug.DumpByteCodeInstructions(parser.CompiledCode, OnOutputLine);
-                BytecodeTestGenerator.GenerateCSharpCodeForInstructionList(parser.CurrentParseState.CodeInstructions, OnOutputLine);
 #endif
 
                 _byteCode = parser.CompiledCode;
@@ -177,8 +177,6 @@ namespace Fluence
 
 #if DEBUG
                 FluenceDebug.DumpSymbolTables(parser.CurrentParseState, OnOutputLine);
-                FluenceDebug.DumpByteCodeInstructions(parser.CompiledCode, OnOutputLine);
-                BytecodeTestGenerator.GenerateCSharpCodeForInstructionList(parser.CurrentParseState.CodeInstructions, OnOutputLine);
 #endif
                 _byteCode = parser.CompiledCode;
                 _parseState = parser.CurrentParseState;
@@ -306,7 +304,7 @@ namespace Fluence
         /// </summary>
         private void ConstructAndThrowException(FluenceException ex)
         {
-            OnErrorOutput(ex.ToString());
+            OnErrorOutput(ex.Message);
         }
     }
 }

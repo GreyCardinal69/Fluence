@@ -39,6 +39,16 @@ namespace Fluence
             _fileName = fileName;
         }
 
+        internal FluenceLexer(List<Token> stream, string fileName = null!)
+        {
+            _tokenBuffer = new TokenBuffer(this);
+            _tokenBuffer.SetTokens(stream);
+            _currentPosition = 0;
+            _currentLine = 1;
+            _currentColumn = 1;
+            _fileName = fileName;
+        }
+
         internal FluenceLexer(List<Token> tokens)
         {
             _tokenBuffer = new TokenBuffer(this);
@@ -47,13 +57,11 @@ namespace Fluence
 
         private sealed class TokenBuffer
         {
-            private readonly List<Token> _buffer = new List<Token>();
+            private List<Token> _buffer = new List<Token>();
             private readonly FluenceLexer _lexer;
             private int _head;
             private bool _lexerFinished;
-
-            // A reasonable threshold for trimming the buffer.
-            private const int _trimThreshold = 16;
+            private const int _trimThreshold = 32;
 
             internal int TokenCount => _buffer.Count;
 
@@ -81,6 +89,17 @@ namespace Fluence
             }
 
             /// <summary>
+            /// Populates the current token bugger from a given token stream.
+            /// </summary>
+            /// <param name="tokens">The token stream to populate the buffer with.</param>
+            internal void SetTokens(List<Token> tokens) => _buffer = tokens;
+
+            /// <summary>
+            /// Returns all the currently parsed tokens.
+            /// </summary>
+            internal List<Token> AllTokens() => _buffer;
+
+            /// <summary>
             /// Consumes the next token from the buffer and advances the head.
             /// </summary>
             internal Token Consume()
@@ -94,13 +113,24 @@ namespace Fluence
                     _head++;
                 }
 
-                // Periodically trims the buffer to conserve memory.
                 if (_head >= _trimThreshold)
                 {
                     Compact();
                 }
 
                 return token;
+            }
+
+            /// <summary>
+            /// Removes consumed tokens from the beginning of the list.
+            /// </summary>
+            private void Compact()
+            {
+                if (_head > 0)
+                {
+                    _buffer.RemoveRange(0, _head);
+                    _head = 0;
+                }
             }
 
             internal void ModifyTokenAt(int index, Token newToken)
@@ -147,16 +177,9 @@ namespace Fluence
                 _buffer.RemoveAll(token => token.Type == TokenType.NEW_LINE);
             }
 
-            /// <summary>
-            /// Removes consumed tokens from the beginning of the list.
-            /// </summary>
-            private void Compact()
+            internal void ClearTokens()
             {
-                if (_head > 0)
-                {
-                    _buffer.RemoveRange(0, _head);
-                    _head = 0;
-                }
+                _buffer.Clear();
             }
 
             /// <summary>
@@ -246,6 +269,12 @@ namespace Fluence
                 while ((_buffer.Count - _head) < requiredCount)
                 {
                     Token nextToken = _lexer.GetNextToken();
+
+                    if (nextToken.Type == TokenType.NEW_LINE)
+                    {
+                        continue;
+                    }
+
                     _buffer.Add(nextToken);
 
                     if (nextToken.Type == TokenType.EOF)
@@ -271,6 +300,13 @@ namespace Fluence
         /// Advances the token stream by one position without returning the consumed token.
         /// </summary>
         internal void Advance() => _tokenBuffer.Advance();
+
+        internal void ClearTokens() => _tokenBuffer.ClearTokens();
+
+        /// <summary>
+        /// Returns all the currently parsed tokens.
+        /// </summary>
+        internal List<Token> AllTokens() => _tokenBuffer.AllTokens();
 
         /// <summary>
         /// Advances the token stream by a given amount of positions without returning the consumed token. Advances by 1 by default.
@@ -412,6 +448,8 @@ namespace Fluence
         {
             _currentColumnBeforeWhiteSpace = _currentColumn;
             _currentLineBeforeWhiteSpace = _currentLine;
+
+            if (_hasReachedEndInternal) return EOF;
 
             SkipWhiteSpaceAndComments();
 

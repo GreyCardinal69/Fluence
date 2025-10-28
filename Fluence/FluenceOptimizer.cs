@@ -242,7 +242,7 @@ namespace Fluence
                 InstructionLine line2 = bytecode[i + 1];
                 if (line1 == null || line2 == null) continue;
 
-                if (line1.Instruction == InstructionCode.Assign && line2.Instruction == InstructionCode.Assign)
+                if (line1.Instruction == InstructionCode.Assign && line2.Instruction == InstructionCode.Assign && line1.Lhs.Hash != line2.Rhs.Hash)
                 {
                     byteCodeChanged = true;
                     bytecode[i].Instruction = InstructionCode.AssignTwo;
@@ -271,10 +271,9 @@ namespace Fluence
 
                 if (insn is null) continue;
 
-                if (insn.Instruction == InstructionCode.Assign && insn.Lhs is TempValue temp)
+                if (insn?.Rhs is TempValue temp)
                 {
                     ref RegisterInfo info = ref CollectionsMarshal.GetValueRefOrAddDefault(_registerInfoMap, temp.Hash, out bool exists);
-
                     info.AssignmentCount++;
 
                     if (!exists)
@@ -294,7 +293,7 @@ namespace Fluence
 
             foreach (KeyValuePair<int, RegisterInfo> kvp in _registerInfoMap)
             {
-                if (kvp.Value.AssignmentCount == 1 && kvp.Value.ConstantValue is not null)
+                if (kvp.Value.AssignmentCount == 1 && kvp.Value.ConstantValue is not null )
                 {
                     _constantsMap.Add(kvp.Key, kvp.Value.ConstantValue);
                     _instructionsToRemove.Add(kvp.Value.AssignmentIndex);

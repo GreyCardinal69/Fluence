@@ -491,7 +491,7 @@ namespace Fluence
         /// </summary>
         /// <returns>True if the instruction is a jump, otherwise false.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsJumpInstruction(InstructionCode op) => op >= InstructionCode.Goto && op <= InstructionCode.BranchIfLessOrEqual;
+        private static bool IsJumpInstruction(InstructionCode op) => op is >= InstructionCode.Goto and <= InstructionCode.BranchIfLessOrEqual;
 
         /// <summary>
         /// Compacts the bytecode list by removing all null placeholders and realigns all absolute addresses.
@@ -559,7 +559,7 @@ namespace Fluence
                     fvRhs2.SetStartAndEndAddresses(MapAddr(fvRhs2.StartAddress), MapAddr(fvRhs2.EndAddress));
                 }
             }
-             
+
             foreach (FluenceScope scope in state.NameSpaces.Values)
             {
                 if (scope.IsIntrinsicScope)

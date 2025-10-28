@@ -61,6 +61,7 @@ namespace Fluence
             private readonly FluenceLexer _lexer;
             private int _head;
             private bool _lexerFinished;
+            private const int _trimThreshold = 32;
 
             internal int TokenCount => _buffer.Count;
 
@@ -111,8 +112,25 @@ namespace Fluence
                 {
                     _head++;
                 }
-                 
+
+                if (_head >= _trimThreshold)
+                {
+                    Compact();
+                }
+
                 return token;
+            }
+
+            /// <summary>
+            /// Removes consumed tokens from the beginning of the list.
+            /// </summary>
+            private void Compact()
+            {
+                if (_head > 0)
+                {
+                    _buffer.RemoveRange(0, _head);
+                    _head = 0;
+                }
             }
 
             internal void ModifyTokenAt(int index, Token newToken)
@@ -196,7 +214,12 @@ namespace Fluence
                 else
                 {
                     _head = _buffer.Count;
-                }                 
+                }
+
+                if (_head >= _trimThreshold)
+                {
+                    Compact();
+                }
             }
 
             /// <summary>
@@ -425,6 +448,8 @@ namespace Fluence
         {
             _currentColumnBeforeWhiteSpace = _currentColumn;
             _currentLineBeforeWhiteSpace = _currentLine;
+
+            if (_hasReachedEndInternal) return EOF;
 
             SkipWhiteSpaceAndComments();
 

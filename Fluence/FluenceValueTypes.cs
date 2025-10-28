@@ -52,7 +52,7 @@ namespace Fluence
     }
 
     /// <summary>Represents a boolean literal.</summary>
-    internal sealed record class BooleanValue : Value 
+    internal sealed record class BooleanValue : Value
     {
         internal bool Value { get; init; }
 
@@ -95,7 +95,7 @@ namespace Fluence
     }
 
     /// <summary>Represents a numerical literal, which can be an Integer, Float, Long, or Double.</summary>
-    internal sealed record class NumberValue : Value 
+    internal sealed record class NumberValue : Value
     {
         internal enum NumberType
         {
@@ -190,11 +190,11 @@ namespace Fluence
     }
 
     /// <summary>A special value indicating a completed statement with no return value..</summary>
-    internal sealed record class StatementCompleteValue : Value 
+    internal sealed record class StatementCompleteValue : Value
     {
         internal static readonly StatementCompleteValue StatementCompleted = new StatementCompleteValue();
 
-        internal StatementCompleteValue() : base() { } 
+        internal StatementCompleteValue() : base() { }
 
         internal override string ToFluenceString() => "<internal: statement_complete>";
         public override string ToString() => $"StatementCompletedValue";
@@ -214,7 +214,7 @@ namespace Fluence
     /// <summary>
     /// A descriptor representing an access to a struct's static function, or a static and solid field.
     /// </summary>
-    internal sealed record class StaticStructAccess : Value 
+    internal sealed record class StaticStructAccess : Value
     {
         internal StructSymbol Struct { get; init; }
 
@@ -237,7 +237,7 @@ namespace Fluence
     /// A descriptor representing an element access operation.
     /// The parser resolves this into GetElement or SetElement bytecode.
     /// </summary>
-    internal sealed record class ElementAccessValue : Value 
+    internal sealed record class ElementAccessValue : Value
     {
         internal Value Target { get; init; }
         internal Value Index { get; init; }

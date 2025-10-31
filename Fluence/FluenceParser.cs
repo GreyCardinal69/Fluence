@@ -4712,18 +4712,29 @@ namespace Fluence
         {
             if (!_lexer.TokenTypeMatches(expectedType))
             {
-                ConstructAndThrowParserException(errorMessage, _lexer.PeekCurrentToken());
+                ConstructAndThrowParserException(errorMessage, _lexer.PeekNextToken());
             }
             _lexer.Advance();
         }
 
         private void ConstructAndThrowParserException(string errorMessage, Token token)
         {
+            string source;
+
+            if (_multiFileProject)
+            {
+                source = File.ReadAllText(_currentParsingFileName);
+            }
+            else
+            {
+                source = _lexer.SourceCode;
+            }
+
             ParserExceptionContext context = new ParserExceptionContext()
             {
                 FileName = _currentParsingFileName,
                 Column = token.ColumnInSourceCode,
-                FaultyLine = FluenceDebug.TruncateLine(FluenceLexer.GetCodeLineFromSource(_lexer.SourceCode, token.LineInSourceCode)),
+                FaultyLine = FluenceDebug.TruncateLine(FluenceLexer.GetCodeLineFromSource(source, token.LineInSourceCode)),
                 LineNum = token.LineInSourceCode,
                 UnexpectedToken = token,
             };

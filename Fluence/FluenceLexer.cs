@@ -244,6 +244,16 @@ namespace Fluence
                 return _buffer[_head].Type;
             }
 
+            internal Token PeekTokenBackByN(int n)
+            {
+                if (n > _trimThreshold)
+                {
+                    return new Token();
+                }
+
+                return _buffer[_head - n];
+            }
+
             internal TokenType PeekTokenTypeAheadByN(int n)
             {
                 EnsureFilled(n);
@@ -302,6 +312,8 @@ namespace Fluence
         internal void Advance() => _tokenBuffer.Advance();
 
         internal void ClearTokens() => _tokenBuffer.ClearTokens();
+
+        internal Token PeekTokenBackByN(int n) => _tokenBuffer.PeekTokenBackByN(n);
 
         /// <summary>
         /// Returns all the currently parsed tokens.

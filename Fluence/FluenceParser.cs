@@ -4712,7 +4712,7 @@ namespace Fluence
         {
             if (!_lexer.TokenTypeMatches(expectedType))
             {
-                ConstructAndThrowParserException(errorMessage, _lexer.PeekCurrentToken());
+                ConstructAndThrowParserException(errorMessage, _lexer.PeekNextToken());
             }
             _lexer.Advance();
         }

@@ -35,7 +35,7 @@ namespace Fluence
                     .AppendLine($"\nException occured in: {(string.IsNullOrEmpty(FileName) ? "Script" : FileName)}.")
                     .AppendLine($"PARSER ERROR at: line {LineNum}, Column {Column}")
                     .AppendLine($"\n{LineNum}.│ {FaultyLine}")
-                    .AppendLine($"{new string(' ', lineNumLen + 1)}│{new string(' ', Column - 1)}^")
+                    .AppendLine($"{new string(' ', lineNumLen + 1)}│{new string(' ', Column - lineNumLen)}^")
                     .AppendLine($"{new string('─', lineNumLen + 1)}┴{new string('─', Column - lineNumLen)}┴{new string('─', FaultyLine.Length)}");
             }
 

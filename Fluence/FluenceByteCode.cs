@@ -69,6 +69,8 @@ namespace Fluence
                 GetField,
                 SetField,
 
+                IsType,
+
                 // List & Collection Operations.
                 NewList,
                 NewRange,

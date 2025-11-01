@@ -34,9 +34,12 @@ namespace Fluence
         /// </summary>
         internal static void Register(FluenceScope mathNamespace)
         {
-            mathNamespace.Declare("Pi".GetHashCode(), new VariableSymbol("Pi", new NumberValue(Math.PI, NumberValue.NumberType.Double), true));
-            mathNamespace.Declare("E".GetHashCode(), new VariableSymbol("E", new NumberValue(Math.E, NumberValue.NumberType.Double), true));
-            mathNamespace.Declare("Tau".GetHashCode(), new VariableSymbol("Tau", new NumberValue(Math.Tau, NumberValue.NumberType.Double), true));
+            StructSymbol math = new StructSymbol("math", mathNamespace);
+            mathNamespace.Declare("math".GetHashCode(), math);
+
+            math.StaticFields.Add("Pi", new RuntimeValue(Math.PI));
+            math.StaticFields.Add("E", new RuntimeValue(Math.E));
+            math.StaticFields.Add("Tau", new RuntimeValue(Math.Tau));
 
             mathNamespace.Declare("cos__1".GetHashCode(), new FunctionSymbol("cos__1", 1, (vm, argCount) =>
             {

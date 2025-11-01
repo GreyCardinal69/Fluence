@@ -549,7 +549,7 @@ namespace Fluence.ParserTests
                             ""/"" -> num2 == 0 ? nil : num1 / num2;
                             rest-> nil;
                         }, nil;
-                    printl(result is nil ?: ""Error"", f""Result: {result}"");
+                    printl(result == nil ?: ""Error"", f""Result: {result}"");
                 }
             ";
             List<InstructionLine> compiledCode = Compile(source);
@@ -958,7 +958,7 @@ namespace Fluence.ParserTests
         [Fact]
         public void ParsesTernaryAsPartOfLargerArgumentList()
         {
-            string source = "result=5; print(result is nil ?: 1, 0, 99);";
+            string source = "result=5; print(result == nil ?: 1, 0, 99);";
             List<InstructionLine> compiledCode = Compile(source);
             List<InstructionLine> expectedCode = new List<InstructionLine>
             {
@@ -1409,7 +1409,7 @@ namespace Fluence.ParserTests
         [Fact]
         public void ParsesTernaryAsFunctionArgument()
         {
-            string source = "result=5; print(result is nil ?: 1, 0);";
+            string source = "result=5; print(result == nil ?: 1, 0);";
             List<InstructionLine> compiledCode = Compile(source);
             List<InstructionLine> expectedCode = new List<InstructionLine>
             {

@@ -83,12 +83,12 @@ namespace Fluence
 
         static FluenceParser()
         {
-            var opcodes = Enum.GetValues<InstructionCode>();
+            InstructionCode[] opcodes = Enum.GetValues<InstructionCode>();
             _operandUsageMap = new OperandUsage[opcodes.Max(op => (int)op) + 1];
 
             static void SetUsage(OperandUsage usage, params InstructionCode[] codes)
             {
-                foreach (var code in codes)
+                foreach (InstructionCode code in codes)
                 {
                     _operandUsageMap[(int)code] = usage;
                 }
@@ -110,7 +110,7 @@ namespace Fluence
                 InstructionCode.AddAssign, InstructionCode.SubAssign, InstructionCode.MulAssign, InstructionCode.DivAssign,
                 InstructionCode.ModAssign, InstructionCode.BranchIfEqual, InstructionCode.BranchIfNotEqual,
                 InstructionCode.BranchIfGreaterThan, InstructionCode.BranchIfGreaterOrEqual, InstructionCode.BranchIfLessThan,
-                InstructionCode.BranchIfLessOrEqual, InstructionCode.PushThreeParams, InstructionCode.IterNext);
+                InstructionCode.BranchIfLessOrEqual, InstructionCode.PushThreeParams, InstructionCode.IterNext, InstructionCode.IsType);
 
             // Two operands
             SetUsage(OperandUsage.LhsAndRhs,
@@ -441,7 +441,7 @@ namespace Fluence
                     }
                     catch (Exception ex)
                     {
-                        ConstructAndThrowParserException($"Error staging library '{trimmedName}': {ex.Message}", new Token());
+                        throw ConstructParserException($"Error staging library '{trimmedName}': {ex.Message}", NoUse);
                     }
                 }
             }
@@ -594,6 +594,17 @@ namespace Fluence
                     _lexer.RemoveTokenRange(declarationStartIndex, count);
                     continue;
                 }
+                else if (type == TokenType.TRAIT)
+                {
+                    int declarationStartIndex = currentIndex;
+                    int declarationEndIndex = FindMatchingBrace(declarationStartIndex + 1);
+
+                    ParseTraitDeclaration(declarationStartIndex, declarationEndIndex);
+
+                    int count = declarationEndIndex - declarationStartIndex + 1;
+                    _lexer.RemoveTokenRange(declarationStartIndex, count);
+                    continue;
+                }
                 else if (type == TokenType.FUNC)
                 {
                     int declarationStartIndex = currentIndex;
@@ -634,7 +645,7 @@ namespace Fluence
                 if (_lexer.PeekTokenTypeAheadByN(currentIndex + 1) == TokenType.EOF)
                 {
                     Token errorToken = _lexer.PeekAheadByN(startIndex + 1);
-                    ConstructAndThrowParserException("Could not find an opening '{' to start the block scan of an Enum or Struct or Function body.", errorToken);
+                    throw ConstructParserException("Could not find an opening '{' to start the block scan of an Enum or Struct or Function body.", errorToken);
                 }
                 currentIndex++;
             }
@@ -647,7 +658,7 @@ namespace Fluence
                 if (currentIndex >= _lexer.TokenCount)
                 {
                     Token eofToken = _lexer.PeekAheadByN(_lexer.TokenCount);
-                    ConstructAndThrowParserException("Unclosed block. Reached end of file while looking for matching '}' for Enum or Struct or Function body.", eofToken);
+                    throw ConstructParserException("Unclosed block. Reached end of file while looking for matching '}' for Enum or Struct or Function body.", eofToken);
                 }
 
                 TokenType currentTokenType = _lexer.PeekTokenTypeAheadByN(currentIndex + 1);
@@ -693,15 +704,14 @@ namespace Fluence
                 if (tokenType == TokenType.EOF)
                 {
                     Token errorToken = _lexer.PeekAheadByN(startIndex + 1);
-                    ConstructAndThrowParserException("Unterminated function header. Reached end of file before finding '=>'.", errorToken);
+                    throw ConstructParserException("Unterminated function header. Reached end of file before finding '=>'.", errorToken);
                 }
 
                 currentIndex++;
             }
 
             Token lastToken = _lexer.PeekAheadByN(_lexer.TokenCount);
-            ConstructAndThrowParserException("Unterminated function header. Could not find '=>'.", lastToken);
-            return -1;
+            throw ConstructParserException("Unterminated function header. Could not find '=>'.", lastToken);
         }
 
         /// <summary>
@@ -772,7 +782,7 @@ namespace Fluence
 
                     if (_lexer.PeekTokenTypeAheadByN(currentIndex + 2) != TokenType.IDENTIFIER)
                     {
-                        ConstructAndThrowParserException("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
+                        throw ConstructParserExceptionWithUnexpectedToken("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
                     }
                 }
                 if (currentTokenType == TokenType.IDENTIFIER)
@@ -817,6 +827,25 @@ namespace Fluence
             bool solidField = false;
             bool argByRef = false;
 
+            // We skip the traits of the struct for now, they must be parsed first in the first pass so we can find them.
+            if (_lexer.PeekTokenTypeAheadByN(currentIndex) == TokenType.IMPL)
+            {
+                int implementationsStart = currentIndex + 1;
+
+                while (_lexer.PeekTokenTypeAheadByN(implementationsStart) != TokenType.L_BRACE)
+                {
+                    if (_lexer.PeekTokenTypeAheadByN(implementationsStart) == TokenType.COMMA)
+                    {
+                        implementationsStart++;
+                        continue;
+                    }
+
+                    implementationsStart++;
+                }
+
+                currentIndex = implementationsStart;
+            }
+
             while (currentIndex < endTokenIndex)
             {
                 Token token = _lexer.PeekAheadByN(currentIndex + 1);
@@ -854,7 +883,7 @@ namespace Fluence
 
                     if (_lexer.PeekNextTokenType() != TokenType.IDENTIFIER)
                     {
-                        ConstructAndThrowParserException("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
+                        throw ConstructParserExceptionWithUnexpectedToken("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
                     }
                     continue;
                 }
@@ -912,7 +941,7 @@ namespace Fluence
 
                             if (_lexer.PeekTokenTypeAheadByN(argScanIndex + 2) != TokenType.IDENTIFIER)
                             {
-                                ConstructAndThrowParserException("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
+                                throw ConstructParserExceptionWithUnexpectedToken("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
                             }
                         }
                         else if (_lexer.PeekTokenTypeAheadByN(argScanIndex + 1) == TokenType.IDENTIFIER)
@@ -936,7 +965,7 @@ namespace Fluence
                         templated = Mangler.Mangle("init", args.Count);
                         if (!structSymbol.Constructors.TryAdd(templated, functionValue))
                         {
-                            ConstructAndThrowParserException($"Constructor with '{args.Count}' arity is already defined in the struct '{structName}'.", funcToken);
+                            throw ConstructParserException($"Constructor with '{args.Count}' arity is already defined in the struct '{structName}'.", funcToken);
                         }
 
                         _lexer.ModifyTokenAt(currentIndex + 1, new Token(TokenType.IDENTIFIER, templated, nameToken.Literal, nameToken.LineInSourceCode, nameToken.ColumnInSourceCode));
@@ -946,7 +975,7 @@ namespace Fluence
                         templated = Mangler.Mangle(funcName, args.Count);
                         if (!structSymbol.Functions.TryAdd(templated, functionValue))
                         {
-                            ConstructAndThrowParserException($"Method '{funcName}' with '{args.Count}' arity is already defined in the struct '{structName}'.", funcToken);
+                            throw ConstructParserException($"Method '{funcName}' with '{args.Count}' arity is already defined in the struct '{structName}'.", funcToken);
                         }
 
                         _lexer.ModifyTokenAt(currentIndex + 1, new Token(TokenType.IDENTIFIER, templated, nameToken.Literal, nameToken.LineInSourceCode, nameToken.ColumnInSourceCode));
@@ -962,7 +991,131 @@ namespace Fluence
 
             if (!_currentParseState.CurrentScope.Declare(structName.GetHashCode(), structSymbol))
             {
-                ConstructAndThrowParserException($"A symbol named '{structName}' is already defined in this scope.", nameToken);
+                throw ConstructParserException($"A symbol named '{structName}' is already defined in this scope.", nameToken);
+            }
+        }
+
+        private void ParseTraitDeclaration(int startTokenIndex, int endTokenIndex)
+        {
+            Token nameToken = _lexer.PeekAheadByN(startTokenIndex + 2);
+            string traitName = nameToken.Text;
+            TraitSymbol traitSymbol = new TraitSymbol(traitName);
+
+            // Start scanning for members after the '{'.
+            // `trait Name {`.
+            int currentIndex = startTokenIndex + 3;
+
+            bool solidField = false;
+            while (currentIndex < endTokenIndex)
+            {
+                Token currentToken = _lexer.PeekAheadByN(currentIndex + 1);
+
+                if (currentToken.Type == TokenType.SOLID)
+                {
+                    solidField = true;
+                    currentIndex++;
+                    continue;
+                }
+
+                if (currentToken.Type == TokenType.IDENTIFIER)
+                {
+                    string fieldName = currentToken.Text;
+                    int fieldNameHash = fieldName.GetHashCode();
+
+                    if (traitSymbol.FunctionSignatures.ContainsKey(fieldNameHash))
+                    {
+                        throw ConstructParserException($"Duplicate trait field '{fieldName}'.", currentToken);
+                    }
+
+                    traitSymbol.FieldSignatures.Add(fieldNameHash, fieldName);
+
+                    int statementEndIndex = currentIndex + 2;
+                    while (statementEndIndex < endTokenIndex && _lexer.PeekTokenTypeAheadByN(statementEndIndex + 1) != TokenType.EOL)
+                    {
+                        statementEndIndex++;
+                    }
+
+                    List<Token> defaultValueTokens = new List<Token>();
+
+                    for (int z = currentIndex + 3; z <= statementEndIndex; z++)
+                    {
+                        defaultValueTokens.Add(_lexer.PeekAheadByN(z));
+                    }
+
+                    if (solidField)
+                    {
+                        solidField = false;
+                        // A workaround of sorts.
+                        traitSymbol.StaticFields.Add(fieldName, RuntimeValue.Nil);
+                    }
+
+                    traitSymbol.DefaultFieldValuesAsTokens.TryAdd(fieldName, defaultValueTokens);
+
+                    currentIndex = statementEndIndex + 1;
+                    continue;
+                }
+                else if (currentToken.Type == TokenType.FUNC)
+                {
+                    Token funcNameToken = _lexer.PeekAheadByN(currentIndex + 2);
+
+                    if (funcNameToken.Type != TokenType.IDENTIFIER)
+                    {
+                        throw ConstructParserException("Expected a function name after keyword \"func\" in trait declaration", currentToken);
+                    }
+
+                    string funcName = funcNameToken.Text;
+                    int arity = 0;
+
+                    // Opening.
+                    if (_lexer.PeekTokenTypeAheadByN(currentIndex + 3) != TokenType.L_PAREN)
+                    {
+                        throw ConstructParserException("Expected an opening parenthesis after function name in trait declaration", currentToken);
+                    }
+
+                    int currentLookAhead = currentIndex + 4;
+
+                    while (_lexer.PeekTokenTypeAheadByN(currentLookAhead) == TokenType.IDENTIFIER)
+                    {
+                        arity++;
+                        currentLookAhead++;
+                    }
+
+                    // Closing.
+                    if (_lexer.PeekTokenTypeAheadByN(currentLookAhead) != TokenType.R_PAREN)
+                    {
+                        throw ConstructParserException("Expected closing parenthesis after function arguments in trait declaration", currentToken);
+                    }
+
+                    if (_lexer.PeekTokenTypeAheadByN(currentLookAhead + 1) != TokenType.EOL)
+                    {
+                        throw ConstructParserException("Expected a semicolon to mark the end of a function signature in trait declaration", currentToken);
+                    }
+
+                    string templatedName = Mangler.Mangle(funcName, arity);
+                    int funcHash = templatedName.GetHashCode();
+
+                    if (traitSymbol.FunctionSignatures.TryGetValue(funcHash, out TraitSymbol.FunctionSignature signature) && signature.Arity == arity)
+                    {
+                        throw ConstructParserException("Duplicate function signature in trait declaration", currentToken);
+                    }
+
+                    traitSymbol.FunctionSignatures.Add(funcHash, new TraitSymbol.FunctionSignature()
+                    {
+                        Arity = arity,
+                        Hash = funcHash,
+                        Name = templatedName,
+                    });
+
+                    currentIndex = currentLookAhead + 1;
+                    continue;
+                }
+
+                throw ConstructParserExceptionWithUnexpectedToken("Unknown token type in trait declaration", currentToken);
+            }
+
+            if (!_currentParseState.CurrentScope.Declare(traitName.GetHashCode(), traitSymbol))
+            {
+                throw ConstructParserException($"A trait symbol named '{traitName}' is already defined in this scope.", nameToken);
             }
         }
 
@@ -991,7 +1144,7 @@ namespace Fluence
                     string memberName = currentToken.Text;
                     if (enumSymbol.Members.ContainsKey(memberName))
                     {
-                        ConstructAndThrowParserException($"Duplicate enum member '{memberName}'.", currentToken);
+                        throw ConstructParserException($"Duplicate enum member '{memberName}'.", currentToken);
                     }
 
                     EnumValue enumValue = new EnumValue(enumName, memberName, currentValue);
@@ -1000,7 +1153,7 @@ namespace Fluence
                 }
                 else if (currentToken.Type is not TokenType.COMMA)
                 {
-                    ConstructAndThrowParserException($"Unexpected token '{currentToken.ToDisplayString()}' in enum body.", currentToken);
+                    throw ConstructParserException($"Unexpected token '{currentToken.ToDisplayString()}' in enum body.", currentToken);
                 }
 
                 currentIndex++;
@@ -1008,7 +1161,7 @@ namespace Fluence
 
             if (!_currentParseState.CurrentScope.Declare(enumName.GetHashCode(), enumSymbol))
             {
-                ConstructAndThrowParserException($"A symbol named '{enumName}' is already defined in this scope.", nameToken);
+                throw ConstructParserException($"An enum symbol named '{enumName}' is already defined in this scope.", nameToken);
             }
         }
 
@@ -1056,7 +1209,7 @@ namespace Fluence
 
                     if (_currentParseState.ActiveLoopContexts.Count == 0)
                     {
-                        ConstructAndThrowParserException("'break' cannot be used outside of a loop.", _lexer.PeekNextToken());
+                        throw ConstructParserExceptionWithUnexpectedToken("'break' cannot be used outside of a loop.", _lexer.PeekNextToken());
                     }
 
                     LoopContext currentLoop = _currentParseState.ActiveLoopContexts.Peek();
@@ -1071,7 +1224,7 @@ namespace Fluence
 
                     if (_currentParseState.ActiveLoopContexts.Count == 0)
                     {
-                        ConstructAndThrowParserException("'continue' cannot be used outside of a loop.", _lexer.PeekNextToken());
+                        throw ConstructParserExceptionWithUnexpectedToken("'continue' cannot be used outside of a loop.", _lexer.PeekNextToken());
                     }
 
                     LoopContext currentLoop2 = _currentParseState.ActiveLoopContexts.Peek();
@@ -1105,7 +1258,7 @@ namespace Fluence
 
             if (!_currentParseState.NameSpaces.TryGetValue(nameToken.Text.GetHashCode(), out FluenceScope? namespaceScope))
             {
-                ConstructAndThrowParserException($"Namespace '{nameToken.Text}' not found during second pass.", nameToken);
+                throw ConstructParserException($"Namespace '{nameToken.Text}' not found during second pass.", nameToken);
             }
 
             FluenceScope parentScope = _currentParseState.CurrentScope;
@@ -1127,16 +1280,16 @@ namespace Fluence
 
             int jumpPatch = _currentParseState.CodeInstructions.Count;
 
-            // try CONTEXT
+            // try CONTEXT.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.TryBlock, null!));
 
-            ParseStatementBody("'try' statement expects a '->' for a single line statement of code.");
+            ParseStatementBody("A 'try' statement expects a '->' for a single line statement of code.");
 
             int tryBlockEnd = _currentParseState.CodeInstructions.Count;
 
             if (_lexer.PeekNextTokenType() != TokenType.CATCH)
             {
-                ConstructAndThrowParserException("'try' statement expects a 'catch' statement block.", _lexer.PeekCurrentToken());
+                throw ConstructParserException("A 'try' statement expects a 'catch' statement block.", _lexer.PeekCurrentToken());
             }
 
             _lexer.Advance(); // Consume 'catch'.
@@ -1174,6 +1327,31 @@ namespace Fluence
             Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a name for the struct.");
 
             string structName = nameToken.Text;
+            HashSet<int> implementations = null;
+            Dictionary<int, string> implementationNames = null;
+
+            if (_lexer.PeekNextTokenType() == TokenType.IMPL)
+            {
+                _lexer.Advance();
+                implementations = new HashSet<int>();
+                implementationNames = new Dictionary<int, string>();
+
+                while (_lexer.PeekNextTokenType() != TokenType.L_BRACE)
+                {
+                    if (_lexer.PeekNextTokenType() == TokenType.COMMA)
+                    {
+                        _lexer.Advance();
+                        continue;
+                    }
+
+                    Token trait = _lexer.ConsumeToken();
+                    int hash = trait.Text.GetHashCode();
+                    implementationNames.Add(hash, trait.Text);
+
+                    implementations.Add(hash);
+                }
+            }
+
             AdvanceAndExpect(TokenType.L_BRACE, $"Expected an opening '{{' for struct '{structName}'.");
 
             if (!_currentParseState.CurrentScope.TryResolve(structName.GetHashCode(), out Symbol symbol) || symbol is not StructSymbol structSymbol)
@@ -1189,6 +1367,96 @@ namespace Fluence
                 _currentParseState.CurrentStructContext = null!;
                 _lexer.Advance();
                 return;
+            }
+
+            if (implementations != null)
+            {
+                foreach (int traitName in implementations)
+                {
+                    if (_currentParseState.CurrentScope.TryResolve(traitName, out Symbol symbol2) && symbol2 is TraitSymbol trait)
+                    {
+                        foreach (TraitSymbol.FunctionSignature requiredSignature in trait.FunctionSignatures.Values)
+                        {
+                            bool implementationFound = false;
+                            bool nameFoundButArityMismatch = false;
+                            int mismatchedArity = 0;
+                            string fullNameFromTrait = requiredSignature.Name;
+
+                            int delimiterIndex = fullNameFromTrait.LastIndexOf("__", StringComparison.Ordinal);
+
+                            ReadOnlySpan<char> requiredNameSpan = (delimiterIndex == -1)
+                                ? fullNameFromTrait.AsSpan()
+                                : fullNameFromTrait.AsSpan(0, delimiterIndex);
+
+                            foreach (FunctionValue implementedFunction in structSymbol.Functions.Values)
+                            {
+                                if (requiredNameSpan.SequenceEqual(implementedFunction.Name))
+                                {
+                                    if (requiredSignature.Arity == implementedFunction.Arguments.Count)
+                                    {
+                                        implementationFound = true;
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        nameFoundButArityMismatch = true;
+                                        mismatchedArity = implementedFunction.Arguments.Count;
+                                    }
+                                }
+                            }
+
+                            if (!implementationFound)
+                            {
+                                if (nameFoundButArityMismatch)
+                                {
+                                    throw ConstructParserException(
+                                        $"Struct '{structSymbol.Name}' does not correctly implement trait '{trait.Name}'. " +
+                                        $"The arity for function '{requiredNameSpan.ToString()}' is incorrect. " +
+                                        $"Trait requires {requiredSignature.Arity} arguments, but an implementation was found with {mismatchedArity} arguments.",
+                                        nameToken);
+                                }
+                                else
+                                {
+                                    throw ConstructParserException(
+                                        $"Struct '{structSymbol.Name}' does not implement the required function " +
+                                        $"'{requiredNameSpan.ToString()}({(requiredSignature.Arity != 0 ? "..." : "")})' from trait '{trait.Name}'.",
+                                        nameToken);
+                                }
+                            }
+                        }
+
+                        foreach (KeyValuePair<int, string> item in trait.FieldSignatures)
+                        {
+                            if (!structSymbol.Fields.Contains(item.Value))
+                            {
+                                structSymbol.Fields.Add(item.Value);
+                                structSymbol.DefaultFieldValuesAsTokens.Add(item.Value, trait.DefaultFieldValuesAsTokens[item.Value]);
+                            }
+                            else
+                            {
+                                throw ConstructParserException($"The struct symbol: {structSymbol.Name} already defines a field called: '{item.Value}' either from its base definition of from one of the implemented traits.", nameToken);
+                            }
+                        }
+
+                        foreach (KeyValuePair<string, RuntimeValue> item in trait.StaticFields)
+                        {
+                            if (!structSymbol.StaticFields.ContainsKey(item.Key))
+                            {
+                                structSymbol.StaticFields.Add(item.Key, item.Value);
+                            }
+                            else
+                            {
+                                throw ConstructParserException($"The struct symbol: {structSymbol.Name} already defines a static solid field called: '{item.Value}' either from its base definition of from one of the implemented traits.", nameToken);
+                            }
+                        }
+
+                        structSymbol.ImplementedTraits.Add(trait.Hash);
+                    }
+                    else
+                    {
+                        throw ConstructParserException($"The struct \"{structSymbol.Name}\" attempts to implement an unknown or invalid trait '{implementationNames![traitName]}'.", nameToken);
+                    }
+                }
             }
 
             int currentIndex = 1;
@@ -1527,7 +1795,7 @@ namespace Fluence
 
                 if (!isResolved || symbol is not StructSymbol)
                 {
-                    ConstructAndThrowParserException($"Internal error: Could not resolve struct symbol '{structName}' in current scope.", nameToken);
+                    throw ConstructParserException($"Internal error: Could not resolve struct symbol '{structName}' in current scope.", nameToken);
                 }
 
                 StructSymbol structSymbol = (StructSymbol)symbol;
@@ -1543,9 +1811,9 @@ namespace Fluence
                     {
                         if (expressionTokens.Count == 0)
                         {
-                            ConstructAndThrowParserException($"Expected an assignment of a value to a solid static struct field, value can not be Nil: {structSymbol}__Field:{fieldName}.", new Token());
-                            return;
+                            throw ConstructParserException($"Expected an assignment of a value to a solid static struct field, value can not be Nil: {structSymbol}__Field:{fieldName}.", nameToken);
                         }
+
                         structSymbol.ParsedStaticFields.Add(fieldName);
                         _fieldLexer = _lexer;
                         _lexer = new FluenceLexer(expressionTokens);
@@ -1567,7 +1835,7 @@ namespace Fluence
                 {
                     if (!structSymbol.Functions.TryGetValue(functionName, out FunctionValue functionValue))
                     {
-                        ConstructAndThrowParserException($"Internal error: Method '{funcValue.Name}' not found in the symbol table for struct '{structName}'.", nameToken);
+                        throw ConstructParserException($"Internal error: Method '{funcValue.Name}' not found in the symbol table for struct '{structName}'.", nameToken);
                     }
 
                     functionValue!.SetStartAddress(functionStartAddress);
@@ -1579,7 +1847,7 @@ namespace Fluence
                 // Constructor init here.
                 if (structSymbol.Constructors.Count == 0)
                 {
-                    ConstructAndThrowParserException($"Internal error: No constructors found for struct '{structName}' in symbol table.", nameToken);
+                    throw ConstructParserException($"Internal error: No constructors found for struct '{structName}' in symbol table.", nameToken);
                 }
 
                 foreach (KeyValuePair<string, List<Token>> field in structSymbol.DefaultFieldValuesAsTokens)
@@ -1593,7 +1861,7 @@ namespace Fluence
                     string fieldName = field.Key;
                     List<Token> expressionTokens = field.Value;
 
-                    if (expressionTokens.Count == 0)
+                    if (expressionTokens == null || expressionTokens.Count == 0)
                     {
                         _currentParseState.AddCodeInstruction(
                             new InstructionLine(
@@ -1633,7 +1901,7 @@ namespace Fluence
                 // This will also work for functions defined in the current scope.
                 if (!_currentParseState.CurrentScope.TryResolve(functionName.GetHashCode(), out Symbol symbol) || symbol is not FunctionSymbol functionSymbol)
                 {
-                    ConstructAndThrowParserException($"Internal error: Could not resolve function symbol '{funcValue.Name}'. Function does not exist.", nameToken);
+                    throw ConstructParserException($"Internal error: Could not resolve function symbol '{funcValue.Name}'. Function does not exist.", nameToken);
                 }
                 else
                 {
@@ -1874,7 +2142,7 @@ namespace Fluence
                         bool paramByRef = true;
                         if (_lexer.PeekNextTokenType() != TokenType.IDENTIFIER)
                         {
-                            ConstructAndThrowParserException("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
+                            throw ConstructParserExceptionWithUnexpectedToken("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
                         }
 
                         Token paramToken = _lexer.ConsumeToken();
@@ -2074,7 +2342,7 @@ namespace Fluence
             {
                 if (hasRestCase)
                 {
-                    ConstructAndThrowParserException("The 'rest' case must be the final case in a match expression.", _lexer.PeekNextToken());
+                    throw ConstructParserException("The 'rest' case must be the final case in a match expression.", _lexer.PeekNextToken());
                 }
 
                 int nextCasePatchIndex;
@@ -2126,7 +2394,7 @@ namespace Fluence
                     if (_currentParseState.CodeInstructions.Count == instructionCountBeforeBlock ||
                         _currentParseState.CodeInstructions[^1].Instruction != InstructionCode.Return)
                     {
-                        ConstructAndThrowParserException("A block body '=> { ... }' in a match expression must end with a 'return' statement.", _lexer.PeekNextToken());
+                        throw ConstructParserException("A block body '=> { ... }' in a match expression must end with a 'return' statement.", _lexer.PeekNextToken());
                     }
 
                     Value returnedValue = _currentParseState.CodeInstructions[^1].Lhs;
@@ -2149,7 +2417,7 @@ namespace Fluence
 
             if (!hasRestCase)
             {
-                ConstructAndThrowParserException("A 'match' expression that returns a value must be exhaustive and include a 'rest' case.", _lexer.PeekNextToken());
+                throw ConstructParserException("A 'match' expression that returns a value must be exhaustive and include a 'rest' case.", _lexer.PeekNextToken());
             }
 
             int matchEndAddress = _currentParseState.CodeInstructions.Count;
@@ -2226,8 +2494,7 @@ namespace Fluence
                 else
                 {
                     // If the loop finished without finding a match, the brace is unclosed.
-                    ConstructAndThrowParserException("Unclosed expression in f-string.", _lexer.PeekCurrentToken());
-                    return NilValue.NilInstance;
+                    throw ConstructParserException("Unclosed expression in f-string.", _lexer.PeekCurrentToken());
                 }
 
                 string expressionSource = fstringContent.Substring(exprStart + 1, exprEnd - exprStart - 1);
@@ -2376,7 +2643,7 @@ namespace Fluence
 
             if (left is not VariableValue)
             {
-                ConstructAndThrowParserException("Can not declare a constant value, or a non variable as solid.", _lexer.PeekCurrentToken());
+                throw ConstructParserException("Can not declare a constant value, or a non variable as solid.", _lexer.PeekCurrentToken());
             }
 
             VariableValue variable = (VariableValue)left;
@@ -2403,7 +2670,7 @@ namespace Fluence
 
             if ((IsSimpleAssignmentOperator(opType) || opType == TokenType.SWAP) && lhsList.Count > 1)
             {
-                ConstructAndThrowParserException("Simple assignment operators (=, +=, ><) cannot be used with a multi-variable list.", _lexer.PeekNextToken());
+                throw ConstructParserException("Simple assignment operators (=, +=, ><) cannot be used with a multi-variable list.", _lexer.PeekNextToken());
             }
 
             // Multi-Assign operators like .+=, .-= and so on.
@@ -2469,14 +2736,19 @@ namespace Fluence
                 }
                 else  // Compound, -=, +=, etc.
                 {
-                    Value resolvedLhs = ResolveValue(firstLhs);
+                    Value resolvedRhs = ResolveValue(firstLhs);
                     InstructionCode opCode = GetInstructionCodeForBinaryOperator(type);
 
-                    _currentParseState.AddCodeInstruction(new InstructionLine(opCode, resolvedLhs, resolvedLhs, rhs));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(opCode, resolvedRhs, resolvedRhs, rhs));
+
+                    if (firstLhs is PropertyAccessValue)
+                    {
+                        GenerateWriteBackInstruction(firstLhs, resolvedRhs);
+                    }
 
                     if (firstLhs is VariableValue variable && !_currentParseState.IsParsingFunctionBody)
                     {
-                        _currentParseState.CurrentScope.Declare(variable.Hash, new VariableSymbol(variable.Name, resolvedLhs));
+                        _currentParseState.CurrentScope.Declare(variable.Hash, new VariableSymbol(variable.Name, firstLhs));
                     }
                 }
             }
@@ -2515,7 +2787,7 @@ namespace Fluence
 
             if (lhsDescriptors.Count != rhsExpressions.Count)
             {
-                ConstructAndThrowParserException($"Mismatched number of items for multi-compound assignment '{opToken.ToDisplayString()}'.", opToken);
+                throw ConstructParserException($"Mismatched number of items for multi-compound assignment '{opToken.ToDisplayString()}'.", opToken);
             }
 
             for (int i = 0; i < lhsDescriptors.Count; i++)
@@ -2655,7 +2927,7 @@ namespace Fluence
                     Token token = _lexer.ConsumeToken();
                     if (underscoreIndex != -1)
                     {
-                        ConstructAndThrowParserException("Cannot use more than one `_` placeholder in a broadcast call.", token);
+                        throw ConstructParserExceptionWithUnexpectedToken("Cannot use more than one `_` placeholder in a broadcast call.", token);
                     }
                     underscoreIndex = args.Count;
                     args.Add(NilValue.NilInstance);
@@ -2669,10 +2941,10 @@ namespace Fluence
 
             AdvanceAndExpect(TokenType.R_PAREN, "Expected a closing ')' for the broadcast call template.");
 
-            // Semantic check: A broadcast template MUST contain a placeholder.
+            // Semantic check: A broadcast template must contain a placeholder.
             if (underscoreIndex == -1)
             {
-                ConstructAndThrowParserException("Broadcast call template must contain an `_` placeholder.", openingParen);
+                throw ConstructParserException("Broadcast call template must contain a `_` placeholder.", openingParen);
             }
 
             return new BroadcastCallTemplate(functionToCall!, args, underscoreIndex);
@@ -2769,7 +3041,7 @@ namespace Fluence
 
             if (lhsDescriptors.Count != rhsExpressions.Count)
             {
-                ConstructAndThrowParserException($"Mismatched number of items for sequential assignment '{opToken.ToDisplayString()}'.", opToken);
+                throw ConstructParserException($"Mismatched number of items for sequential assignment '{opToken.ToDisplayString()}'.", opToken);
             }
 
             do
@@ -2824,7 +3096,7 @@ namespace Fluence
                 if (lhsIndex >= lhsExpressions.Count)
                 {
                     // All variables have been assigned, but there are more operators.
-                    ConstructAndThrowParserException("Redundant chain assignment operator. No more variables are available for assignment.", _lexer.PeekNextToken());
+                    throw ConstructParserException("Redundant chain assignment operator. No more variables are available for assignment.", _lexer.PeekNextToken());
                 }
 
                 Token op = _lexer.ConsumeToken();
@@ -2863,7 +3135,7 @@ namespace Fluence
 
                         if (lhsIndex >= lhsExpressions.Count)
                         {
-                            ConstructAndThrowParserException($"Chain operator '{op.ToDisplayString()}' expected {count} variables, but only {i} were available. There are more variables on the left-hand side.", op);
+                            throw ConstructParserException($"Chain operator '{op.ToDisplayString()}' expected {count} variables, but only {i} were available. There are more variables on the left-hand side.", op);
                         }
 
                         GenerateWriteBackInstruction(lhsExpressions[lhsIndex], valueToAssign);
@@ -2901,7 +3173,7 @@ namespace Fluence
                 if (lhsIndex >= lhsExpressions.Count)
                 {
                     // All variables have been assigned, but there are more operators.
-                    ConstructAndThrowParserException("Redundant chain assignment operator. No more variables are available for assignment.", _lexer.PeekNextToken());
+                    throw ConstructParserException("Redundant chain assignment operator. No more variables are available for assignment.", _lexer.PeekNextToken());
                 }
 
                 Token op = _lexer.ConsumeToken();
@@ -2930,7 +3202,7 @@ namespace Fluence
                     {
                         if (lhsIndex >= lhsExpressions.Count)
                         {
-                            ConstructAndThrowParserException($"Chain operator '{op.ToDisplayString()}' expected {count} variables, but only {i} were available. There are more variables on the left-hand side.", op);
+                            throw ConstructParserException($"Chain operator '{op.ToDisplayString()}' expected {count} variables, but only {i} were available. There are more variables on the left-hand side.", op);
                         }
                         GenerateWriteBackInstruction(lhsExpressions[lhsIndex], valueToAssign);
                         lhsIndex++;
@@ -2964,8 +3236,7 @@ namespace Fluence
 
                 if (op.Type is not TokenType.REST_ASSIGN and not TokenType.OPTIONAL_REST_ASSIGN)
                 {
-                    ConstructAndThrowParserException("Invalid operator for broadcast call. Expected '<|' or '<?|'.", op);
-                    return;
+                    throw ConstructParserExceptionWithUnexpectedToken("Invalid operator for broadcast call. Expected '<|' or '<?|'.", op);
                 }
 
                 bool isOptional = op.Type == TokenType.OPTIONAL_REST_ASSIGN;
@@ -2974,8 +3245,7 @@ namespace Fluence
 
                 if (rhsExpressions.Count == 0)
                 {
-                    ConstructAndThrowParserException("Broadcast call expects at least one value on the right-hand side. Expected one or more comma-separated values.", op);
-                    return;
+                    throw ConstructParserException("Broadcast call expects at least one value on the right-hand side. Expected one or more comma-separated values.", op);
                 }
 
                 foreach (Value rhsValue in rhsExpressions)
@@ -3163,7 +3433,7 @@ namespace Fluence
             }
             if (lambda.Function.Arity != 2)
             {
-                ConstructAndThrowParserException($"Reducer pipe lambda must take exactly 2 arguments (accumulator, element), but got {lambda.Function.Arity}.", _lexer.PeekNextToken());
+                throw ConstructParserException($"Reducer pipe lambda must take exactly 2 arguments (accumulator, element), but got {lambda.Function.Arity} arguments.", _lexer.PeekNextToken());
             }
 
             AdvanceAndExpect(TokenType.R_PAREN, "Expected a closing ')' for Reducer Pipe arguments.");
@@ -3255,7 +3525,7 @@ namespace Fluence
 
             if (!foundUnderscore && !firstArg)
             {
-                ConstructAndThrowParserException("Only the first expression in a pipe call is allowed to not have the '_' argument, the rest must have it.", _lexer.PeekNextToken());
+                throw ConstructParserException("Only the first expression in a pipe call is allowed to not have the '_' argument, the rest must have it.", _lexer.PeekNextToken());
             }
 
             AdvanceAndExpect(TokenType.R_PAREN, "Expected a closing ')' for the function call in a pipe.");
@@ -3560,7 +3830,7 @@ namespace Fluence
             // Empty call case.
             if (_lexer.TokenTypeMatches(TokenType.R_PAREN))
             {
-                ConstructAndThrowParserException("Argument list for .and()/.or() cannot be empty. Expected at least one boolean expression.", opToken);
+                throw ConstructParserException("Argument list for .and()/.or() can not be empty. Expected at least one boolean expression.", opToken);
             }
 
             Value result = ResolveValue(ParseExpression());
@@ -3872,8 +4142,7 @@ namespace Fluence
                 case StaticStructAccess statAccess:
                     if (statAccess.Struct.StaticFields.ContainsKey(statAccess.Name))
                     {
-                        ConstructAndThrowParserException($"Attempted to modify a solid ( static ) struct field: {statAccess.Struct}__Field:{statAccess.Name}.", _lexer.PeekNextToken());
-                        return;
+                        throw ConstructParserException($"Attempted to modify a solid ( static ) struct field: {statAccess.Struct}__Field:{statAccess.Name}.", _lexer.PeekNextToken());
                     }
                     break;
                 default:
@@ -3980,7 +4249,7 @@ namespace Fluence
             {
                 // No user-defined constructor, but arguments were provided. This is an error.
                 Token errorToken = _lexer.PeekCurrentToken();
-                ConstructAndThrowParserException(
+                throw ConstructParserException(
                     $"Invalid constructor call for '{structSymbol.Name}'. Struct '{structSymbol.Name}' has no 'init' constructor and cannot be called with arguments.",
                     errorToken
                 );
@@ -4012,11 +4281,11 @@ namespace Fluence
 
                     if (!structSymbol.Fields.Contains(fieldName))
                     {
-                        ConstructAndThrowParserException($"Invalid field '{fieldName}'. Struct '{structSymbol.Name}' does not have a field with this name.", fieldToken);
+                        throw ConstructParserException($"Invalid field '{fieldName}'. Struct '{structSymbol.Name}' does not have a field with this name.", fieldToken);
                     }
                     if (!initializedFields.Add(fieldName))
                     {
-                        ConstructAndThrowParserException($"Duplicate field '{fieldName}'. Each field can only be initialized once.", fieldToken);
+                        throw ConstructParserException($"Duplicate field '{fieldName}'. Each field can only be initialized once.", fieldToken);
                     }
 
                     AdvanceAndExpect(TokenType.COLON, $"Expected a ':' after the field name '{fieldName}'.");
@@ -4078,7 +4347,7 @@ namespace Fluence
                                 }
                                 else
                                 {
-                                    ConstructAndThrowParserException($"Enum '{enumSymbol.Name}' does not have a member named '{memberToken.Text}'.", memberToken);
+                                    throw ConstructParserException($"Enum '{enumSymbol.Name}' does not have a member named '{memberToken.Text}'.", memberToken);
                                 }
                             }
                             else
@@ -4171,6 +4440,31 @@ namespace Fluence
             return result;
         }
 
+        private TempValue ParseIsAStatement(VariableValue variable)
+        {
+            _lexer.Advance(); // Consume the variable.
+
+            Token type = _lexer.ConsumeToken();
+
+            if (type.Type is not TokenType.IDENTIFIER)
+            {
+                throw ConstructParserExceptionWithUnexpectedToken("Expected an identifier of a trait or struct type name after 'is' keyword", type);
+            }
+            else
+            {
+                int hash = type.Text.GetHashCode();
+                if (!_currentParseState.CurrentScope.TryResolve(hash, out _))
+                {
+                    throw ConstructParserException($"Unknown type: {type.Text} in 'is' expression", type);
+                }
+
+                TempValue condition = new TempValue(_currentParseState.NextTempNumber++);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.IsType, condition, variable, new StringValue(type.Text)));
+
+                return condition;
+            }
+        }
+
         /// <summary>
         /// Parses an 'N times' statement that accepts either a raw integer number, or a variable that is a number.
         /// </summary>
@@ -4254,7 +4548,7 @@ namespace Fluence
 
                     if (_lexer.PeekNextTokenType() != TokenType.IDENTIFIER)
                     {
-                        ConstructAndThrowParserException("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
+                        throw ConstructParserExceptionWithUnexpectedToken("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
                     }
                 }
                 else if (type == TokenType.IDENTIFIER)
@@ -4274,7 +4568,7 @@ namespace Fluence
                 }
                 else
                 {
-                    ConstructAndThrowParserException($"Unidentified token inside lambda argument list: {_lexer.PeekNextToken()}, expected only identifiers", _lexer.PeekNextToken());
+                    throw ConstructParserExceptionWithUnexpectedToken($"Unidentified token inside lambda argument list: {_lexer.PeekNextToken()}, expected only identifiers", _lexer.PeekNextToken());
                 }
             }
 
@@ -4578,6 +4872,11 @@ namespace Fluence
                             ParseTimesStatement(new VariableValue(name));
                             return StatementCompleteValue.StatementCompleted;
                         }
+                        else if (_lexer.PeekNextTokenType() == TokenType.IS)
+                        {
+                            // Some form of pattern matching, currently only a check whether a struct implements a trait, TO DO pattern matching for other cases.
+                            return ParseIsAStatement(new VariableValue(name));
+                        }
 
                         // Otherwise, it's just a regular variable.
                         return new VariableValue(name);
@@ -4605,15 +4904,12 @@ namespace Fluence
                     {
                         return new ReferenceValue((VariableValue)toRef);
                     }
-                    else
-                    {
-                        ConstructAndThrowParserException("Can not pass an argument to a function by reference if the argument is not a variable.", _lexer.PeekNextToken());
-                    }
-                    break;
+
+                    throw ConstructParserException("Can not pass an argument to a function by reference if the argument is not a variable.", _lexer.PeekNextToken());
                 case TokenType.SELF:
                     if (_currentParseState.CurrentStructContext == null)
                     {
-                        ConstructAndThrowParserException("The 'self' keyword can only be used inside a struct method.", token);
+                        throw ConstructParserException("The 'self' keyword can only be used inside a struct method.", token);
                     }
                     // The 'self' keyword is just a special, pre-defined local variable.
                     // At runtime, the VM will ensure the instance is available.
@@ -4629,8 +4925,7 @@ namespace Fluence
             }
 
             // If we've fallen through the entire switch, we have an invalid token.
-            ConstructAndThrowParserException($"Expected an expression, a literal (number, string, etc.), a variable, or '('.", token);
-            return null!;
+            throw ConstructParserExceptionWithUnexpectedToken($"Expected an expression, a literal (number, string, etc.), a variable, or '('.", token);
         }
 
         /// <summary>
@@ -4697,7 +4992,7 @@ namespace Fluence
             Token token = _lexer.ConsumeToken();
             if (token.Type != expectedType)
             {
-                ConstructAndThrowParserException(errorMessage, token);
+                throw ConstructParserExceptionWithUnexpectedToken(errorMessage, token);
             }
             return token;
         }
@@ -4712,12 +5007,12 @@ namespace Fluence
         {
             if (!_lexer.TokenTypeMatches(expectedType))
             {
-                ConstructAndThrowParserException(errorMessage, _lexer.PeekNextToken());
+                throw ConstructParserExceptionWithUnexpectedToken(errorMessage, _lexer.PeekNextToken());
             }
             _lexer.Advance();
         }
 
-        private void ConstructAndThrowParserException(string errorMessage, Token token)
+        private FluenceParserException ConstructParserExceptionWithUnexpectedToken(string errorMessage, Token unexpectedToken)
         {
             string source;
 
@@ -4733,23 +5028,34 @@ namespace Fluence
             ParserExceptionContext context = new ParserExceptionContext()
             {
                 FileName = _currentParsingFileName,
-                Column = token.ColumnInSourceCode,
-                FaultyLine = FluenceDebug.TruncateLine(FluenceLexer.GetCodeLineFromSource(source, token.LineInSourceCode)),
-                LineNum = token.LineInSourceCode,
-                UnexpectedToken = token,
+                Column = unexpectedToken.ColumnInSourceCode,
+                FaultyLine = FluenceDebug.TruncateLine(FluenceLexer.GetCodeLineFromSource(source, unexpectedToken.LineInSourceCode)),
+                LineNum = unexpectedToken.LineInSourceCode,
+                UnexpectedToken = unexpectedToken,
             };
-            throw new FluenceParserException(errorMessage, context);
+            return new FluenceParserException(errorMessage, context);
         }
 
-        private FluenceParserException ConstructParserException(string errorMessage, Token token)
+        private FluenceParserException ConstructParserException(string errorMessage, Token infoToken)
         {
+            string source;
+
+            if (_multiFileProject)
+            {
+                source = File.ReadAllText(_currentParsingFileName);
+            }
+            else
+            {
+                source = _lexer.SourceCode;
+            }
+
             ParserExceptionContext context = new ParserExceptionContext()
             {
                 FileName = _currentParsingFileName,
-                Column = token.ColumnInSourceCode,
-                FaultyLine = FluenceDebug.TruncateLine(FluenceLexer.GetCodeLineFromSource(_lexer.SourceCode, token.LineInSourceCode)),
-                LineNum = token.LineInSourceCode,
-                UnexpectedToken = token,
+                Column = infoToken.ColumnInSourceCode,
+                FaultyLine = FluenceDebug.TruncateLine(FluenceLexer.GetCodeLineFromSource(source, infoToken.LineInSourceCode)),
+                LineNum = infoToken.LineInSourceCode,
+                UnexpectedToken = Token.NoUse,
             };
             return new FluenceParserException(errorMessage, context);
         }

@@ -100,6 +100,8 @@
             REF,    // Passed by reference.
             TRY,
             CATCH,
+            IMPL,   // Inheritance.
+            TRAIT,  // Inheritable.
 
             // Pipe Family Operators.
             PIPE,               // |>

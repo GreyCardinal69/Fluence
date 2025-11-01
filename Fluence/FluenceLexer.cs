@@ -755,7 +755,7 @@ namespace Fluence
                     if (dotOnlyFraction) lexeme = lexeme.Insert(0, "0");
 
                     // We already advanced in the loop and "f" check.
-                    return MakeTokenAndTryAdvance(TokenType.NUMBER, 0, lexeme, lexeme);
+                    return MakeTokenAndTryAdvance(TokenType.NUMBER, 0, lexeme);
                 }
 
                 // Just a dot.

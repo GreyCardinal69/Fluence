@@ -43,7 +43,10 @@ namespace Fluence
                 ? "NewLine"
                 : UnexpectedToken.ToDisplayString();
 
-            stringBuilder.AppendLine($"Error: Unexpected token '{tokenText}' (Type: {UnexpectedToken.Type}).");
+            if (UnexpectedToken.Type != Token.TokenType.NO_USE)
+            {
+                stringBuilder.AppendLine($"Error: Unexpected token '{tokenText}' (Type: {UnexpectedToken.Type}).");
+            }
 
             return stringBuilder.ToString();
         }

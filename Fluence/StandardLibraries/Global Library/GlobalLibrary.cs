@@ -79,7 +79,7 @@ namespace Fluence.Global
 
                 if (arg.ObjectReference is CharObject chr)
                 {
-                    return new RuntimeValue((int)chr.Value);
+                    return new RuntimeValue(chr.Value);
                 }
 
                 return vm.SignalRecoverableErrorAndReturnNil($"Cannot convert value '{arg}' to an integer.");

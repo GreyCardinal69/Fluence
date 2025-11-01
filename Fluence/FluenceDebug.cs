@@ -162,6 +162,39 @@ namespace Fluence
                 case VariableSymbol variableSymbol:
                     sb.Append(indent).Append($"Symbol: {symbolName}, {variableSymbol}.").AppendLine();
                     break;
+
+                case TraitSymbol traitSymbol:
+                    sb.Append(indent).Append($"TraitSymbol: {traitSymbol.Name} \n{indent}{indent} Variable Signatures: \n");
+
+                    foreach (KeyValuePair<string, List<Token>> item in traitSymbol.DefaultFieldValuesAsTokens)
+                    {
+                        sb.Append(indent).Append(indent).Append(indent).Append($"{item.Key} : {(item.Value == null ? "None (Nil)" : (item.Value.Count == 0 ? "None (Nil)." : string.Join(", ", item.Value)))}\n");
+                    }
+
+                    if (traitSymbol.FieldSignatures.Count == 0)
+                    {
+                        sb.Append(indent).Append(indent).Append(indent).Append("None.").AppendLine();
+                    }
+
+                    sb.Append(indent).Append(indent).Append("Function Signatures: \n");
+
+                    TraitSymbol.FunctionSignature[] fValues = traitSymbol.FunctionSignatures.Values.ToArray();
+                    sb.Append(indent).Append(indent).Append(indent);
+
+                    if (traitSymbol.FunctionSignatures.Count == 0)
+                    {
+                        sb.Append("None.");
+                    }
+                    else
+                    {
+                        for (int i = 0; i < traitSymbol.FunctionSignatures.Count; i++)
+                        {
+                            sb.Append($"{(i < traitSymbol.FunctionSignatures.Count - 1 ? $"{fValues[i].Name}-{fValues[i].Arity}, " : $"{fValues[i].Name}-{fValues[i].Arity}")}");
+                        }
+                    }
+                    sb.AppendLine();
+                    break;
+
                 case StructSymbol structSymbol:
                     sb.Append(indent).Append($"Symbol: {symbolName}, type Struct {{").AppendLine();
                     sb.Append(innerIndent).Append("Fields: ").Append(structSymbol.Fields.Count != 0 ? string.Join(", ", structSymbol.Fields) : "None").AppendLine(".");
@@ -171,8 +204,8 @@ namespace Fluence
                         sb.Append(innerIndent).AppendLine("Functions: {");
                         foreach (KeyValuePair<string, FunctionValue> function in structSymbol.Functions)
                         {
-                            args = function.Value.Arguments == null ? "None" : string.Join(",", function.Value.Arguments);
-                            argsRef = function.Value.ArgumentsByRef == null ? "None" : string.Join(",", function.Value.ArgumentsByRef);
+                            args = function.Value.Arguments == null || function.Value.Arguments.Count == 0 ? "None" : string.Join(",", function.Value.Arguments);
+                            argsRef = function.Value.ArgumentsByRef == null || function.Value.ArgumentsByRef.Count == 0 ? "None" : string.Join(",", function.Value.ArgumentsByRef);
 
                             sb.Append(innerIndent).Append($"    Name: {function.Key}, Arity: {function.Value.Arity}, Start Address: {FormatByteCodeAddress(function.Value.StartAddress)}")
                               .Append($" Args: {args}, ").Append($" RefArgs: {argsRef}, ").Append($"Scope: {function.Value.DefiningScope}, ").Append($"Registers Size: {function.Value.TotalRegisterSlots}").AppendLine();
@@ -185,7 +218,7 @@ namespace Fluence
 
                     foreach (KeyValuePair<string, List<Token>> item in structSymbol.DefaultFieldValuesAsTokens)
                     {
-                        sb.Append($"\t\t{item.Key} : {(item.Value.Count == 0 ? "None (Nil)." : string.Join(", ", item.Value))}\n");
+                        sb.Append($"\t\t{item.Key} : {(item.Value == null ? "None (Nil)" : (item.Value.Count == 0 ? "None (Nil)." : string.Join(", ", item.Value)))}\n");
                     }
 
                     if (structSymbol.DefaultFieldValuesAsTokens.Count == 0) sb.Append(" None.\n");

@@ -1,4 +1,5 @@
 ﻿using Fluence.VirtualMachine;
+using static Fluence.VirtualMachine.FluenceVirtualMachine;
 
 namespace Fluence.RuntimeTypes
 {
@@ -6,7 +7,7 @@ namespace Fluence.RuntimeTypes
     /// Represents a runtime instance of a user-defined 'struct'. It holds a reference
     /// to its class blueprint (the StructSymbol) and its own set of instance fields.
     /// </summary>
-    internal sealed record class InstanceObject
+    internal sealed record class InstanceObject : IFluenceObject
     {
         /// <summary>
         /// The compile-time "class" or blueprint that defines the structure and methods for this instance.
@@ -26,7 +27,7 @@ namespace Fluence.RuntimeTypes
         /// </summary>
         /// <param name="fieldName">The name of the property or method to access.</param>
         /// <returns>The <see cref="RuntimeValue"/> of the field or a <see cref="BoundMethodObject"/> for a method.</returns>
-        /// <exception cref="FluenceRuntimeException">Thrown if the property or method is not defined.</exception>
+        /// <exception cref="Exceptions.FluenceRuntimeException">Thrown if the property or method is not defined.</exception>
         internal RuntimeValue GetField(string fieldName, FluenceVirtualMachine vm)
         {
             if (_fields.TryGetValue(fieldName, out RuntimeValue value))
@@ -57,6 +58,36 @@ namespace Fluence.RuntimeTypes
         {
             ArgumentNullException.ThrowIfNull(fieldName);
             _fields[fieldName] = value;
+        }
+
+        private static RuntimeValue ImplementsTrait(FluenceVirtualMachine vm, RuntimeValue self)
+        {
+            RuntimeValue arg = vm.PopStack();
+
+            if (arg.ObjectReference is not StringObject stringObject)
+            {
+                return vm.SignalRecoverableErrorAndReturnNil("Runtime Error: function \"implements(...)\" accepts a string argument, which is that of a trait by its name (case sensitive).");
+            }
+
+            InstanceObject instance = self.As<InstanceObject>();
+
+            if (instance.Class.ImplementedTraits.Contains(stringObject.Value.GetHashCode()))
+            {
+                return RuntimeValue.True;
+            }
+
+            return RuntimeValue.False;
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method)
+        {
+            method = name switch
+            {
+                "implements__1" => ImplementsTrait,
+                _ => null!
+            };
+            return method != null;
         }
 
         public override string ToString()

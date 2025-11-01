@@ -51,11 +51,11 @@ namespace Fluence.LexerTests
         {
             Token token = LexFirstToken("10.5f");
             Assert.Equal(TokenType.NUMBER, token.Type);
-            Assert.Equal("10.5f", token.Literal);
+            Assert.Equal("10.5f", token.Text);
 
             Token token2 = LexFirstToken("10f");
             Assert.Equal(TokenType.NUMBER, token2.Type);
-            Assert.Equal("10f", token2.Literal);
+            Assert.Equal("10f", token2.Text);
         }
 
         [Fact]
@@ -63,7 +63,7 @@ namespace Fluence.LexerTests
         {
             Token token = LexFirstToken(".5");
             Assert.Equal(TokenType.NUMBER, token.Type);
-            Assert.Equal("0.5", token.Literal);
+            Assert.Equal("0.5", token.Text);
         }
 
         [Fact]

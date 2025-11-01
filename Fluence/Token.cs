@@ -14,6 +14,7 @@
         internal enum TokenType
         {
             UNKNOWN = 0,
+            NO_USE,       // A sort of a "discard" token type.
 
             L_PAREN,      // (
             R_PAREN,      // )
@@ -100,6 +101,8 @@
             REF,    // Passed by reference.
             TRY,
             CATCH,
+            IMPL,   // Inheritance.
+            TRAIT,  // Inheritable.
 
             // Pipe Family Operators.
             PIPE,               // |>
@@ -205,7 +208,6 @@
 
                 TokenType.BANG => "!",
                 TokenType.BANG_EQUAL => "!=",
-                TokenType.EQUAL => "=",
                 TokenType.EQUAL_EQUAL => "==",
                 TokenType.GREATER => ">",
                 TokenType.GREATER_EQUAL => ">=",
@@ -219,16 +221,110 @@
                 TokenType.INCREMENT => "++",
                 TokenType.DECREMENT => "--",
                 TokenType.EXPONENT => "**",
+                TokenType.EQUAL => "=",
+                TokenType.EQUAL_PLUS => "+=",
+                TokenType.EQUAL_MINUS => "-=",
+                TokenType.EQUAL_MUL => "*=",
+                TokenType.EQUAL_DIV => "/=",
+                TokenType.EQUAL_PERCENT => "%=",
+                TokenType.EQUAL_AMPERSAND => "&=",
                 TokenType.ARROW => "=>",
                 TokenType.THIN_ARROW => "->",
-                TokenType.PIPE => "|>",
 
-                TokenType.DOT_DECREMENT => ".--",
+                TokenType.BREAK => "break",
+                TokenType.CONTINUE => "continue",
+                TokenType.IF => "if",
+                TokenType.ELSE => "else",
+                TokenType.WHILE => "while",
+                TokenType.LOOP => "loop",
+                TokenType.FOR => "for",
+                TokenType.IN => "in",
+                TokenType.FUNC => "func",
+                TokenType.NIL => "nil",
+                TokenType.RETURN => "return",
+                TokenType.TRUE => "true",
+                TokenType.FALSE => "false",
+                TokenType.IS => "is",
+                TokenType.NOT => "not",
+                TokenType.SPACE => "space",
+                TokenType.USE => "use",
+                TokenType.TYPE => "type",
+                TokenType.STRUCT => "struct",
+                TokenType.ENUM => "enum",
+                TokenType.MATCH => "match",
+                TokenType.SELF => "self",
+                TokenType.UNTIL => "until",
+                TokenType.REST => "rest",
+                TokenType.SOLID => "solid",
+                TokenType.TIMES => "times",
+                TokenType.UNLESS => "unless",
+                TokenType.AS => "as",
+                TokenType.REF => "ref",
+                TokenType.TRY => "try",
+                TokenType.CATCH => "catch",
+                TokenType.IMPL => "impl",
+                TokenType.TRAIT => "trait",
+
+                TokenType.PIPE => "|>",
+                TokenType.OPTIONAL_PIPE => "|?",
+                TokenType.GUARD_PIPE => "|??",
+                TokenType.MAP_PIPE => "|>>",
+                TokenType.REDUCER_PIPE => "|>>=",
+                TokenType.SCAN_PIPE => "|~>",
+                TokenType.COMPOSITION_PIPE => "~>",
+
+                TokenType.CHAIN_ASSIGN_N => "<n|",
+                TokenType.REST_ASSIGN => "<|",
+                TokenType.OPTIONAL_ASSIGN_N => "<n?|",
+                TokenType.OPTIONAL_REST_ASSIGN => "<?|",
+                TokenType.SEQUENTIAL_REST_ASSIGN => "<~|",
+                TokenType.CHAIN_N_UNIQUE_ASSIGN => "<!|",
+                TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN => "<!?|",
+                TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN => "<~?|",
+
+                TokenType.GUARD_CHAIN => "<??|",
+                TokenType.OR_GUARD_CHAIN => "<||??|",
+
+                TokenType.DOT_AND_CHECK => ".or",
+                TokenType.DOT_OR_CHECK => ".and",
                 TokenType.DOT_INCREMENT => ".++",
+                TokenType.DOT_DECREMENT => ".--",
+                TokenType.DOT_PLUS_EQUAL => ".+=",
+                TokenType.DOT_MINUS_EQUAL => ".-=",
+                TokenType.DOT_STAR_EQUAL => ".*=",
+                TokenType.DOT_SLASH_EQUAL => "./=",
+
+                TokenType.SWAP => "><",
+                TokenType.TERNARY_JOINT => "?:",
+                TokenType.BOOLEAN_FLIP => "!!",
+
+                TokenType.COLLECTIVE_EQUAL => "<==|",
+                TokenType.COLLECTIVE_NOT_EQUAL => "<!=|",
+                TokenType.COLLECTIVE_LESS => "<<|",
+                TokenType.COLLECTIVE_LESS_EQUAL => "<<=|",
+                TokenType.COLLECTIVE_GREATER => "<>|",
+                TokenType.COLLECTIVE_GREATER_EQUAL => "<>=|",
+
+                TokenType.COLLECTIVE_OR_EQUAL => "<||==|",
+                TokenType.COLLECTIVE_OR_NOT_EQUAL => "<||!=|",
+                TokenType.COLLECTIVE_OR_LESS => "<||<|",
+                TokenType.COLLECTIVE_OR_LESS_EQUAL => "<||<=|",
+                TokenType.COLLECTIVE_OR_GREATER => "<||>|",
+                TokenType.COLLECTIVE_OR_GREATER_EQUAL => "<||>=|",
+
+                TokenType.TRAIN_PIPE => "->>",
+                TokenType.TRAIN_PIPE_END => "<<-",
+
+                TokenType.TYPE_OF => "typeof",
+
+                TokenType.UNDERSCORE => "_",
 
                 // This method is called in the FluenceParser only, in the parser
                 // EOL means ';' semicolon.
                 TokenType.EOL => ";",
+
+                TokenType.NEW_LINE => "\n",
+                TokenType.EOF => "<EOF>",
 
                 // For other token types without text, the type name is the best we can do.
                 _ => Type.ToString()
@@ -269,6 +365,9 @@
 
         /// <summary>A shared, single instance of the End-of-File token.</summary>
         internal static readonly Token EOF = new Token(TokenType.EOF);
+
+        /// <summary>A shared, single instance of the No Use token.</summary>
+        internal static readonly Token NoUse = new Token(TokenType.NO_USE);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Token"/> struct.

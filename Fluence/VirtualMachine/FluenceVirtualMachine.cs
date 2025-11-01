@@ -339,6 +339,7 @@ namespace Fluence.VirtualMachine
             _dispatchTable[(int)InstructionCode.LoadAddress] = ExecuteLoadAddress;
 
             _dispatchTable[(int)InstructionCode.GetType] = ExecuteGetType;
+            _dispatchTable[(int)InstructionCode.IsType] = ExecuteIsType;
 
             _dispatchTable[(int)InstructionCode.TryBlock] = ExecuteTryBlock;
             _dispatchTable[(int)InstructionCode.CatchBlock] = ExecuteCatchBlock;
@@ -1752,6 +1753,35 @@ namespace Fluence.VirtualMachine
             _operandStack.Push(GetRuntimeValue(instruction.Rhs, instruction));
             _operandStack.Push(GetRuntimeValue(instruction.Rhs2, instruction));
             _operandStack.Push(GetRuntimeValue(instruction.Rhs3, instruction));
+        }
+
+        /// <summary>
+        /// Handles the IS_TYPE instruction, which checks whether a variable is of the given trait or struct type.
+        /// </summary>
+        private void ExecuteIsType(InstructionLine instruction)
+        {
+            TempValue destRegister = (TempValue)instruction.Lhs;
+            VariableValue variable = (VariableValue)instruction.Rhs;
+            StringValue targetType = (StringValue)instruction.Rhs2;
+
+            RuntimeValue value = GetRuntimeValue(variable, instruction);
+
+            if (value.ObjectReference is not InstanceObject instance)
+            {
+                SetRegister(destRegister, RuntimeValue.False);
+                return;
+            }
+
+            int hash = targetType.Value.GetHashCode();
+
+            // If the class implements a trait, and we compare against a trait, that is still true.
+            if (instance.Class.ImplementedTraits.Contains(hash) || instance.Class.Hash == hash)
+            {
+                SetRegister(destRegister, RuntimeValue.True);
+                return;
+            }
+
+            SetRegister(destRegister, RuntimeValue.False);
         }
 
         /// <summary>

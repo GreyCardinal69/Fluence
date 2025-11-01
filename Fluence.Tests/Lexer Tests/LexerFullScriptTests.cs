@@ -38,7 +38,7 @@ namespace Fluence.LexerTests
                         rest   -> nil;
                     };
 
-                    if result is nil -> print(""Error..."") |> exit(_);
+                    if result == nil -> print(""Error..."") |> exit(_);
                     else -> print(f""Result: {result}"");
                 } else -> print(""Error..."") |> exit(1);
             }";

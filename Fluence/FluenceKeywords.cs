@@ -42,6 +42,8 @@ namespace Fluence
                 TokenType.CATCH or
                 TokenType.TRY or
                 TokenType.UNTIL or
+                TokenType.IMPL or
+                TokenType.TRAIT or
                 TokenType.REST => true,
                 _ => false,
             };
@@ -61,14 +63,14 @@ namespace Fluence
                     {
                         if (text.SequenceEqual("if")) return TokenType.IF;
                         if (text.SequenceEqual("in")) return TokenType.IN;
-                        if (text.SequenceEqual("is")) return TokenType.EQUAL_EQUAL;
+                        if (text.SequenceEqual("is")) return TokenType.IS;
                     }
                     if (text.SequenceEqual("or")) return TokenType.OR;
                     if (text.SequenceEqual("as")) return TokenType.AS;
                     break;
                 case 3:
                     if (text.SequenceEqual("nil")) return TokenType.NIL;
-                    if (text.SequenceEqual("not")) return TokenType.BANG_EQUAL;
+                    if (text.SequenceEqual("not")) return TokenType.NOT;
                     if (text.SequenceEqual("for")) return TokenType.FOR;
                     if (text.SequenceEqual("ref")) return TokenType.REF;
                     if (text.SequenceEqual("and")) return TokenType.AND;
@@ -84,9 +86,11 @@ namespace Fluence
                     if (text.SequenceEqual("loop")) return TokenType.LOOP;
                     if (text.SequenceEqual("rest")) return TokenType.REST;
                     if (text.SequenceEqual("self")) return TokenType.SELF;
+                    if (text.SequenceEqual("impl")) return TokenType.IMPL;
                     break;
                 case 5:
                     if (text.SequenceEqual("break")) return TokenType.BREAK;
+                    if (text.SequenceEqual("trait")) return TokenType.TRAIT;
                     if (text.SequenceEqual("until")) return TokenType.UNTIL;
                     if (text.SequenceEqual("catch")) return TokenType.CATCH;
                     if (text.SequenceEqual("false")) return TokenType.FALSE;

@@ -66,6 +66,53 @@ namespace Fluence
     }
 
     /// <summary>
+    /// Represents a trait encapsulating field and function signatures that classes inherit,
+    /// along with default field values and static fields.
+    /// </summary>
+    internal sealed record class TraitSymbol : Symbol
+    {
+        /// <summary>
+        /// Defines the signature of a function within the trait, including its name, hash, and arity.
+        /// </summary>
+        internal readonly record struct FunctionSignature
+        {
+            /// <summary>The name of the function.</summary>
+            internal string Name { get; init; }
+
+            /// <summary>The hash code associated with the function signature.</summary>
+            internal int Hash { get; init; }
+
+            /// <summary>The arity of the function.</summary>
+            internal int Arity { get; init; }
+        }
+
+        /// <summary>Contains the trait's fields' names.</summary>
+        internal Dictionary<int, string> FieldSignatures { get; init; }
+
+        /// <summary>Contains the trait's functions' signatures.</summary>
+        internal Dictionary<int, FunctionSignature> FunctionSignatures { get; init; }
+
+        /// <summary>
+        /// Gets a dictionary mapping field names to the sequence of tokens representing their default value expression.
+        /// This is populated during the pre-pass and used during the main pass to generate constructor bytecode.
+        /// </summary>
+        internal Dictionary<string, List<Token>> DefaultFieldValuesAsTokens { get; } = new();
+
+        /// <summary>The static solid fields of the trait.</summary>
+        internal Dictionary<string, RuntimeValue> StaticFields { get; } = new();
+
+        internal TraitSymbol(string name) : base(name)
+        {
+            FieldSignatures = new Dictionary<int, string>();
+            FunctionSignatures = new Dictionary<int, FunctionSignature>();
+        }
+
+        internal override string ToFluenceString() => "<internal: trait_symbol>";
+
+        public override string ToString() => $"TraitSymbol<{Name}>";
+    }
+
+    /// <summary>
     /// Represents a struct declaration. It contains the struct's name, fields, methods, and constructor information.
     /// </summary>
     internal sealed record class StructSymbol : Symbol
@@ -76,7 +123,7 @@ namespace Fluence
         /// <summary>The list of declared field names.</summary>
         internal List<string> Fields { get; } = new();
 
-        /// <summary>The static and solid fields of a struct.</summary>
+        /// <summary>The static solid fields of a struct.</summary>
         internal Dictionary<string, RuntimeValue> StaticFields { get; } = new();
 
         /// <summary>
@@ -105,6 +152,12 @@ namespace Fluence
         /// This can be null if no explicit constructor is defined.
         /// </summary>
         internal Dictionary<string, FunctionValue> Constructors { get; } = new();
+
+        /// <summary>
+        /// A set of pre-calculated hash codes representing the traits this struct implements, populated by the parser at compile-time after verifying that
+        /// the struct correctly fulfills all trait contracts.
+        /// </summary>
+        internal HashSet<int> ImplementedTraits { get; } = new();
 
         internal StructSymbol(string name, FluenceScope scope) : base(name)
         {

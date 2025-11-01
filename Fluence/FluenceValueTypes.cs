@@ -492,7 +492,7 @@ namespace Fluence
         }
 
         internal override string ToFluenceString() => "<internal: property_access>";
-        public override string ToString() => $"FieldAccess<{Target}:{FieldName}>";
+        public override string ToString() => $"PropertyAccessValue<{Target}:{FieldName}>";
     }
 
     /// <summary>Represents a specific member of an enum, holding both its name and integer value.</summary>

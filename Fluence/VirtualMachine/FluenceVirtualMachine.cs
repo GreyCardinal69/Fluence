@@ -340,6 +340,7 @@ namespace Fluence.VirtualMachine
 
             _dispatchTable[(int)InstructionCode.GetType] = ExecuteGetType;
             _dispatchTable[(int)InstructionCode.IsType] = ExecuteIsType;
+            _dispatchTable[(int)InstructionCode.Throw] = ExecuteThrow;
 
             _dispatchTable[(int)InstructionCode.TryBlock] = ExecuteTryBlock;
             _dispatchTable[(int)InstructionCode.CatchBlock] = ExecuteCatchBlock;
@@ -1444,6 +1445,20 @@ namespace Fluence.VirtualMachine
             }
 
             RuntimeValue instanceValue = GetRuntimeValue(instruction.Rhs, instruction);
+
+            if (instanceValue.ObjectReference is Wrapper wrapper)
+            {
+                if (wrapper.InstanceFields.TryGetValue(fieldName.Value, out RuntimeValue value))
+                {
+                    SetRegister((TempValue)instruction.Lhs, value);
+                    return;
+                }
+                else
+                {
+                    throw ConstructRuntimeException($"Runtime Error: Cannot access property '{fieldName.Value}' on an intrinsic wrapper instance (got type 'Wrapper__{GetDetailedTypeName(instanceValue)}').");
+                }
+            }
+
             if (instanceValue.ObjectReference is not InstanceObject instance)
             {
                 throw ConstructRuntimeException($"Runtime Error: Cannot access property '{fieldName.Value}' on a non-instance value (got type '{GetDetailedTypeName(instanceValue)}').");
@@ -1501,6 +1516,21 @@ namespace Fluence.VirtualMachine
             }
 
             RuntimeValue instanceValue = GetRuntimeValue(instruction.Lhs, instruction);
+
+            if (instanceValue.ObjectReference is Wrapper wrapper)
+            {
+                if (wrapper.InstanceFields.ContainsKey(fieldName.Value))
+                {
+                    RuntimeValue newValue = GetRuntimeValue(instruction.Rhs2, instruction);
+                    wrapper.InstanceFields[fieldName.Value] = newValue;
+                    return;
+                }
+                else
+                {
+                    throw ConstructRuntimeException($"Runtime Error: Cannot access property '{fieldName.Value}' on an intrinsic wrapper instance (got type 'Wrapper__{GetDetailedTypeName(instanceValue)}').");
+                }
+            }
+
             if (instanceValue.ObjectReference is not InstanceObject instance)
             {
                 throw ConstructRuntimeException($"Runtime Error: Cannot set property '{fieldName.Value}' on a non-instance value (got type '{GetDetailedTypeName(instanceValue)}').");
@@ -1755,6 +1785,27 @@ namespace Fluence.VirtualMachine
             _operandStack.Push(GetRuntimeValue(instruction.Rhs3, instruction));
         }
 
+        private void ExecuteThrow(InstructionLine instruction)
+        {
+            VariableValue variable = (VariableValue)instruction.Lhs;
+
+            RuntimeValue value = GetRuntimeValue(variable, instruction);
+
+            if (value.ObjectReference is Wrapper wrapper && wrapper.Instance is ScriptException scriptException)
+            {
+                SignalError(scriptException.Message, RuntimeExceptionType.ScriptException);
+                return;
+            }
+
+            if (value.ObjectReference is InstanceObject instance && instance.Class.ImplementedTraits.Contains("exception".GetHashCode()))
+            {
+                SignalError(instance.GetField("message", this).As<StringObject>().Value, RuntimeExceptionType.ScriptException);
+                return;
+            }
+
+            throw ConstructRuntimeException($"Runtime Error: 'throw' keyword allows only either the intrinsic 'Exception' class to be used, or a struct that inherits from the intrinsic 'exception' trait to be used.");
+        }
+
         /// <summary>
         /// Handles the IS_TYPE instruction, which checks whether a variable is of the given trait or struct type.
         /// </summary>
@@ -1765,14 +1816,25 @@ namespace Fluence.VirtualMachine
             StringValue targetType = (StringValue)instruction.Rhs2;
 
             RuntimeValue value = GetRuntimeValue(variable, instruction);
+            int hash = targetType.Value.GetHashCode();
+
+            if (value.ObjectReference is Wrapper wrapper)
+            {
+                if (wrapper.IntrinsicSymbolMarker is not null && wrapper.IntrinsicSymbolMarker is IntrinsicStructSymbol symbol && (wrapper.IntrinsicSymbolMarker.Hash == hash || symbol.ImplementedTraits.Contains(hash)))
+                {
+                    SetRegister(destRegister, RuntimeValue.True);
+                    return;
+                }
+
+                SetRegister(destRegister, RuntimeValue.False);
+                return;
+            }
 
             if (value.ObjectReference is not InstanceObject instance)
             {
                 SetRegister(destRegister, RuntimeValue.False);
                 return;
             }
-
-            int hash = targetType.Value.GetHashCode();
 
             // If the class implements a trait, and we compare against a trait, that is still true.
             if (instance.Class.ImplementedTraits.Contains(hash) || instance.Class.Hash == hash)

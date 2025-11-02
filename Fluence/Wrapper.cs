@@ -18,6 +18,16 @@ namespace Fluence
         /// </summary>
         private readonly Dictionary<string, IntrinsicRuntimeMethod> _methods;
 
+        /// <summary>
+        /// A dictionary of the fields' names and their values of the current Instance this wrapper carries.
+        /// </summary>
+        internal Dictionary<string, RuntimeValue> InstanceFields { get; } = new Dictionary<string, RuntimeValue>();
+ 
+        /// <summary>
+        /// Holds a reference to the <see cref="IntrinsicStructSymbol"/> of the Instance this wrapper carries, if it has one.
+        /// </summary>
+        internal Symbol IntrinsicSymbolMarker { get; set; }
+
         internal Wrapper(object instance, Dictionary<string, IntrinsicRuntimeMethod> methods)
         {
             Instance = instance;

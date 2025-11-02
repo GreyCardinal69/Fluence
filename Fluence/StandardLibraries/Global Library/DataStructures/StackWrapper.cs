@@ -44,7 +44,7 @@ namespace Fluence.Global
 
                     if (arg.Type != RuntimeValueType.Number || arg.NumberType != RuntimeNumberType.Int)
                     {
-                        return vm.SignalRecoverableErrorAndReturnNil("Stack constructor accepts only an integer value for its capacity in the constructor 'HashSet(capacity)'");
+                        return vm.SignalRecoverableErrorAndReturnNil("Stack constructor accepts only an integer value for its capacity in the constructor 'Stack(capacity)'");
                     }
 
                     stackInstance = new Stack<RuntimeValue>(arg.IntValue);

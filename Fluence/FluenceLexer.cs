@@ -172,11 +172,6 @@ namespace Fluence
                 _head = 0;
             }
 
-            internal void RemoveLexerEOLS()
-            {
-                _buffer.RemoveAll(token => token.Type == TokenType.NEW_LINE);
-            }
-
             internal void ClearTokens()
             {
                 _buffer.Clear();
@@ -244,16 +239,6 @@ namespace Fluence
                 return _buffer[_head].Type;
             }
 
-            internal Token PeekTokenBackByN(int n)
-            {
-                if (n > _trimThreshold)
-                {
-                    return new Token();
-                }
-
-                return _buffer[_head - n];
-            }
-
             internal TokenType PeekTokenTypeAheadByN(int n)
             {
                 EnsureFilled(n);
@@ -312,8 +297,6 @@ namespace Fluence
         internal void Advance() => _tokenBuffer.Advance();
 
         internal void ClearTokens() => _tokenBuffer.ClearTokens();
-
-        internal Token PeekTokenBackByN(int n) => _tokenBuffer.PeekTokenBackByN(n);
 
         /// <summary>
         /// Returns all the currently parsed tokens.
@@ -380,11 +363,6 @@ namespace Fluence
         /// Returns the <see cref="TokenType"/> of the next token in the buffer.
         /// </summary>
         internal TokenType PeekNextTokenType() => _tokenBuffer.PeekNextTokenType();
-
-        /// <summary>
-        /// Removes all <see cref="TokenType.EOL_LEXER"/> tokens from the buffer. Called by the parser before its first pass.
-        /// </summary>
-        internal void RemoveLexerEOLS() => _tokenBuffer.RemoveLexerEOLS();
 
         internal void DumpTokenStream(string title, TextOutputMethod outMethod)
         {

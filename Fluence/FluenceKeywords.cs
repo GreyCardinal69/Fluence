@@ -44,6 +44,7 @@ namespace Fluence
                 TokenType.UNTIL or
                 TokenType.IMPL or
                 TokenType.TRAIT or
+                TokenType.THROW or
                 TokenType.REST => true,
                 _ => false,
             };
@@ -98,6 +99,7 @@ namespace Fluence
                     if (text.SequenceEqual("space")) return TokenType.SPACE;
                     if (text.SequenceEqual("while")) return TokenType.WHILE;
                     if (text.SequenceEqual("solid")) return TokenType.SOLID;
+                    if (text.SequenceEqual("throw")) return TokenType.THROW;
                     if (text.SequenceEqual("times")) return TokenType.TIMES;
                     break;
                 case 6:

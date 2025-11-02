@@ -160,6 +160,7 @@
             TRAIN_PIPE_END,     // <<-
 
             TYPE_OF,
+            THROW,
 
             UNDERSCORE,     // _
             EOL,            // End Of Line (statement terminator, from ';').

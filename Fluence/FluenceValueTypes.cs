@@ -280,7 +280,7 @@ namespace Fluence
     /// </summary>
     internal sealed record class TempValue : Value
     {
-        internal string TempName { get; init; }
+        internal int TempIndex { get; init; }
 
         /// <summary>
         /// The runtime register index (-1 = unallocated).
@@ -289,13 +289,13 @@ namespace Fluence
 
         internal TempValue(int num)
         {
-            TempName = $"__Temp{num}";
-            Hash = TempName.GetHashCode();
+            TempIndex = num;
+            Hash = TempIndex.GetHashCode();
         }
 
         internal override string ToFluenceString() => "<internal: temp_register>";
-        internal override string ToByteCodeString() => $"{TempName}_{RegisterIndex}";
-        public override string ToString() => $"TempValue: {TempName}, Index: {RegisterIndex}";
+        internal override string ToByteCodeString() => $"__Temp{TempIndex}_{RegisterIndex}";
+        public override string ToString() => $"TempValue: {TempIndex}, Index: {RegisterIndex}";
     }
 
     /// <summary>

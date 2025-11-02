@@ -300,7 +300,7 @@ namespace Fluence
                     string escapedString = strVal.Value.Replace("\\", "\\\\").Replace("\"", "\\\"");
                     return $"new StringValue(\"{escapedString}\")";
                 case NilValue: return "new NilValue()";
-                case TempValue tempVal: return $"new TempValue({tempVal.TempName[6..]})";
+                case TempValue tempVal: return $"new TempValue({tempVal.TempIndex})";
                 case VariableValue varVal: return $"new VariableValue(\"{varVal.Name}\")";
                 case FunctionValue funcVal: return $"new FunctionValue(\"{funcVal.Name}\", {funcVal.StartAddress}, {funcVal.Arity}, {funcVal.StartAddressInSource}, [], [], null!)";
                 default: return "";

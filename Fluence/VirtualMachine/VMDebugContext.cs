@@ -77,7 +77,7 @@ namespace Fluence.VirtualMachine
             }
             else if (val is TempValue temp)
             {
-                map[temp.RegisterIndex] = temp.TempName;
+                map[temp.RegisterIndex] = $"__Temp{temp.TempIndex.ToString()}";
             }
         }
     }

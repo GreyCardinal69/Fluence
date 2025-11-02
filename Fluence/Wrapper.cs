@@ -22,7 +22,7 @@ namespace Fluence
         /// A dictionary of the fields' names and their values of the current Instance this wrapper carries.
         /// </summary>
         internal Dictionary<string, RuntimeValue> InstanceFields { get; } = new Dictionary<string, RuntimeValue>();
- 
+
         /// <summary>
         /// Holds a reference to the <see cref="IntrinsicStructSymbol"/> of the Instance this wrapper carries, if it has one.
         /// </summary>

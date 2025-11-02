@@ -1366,7 +1366,6 @@ namespace Fluence
 
             if (implementations != null)
             {
-                Console.WriteLine("here");
                 foreach (int traitName in implementations)
                 {
                     if (_currentParseState.CurrentScope.TryResolve(traitName, out Symbol symbol2) && symbol2 is TraitSymbol trait)

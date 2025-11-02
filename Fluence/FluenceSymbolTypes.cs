@@ -25,6 +25,27 @@ namespace Fluence
     }
 
     /// <summary>
+    /// Represents a declaration of an intrinsic struct symbol with a set of traits it implements.
+    /// </summary>
+    internal sealed record class IntrinsicStructSymbol : Symbol
+    {
+        /// <summary>
+        /// A set of pre-calculated hash codes representing the traits this struct implements, populated by the parser at compile-time after verifying that
+        /// the struct correctly fulfills all trait contracts.
+        /// </summary>
+        internal HashSet<int> ImplementedTraits { get; } = new();
+
+        internal IntrinsicStructSymbol(string name) : base(name)
+        {
+
+        }
+
+        internal override string ToFluenceString() => "<internal: intrinsic__struct__symbol>";
+
+        public override string ToString() => "IntrinsicStructSymbol";
+    }
+
+    /// <summary>
     /// Represents a variable of a scope.
     /// </summary>
     internal sealed record class VariableSymbol : Symbol
@@ -84,6 +105,9 @@ namespace Fluence
 
             /// <summary>The arity of the function.</summary>
             internal int Arity { get; init; }
+
+            /// <summary>Indicates whether the function signature is that of a constructor.</summary>
+            internal bool IsAConstructor { get; init; }
         }
 
         /// <summary>Contains the trait's fields' names.</summary>

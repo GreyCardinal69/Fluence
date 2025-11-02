@@ -1107,7 +1107,7 @@ namespace Fluence
                         Arity = arity,
                         Hash = funcHash,
                         Name = templatedName,
-                        IsConstructor = templatedName.StartsWith("init__", StringComparison.Ordinal)
+                        IsAConstructor = templatedName.StartsWith("init__", StringComparison.Ordinal)
                     });
 
                     currentIndex = currentLookAhead + 1;
@@ -1384,7 +1384,7 @@ namespace Fluence
                                 ? fullNameFromTrait.AsSpan()
                                 : fullNameFromTrait.AsSpan(0, delimiterIndex);
 
-                            Dictionary<string, FunctionValue>.ValueCollection structFunctionSignatures = requiredSignature.IsConstructor ? structSymbol.Constructors.Values : structSymbol.Functions.Values;
+                            Dictionary<string, FunctionValue>.ValueCollection structFunctionSignatures = requiredSignature.IsAConstructor ? structSymbol.Constructors.Values : structSymbol.Functions.Values;
 
                             foreach (FunctionValue implementedFunction in structFunctionSignatures)
                             {

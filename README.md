@@ -560,14 +560,14 @@ trait symbol {
 struct VariableSymbol impl symbol {
     func init(name) => {
         self.name = name;
-        self.hash = to_int(name[1]);
+        self.hash = name.get_hash_code();
     }
 }
 
 struct TempSymbol impl symbol {
     func init(name) => {
         self.name = name;
-        self.hash = to_int(name[1]);
+        self.hash = name.get_hash_code();
     }
 }
 

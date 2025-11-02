@@ -289,7 +289,7 @@ namespace Fluence
             {
                 ParserInstance = parser;
                 IsParsingFunctionBody = false;
-                GlobalScope = new FluenceScope(null!, "Global", false);
+                GlobalScope = new FluenceScope(null!, "Global", false, true);
                 CurrentScope = GlobalScope;
             }
 
@@ -353,13 +353,7 @@ namespace Fluence
 
             if (!allowTestCode)
             {
-                FunctionSymbol mainFunctionSymbol = FindEntryPoint();
-
-                if (mainFunctionSymbol == null)
-                {
-                    throw ConstructParserException("Could not find a 'Main' function entry point.", new Token(TokenType.UNKNOWN));
-                }
-
+                FunctionSymbol mainFunctionSymbol = FindEntryPoint() ?? throw ConstructParserException("Could not find a 'Main' function entry point.", new Token(TokenType.UNKNOWN));
                 _currentParseState.GlobalScope.Declare("Main".GetHashCode(), mainFunctionSymbol);
             }
 

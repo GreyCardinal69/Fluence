@@ -22,6 +22,7 @@ namespace Fluence
         /// <summary>Indicates whether this scope is the global scope.</summary>
         internal readonly bool IsTheGlobalScope;
 
+        /// <summary>Indicates whether this scope is an intrinsic library scope.</summary>
         internal readonly bool IsIntrinsicScope;
 
         /// <summary>
@@ -32,7 +33,7 @@ namespace Fluence
         /// <summary>
         /// Gets the parent scope in the hierarchy. This is null for the global scope.
         /// </summary>
-        internal FluenceScope ParentScope { get; init; }
+        internal readonly FluenceScope ParentScope;
 
         /// <summary>
         /// The runtime storage for this scope's global variables.
@@ -45,12 +46,12 @@ namespace Fluence
         internal bool ContainsLocal(int name) => TryGetLocalSymbol(name, out _);
         internal bool TryGetLocalSymbol(int hash, out Symbol symbol) => Symbols.TryGetValue(hash, out symbol!);
 
-        internal FluenceScope(FluenceScope parentScope, string name, bool isIntrinsic)
+        internal FluenceScope(FluenceScope parentScope, string name, bool isIntrinsic, bool isTheGlobalScope = false)
         {
             IsIntrinsicScope = isIntrinsic;
             ParentScope = parentScope;
             Name = name;
-            IsTheGlobalScope = string.Equals(name, "Global", StringComparison.Ordinal);
+            IsTheGlobalScope = isTheGlobalScope;
         }
 
         /// <summary>

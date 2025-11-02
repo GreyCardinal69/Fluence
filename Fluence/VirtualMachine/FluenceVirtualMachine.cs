@@ -269,7 +269,7 @@ namespace Fluence.VirtualMachine
 
 #if DEBUG
             FluenceDebug.DumpByteCodeInstructions(_parser.CompiledCode, _outputLine);
-            BytecodeTestGenerator.GenerateCSharpCodeForInstructionList(_parser.CurrentParseState.CodeInstructions, _outputLine);
+            FluenceDebug.GenerateCSharpCodeForInstructionList(_parser.CurrentParseState.CodeInstructions, _outputLine);
 #endif
 
             foreach (InstructionCode value in opCodeValues)

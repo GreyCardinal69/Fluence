@@ -70,6 +70,7 @@ namespace Fluence
                 SetField,
 
                 IsType,
+                Throw,
 
                 // List & Collection Operations.
                 NewList,

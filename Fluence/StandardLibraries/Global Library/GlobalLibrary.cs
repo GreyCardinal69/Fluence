@@ -163,6 +163,35 @@ namespace Fluence.Global
                 globalScope.Declare(item.Hash, item);
             }
 
+            // Core exception class and trait.
+
+            foreach (FunctionSymbol item in ExceptionWrapper.CreateConstructors(globalScope))
+            {
+                globalScope.Declare(item.Hash, item);
+            }
+
+            IntrinsicStructSymbol exceptionSymbol = new IntrinsicStructSymbol("Exception");
+
+            int exceptionHash = "exception".GetHashCode();
+            int initHash = "init__1".GetHashCode();
+
+            exceptionSymbol.ImplementedTraits.Add(exceptionHash);
+            globalScope.Declare("Exception".GetHashCode(), exceptionSymbol);
+
+            // Base exception trait a user's custom exception class can inherit from to make it work with the 'throw' keyword.
+            TraitSymbol exceptionTrait = new TraitSymbol("exception");
+            exceptionTrait.FieldSignatures.Add("message".GetHashCode(), "message");
+            exceptionTrait.DefaultFieldValuesAsTokens.Add("message", []);
+            exceptionTrait.FunctionSignatures.Add(initHash, new TraitSymbol.FunctionSignature()
+            {
+                Arity = 1,
+                Hash = initHash,
+                Name = "init__1",
+                IsAConstructor = true,
+            });
+
+            globalScope.Declare(exceptionHash, exceptionTrait);
+
             // Others
 
             // This simply returns the name of the type, not the type metadata.

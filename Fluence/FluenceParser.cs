@@ -125,7 +125,7 @@ namespace Fluence
             SetUsage(OperandUsage.Lhs,
                 InstructionCode.Return, InstructionCode.PushParam, InstructionCode.LoadAddress,
                 InstructionCode.Increment, InstructionCode.Decrement, InstructionCode.IncrementIntUnrestricted,
-                InstructionCode.NewList, InstructionCode.Goto, InstructionCode.TryBlock);
+                InstructionCode.NewList, InstructionCode.Goto, InstructionCode.TryBlock, InstructionCode.Throw);
 
             // Zero operands.
             SetUsage(OperandUsage.None,
@@ -1029,29 +1029,32 @@ namespace Fluence
 
                     traitSymbol.FieldSignatures.Add(fieldNameHash, fieldName);
 
-                    int statementEndIndex = currentIndex + 2;
-                    while (statementEndIndex < endTokenIndex && _lexer.PeekTokenTypeAheadByN(statementEndIndex + 1) != TokenType.EOL)
-                    {
-                        statementEndIndex++;
-                    }
-
+                    int statementEndIndex = currentIndex;
                     List<Token> defaultValueTokens = new List<Token>();
 
-                    for (int z = currentIndex + 3; z <= statementEndIndex; z++)
+                    if (_lexer.PeekTokenTypeAheadByN(statementEndIndex + 2) != TokenType.EOL)
                     {
-                        defaultValueTokens.Add(_lexer.PeekAheadByN(z));
-                    }
+                        while (statementEndIndex < endTokenIndex && _lexer.PeekTokenTypeAheadByN(statementEndIndex + 1) != TokenType.EOL)
+                        {
+                            statementEndIndex++;
+                        }
 
-                    if (solidField)
-                    {
-                        solidField = false;
-                        // A workaround of sorts.
-                        traitSymbol.StaticFields.Add(fieldName, RuntimeValue.Nil);
+                        for (int z = currentIndex + 3; z <= statementEndIndex; z++)
+                        {
+                            defaultValueTokens.Add(_lexer.PeekAheadByN(z));
+                        }
+
+                        if (solidField)
+                        {
+                            solidField = false;
+                            // A workaround of sorts.
+                            traitSymbol.StaticFields.Add(fieldName, RuntimeValue.Nil);
+                        }
                     }
 
                     traitSymbol.DefaultFieldValuesAsTokens.TryAdd(fieldName, defaultValueTokens);
 
-                    currentIndex = statementEndIndex + 1;
+                    currentIndex = statementEndIndex == currentIndex ? statementEndIndex + 2 : statementEndIndex + 1;
                     continue;
                 }
                 else if (currentToken.Type == TokenType.FUNC)
@@ -1104,6 +1107,7 @@ namespace Fluence
                         Arity = arity,
                         Hash = funcHash,
                         Name = templatedName,
+                        IsAConstructor = templatedName.StartsWith("init__", StringComparison.Ordinal)
                     });
 
                     currentIndex = currentLookAhead + 1;
@@ -1347,7 +1351,6 @@ namespace Fluence
                     Token trait = _lexer.ConsumeToken();
                     int hash = trait.Text.GetHashCode();
                     implementationNames.Add(hash, trait.Text);
-
                     implementations.Add(hash);
                 }
             }
@@ -1360,14 +1363,6 @@ namespace Fluence
             }
 
             _currentParseState.CurrentStructContext = structSymbol;
-
-            // Empty struct.
-            if (_lexer.TokenTypeMatches(TokenType.R_BRACE))
-            {
-                _currentParseState.CurrentStructContext = null!;
-                _lexer.Advance();
-                return;
-            }
 
             if (implementations != null)
             {
@@ -1388,7 +1383,9 @@ namespace Fluence
                                 ? fullNameFromTrait.AsSpan()
                                 : fullNameFromTrait.AsSpan(0, delimiterIndex);
 
-                            foreach (FunctionValue implementedFunction in structSymbol.Functions.Values)
+                            Dictionary<string, FunctionValue>.ValueCollection structFunctionSignatures = requiredSignature.IsAConstructor ? structSymbol.Constructors.Values : structSymbol.Functions.Values;
+
+                            foreach (FunctionValue implementedFunction in structFunctionSignatures)
                             {
                                 if (requiredNameSpan.SequenceEqual(implementedFunction.Name))
                                 {
@@ -1419,7 +1416,7 @@ namespace Fluence
                                 {
                                     throw ConstructParserException(
                                         $"Struct '{structSymbol.Name}' does not implement the required function " +
-                                        $"'{requiredNameSpan.ToString()}({(requiredSignature.Arity != 0 ? "..." : "")})' from trait '{trait.Name}'.",
+                                        $"'{requiredNameSpan.ToString()}({(requiredSignature.Arity != 0 ? $"arity__1" : "")})' from trait '{trait.Name}'.",
                                         nameToken);
                                 }
                             }
@@ -1457,6 +1454,14 @@ namespace Fluence
                         throw ConstructParserException($"The struct \"{structSymbol.Name}\" attempts to implement an unknown or invalid trait '{implementationNames![traitName]}'.", nameToken);
                     }
                 }
+            }
+
+            // Empty struct.
+            if (_lexer.TokenTypeMatches(TokenType.R_BRACE))
+            {
+                _currentParseState.CurrentStructContext = null!;
+                _lexer.Advance();
+                return;
             }
 
             int currentIndex = 1;
@@ -4453,7 +4458,8 @@ namespace Fluence
             else
             {
                 int hash = type.Text.GetHashCode();
-                if (!_currentParseState.CurrentScope.TryResolve(hash, out _))
+
+                if (!_currentParseState.CurrentScope.TryResolve(hash, out _) && !_currentParseState.GlobalScope.TryResolve(hash, out _))
                 {
                     throw ConstructParserException($"Unknown type: {type.Text} in 'is' expression", type);
                 }
@@ -4897,6 +4903,10 @@ namespace Fluence
                 case TokenType.CHARACTER: return new CharValue((char)token.Literal);
                 case TokenType.L_BRACKET: return ParseList();
                 case TokenType.MATCH: return ParseMatchStatement();
+                case TokenType.THROW:
+                    Value val = ResolveValue(ParseExpression());
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Throw, val));
+                    return StatementCompleteValue.StatementCompleted;
                 case TokenType.REF:
                     Value toRef = ParseExpression();
 

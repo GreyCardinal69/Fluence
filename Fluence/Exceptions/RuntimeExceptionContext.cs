@@ -54,7 +54,7 @@ namespace Fluence
         {
             int errorlLineNum = InstructionLine.LineInSourceCode;
             int lineNumLen = errorlLineNum.ToString().Length;
-            bool foundMatch = false;
+            bool replaceErrorMessage = false;
             StringBuilder stringBuilder = new StringBuilder();
 
             switch (excType)
@@ -63,25 +63,29 @@ namespace Fluence
 
                     foreach (FluenceScope scope in Parser.CurrentParseState.NameSpaces.Values)
                     {
-                        ElaborateOnUndefinedFunction(scope, stringBuilder, out foundMatch);
+                        ElaborateOnUndefinedFunction(scope, stringBuilder, out replaceErrorMessage);
                     }
 
-                    if (!foundMatch)
+                    if (!replaceErrorMessage)
                     {
-                        ElaborateOnUndefinedFunction(Parser.CurrentParserStateGlobalScope, stringBuilder, out foundMatch);
+                        ElaborateOnUndefinedFunction(Parser.CurrentParserStateGlobalScope, stringBuilder, out replaceErrorMessage);
                     }
 
-                    if (!foundMatch)
+                    if (!replaceErrorMessage)
                     {
                         // if there is still no match, then it is just an undefined variable, or maybe struct?
                     }
+                    break;
+                case RuntimeExceptionType.ScriptException:
+                    replaceErrorMessage = true;
+                    stringBuilder.AppendLine($"Script Exception: \"{ExceptionMessage}\"");
                     break;
                 default:
                     break;
             }
 
             stringBuilder.Append($"{new string(' ', lineNumLen + 1)}│");
-            if (foundMatch)
+            if (replaceErrorMessage)
             {
                 ExceptionMessage = stringBuilder.ToString();
             }

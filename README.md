@@ -27,6 +27,8 @@ Fluence is a dynamically-typed, interpreted, multi-paradigm scripting language t
   - [Match](#match)
 - [Data Structures](#data-structures)
   - [Structs](#structs)
+  - [Traits](#traits)
+    - [Is Keyword](#is-keyword)
   - [Enums](#enums)
   - [Namespaces & Modules](#namespaces--modules)
 - [Operators](#operators)
@@ -491,6 +493,91 @@ vector = Vector2(a,b);
 
 # direct, Required fields by name, and their value after the colon, with a comma separator.
 vector = Vector2 { x:1, y:2 };
+```
+
+### Traits
+Traits are blueprints for behavior. They allow different structs to share a common set of methods and fields without requiring inheritance. A struct can implement multiple traits.
+
+```rust
+# traits are primarily Camel case in source.
+trait makesSound {
+    func make_sound();
+}
+
+# Any struct that implements a specific trait must provide definitions for all the function signatures the trait has, in this case just the 'make_sound' function.
+struct Dog impl makesSound {
+    func init() => {}
+    func make_sound() => "Woof!";
+}
+
+struct Robot impl makesSound {
+    func init() => {}
+    func make_sound() => "Bleep-bloop!";
+}
+
+# A generic function that can work with any type that implements 'makesSound'.
+func trigger_sound(thing_with_sound) => {
+    printl(thing_with_sound.make_sound());
+}
+
+func Main() => {
+    my_dog = Dog();
+    my_robot = Robot();
+
+    trigger_sound(my_dog);    # Prints "Woof!"
+    trigger_sound(my_robot);  # Prints "Bleep-bloop!"
+}
+```
+
+Traits can define fields, both uninitialized (nil) or with default values, any struct that implements a trait automatically inherits those fields. An error will be thrown if a struct has multiple fields of the same name from different traits or its base definition.
+
+```rust
+trait symbol {
+    name; # nil
+    hash = 0; # Set to 0 on init.
+    func init(name);
+}
+
+struct VariableSymbol impl symbol {
+    func init(name) => {
+        # Struct inherits both fields from the symbol trait.
+        self.name = name; 
+        self.hash = name.get_hash_code();
+    }
+}
+```
+
+#### Is Keyword
+The 'is' keyword allows the comparison of the type of the given variable against others.
+
+```rust
+trait symbol {
+    name;
+    hash = 0;
+    func init(name);
+}
+
+struct VariableSymbol impl symbol {
+    func init(name) => {
+        self.name = name;
+        self.hash = to_int(name[1]);
+    }
+}
+
+struct TempSymbol impl symbol {
+    func init(name) => {
+        self.name = name;
+        self.hash = to_int(name[1]);
+    }
+}
+
+func Main() => {
+    varSymbol = VariableSymbol("myVar");
+
+    printl(varSymbol is VariableSymbol); # true, the variable is explicitely of the VariableSymbol type.
+    printl(varSymbol is symbol); # true, the VariableSymbol struct type implements the symbol trait.
+    printl(varSymbol is TempSymbol); # false, while TempSymbol also implements the symbol trait, its explicit struct type is different.
+}
 ```
 
 ### Enums

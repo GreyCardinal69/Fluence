@@ -1787,9 +1787,16 @@ namespace Fluence.VirtualMachine
 
         private void ExecuteThrow(InstructionLine instruction)
         {
-            VariableValue variable = (VariableValue)instruction.Lhs;
+            RuntimeValue value;
 
-            RuntimeValue value = GetRuntimeValue(variable, instruction);
+            if (instruction.Lhs is TempValue temp)
+            {
+                value = GetRuntimeValue(temp, instruction);
+            }
+            else
+            {
+                value = GetRuntimeValue((VariableValue)instruction.Lhs, instruction);
+            }
 
             if (value.ObjectReference is Wrapper wrapper && wrapper.Instance is ScriptException scriptException)
             {

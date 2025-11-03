@@ -167,7 +167,7 @@ namespace Fluence
                             return parsed;
                         }
 
-                        var newNum = new NumberValue(intVal, NumberType.Integer);
+                        NumberValue newNum = new NumberValue(intVal, NumberType.Integer);
                         ParsedIntegerNumbers.Add(intVal, newNum);
                         return newNum;
                 }

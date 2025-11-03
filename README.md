@@ -26,6 +26,7 @@ Fluence is a dynamically-typed, interpreted, multi-paradigm scripting language t
   - [Loops](#loops)
   - [Match](#match)
   - [Try Catch](#try-catch)
+  - [Exceptions](#exceptions)
 - [Data Structures](#data-structures)
   - [Structs](#structs)
   - [Traits](#traits)
@@ -494,6 +495,49 @@ func Main() => {
     catch ex -> printl(ex); # Runtime Error: List index must be a number, not 'Nil'.
 }
 ```
+
+### Exceptions
+Building on the try-catch blocks, you may use the `throw` keyword to throw exceptions at will.
+The `throw` keyword works only with struct objects that inherit from the intrinsic core `exception` trait, the built-in intrinsic basic exception class is this:
+```rust
+func Main() => {
+    list = [1..4];
+    x = nil;
+
+    # Exception - the built in struct for exceptions that implements the 'exception' trait.
+    if x == nil -> throw Exception("Invalid index");
+}
+```
+
+You may define a custom exception class, if you need to do something with the exception before throwing it like this:
+```rust
+# The intrinsic definition of the exception trait.
+trait exception {
+    message; # This is the error message that will be shown when you throw the exception.
+    func init(message);
+}
+
+# The intrinsic Exception struct class.
+struct Exception impl exception {
+    ...
+}
+
+struct MyException impl exception {
+    customField;
+
+    func init(message) => self.message <~| message;
+
+    # Other custom functions... 
+}
+
+func Main() => {
+    list = [1..4];
+    x = nil;
+
+    if x == nil -> throw MyException("Invalid index");
+}
+```
+Note that both the intrinsic `Exception` struct, and the intrinsic `exception` trait are defined in the global library, re-defining them will throw an error.
 
 ## Data Structures
 

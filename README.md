@@ -25,6 +25,7 @@ Fluence is a dynamically-typed, interpreted, multi-paradigm scripting language t
   - [If and Unless](#if-and-unless)
   - [Loops](#loops)
   - [Match](#match)
+  - [Try Catch](#try-catch)
 - [Data Structures](#data-structures)
   - [Structs](#structs)
   - [Traits](#traits)
@@ -440,6 +441,59 @@ NOTE! That a switch style match does not require a semicolon after its closing b
   };
   printl(result_message);
   ```
+
+### Try Catch
+Fluence supports try-catch blocks, which work with most exception types, except those considered uncatchable.
+Uncatchable exceptions include:
+  - Attempt to modify a solid variable/field.
+  - Incorrect number of arguments in function call.
+  - Undefined variable ( some operation with it ).
+  - Undefined function call.
+  - Attempt to call an object that is not a function or lambda, f.e `variable()`.
+  - Incorrect struct field/function access, set, get, call and other similar operations.
+  - break/continue statements outside of a loop.
+  - Invalid return statement.
+          
+For example:
+```rust
+func Main() => {
+    list = [1..4];
+    x = nil;
+
+    try {
+        printl(list[x]);
+    }
+    catch {
+        # do something.
+    }
+}
+```
+
+You can define a variable in the catch block to catch the exception message like this:
+```rust
+func Main() => {
+    list = [1..4];
+    x = nil;
+
+    try {
+        printl(list[x]);
+    }
+    catch ex {
+        printl(ex); # Runtime Error: List index must be a number, not 'Nil'.
+    }
+}
+```
+
+As most other control blocks, try-catch support a one line expression:
+```rust
+func Main() => {
+    list = [1..4];
+    x = nil;
+
+    try -> printl(list[x]);
+    catch ex -> printl(ex); # Runtime Error: List index must be a number, not 'Nil'.
+}
+```
 
 ## Data Structures
 

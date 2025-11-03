@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Fluence
 {
@@ -108,6 +109,11 @@ namespace Fluence
         internal static readonly NumberValue One = new NumberValue(1);
         internal static readonly NumberValue Zero = new NumberValue(0);
 
+        /// <summary>
+        /// Stores already parsed instances of integer values to avoid creating new instances of <see cref="NumberValue"/>s for those integers.
+        /// </summary>
+        internal static readonly Dictionary<int, NumberValue> ParsedIntegerNumbers = new Dictionary<int, NumberValue>();
+
         internal object Value { get; private set; }
         internal NumberType Type { get; private set; }
 
@@ -149,20 +155,22 @@ namespace Fluence
 
             if (int.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out int intVal))
             {
-                return intVal switch
+                switch (intVal)
                 {
-                    0 => Zero,
-                    1 => One,
-                    _ => new NumberValue(intVal, NumberType.Integer),
-                };
-            }
-            if ((lexemeSpan.Contains('.') || lexemeSpan.Contains("e", StringComparison.OrdinalIgnoreCase)) && double.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleVal))
-            {
-                return new NumberValue(doubleVal, NumberType.Double);
-            }
-            if (lexemeSpan.EndsWith("f", StringComparison.OrdinalIgnoreCase) && float.TryParse(lexemeSpan[..^1], out float floatVal))
-            {
-                return new NumberValue(floatVal, NumberType.Float);
+                    case 0: return Zero;
+                    case 1: return One;
+                    default:
+                        ref NumberValue parsed = ref CollectionsMarshal.GetValueRefOrNullRef(ParsedIntegerNumbers, intVal);
+
+                        if (!Unsafe.IsNullRef(ref parsed))
+                        {
+                            return parsed;
+                        }
+
+                        var newNum = new NumberValue(intVal, NumberType.Integer);
+                        ParsedIntegerNumbers.Add(intVal, newNum);
+                        return newNum;
+                }
             }
             if (long.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out long longVal))
             {
@@ -171,6 +179,14 @@ namespace Fluence
             if (double.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out double fallbackVal))
             {
                 return new NumberValue(fallbackVal, NumberType.Double);
+            }
+            if ((lexemeSpan.Contains('.') || lexemeSpan.Contains("e", StringComparison.OrdinalIgnoreCase)) && double.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleVal))
+            {
+                return new NumberValue(doubleVal, NumberType.Double);
+            }
+            if (lexemeSpan.EndsWith("f", StringComparison.OrdinalIgnoreCase) && float.TryParse(lexemeSpan[..^1], out float floatVal))
+            {
+                return new NumberValue(floatVal, NumberType.Float);
             }
             throw new FormatException($"Invalid number format: '{lexemeSpan}'");
         }
@@ -367,7 +383,7 @@ namespace Fluence
         internal List<string> Arguments { get; init; }
 
         /// <summary>The hash codes of the function's arguments.</summary>
-        internal List<int> ArgumentHashCodes { get; private set; }
+        internal List<int> ArgumentHashCodes { get; init; }
 
         /// <summary>
         /// The arguments of the function passed by reference by name.

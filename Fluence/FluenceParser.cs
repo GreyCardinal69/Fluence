@@ -3064,6 +3064,8 @@ namespace Fluence
                 }
             }
             while (lhsIndex < lhsDescriptors.Count);
+
+            _lhsPool.Return(rhsExpressions);
         }
 
         /// <summary>

@@ -200,9 +200,25 @@ namespace Fluence.VirtualMachine
                 return null;
             }
 
-            if (insn.Rhs2 is NumberValue num && (int)num.Value == 0)
+            if (insn.Rhs2 is NumberValue num)
             {
-                if (insn.Instruction is InstructionCode.Divide or InstructionCode.Modulo)
+                bool isZero = false;
+                switch (num.Type)
+                {
+                    case NumberValue.NumberType.Integer:
+                        isZero = (int)num.Value == 0;
+                        break;
+                    case NumberValue.NumberType.Float:
+                        isZero = (float)num.Value == 0;
+                        break;
+                    case NumberValue.NumberType.Double:
+                        isZero = (double)num.Value == 0;
+                        break;
+                    case NumberValue.NumberType.Long:
+                        isZero = (long)num.Value == 0;
+                        break;
+                }
+                if (isZero && (insn.Instruction is InstructionCode.Divide or InstructionCode.Modulo))
                 {
                     vm.SignalError($"Runtime Error: Division by zero in {(insn.Instruction == InstructionCode.Modulo ? "Modulo" : "Division")} operation.");
                 }

@@ -748,8 +748,6 @@ Starting Simple:
 # Logical
 && ||
 ! ( !true, !false )
-is ( alias of == )
-not ( alias of != )
 ```
 
 ### Ternary Operator

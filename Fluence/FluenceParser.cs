@@ -1358,6 +1358,35 @@ namespace Fluence
 
             _currentParseState.CurrentStructContext = structSymbol;
 
+            // Bytecode for solid, static fields must be generated before the application is run.
+            foreach (KeyValuePair<string, List<Token>> field in structSymbol.DefaultFieldValuesAsTokens)
+            {
+                Value defaultValueResult;
+                string fieldName = field.Key;
+                List<Token> expressionTokens = field.Value;
+
+                if (structSymbol.StaticFields.ContainsKey(fieldName))
+                {
+                    if (expressionTokens.Count == 0)
+                    {
+                        throw ConstructParserException($"Expected an assignment of a value to a solid static struct field, value can not be Nil: {structSymbol}__Field:{fieldName}.", nameToken);
+                    }
+
+                    _fieldLexer = _lexer;
+                    _lexer = new FluenceLexer(expressionTokens);
+
+                    _currentParseState.IsParsingStaticSolid = true;
+                    defaultValueResult = ResolveValue(ParseExpression());
+                    _currentParseState.IsParsingStaticSolid = false;
+
+                    _lexer = _fieldLexer; // Restore the main lexer.
+
+                    // We call SetStatic for static fields, and add to the initializer code list.
+                    // This way the values are assigned before the application runs.
+                    _currentParseState.ScriptInitializerCode.Add(new InstructionLine(InstructionCode.SetStatic, structSymbol, new StringValue(fieldName), defaultValueResult));
+                }
+            }
+
             if (implementations != null)
             {
                 foreach (int traitName in implementations)
@@ -1798,37 +1827,6 @@ namespace Fluence
                 }
 
                 StructSymbol structSymbol = (StructSymbol)symbol;
-
-                // Bytecode for solid, static fields must be generated before the application is run.
-                foreach (KeyValuePair<string, List<Token>> field in structSymbol.DefaultFieldValuesAsTokens)
-                {
-                    Value defaultValueResult;
-                    string fieldName = field.Key;
-                    List<Token> expressionTokens = field.Value;
-
-                    if (structSymbol.StaticFields.ContainsKey(fieldName) && !structSymbol.ParsedStaticFields.Contains(fieldName))
-                    {
-                        if (expressionTokens.Count == 0)
-                        {
-                            throw ConstructParserException($"Expected an assignment of a value to a solid static struct field, value can not be Nil: {structSymbol}__Field:{fieldName}.", nameToken);
-                        }
-
-                        structSymbol.ParsedStaticFields.Add(fieldName);
-                        _fieldLexer = _lexer;
-                        _lexer = new FluenceLexer(expressionTokens);
-
-                        _currentParseState.IsParsingStaticSolid = true;
-                        defaultValueResult = ResolveValue(ParseExpression());
-                        _currentParseState.IsParsingStaticSolid = false;
-
-                        _lexer = _fieldLexer; // Restore the main lexer.
-
-                        // We call SetStatic for static fields, and add to the initializer code list.
-                        // This way the values are assigned before the application runs.
-                        _currentParseState.ScriptInitializerCode.Add(new InstructionLine(InstructionCode.SetStatic, structSymbol, new StringValue(fieldName), defaultValueResult));
-                        continue;
-                    }
-                }
 
                 if (!isInit)
                 {

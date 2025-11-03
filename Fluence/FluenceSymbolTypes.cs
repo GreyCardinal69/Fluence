@@ -151,11 +151,6 @@ namespace Fluence
         internal Dictionary<string, RuntimeValue> StaticFields { get; } = new();
 
         /// <summary>
-        /// Indicates which static solid fields have already been generated initialization bytecode for.
-        /// </summary>
-        internal HashSet<string> ParsedStaticFields { get; } = new();
-
-        /// <summary>
         /// Stores natively implemented static intrinsic methods.
         /// </summary>
         public Dictionary<string, FunctionSymbol> StaticIntrinsics { get; } = new();

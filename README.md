@@ -1119,47 +1119,6 @@ Once the command is in your PATH, you can run scripts from any terminal:
 fluence -run my_script.fl
 ```
 
-## Exceptions
-Fluence supports a basic system of `try-catch` statements. A `try` block must be accompanied by a `catch` block.
-For example, a basic try-catch.
-```rust
-list = [1..5];
-index = nil;
-
-try {
-  printl(list[index]);
-} catch {
-  printl("Invalid Index");
-}
-```
-
-As most other statements, `try-catch` allows single line expressions:
-```rust
-try -> printl(list[index]);
-catch -> printl("Invalid Index");
-```
-
-We can catch the error message of the error that occured inside the `try` block by defining a variable like this:
-```rust
-func Main() => {
-    n = nil;
-    list = [1..4];
- 
-    printl("before try catch");
-
-    try -> printl(list[n]);
-    catch ex -> printl(ex); # 'ex' can be any valid variable name.
- 
-    printl("after catch");
-}
-```
-Running this script will print:
-```
-before try catch
-Runtime Error: List index must be a number, not 'Nil'.
-after catch
-```
-
 
 ## Examples
 

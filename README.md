@@ -27,6 +27,7 @@ Fluence is a dynamically-typed, interpreted, multi-paradigm scripting language t
   - [Match](#match)
   - [Try Catch](#try-catch)
   - [Exceptions](#exceptions)
+  - [Conditional Compilation](#conditional-compilation)
 - [Data Structures](#data-structures)
   - [Structs](#structs)
   - [Traits](#traits)
@@ -538,6 +539,99 @@ func Main() => {
 }
 ```
 Note that both the intrinsic `Exception` struct, and the intrinsic `exception` trait are defined in the global library, re-defining them will throw an error.
+
+Of course. Adding a section for conditional compilation is crucial for documenting your language's professional-grade features. It needs to be clear, concise, and provide a practical example.
+
+Here is the new section for your README, written in the same style and tone.
+
+### Conditional Compilation
+
+Fluence supports conditional compilation, allowing you to include or exclude blocks of code based on symbols defined at compile-time.
+
+The feature works at the top level (for entire `struct`, `trait`, `enum`, or `func` definitions) and inside function bodies.
+
+#### Syntax
+The syntax is simple: `#IF` followed by a boolean expression of compilation symbols, and a block of code enclosed in braces `{}`.
+
+```rust
+#IF SYMBOL {
+    # This code is only included if 'SYMBOL' is defined.
+}
+```
+
+You can create more complex conditions using the logical operators `&&` (AND) and `||` (OR).
+
+```rust
+#IF WINDOWS && RELEASE {
+    # This code is only included for Release builds on Windows.
+}
+```
+
+### Example: Creating `DEBUG` and `RELEASE` Builds
+
+Conditional compilation is perfect for defining different versions of variables, functions, or even entire data structures for different build targets.
+
+```rust
+space MyGame {
+
+    # Define different versions of an enum based on the build type.
+    #IF RELEASE {
+        enum LogLevel { Verbose, Info, Warning, Error }
+    }
+    #IF DEBUG {
+        enum LogLevel { Trace, Debug, Info, Warning, Error }
+    }
+
+    # Define different global constants.
+    #IF RELEASE {
+        GLOBAL_API_ENDPOINT = "https://api.mygame.com";
+    }
+    #IF DEBUG {
+        GLOBAL_API_ENDPOINT = "http://127.0.0.1:8080/api";
+    }
+    
+    # Define different implementations of a function.
+    #IF RELEASE {
+        func log_message(level, message) => {
+            if level >= LogLevel.Warning {
+                print_to_logfile(message);
+            }
+        }
+    }
+    #IF DEBUG {
+        func log_message(level, message) => {
+            # In debug mode, we log everything to the console.
+            printl(f"[{level}]: {message}");
+        }
+    }
+
+    func Main() => {
+        # Use conditional blocks inside a function.
+        #IF RELEASE {
+            printl("Running in RELEASE mode.");
+        }
+        #IF DEBUG {
+            printl("Running in DEBUG mode.");
+        }
+     
+        log_message(LogLevel.Info, "Application started.");
+        printl(f"Connecting to: {GLOBAL_API_ENDPOINT}");
+    }
+}
+```
+When compiling with the `RELEASE` symbol, the output would be:
+```
+Running in RELEASE mode.
+Connecting to: https://api.mygame.com
+```
+When compiling with the `DEBUG` symbol, the output would be:
+```
+Running in DEBUG mode.
+[Info]: Application started.
+Connecting to: http://127.0.0.1:8080/api
+```
+
+Symbols are added using the VirtualMachineConfiguration.CompilationSymbols HashSet property of the FluenceInterpreter.
 
 ## Data Structures
 

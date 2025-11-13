@@ -4154,6 +4154,7 @@ namespace Fluence
                     TokenType.BANG => InstructionCode.Not,
                     TokenType.MINUS => InstructionCode.Negate,
                     TokenType.TILDE => InstructionCode.BitwiseNot,
+                    _ => InstructionCode.NotImplemented
                 };
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(opcode, result, operand));
@@ -5417,6 +5418,7 @@ namespace Fluence
             TokenType.DOT_SLASH_EQUAL => InstructionCode.Divide,
             TokenType.DOT_PLUS_EQUAL => InstructionCode.Add,
             TokenType.DOT_MINUS_EQUAL => InstructionCode.Subtract,
+            _ => InstructionCode.NotImplemented
         };
 
         /// <summary>
@@ -5455,6 +5457,7 @@ namespace Fluence
             TokenType.COLLECTIVE_OR_LESS_EQUAL => InstructionCode.LessEqual,
             TokenType.COLLECTIVE_OR_GREATER => InstructionCode.GreaterThan,
             TokenType.COLLECTIVE_OR_GREATER_EQUAL => InstructionCode.GreaterEqual,
+            _ => InstructionCode.NotImplemented
         };
     }
 }

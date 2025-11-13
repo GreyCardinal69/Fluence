@@ -72,6 +72,8 @@ namespace Fluence
                 IsType,
                 Throw,
 
+                NotImplemented,
+
                 // List & Collection Operations.
                 NewList,
                 NewRange,

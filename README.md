@@ -720,6 +720,9 @@ Starting Simple:
 # generic operators
 + - * / %
 
+# Null Conditional call.
+?. 
+
 ** (power aka exponentiation)
 
 # Decrement, Increment
@@ -748,6 +751,25 @@ Starting Simple:
 # Logical
 && ||
 ! ( !true, !false )
+```
+
+#### Null Conditional
+A simple operator to add null safety. If the object is null and we are trying to call a function of it, the operation is skipped.
+
+```rust
+struct vector2 {
+    x;y;
+    func init(x,y) => self.x, self.y <~| x,y;
+    func print() => printl(f"vector2: x:{self.x}, y:{self.y}")
+}
+
+func Main() => {
+    a = vector2(1,5);
+    b = nil;
+
+    a?.print(); # Prints to console as intended.
+    b?.print(); # Since 'b' is null nothing happens, the call is skipped.
+}
 ```
 
 ### Ternary Operator

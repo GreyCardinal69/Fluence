@@ -35,6 +35,7 @@
             CARET,        // ^ (Bitwise XOR)
             TILDE,        // ~ (Bitwise NOT)
             QUESTION,     // ?
+            NULL_COND,    // ?. 
 
             BANG, BANG_EQUAL,       // !, !=
             EQUAL_EQUAL,            // ==

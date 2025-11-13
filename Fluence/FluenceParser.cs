@@ -4328,6 +4328,48 @@ namespace Fluence
                 {
                     left = ParseIndexAccess(left);
                 }
+                // Null conditional '?.' operator.
+                else if (type == TokenType.NULL_COND)
+                {
+                    TempValue isNullTemp = new TempValue(_currentParseState.NextTempNumber++);
+                    _currentParseState.CodeInstructions.Add(new InstructionLine(InstructionCode.Equal, isNullTemp, left, NilValue.NilInstance));
+
+                    int ifIndex = _currentParseState.CodeInstructions.Count;
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null!, isNullTemp));
+
+                    _lexer.Advance();
+
+                    Token memberToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a member name after '.' .");
+
+                    switch (left)
+                    {
+                        case VariableValue variable:
+                            if (_currentParseState.CurrentScope.TryResolve(variable.Hash, out Symbol symbol) && symbol is EnumSymbol enumSymbol)
+                            {
+                                if (enumSymbol.Members.TryGetValue(memberToken.Text, out EnumValue enumValue))
+                                {
+                                    left = enumValue;
+                                }
+                                else
+                                {
+                                    throw ConstructParserException($"Enum '{enumSymbol.Name}' does not have a member named '{memberToken.Text}'.", memberToken);
+                                }
+                            }
+                            else
+                            {
+                                left = new PropertyAccessValue(left, memberToken.Text);
+                            }
+                            break;
+                        case StaticStructAccess staticAccess:
+                            left = new StaticStructAccess(staticAccess.Struct, memberToken.Text);
+                            break;
+                        default:
+                            left = new PropertyAccessValue(left, memberToken.Text);
+                            break;
+                    }
+
+                    _currentParseState.CodeInstructions[ifIndex].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count + 1);
+                }
                 // Property access.
                 else if (type == TokenType.DOT)
                 {

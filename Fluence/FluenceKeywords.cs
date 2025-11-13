@@ -70,6 +70,7 @@ namespace Fluence
                     if (text.SequenceEqual("as")) return TokenType.AS;
                     break;
                 case 3:
+                    if (text.SequenceEqual("#IF")) return TokenType.CONDITIONAL_IF;
                     if (text.SequenceEqual("nil")) return TokenType.NIL;
                     if (text.SequenceEqual("not")) return TokenType.NOT;
                     if (text.SequenceEqual("for")) return TokenType.FOR;

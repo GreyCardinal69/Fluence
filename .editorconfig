@@ -15,6 +15,9 @@ dotnet_diagnostic.CS8600.severity = none
 # CS8603: Possible null reference return.
 dotnet_diagnostic.CS8603.severity = none
 
+# CA1707: Identifiers should not contain underscores
+dotnet_diagnostic.CA1707.severity = none
+
 [*.{cs,vb}]
 dotnet_diagnostic.IDE0090.severity = none
 [*.{cs,vb}]

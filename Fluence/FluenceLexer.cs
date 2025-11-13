@@ -445,6 +445,14 @@ namespace Fluence
 
             if (_hasReachedEndInternal) return EOF;
 
+            // A conditional '#IF' block of code.
+            if (_sourceCode[_currentPosition] == '#' && CanLookAheadStartInclusive(3) && PeekString(3).SequenceEqual("#IF"))
+            {
+                _currentLineBeforeWhiteSpace = _currentLine;
+                _currentColumnBeforeWhiteSpace = _currentColumn;
+                return MakeTokenAndTryAdvance(TokenType.CONDITIONAL_IF, 3);
+            }
+
             char currChar = _sourceCode[_currentPosition];
             int startPos = _currentPosition;
 
@@ -1103,6 +1111,12 @@ namespace Fluence
 
                 if (!_hasReachedEndInternal && _sourceCode[_currentPosition] == '#')
                 {
+                    // A conditional '#IF' block of code.
+                    if (CanLookAheadStartInclusive(3) && PeekString(3).SequenceEqual("#IF"))
+                    {
+                        break;
+                    }
+
                     // Check for multi-line comment: '#*'.
                     if (CanLookAheadStartInclusive(2) && _sourceCode[_currentPosition + 1] == '*')
                     {

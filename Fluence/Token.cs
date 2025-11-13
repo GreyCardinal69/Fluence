@@ -105,6 +105,8 @@
             IMPL,   // Inheritance.
             TRAIT,  // Inheritable.
 
+            CONDITIONAL_IF,     // '#IF' Represents a conditional block of code.
+
             // Pipe Family Operators.
             PIPE,               // |>
             OPTIONAL_PIPE,      // |?

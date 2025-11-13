@@ -620,6 +620,15 @@ namespace Fluence
                     currentIndex = declarationEndIndex;
                     continue;
                 }
+                else if (type == TokenType.CONDITIONAL_IF)
+                {
+                    int declarationStartIndex = currentIndex;
+                    int declarationEndIndex = ParseConditionalBlockFirstPhase(declarationStartIndex);
+
+                    currentIndex = declarationEndIndex;
+                    continue;
+                }
+
                 currentIndex++;
             }
         }
@@ -803,6 +812,141 @@ namespace Fluence
 
             _lexer.ModifyTokenAt(startTokenIndex + 1, new Token(TokenType.IDENTIFIER, parsedName, nameToken.Literal, nameToken.LineInSourceCode, nameToken.ColumnInSourceCode));
             _currentParseState.CurrentScope.Declare(parsedName.GetHashCode(), functionSymbol);
+        }
+
+        /// <summary>
+        /// Scans a conditional compilation block (#IF) during the parser's first pass without consuming tokens.
+        /// It evaluates the boolean expression and, if the condition is false, calculates the index of the
+        /// token immediately following the block's closing brace, allowing the parser to skip it.
+        /// If the condition is true, it returns the index of the opening brace to begin parsing.
+        /// </summary>
+        /// <param name="start">The starting index in the token stream of the '#IF' directive token.</param>
+        /// <returns>
+        /// If the condition is true, the index of the opening brace '{'.
+        /// If the condition is false, the index of the token after the matching closing brace '}'.
+        /// </returns>
+        private int ParseConditionalBlockFirstPhase(int start)
+        {
+            // start + 1 is the CONDITIONAL_IF TOKEN.
+            int currentIndex = start + 2;
+
+            bool conditionMet = _vmConfiguration.CompilationSymbols.Contains(_lexer.PeekAheadByN(currentIndex).Text);
+            currentIndex++;
+
+            while (true)
+            {
+                TokenType opType = _lexer.PeekTokenTypeAheadByN(currentIndex);
+                if (opType == TokenType.AND)
+                {
+                    currentIndex++; // Skip '&&'.
+                    bool nextTerm = _vmConfiguration.CompilationSymbols.Contains(_lexer.PeekAheadByN(currentIndex).Text);
+                    currentIndex++;
+                    conditionMet = conditionMet && nextTerm;
+                }
+                else if (opType == TokenType.OR)
+                {
+                    currentIndex++; // Skip '||'.
+                    bool nextTerm = _vmConfiguration.CompilationSymbols.Contains(_lexer.PeekAheadByN(currentIndex).Text);
+                    currentIndex++;
+                    conditionMet = conditionMet || nextTerm;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (!conditionMet)
+            {
+                int depth = 0;
+
+                while (true)
+                {
+                    TokenType type = _lexer.PeekTokenTypeAheadByN(currentIndex);
+
+                    if (type == TokenType.L_BRACE)
+                    {
+                        depth++;
+                    }
+                    else if (type == TokenType.R_BRACE)
+                    {
+                        depth--;
+                        if (depth == 0)
+                        {
+                            return currentIndex;
+                        }
+                    }
+                    currentIndex++;
+                }
+            }
+
+            return currentIndex;
+        }
+
+        /// <summary>
+        /// Parses a conditional compilation block (#IF) during the main bytecode generation pass.
+        /// It evaluates the boolean expression following the '#IF' directive. If the condition is true,
+        /// it proceeds to parse the enclosed block statement. If false, it consumes and discards
+        /// all tokens until the matching closing brace is found.
+        /// </summary>
+        private void ParseConditionalBlock()
+        {
+            _lexer.Advance(); // Consume '#IF'.
+
+            Token nameToken = _lexer.ConsumeToken();
+            bool conditionMet = _vmConfiguration.CompilationSymbols.Contains(nameToken.Text);
+
+            while (true)
+            {
+                TokenType opType = _lexer.PeekNextTokenType();
+                if (opType == TokenType.AND)
+                {
+                    _lexer.Advance(); // Consume '&&'.
+                    Token nextToken = _lexer.ConsumeToken();
+                    conditionMet = conditionMet && _vmConfiguration.CompilationSymbols.Contains(nextToken.Text);
+                }
+                else if (opType == TokenType.OR)
+                {
+                    _lexer.Advance(); // Consume '||'.
+                    Token nextToken = _lexer.ConsumeToken();
+                    conditionMet = conditionMet || _vmConfiguration.CompilationSymbols.Contains(nextToken.Text);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (conditionMet)
+            {
+                ParseBlockStatement();
+                return;
+            }
+
+            // Invalid target, we ignore the code block.
+            int depth = 1;
+            _lexer.Advance();
+
+            while (true)
+            {
+                if (depth == 0)
+                {
+                    break;
+                }
+
+                TokenType type = _lexer.PeekNextTokenType();
+
+                if (type == TokenType.L_BRACE)
+                {
+                    depth++;
+                }
+                else if (type == TokenType.R_BRACE)
+                {
+                    depth--;
+                }
+
+                _lexer.Advance();
+            }
         }
 
         /// <summary>
@@ -1185,6 +1329,7 @@ namespace Fluence
                 case TokenType.STRUCT: ParseStructStatement(); break;
                 case TokenType.SPACE: ParseNameSpace(); break;
                 case TokenType.USE: ParseUseStatement(); break;
+                case TokenType.CONDITIONAL_IF: ParseConditionalBlock(); break;
 
                 // Control Flow & Block Statements.
                 case TokenType.IF: ParseIfStatement(); break;

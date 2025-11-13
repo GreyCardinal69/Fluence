@@ -7,6 +7,16 @@
     public sealed class VirtualMachineConfiguration
     {
         /// <summary>
+        /// Gets or sets a collection of active conditional compilation symbols.
+        /// Code inside an '#IF SYMBOL {...}' block will only be parsed if the symbol
+        /// is present in this set. Symbols are case-sensitive, all uppercase.
+        /// </summary>
+        /// <remarks>
+        /// Common symbols include: DEBUG, RELEASE, UNITY_EDITOR, WINDOWS, LINUX, IOS, ANDROID, WEB.
+        /// </remarks>
+        public HashSet<string> CompilationSymbols { get; } = new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>
         /// Gets or sets a value indicating whether the generated Fluence bytecode should be
         /// run through an incremental optimization pass before execution.
         /// This is primarily a debug option.

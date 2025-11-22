@@ -20,7 +20,7 @@ namespace Fluence
             if (startAddress < 10) return $"000{startAddress}";
             if (startAddress < 100) return $"00{startAddress}";
             if (startAddress < 1000) return $"0{startAddress}";
-            if (startAddress < 1000) return $"{startAddress}";
+            if (startAddress < 10000) return $"{startAddress}";
             return "-1";
         }
 
@@ -75,13 +75,13 @@ namespace Fluence
             }
         }
 
+#if DEBUG
         internal static void DumpSymbolTables(FluenceParser.ParseState parseState, TextOutputMethod outMethod)
         {
             StringBuilder sb = new StringBuilder("------------------------------------\n\nGenerated Symbol Hierarchy:\n\n");
 
             DumpScope(sb, parseState.GlobalScope, "Global Scope", 0);
 
-#if DEBUG
             // If there are any namespaces, dump them as separate top-level scopes.
             if (parseState.NameSpaces.Count != 0)
             {
@@ -92,11 +92,11 @@ namespace Fluence
                     outMethod("\n");
                 }
             }
-#endif
 
             sb.AppendLine("------------------------------------");
             outMethod(sb.ToString());
         }
+#endif
 
         /// <summary>
         /// A recursive helper to dump the contents of a single scope and its children.

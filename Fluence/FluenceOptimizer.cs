@@ -44,7 +44,7 @@ namespace Fluence
             FuseSimpleAssignments(ref bytecode, startIndex, ref byteCodeChanged);
             FusePushParams(ref bytecode, startIndex, ref byteCodeChanged);
             ConvertToIncrementsDecrements(ref bytecode, startIndex);
-            ReduceDivisionModuloEvenOddChecks(ref bytecode, startIndex, ref byteCodeChanged);
+            ApplyStrengthReduction(ref bytecode, startIndex, ref byteCodeChanged);
             FuseComparisonBranches(ref bytecode, startIndex, ref byteCodeChanged);
 
             if (byteCodeChanged)
@@ -68,7 +68,7 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>
         /// <param name="startIndex">The index from which to begin scanning.</param>
-        private static void ReduceDivisionModuloEvenOddChecks(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
+        private static void ApplyStrengthReduction(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
             Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
             Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];

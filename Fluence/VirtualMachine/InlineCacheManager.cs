@@ -133,7 +133,7 @@ namespace Fluence.VirtualMachine
             if (left.NumberType >= RuntimeNumberType.Float || right.NumberType >= RuntimeNumberType.Float)
             {
                 long leftVal = (long)left.ToDouble();
-                int rightVal = (int)right.ToDouble(); 
+                int rightVal = (int)right.ToDouble();
                 return new RuntimeValue(leftVal >> rightVal);
             }
 

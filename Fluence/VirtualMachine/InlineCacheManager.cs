@@ -127,6 +127,94 @@ namespace Fluence.VirtualMachine
             return new RuntimeValue(Math.Pow(left.IntValue, right.IntValue));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static RuntimeValue BitwiseShiftRight(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
+        {
+            if (left.NumberType >= RuntimeNumberType.Float || right.NumberType >= RuntimeNumberType.Float)
+            {
+                long leftVal = (long)left.ToDouble();
+                int rightVal = (int)right.ToDouble(); 
+                return new RuntimeValue(leftVal >> rightVal);
+            }
+
+            if (left.NumberType == RuntimeNumberType.Long || right.NumberType == RuntimeNumberType.Long)
+            {
+                long leftVal = left.ToLong();
+                int rightVal = (int)right.ToLong();
+                return new RuntimeValue(leftVal >> rightVal);
+            }
+
+            return new RuntimeValue(left.IntValue >> right.IntValue);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static RuntimeValue BitwiseShiftLeft(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
+        {
+            if (left.NumberType >= RuntimeNumberType.Float || right.NumberType >= RuntimeNumberType.Float)
+            {
+                long leftVal = (long)left.ToDouble();
+                int rightVal = (int)right.ToDouble();
+                return new RuntimeValue(leftVal << rightVal);
+            }
+
+            if (left.NumberType == RuntimeNumberType.Long || right.NumberType == RuntimeNumberType.Long)
+            {
+                long leftVal = left.ToLong();
+                int rightVal = (int)right.ToLong();
+                return new RuntimeValue(leftVal << rightVal);
+            }
+
+            return new RuntimeValue(left.IntValue << right.IntValue);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static RuntimeValue BitwiseXor(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
+        {
+            if (left.NumberType >= RuntimeNumberType.Float || right.NumberType >= RuntimeNumberType.Float)
+            {
+                return new RuntimeValue((long)left.ToDouble() ^ (long)right.ToDouble());
+            }
+
+            if (left.NumberType == RuntimeNumberType.Long || right.NumberType == RuntimeNumberType.Long)
+            {
+                return new RuntimeValue(left.ToLong() ^ right.ToLong());
+            }
+
+            return new RuntimeValue(left.IntValue ^ right.IntValue);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static RuntimeValue BitwiseOr(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
+        {
+            if (left.NumberType >= RuntimeNumberType.Float || right.NumberType >= RuntimeNumberType.Float)
+            {
+                return new RuntimeValue((long)left.ToDouble() | (long)right.ToDouble());
+            }
+
+            if (left.NumberType == RuntimeNumberType.Long || right.NumberType == RuntimeNumberType.Long)
+            {
+                return new RuntimeValue(left.ToLong() | right.ToLong());
+            }
+
+            return new RuntimeValue(left.IntValue | right.IntValue);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static RuntimeValue BitwiseAnd(FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right)
+        {
+            if (left.NumberType >= RuntimeNumberType.Float || right.NumberType >= RuntimeNumberType.Float)
+            {
+                return new RuntimeValue((long)left.ToDouble() & (long)right.ToDouble());
+            }
+
+            if (left.NumberType == RuntimeNumberType.Long || right.NumberType == RuntimeNumberType.Long)
+            {
+                return new RuntimeValue(left.ToLong() & right.ToLong());
+            }
+
+            return new RuntimeValue(left.IntValue & right.IntValue);
+        }
+
         private static bool AttemptToModifyAReadonlyVariable(InstructionLine insn, FluenceVirtualMachine vm, out string name)
         {
             if (insn.Instruction == InstructionCode.Assign)
@@ -525,6 +613,21 @@ namespace Fluence.VirtualMachine
 
         internal static SpecializedOpcodeHandler? CreateSpecializedPowerHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right) =>
             CreateBinaryNumericHandler(insn, left, right, vm, PowerValues);
+
+        internal static SpecializedOpcodeHandler? CreateBitwiseRightShiftHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right) =>
+            CreateBinaryNumericHandler(insn, left, right, vm, BitwiseShiftRight);
+
+        internal static SpecializedOpcodeHandler? CreateBitwiseLeftShiftHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right) =>
+            CreateBinaryNumericHandler(insn, left, right, vm, BitwiseShiftLeft);
+
+        internal static SpecializedOpcodeHandler? CreateBitwiseXorHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right) =>
+            CreateBinaryNumericHandler(insn, left, right, vm, BitwiseXor);
+
+        internal static SpecializedOpcodeHandler? CreateBitwiseOrHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right) =>
+            CreateBinaryNumericHandler(insn, left, right, vm, BitwiseOr);
+
+        internal static SpecializedOpcodeHandler? CreateBitwiseAndHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue left, RuntimeValue right) =>
+            CreateBinaryNumericHandler(insn, left, right, vm, BitwiseAnd);
 
         /// <summary>
         /// Defines the type of comparison for a specialized branch handler.

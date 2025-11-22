@@ -928,6 +928,12 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecuteBitwiseOperation(InstructionLine instruction)
         {
+            if (instruction.SpecializedHandler != null)
+            {
+                instruction.SpecializedHandler(instruction, this);
+                return;
+            }
+
             RuntimeValue leftValue = GetRuntimeValue(instruction.Rhs, instruction);
             long leftLong = ToLong(leftValue);
 
@@ -938,23 +944,27 @@ namespace Fluence.VirtualMachine
             }
 
             RuntimeValue rightValue = GetRuntimeValue(instruction.Rhs2, instruction);
-            long result = instruction.Instruction switch
-            {
-                InstructionCode.BitwiseAnd => leftLong & ToLong(rightValue),
-                InstructionCode.BitwiseOr => leftLong | ToLong(rightValue),
-                InstructionCode.BitwiseXor => leftLong ^ ToLong(rightValue),
-                InstructionCode.BitwiseLShift => leftLong << ToInt(rightValue),
-                InstructionCode.BitwiseRShift => leftLong >> ToInt(rightValue),
-                _ => SignalError<long>("Internal VM Error: Unhandled bitwise operation routed to ExecuteBitwiseOperation.")!,
-            };
 
-            if (instruction.Lhs is VariableValue var)
+            switch (instruction.Instruction)
             {
-                AssignVariable(var, new RuntimeValue(result), instruction, var.IsReadOnly);
-                return;
+                case InstructionCode.BitwiseRShift:
+                    instruction.SpecializedHandler = CreateBitwiseRightShiftHandler(instruction, this, leftValue, rightValue);
+                    break;
+                case InstructionCode.BitwiseLShift:
+                    instruction.SpecializedHandler = CreateBitwiseLeftShiftHandler(instruction, this, leftValue, rightValue);
+                    break;
+                case InstructionCode.BitwiseOr:
+                    instruction.SpecializedHandler = CreateBitwiseOrHandler(instruction, this, leftValue, rightValue);
+                    break;
+                case InstructionCode.BitwiseXor:
+                    instruction.SpecializedHandler = CreateBitwiseXorHandler(instruction, this, leftValue, rightValue);
+                    break;
+                case InstructionCode.BitwiseAnd:
+                    instruction.SpecializedHandler = CreateBitwiseAndHandler(instruction, this, leftValue, rightValue);
+                    break;
             }
 
-            SetRegister((TempValue)instruction.Lhs, new RuntimeValue(result));
+            instruction.SpecializedHandler(instruction, this);
         }
 
         /// <summary>

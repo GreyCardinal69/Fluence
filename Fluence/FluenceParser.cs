@@ -1851,13 +1851,13 @@ namespace Fluence
 
             int checkStartIndex = _currentParseState.CodeInstructions.Count;
 
-            _currentParseState.CodeInstructions[initialJumpIndex].Lhs = NumberValue.FromInt(checkStartIndex);
+            _currentParseState.CodeInstructions[initialJumpIndex].Lhs = new NumberValue(checkStartIndex);
 
             _currentParseState.CodeInstructions.AddRange(conditionInstructions);
 
             InstructionCode branchOp = parseAsUntil ? InstructionCode.GotoIfFalse : InstructionCode.GotoIfTrue;
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(branchOp, NumberValue.FromInt(loopBodyIndex), condition));
+            _currentParseState.AddCodeInstruction(new InstructionLine(branchOp, new NumberValue(loopBodyIndex), condition));
 
             int loopExitIndex = _currentParseState.CodeInstructions.Count;
             PatchLoopExits(whileContext, loopExitIndex, checkStartIndex);

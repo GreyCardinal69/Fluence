@@ -44,6 +44,7 @@ namespace Fluence
             FuseSimpleAssignments(ref bytecode, startIndex, ref byteCodeChanged);
             FusePushParams(ref bytecode, startIndex, ref byteCodeChanged);
             ConvertToIncrementsDecrements(ref bytecode, startIndex);
+            ReduceDivisionModuloEvenOddChecks(ref bytecode, startIndex, ref byteCodeChanged);
             FuseComparisonBranches(ref bytecode, startIndex, ref byteCodeChanged);
 
             if (byteCodeChanged)
@@ -57,6 +58,45 @@ namespace Fluence
                 _registerInfoMap.Clear();
                 _constantsMap.Clear();
                 _instructionsToRemove.Clear();
+            }
+        }
+
+        /// <summary>
+        /// Scans for modulo or division by 2 and replaces them with bitwise operations (Strength Reduction).
+        /// Modulo X, 2 => BitwiseAnd X, 1
+        /// Divide X, 2 => BitShiftRight X, 1
+        /// </summary>
+        /// <param name="bytecode">The bytecode list to modify.</param>
+        /// <param name="startIndex">The index from which to begin scanning.</param>
+        private static void ReduceDivisionModuloEvenOddChecks(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
+        {
+            Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
+            Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
+
+            for (int i = 0; i < relevantSpan.Length; i++)
+            {
+                ref InstructionLine line = ref relevantSpan[i];
+
+                if (line == null) continue;
+
+                if (line.Instruction == InstructionCode.Divide)
+                {
+                    if (line.Rhs2 is NumberValue num && (int)num.Value == 2)
+                    {
+                        line.Instruction = InstructionCode.BitwiseRShift;
+                        line.Rhs2 = NumberValue.One;
+                        byteCodeChanged = true;
+                    }
+                }
+                else if (line.Instruction == InstructionCode.Modulo)
+                {
+                    if (line.Rhs2 is NumberValue num && (int)num.Value == 2)
+                    {
+                        line.Instruction = InstructionCode.BitwiseAnd;
+                        line.Rhs2 = NumberValue.One;
+                        byteCodeChanged = true;
+                    }
+                }
             }
         }
 

@@ -176,22 +176,7 @@ namespace Fluence
 
             if (int.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out int intVal))
             {
-                switch (intVal)
-                {
-                    case 0: return Zero;
-                    case 1: return One;
-                    default:
-                        ref NumberValue parsed = ref CollectionsMarshal.GetValueRefOrNullRef(ParsedIntegerNumbers, intVal);
-
-                        if (!Unsafe.IsNullRef(ref parsed))
-                        {
-                            return parsed;
-                        }
-
-                        NumberValue newNum = new NumberValue(intVal, NumberType.Integer);
-                        ParsedIntegerNumbers.Add(intVal, newNum);
-                        return newNum;
-                }
+                return FromInt(intVal);
             }
             if (long.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out long longVal))
             {

@@ -149,6 +149,27 @@ namespace Fluence
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static NumberValue FromInt(int value)
+        {
+            switch (value)
+            {
+                case 0: return Zero;
+                case 1: return One;
+                default:
+                    ref NumberValue parsed = ref CollectionsMarshal.GetValueRefOrNullRef(ParsedIntegerNumbers, value);
+
+                    if (!Unsafe.IsNullRef(ref parsed))
+                    {
+                        return parsed;
+                    }
+
+                    NumberValue newNum = new NumberValue(value, NumberType.Integer);
+                    ParsedIntegerNumbers.Add(value, newNum);
+                    return newNum;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static NumberValue FromToken(Token token)
         {
             ReadOnlySpan<char> lexemeSpan = token.Text.AsSpan();

@@ -1821,31 +1821,47 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Parses a while loop.
+        /// Parses a while/until loop using Loop Inversion.
+        /// Structure: Goto Check -> Label Body -> Body Code -> Label Check -> Condition Code -> BranchToBody.
         /// </summary>
         private void ParseWhileStatement(bool parseAsUntil)
         {
             _lexer.Advance(); // Consume 'while' or 'until'.
 
-            int loopStartIndex = _currentParseState.CodeInstructions.Count;
+            int condStartIndex = _currentParseState.CodeInstructions.Count;
+
             Value condition = ResolveValue(ParseExpression());
+
+            int condEndIndex = _currentParseState.CodeInstructions.Count;
+            int condCount = condEndIndex - condStartIndex;
+
+            List<InstructionLine> conditionInstructions = _currentParseState.CodeInstructions.GetRange(condStartIndex, condCount);
+
+            _currentParseState.CodeInstructions.RemoveRange(condStartIndex, condCount);
 
             LoopContext whileContext = new LoopContext();
             _currentParseState.ActiveLoopContexts.Push(whileContext);
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(parseAsUntil ? InstructionCode.GotoIfTrue : InstructionCode.GotoIfFalse, null!, condition));
-            int loopExitPatch = _currentParseState.CodeInstructions.Count - 1;
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
+            int initialJumpIndex = _currentParseState.CodeInstructions.Count - 1;
+
+            int loopBodyIndex = _currentParseState.CodeInstructions.Count;
 
             ParseStatementBody($"Expected an '->' for a single-line {(parseAsUntil ? "Until" : "While")} loop body.");
 
-            // We jump to the start of the loop, which is the condition check.
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex)));
+            int checkStartIndex = _currentParseState.CodeInstructions.Count;
 
-            int loopEndIndex = _currentParseState.CodeInstructions.Count;
+            _currentParseState.CodeInstructions[initialJumpIndex].Lhs = NumberValue.FromInt(checkStartIndex);
 
-            _currentParseState.CodeInstructions[loopExitPatch].Lhs = new NumberValue(loopEndIndex);
+            _currentParseState.CodeInstructions.AddRange(conditionInstructions);
 
-            PatchLoopExits(whileContext, loopEndIndex, loopStartIndex);
+            InstructionCode branchOp = parseAsUntil ? InstructionCode.GotoIfFalse : InstructionCode.GotoIfTrue;
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(branchOp, NumberValue.FromInt(loopBodyIndex), condition));
+
+            int loopExitIndex = _currentParseState.CodeInstructions.Count;
+            PatchLoopExits(whileContext, loopExitIndex, checkStartIndex);
+
             _currentParseState.ActiveLoopContexts.Pop();
         }
 

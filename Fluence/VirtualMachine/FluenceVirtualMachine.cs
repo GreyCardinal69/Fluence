@@ -1,4 +1,5 @@
 using Fluence.Exceptions;
+using Fluence.Extensions;
 using Fluence.Global;
 using Fluence.RuntimeTypes;
 using System.Diagnostics;
@@ -17,7 +18,7 @@ namespace Fluence.VirtualMachine
     /// The core execution engine for Fluence bytecode. It manages the call stack, the instruction pointer,
     /// the memory (registers and globals), and the main execution loop.
     /// </summary>
-    internal sealed class FluenceVirtualMachine
+    internal sealed class FluenceVirtualMachine : INativeVmContext
     {
         /// <summary>A delegate for a natively implemented C# function that can be called from Fluence.</summary>
         internal delegate RuntimeValue IntrinsicRuntimeMethod(FluenceVirtualMachine vm, RuntimeValue self);
@@ -1983,7 +1984,7 @@ namespace Fluence.VirtualMachine
             _ip = function.StartAddress;
         }
 
-        internal RuntimeValue PopStack()
+        public RuntimeValue PopStack()
         {
             if (_operandStack.Count > 0)
             {
@@ -2887,7 +2888,7 @@ namespace Fluence.VirtualMachine
         /// to the catch block. Otherwise, it throws an unhandled exception, terminating the VM.
         /// </summary>
         /// <param name="exception">The error message.</param>
-        internal void SignalError(string exception, RuntimeExceptionType exceptionType = RuntimeExceptionType.NonSpecific)
+        public void SignalError(string exception, RuntimeExceptionType exceptionType = RuntimeExceptionType.NonSpecific)
         {
             if (_tryCatchBlocks.Count > 0)
             {

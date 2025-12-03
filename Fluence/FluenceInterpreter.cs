@@ -1,4 +1,5 @@
 using Fluence.Exceptions;
+using Fluence.Extensions;
 using Fluence.RuntimeTypes;
 using Fluence.VirtualMachine;
 using static Fluence.FluenceByteCode;
@@ -95,6 +96,13 @@ namespace Fluence
         /// </summary>
         public bool IsDone => _vm.State == FluenceVMState.Finished;
 
+        private readonly Dictionary<string, Action<LibraryBuilder>> _customLibraries = new();
+
+        public void RegisterLibrary(string namespaceName, Action<LibraryBuilder> registrar)
+        {
+            _customLibraries[namespaceName] = registrar;
+        }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="FluenceInterpreter"/>.
         /// </summary>
@@ -140,6 +148,7 @@ namespace Fluence
                 FluenceLexer lexer = new FluenceLexer(sourceCode);
                 FluenceParser parser = new FluenceParser(lexer, _vmConfiguration, OnOutputLine, OnOutput, OnInput);
                 _intrinsicsInstance = parser.Intrinsics;
+                _intrinsicsInstance.RegisterCustomIntrinsics(_customLibraries);
                 parser.Parse(partialCode);
 
 #if DEBUG
@@ -173,6 +182,7 @@ namespace Fluence
             {
                 FluenceParser parser = new FluenceParser(rootDir, _vmConfiguration, OnOutputLine, OnOutput, OnInput);
                 _intrinsicsInstance = parser.Intrinsics;
+                _intrinsicsInstance.RegisterCustomIntrinsics(_customLibraries);
                 parser.Parse(partialCode);
 
 #if DEBUG

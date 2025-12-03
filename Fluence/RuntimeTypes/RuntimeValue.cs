@@ -50,7 +50,7 @@ namespace Fluence.RuntimeTypes
     /// Represents any value that can exist in the Fluence VM at runtime.
     /// </summary>
     [StructLayout(LayoutKind.Explicit)]
-    internal readonly record struct RuntimeValue
+    public readonly record struct RuntimeValue
     {
         [FieldOffset(0)]
         internal readonly long LongValue;

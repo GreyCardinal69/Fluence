@@ -1,4 +1,5 @@
-﻿using Fluence.Global;
+﻿using Fluence.Extensions;
+using Fluence.Global;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using static Fluence.FluenceInterpreter;
@@ -45,6 +46,25 @@ namespace Fluence
         internal void RegisterCoreGlobals()
         {
             GlobalLibrary.Register(_parser.CurrentParserStateGlobalScope, _outputLine, _input, _output);
+        }
+
+        internal void RegisterCustomIntrinsics(Dictionary<string, Action<LibraryBuilder>> libs)
+        {
+            if (libs == null) return;
+
+            foreach (KeyValuePair<string, Action<LibraryBuilder>> lib in libs)
+            {
+                string libraryName = lib.Key;
+                Action<LibraryBuilder> userDefinedAction = lib.Value;
+
+                Action<FluenceScope> internalAction = (internalScope) =>
+                {
+                    LibraryBuilder builder = new LibraryBuilder(internalScope);
+                    userDefinedAction(builder);
+                };
+
+                _libraryRegistry[libraryName.GetHashCode()] = internalAction;
+            }
         }
 
         /// <summary>

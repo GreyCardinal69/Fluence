@@ -41,10 +41,12 @@ namespace Fluence
         /// </summary>
         internal readonly Dictionary<int, RuntimeValue> RuntimeStorage = new Dictionary<int, RuntimeValue>();
 
+#if DEBUG
         // Used in Tests. Might also be useful for other purposes.
         internal bool Contains(string name) => TryResolve(name.GetHashCode(), out _);
         internal bool ContainsLocal(int name) => TryGetLocalSymbol(name, out _);
         internal bool TryGetLocalSymbol(int hash, out Symbol symbol) => Symbols.TryGetValue(hash, out symbol!);
+#endif
 
         internal FluenceScope(FluenceScope parentScope, string name, bool isIntrinsic, bool isTheGlobalScope = false)
         {

@@ -5067,6 +5067,13 @@ namespace Fluence
                             return new StringValue(name);
                         }
                     }
+                    else if (symbol is VariableSymbol varSymbol)
+                    {
+                        TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, temp, varSymbol.Value));
+
+                        return temp;
+                    }
                     else
                     {
                         // "x times" consumes the identifier, and dispatches the appropriate method.

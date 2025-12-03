@@ -2666,17 +2666,12 @@ namespace Fluence.VirtualMachine
         /// <returns>True if the variable is readonly.</returns>
         internal bool VariableIsReadonly(VariableValue variable)
         {
-            if (variable.IsGlobal && _globalWritableCache[variable.RegisterIndex])
+            if (variable.IsGlobal)
             {
-                return true;
+                return _globalWritableCache[variable.RegisterIndex];
             }
 
-            if (_cachedWritableCache[variable.RegisterIndex])
-            {
-                return true;
-            }
-
-            return false;
+            return _cachedWritableCache[variable.RegisterIndex];
         }
 
         /// <summary>

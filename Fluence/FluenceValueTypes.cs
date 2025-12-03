@@ -174,11 +174,11 @@ namespace Fluence
         {
             ReadOnlySpan<char> lexemeSpan = token.Text.AsSpan();
 
-            if (int.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out int intVal))
+            if (int.TryParse(lexemeSpan, NumberStyles.Integer, CultureInfo.InvariantCulture, out int intVal))
             {
                 return FromInt(intVal);
             }
-            if (long.TryParse(lexemeSpan, NumberStyles.Any, CultureInfo.InvariantCulture, out long longVal))
+            if (long.TryParse(lexemeSpan, NumberStyles.Integer, CultureInfo.InvariantCulture, out long longVal))
             {
                 return new NumberValue(longVal, NumberType.Long);
             }

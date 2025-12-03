@@ -1284,7 +1284,6 @@ Fluence is still a language heavily in development, as such many features and mu
 - Several Lambda based pipes the concepts of which exist, but due to not yet being implemented are not included in the readme.
 - Default function argument values
 - Some form of pattern matching
-- Custom intrinsics, a way to define intrinsics from the outside of the Fluence .dll
 - Enums as full objects.
 - Structs in structs, currently the parser cant parse nested structs, it can parse enums defined in structs, but not structs.
 - And much more.

@@ -4161,7 +4161,7 @@ namespace Fluence
             {
                 Token op = _lexer.ConsumeToken();
 
-                Value operand = ResolveValue(ParseExpression());
+                Value operand = ResolveValue(ParseUnary());
 
                 TempValue result = new TempValue(_currentParseState.NextTempNumber++);
 

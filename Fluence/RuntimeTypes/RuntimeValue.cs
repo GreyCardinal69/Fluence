@@ -7,7 +7,7 @@ namespace Fluence.RuntimeTypes
     /// <summary>
     /// A discriminator to identify the fundamental type of data stored in a <see cref="RuntimeValue"/>.
     /// </summary>
-    internal enum RuntimeValueType : byte
+    public enum RuntimeValueType : byte
     {
         Nil,
         Boolean,
@@ -18,7 +18,7 @@ namespace Fluence.RuntimeTypes
     /// <summary>
     /// A sub-discriminator used when <see cref="RuntimeValueType"/> is <see cref="RuntimeValueType.Number"/>.
     /// </summary>
-    internal enum RuntimeNumberType : byte
+    public enum RuntimeNumberType : byte
     {
         /// <summary>
         /// System.Int32 (32-bit integer).
@@ -53,24 +53,24 @@ namespace Fluence.RuntimeTypes
     public readonly record struct RuntimeValue
     {
         [FieldOffset(0)]
-        internal readonly long LongValue;
+        public readonly long LongValue;
         [FieldOffset(0)]
-        internal readonly double DoubleValue;
+        public readonly double DoubleValue;
         [FieldOffset(0)]
-        internal readonly int IntValue;
+        public readonly int IntValue;
         [FieldOffset(0)]
-        internal readonly float FloatValue;
+        public readonly float FloatValue;
 
         [FieldOffset(8)]
         internal readonly object ObjectReference;
         [FieldOffset(16)]
-        internal readonly RuntimeValueType Type;
+        public readonly RuntimeValueType Type;
         [FieldOffset(17)]
-        internal readonly RuntimeNumberType NumberType;
+        public readonly RuntimeNumberType NumberType;
 
-        internal static readonly RuntimeValue Nil = new RuntimeValue(RuntimeValueType.Nil);
-        internal static readonly RuntimeValue True = new RuntimeValue(true);
-        internal static readonly RuntimeValue False = new RuntimeValue(false);
+        public static readonly RuntimeValue Nil = new RuntimeValue(RuntimeValueType.Nil);
+        public static readonly RuntimeValue True = new RuntimeValue(true);
+        public static readonly RuntimeValue False = new RuntimeValue(false);
 
         private RuntimeValue(RuntimeValueType type)
         {
@@ -177,13 +177,13 @@ namespace Fluence.RuntimeTypes
         /// <summary>
         /// Safely casts the internal <see cref="ObjectReference"/> to the specified type.
         /// </summary>
-        internal T As<T>() where T : class => ObjectReference as T;
+        public T As<T>() where T : class => ObjectReference as T;
 
         /// <summary>
         /// Gets a value indicating whether the <see cref="RuntimeValue"/> is "truthy".
         /// In Fluence, only 'nil' and 'false' are considered falsy.
         /// </summary>
-        internal bool IsTruthy => !(Type == RuntimeValueType.Nil || (Type == RuntimeValueType.Boolean && IntValue == 0));
+        public bool IsTruthy => !(Type == RuntimeValueType.Nil || (Type == RuntimeValueType.Boolean && IntValue == 0));
 
         /// <inheritdoc/>
         public override string ToString()

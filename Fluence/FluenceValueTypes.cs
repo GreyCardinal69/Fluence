@@ -8,7 +8,7 @@ namespace Fluence
     /// The abstract base type for all values that can be represented in bytecode.
     /// These objects are used by the parser to build an abstract representation of the code.
     /// </summary>
-    internal abstract record class Value
+    public abstract record class Value
     {
         internal virtual int Hash { get; init; }
 
@@ -31,14 +31,14 @@ namespace Fluence
     }
 
     /// <summary>Represents a single character literal.</summary>
-    internal sealed record class CharValue(char Value) : Value()
+    public sealed record class CharValue(char Value) : Value()
     {
         internal override string ToFluenceString() => Value.ToString();
         public override string ToString() => $"CharValue: {Value}";
     }
 
     /// <summary>Represents a string literal.</summary>
-    internal sealed record class StringValue(string Value) : Value()
+    public sealed record class StringValue(string Value) : Value()
     {
         /// <summary>
         /// Truncates long strings for bytecode display while preserving readability.
@@ -53,7 +53,7 @@ namespace Fluence
     }
 
     /// <summary>Represents a boolean literal.</summary>
-    internal sealed record class BooleanValue : Value
+    public sealed record class BooleanValue : Value
     {
         internal bool Value { get; init; }
 
@@ -70,7 +70,7 @@ namespace Fluence
     }
 
     /// <summary>Represents the nil (null) value.</summary>
-    internal sealed record class NilValue : Value
+    public sealed record class NilValue : Value
     {
         internal static readonly NilValue NilInstance = new NilValue();
 
@@ -96,7 +96,7 @@ namespace Fluence
     }
 
     /// <summary>Represents a numerical literal, which can be an Integer, Float, Long, or Double.</summary>
-    internal sealed record class NumberValue : Value
+    public sealed record class NumberValue : Value
     {
         internal enum NumberType
         {
@@ -518,7 +518,7 @@ namespace Fluence
     }
 
     /// <summary>Represents a specific member of an enum, holding both its name and integer value.</summary>
-    internal sealed record class EnumValue : Value
+    public sealed record class EnumValue : Value
     {
         internal string EnumTypeName { get; init; }
         internal string MemberName { get; init; }

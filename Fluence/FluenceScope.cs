@@ -44,7 +44,7 @@ namespace Fluence
         // Used in Tests. Might also be useful for other purposes.
         internal bool Contains(string name) => TryResolve(name.GetHashCode(), out _);
         internal bool ContainsLocal(int name) => TryGetLocalSymbol(name, out _);
-        internal bool TryGetLocalSymbol(int hash, out Symbol symbol) => TryResolve(hash, out symbol!);
+        internal bool TryGetLocalSymbol(int hash, out Symbol symbol) => Symbols.TryGetValue(hash, out symbol!);
 
         internal FluenceScope(FluenceScope parentScope, string name, bool isIntrinsic, bool isTheGlobalScope = false)
         {

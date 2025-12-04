@@ -1,81 +1,155 @@
-﻿namespace Fluence
+﻿using System.Diagnostics;
+using Fluence.Exceptions;
+
+namespace Fluence
 {
     internal class Program
     {
         private static int Main(string[] args)
         {
-#if DEBUG
-            string source = File.ReadAllText($@"{Directory.GetCurrentDirectory()}\test.fl");
-
-            FluenceInterpreter fluenceInterpreter = new FluenceInterpreter();
-
-            if (fluenceInterpreter.Compile(source, true))
+            if (args.Length == 0 || IsHelpFlag(args[0]))
             {
-                fluenceInterpreter.RunUntilDone();
+                PrintHelp();
+                return 0;
             }
 
-            return 1;
-#endif
-            if (args.Length == 0)
+            bool showProfile = false;
+            bool isProject = false;
+            string targetPath = "";
+
+            for (int i = 0; i < args.Length; i++)
             {
-                Console.WriteLine("Fluence Interpreter");
-                Console.WriteLine("Usage: fluence -run <filepath.fl>");
+                string arg = args[i];
+
+                if (arg.Equals("-run", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (i + 1 < args.Length) targetPath = args[++i];
+                }
+                else if (arg.Equals("-project", StringComparison.OrdinalIgnoreCase))
+                {
+                    isProject = true;
+                    if (i + 1 < args.Length) targetPath = args[++i];
+                }
+                else if (arg.Equals("-profile", StringComparison.OrdinalIgnoreCase))
+                {
+                    showProfile = true;
+                }
+            }
+
+            if (string.IsNullOrEmpty(targetPath))
+            {
+                PrintError("No input file or project directory specified.");
                 return 1;
             }
 
-            if (args.Length == 2 && args[0].Equals("-run", StringComparison.OrdinalIgnoreCase))
+            return RunInterpreter(targetPath, isProject, showProfile);
+        }
+
+        private static int RunInterpreter(string path, bool isProject, bool showProfile)
+        {
+            if (isProject)
             {
-                string filePath = args[1];
-                return RunFile(filePath);
+                if (!Directory.Exists(path))
+                {
+                    PrintError($"Error: The project directory '{path}' was not found.");
+                    return 1;
+                }
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Error: Invalid command-line arguments.");
-                Console.WriteLine("Usage: fluence -run <filepath.fl>");
-                Console.ResetColor();
-                return 1;
-            }
-        }
-
-        private static int RunFile(string filePath)
-        {
-            if (!File.Exists(filePath))
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Error: The file '{filePath}' was not found.");
-                Console.ResetColor();
-                return 1;
+                if (!File.Exists(path))
+                {
+                    PrintError($"Error: The file '{path}' was not found.");
+                    return 1;
+                }
             }
 
             try
             {
-                string sourceCode = File.ReadAllText(filePath);
-
                 FluenceInterpreter interpreter = new FluenceInterpreter();
-                bool success = interpreter.Compile(sourceCode, true);
 
-                if (success)
+                if (showProfile)
                 {
-                    interpreter.RunUntilDone();
-                    return 0;
+                    interpreter.Configuration.OptimizeByteCode = true;
                 }
-                else
+
+                Console.WriteLine(isProject ? $"Compiling Project: {path}..." : $"Compiling File: {path}...");
+
+                Stopwatch sw = Stopwatch.StartNew();
+                bool success = isProject
+                    ? interpreter.CompileProject(path)
+                    : interpreter.Compile(File.ReadAllText(path));
+
+                sw.Stop();
+
+                if (!success)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Script terminated due to compilation errors.");
-                    Console.ResetColor();
+                    PrintError("Compilation failed.");
                     return 1;
                 }
+
+                if (showProfile)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine($"[Build Success] Compilation took: {sw.Elapsed.TotalMilliseconds:F2} ms");
+                    Console.ResetColor();
+                }
+
+                sw.Restart();
+                interpreter.RunUntilDone();
+                sw.Stop();
+
+                if (showProfile)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("\n------------------------------------------------");
+                    Console.WriteLine($"[Execution Complete]");
+                    Console.WriteLine($"Total Time: {sw.Elapsed.TotalMilliseconds:F4} ms");
+                    Console.WriteLine("------------------------------------------------");
+                    Console.ResetColor();
+                }
+
+                return 0;
             }
             catch (FluenceException ex)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("An unexpected error occurred:");
-                Console.WriteLine(ex.ToString());
-                Console.ResetColor();
+                PrintError($"Runtime Error:\n{ex.Message}");
                 return 1;
             }
+            catch (Exception ex)
+            {
+                PrintError($"An unexpected internal error occurred: {ex.Message}");
+                return 1;
+            }
+        }
+
+        private static bool IsHelpFlag(string arg)
+        {
+            return arg.Equals("-help", StringComparison.OrdinalIgnoreCase) ||
+                   arg.Equals("-h", StringComparison.OrdinalIgnoreCase) ||
+                   arg.Equals("--help", StringComparison.OrdinalIgnoreCase) ||
+                   arg.Equals("-?", StringComparison.Ordinal);
+        }
+
+        private static void PrintHelp()
+        {
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("Fluence Programming Language (v0.1.0-alpha)");
+            Console.ResetColor();
+            Console.WriteLine("Usage:");
+            Console.WriteLine("  fluence -run <file.fl>       Run a single script file.");
+            Console.WriteLine("  fluence -project <dir>       Run a multi-file project (looks for Main).");
+            Console.WriteLine("");
+            Console.WriteLine("Options:");
+            Console.WriteLine("  -profile                     Show compilation and execution timing statistics.");
+            Console.WriteLine("  -help                        Show this help message.");
+        }
+
+        private static void PrintError(string message)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(message);
+            Console.ResetColor();
         }
     }
 }

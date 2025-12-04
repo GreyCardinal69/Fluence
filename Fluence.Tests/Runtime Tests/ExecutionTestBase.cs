@@ -50,6 +50,33 @@ namespace Fluence.RuntimeTests
             }
 
             Assert.NotNull(actualRaw);
+            
+            object convertedActual = expectedType switch
+            {
+                FluenceTestType.Integer => Convert.ToInt32(actualRaw),
+                FluenceTestType.Long => Convert.ToInt64(actualRaw),
+                FluenceTestType.Float => Convert.ToSingle(actualRaw),
+                FluenceTestType.Double => Convert.ToDouble(actualRaw),
+                FluenceTestType.String => Convert.ToString(actualRaw),
+                FluenceTestType.Char => Convert.ToChar(actualRaw),
+                FluenceTestType.Bool => Convert.ToBoolean(actualRaw),
+                _ => throw new ArgumentOutOfRangeException(nameof(expectedType))
+            };
+
+            Assert.Equal(expectedValue, convertedActual);
+        }
+
+        public static void AssertFullSourceResult(string fullSourceCode, object expectedValue, FluenceTestType expectedType)
+        {
+            var interpreter = new FluenceInterpreter();
+            interpreter.Configuration.OptimizeByteCode = true;
+
+            if (!interpreter.Compile(fullSourceCode))
+                throw new FluenceException("Compilation failed.");
+
+            interpreter.RunUntilDone();
+
+            object? actualRaw = interpreter.GetGlobal("result");
 
             object convertedActual = expectedType switch
             {

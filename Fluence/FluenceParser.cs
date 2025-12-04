@@ -3192,19 +3192,17 @@ namespace Fluence
         private void ParseSequentialRestAssign(List<Value> lhsDescriptors)
         {
             int lhsIndex = 0;
-            Token opToken = _lexer.ConsumeToken();
+            Token opToken = _lexer.ConsumeToken(); // Consume '<~|'.
             bool isOptional = opToken.Type == TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN;
-
-            List<Value> rhsExpressions = ParseTokenSeparatedArguments(TokenType.COMMA);
-
-            if (lhsDescriptors.Count != rhsExpressions.Count)
-            {
-                throw ConstructParserException($"Mismatched number of items for sequential assignment '{opToken.ToDisplayString()}'.", opToken);
-            }
 
             do
             {
-                Value rhs = ResolveValue(rhsExpressions[lhsIndex]);
+                if (lhsIndex >= lhsDescriptors.Count)
+                {
+                    throw ConstructParserException($"Too many values on the right side of sequential assignment '{opToken.Text}'. Expected {lhsDescriptors.Count}.", _lexer.PeekCurrentToken());
+                }
+
+                Value rhs = ResolveValue(ParseTernary());
 
                 int skipOptionalAssign = -1;
                 if (isOptional)
@@ -3216,15 +3214,20 @@ namespace Fluence
                 }
 
                 GenerateWriteBackInstruction(lhsDescriptors[lhsIndex], rhs);
-                lhsIndex++;
+
                 if (skipOptionalAssign != -1)
                 {
                     _currentParseState.CodeInstructions[skipOptionalAssign].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
                 }
-            }
-            while (lhsIndex < lhsDescriptors.Count);
 
-            _lhsPool.Return(rhsExpressions);
+                lhsIndex++;
+
+            } while (AdvanceTokenIfMatch(TokenType.COMMA));
+
+            if (lhsIndex != lhsDescriptors.Count)
+            {
+                throw ConstructParserException($"Mismatched number of items for sequential assignment. Expected {lhsDescriptors.Count}, got {lhsIndex}.", opToken);
+            }
         }
 
         /// <summary>

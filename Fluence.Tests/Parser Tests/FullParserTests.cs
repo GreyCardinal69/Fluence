@@ -1944,14 +1944,15 @@ namespace Fluence.ParserTests
             List<InstructionLine> compiledCode = Compile(source);
             List<InstructionLine> expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.Negate, new TempValue(0), new NumberValue(10)),
-                new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(10)),
-                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(0)),
-                new(InstructionCode.Assign, new VariableValue("c"), new StringValue("Hello world!")),
-                new(InstructionCode.Assign, new VariableValue("booly"), new BooleanValue(true)),
+                new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(10), null!, null!),
+                new(InstructionCode.Negate, new TempValue(0), new NumberValue(10), null!, null!),
+                new(InstructionCode.Assign, new VariableValue("b"), new TempValue(0), null!, null!),
+                new(InstructionCode.Assign, new VariableValue("c"), new StringValue("Hello world!"), null!, null!),
+                new(InstructionCode.Assign, new VariableValue("booly"), BooleanValue.True, null!, null!),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
-                new(InstructionCode.Terminate, null!)
+                new(InstructionCode.Terminate, null!, null!, null!, null!),
             };
+
             AssertBytecodeEqual(expectedCode, compiledCode);
         }
     }

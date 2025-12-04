@@ -2355,6 +2355,7 @@ namespace Fluence.VirtualMachine
             CallFrame finishedFrame = _callStack.Pop();
 
             _cachedRegisters = _callStack.Peek().Registers;
+            _cachedWritableCache = _callStack.Peek().WritableCache;
 
             if (_callStack.Count == 0)
             {

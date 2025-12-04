@@ -79,7 +79,7 @@ namespace Fluence.VirtualMachine
 
             int requiredSize = function.TotalRegisterSlots;
 
-            if (Registers.Length < requiredSize)
+            if (Registers.Length < requiredSize || WritableCache.Length < requiredSize)
             {
                 Registers = new RuntimeValue[requiredSize];
                 WritableCache = new bool[requiredSize];

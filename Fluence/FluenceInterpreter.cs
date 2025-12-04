@@ -86,6 +86,8 @@ namespace Fluence
         /// </summary>
         public TextOutputMethod OnErrorOutput { get; set; } = Console.WriteLine;
 
+        internal ParseState ParseState => _parseState;
+
         /// <summary>
         /// Gets the current execution state of the virtual machine.
         /// </summary>

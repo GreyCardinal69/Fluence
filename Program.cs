@@ -5,6 +5,13 @@ namespace Fluence
 {
     internal class Program
     {
+        internal sealed class ProgramExecutionConfiguration
+        {
+            internal bool ShowProfile {  get; set; }
+            internal bool IsProject { get; set; }
+            internal bool DumpByteCode { get; set; }
+        }
+
         private static int Main(string[] args)
         {
             if (args.Length == 0 || IsHelpFlag(args[0]))
@@ -13,8 +20,8 @@ namespace Fluence
                 return 0;
             }
 
-            bool showProfile = false;
-            bool isProject = false;
+            ProgramExecutionConfiguration config = new ProgramExecutionConfiguration();
+
             string targetPath = "";
 
             for (int i = 0; i < args.Length; i++)
@@ -27,12 +34,16 @@ namespace Fluence
                 }
                 else if (arg.Equals("-project", StringComparison.OrdinalIgnoreCase))
                 {
-                    isProject = true;
+                    config.IsProject = true;
                     if (i + 1 < args.Length) targetPath = args[++i];
                 }
                 else if (arg.Equals("-profile", StringComparison.OrdinalIgnoreCase))
                 {
-                    showProfile = true;
+                    config.ShowProfile = true;
+                }
+                else if (arg.Equals("-bytecode", StringComparison.OrdinalIgnoreCase))
+                {
+                    config.DumpByteCode = true;
                 }
             }
 
@@ -42,12 +53,12 @@ namespace Fluence
                 return 1;
             }
 
-            return RunInterpreter(targetPath, isProject, showProfile);
+            return RunInterpreter(targetPath, config);
         }
 
-        private static int RunInterpreter(string path, bool isProject, bool showProfile)
+        private static int RunInterpreter(string path, ProgramExecutionConfiguration config)
         {
-            if (isProject)
+            if (config.IsProject)
             {
                 if (!Directory.Exists(path))
                 {
@@ -68,15 +79,15 @@ namespace Fluence
             {
                 FluenceInterpreter interpreter = new FluenceInterpreter();
 
-                if (showProfile)
+                if (config.ShowProfile)
                 {
                     interpreter.Configuration.OptimizeByteCode = true;
                 }
 
-                Console.WriteLine(isProject ? $"Compiling Project: {path}..." : $"Compiling File: {path}...");
+                Console.WriteLine(config.IsProject ? $"Compiling Project: {path}..." : $"Compiling File: {path}...");
 
                 Stopwatch sw = Stopwatch.StartNew();
-                bool success = isProject
+                bool success = config.IsProject
                     ? interpreter.CompileProject(path)
                     : interpreter.Compile(File.ReadAllText(path));
 
@@ -88,7 +99,12 @@ namespace Fluence
                     return 1;
                 }
 
-                if (showProfile)
+                if (config.DumpByteCode)
+                {
+                    FluenceDebug.DumpByteCodeInstructions(interpreter.ParseState.CodeInstructions, Console.WriteLine);
+                }
+
+                if (config.ShowProfile)
                 {
                     Console.ForegroundColor = ConsoleColor.Cyan;
                     Console.WriteLine($"[Build Success] Compilation took: {sw.Elapsed.TotalMilliseconds:F2} ms");
@@ -99,7 +115,7 @@ namespace Fluence
                 interpreter.RunUntilDone();
                 sw.Stop();
 
-                if (showProfile)
+                if (config.ShowProfile)
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("\n------------------------------------------------");

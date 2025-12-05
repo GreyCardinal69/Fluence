@@ -2,7 +2,7 @@
 <img src="https://github.com/user-attachments/assets/ded90492-45ec-446f-a997-bea92e87c27e" alt="Fluence Logo" width="400"/>
 <h1>The Fluence Programming Language</h1>
 <p>
-<strong>An expressive, embeddable scripting language engineered for developer ergonomics and a unique "smartass shorthand" philosophy.</strong>
+<strong>An expressive, embeddable scripting language engineered for developer ergonomics.</strong>
 </p>
 <p>
 <a href="https://github.com/your-repo/fluence/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>

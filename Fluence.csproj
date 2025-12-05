@@ -22,6 +22,9 @@
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>Fluence3.png</PackageIcon>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+    <SignAssembly>False</SignAssembly>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,7 +36,15 @@
     <None Remove="Fluence.Tests\**" />
   </ItemGroup>
 
-  <ItemGroup>
+	<ItemGroup>
+		<None Include="Fluence\Core\**\*.*">
+			<Link>Core\%(RecursiveDir)%(Filename)%(Extension)</Link>
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+
+
+	<ItemGroup>
     <Content Include="Assets\Fluence3.ico" />
   </ItemGroup>
 

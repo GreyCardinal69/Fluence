@@ -1,5 +1,5 @@
-﻿using System.Diagnostics;
-using Fluence.Exceptions;
+﻿using Fluence.Exceptions;
+using System.Diagnostics;
 
 namespace Fluence
 {
@@ -7,13 +7,23 @@ namespace Fluence
     {
         internal sealed class ProgramExecutionConfiguration
         {
-            internal bool ShowProfile {  get; set; }
+            internal bool ShowProfile { get; set; }
             internal bool IsProject { get; set; }
             internal bool DumpByteCode { get; set; }
         }
 
         private static int Main(string[] args)
         {
+
+#if DEBUG
+            FluenceInterpreter interpreter = new FluenceInterpreter();
+            interpreter.Compile(File.ReadAllText($"{AppDomain.CurrentDomain.BaseDirectory}test.fl"));
+
+            interpreter.RunUntilDone();
+
+            return 0;
+#endif
+
             if (args.Length == 0 || IsHelpFlag(args[0]))
             {
                 PrintHelp();
@@ -159,6 +169,7 @@ namespace Fluence
             Console.WriteLine("Options:");
             Console.WriteLine("  -profile                     Show compilation and execution timing statistics.");
             Console.WriteLine("  -help                        Show this help message.");
+            Console.WriteLine("  -bytecode                    Show the final, compiled bytecode of the script or project.");
         }
 
         private static void PrintError(string message)

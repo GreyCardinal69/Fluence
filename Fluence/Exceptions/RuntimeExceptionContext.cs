@@ -170,7 +170,7 @@ namespace Fluence
                 {
                     string value = runtimeValue.ToString();
                     string end = value.Length > 150 ? "...\"" : "\"";
-                    string formattedValue = $"\"{value[..Math.Min(150, value.Length)]}{end}";
+                    string formattedValue = $"\"{value[..Math.Min(150, value.Length)]}{end}".Replace("\n", "\\n").Replace("\r\n", "\\r\\n");
 
                     string paddedKey = name.PadRight(maxKeyLength);
 

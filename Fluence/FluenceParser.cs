@@ -2133,8 +2133,6 @@ namespace Fluence
                 _lastOptimizationIndex = functionCodeEnd;
             }
 
-            func.SetEndAddress(functionCodeEnd - 1);
-
             int nextSlotIndex = 0;
 
             // Methods have an implicit 'self'. It always gets slot 0.
@@ -2176,7 +2174,6 @@ namespace Fluence
             if (_currentParseState.CurrentScope.TryResolve(func.Hash, out Symbol symbol) && symbol is FunctionSymbol funcSymbol)
             {
                 funcSymbol.TotalRegisterSlots = func.TotalRegisterSlots;
-                funcSymbol.SetEndAddress(func.EndAddress);
                 funcSymbol.BelongsToAStruct = inStruct;
             }
 
@@ -4814,8 +4811,6 @@ namespace Fluence
 
                 functionCodeEnd = _currentParseState.CodeInstructions.Count;
             }
-
-            lambdaFunction.SetEndAddress(functionCodeEnd - 1);
 
             int nextSlotIndex = 0;
 

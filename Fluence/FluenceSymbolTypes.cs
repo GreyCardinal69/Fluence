@@ -1,6 +1,5 @@
 ﻿using Fluence.RuntimeTypes;
 using Fluence.VirtualMachine;
-using System.Runtime.CompilerServices;
 
 namespace Fluence
 {
@@ -210,11 +209,6 @@ namespace Fluence
         internal int StartAddress { get; private set; }
 
         /// <summary>
-        /// The address of the last instruction of the function's body in the bytecode.
-        /// </summary>
-        internal int EndAddress { get; private set; }
-
-        /// <summary>
         /// Gets a value indicating whether this function is a native C# intrinsic.
         /// </summary>
         internal bool IsIntrinsic { get; init; }
@@ -261,19 +255,6 @@ namespace Fluence
         /// Sets the bytecode start address for this function. Called by the parser during the second pass.
         /// </summary>
         internal void SetStartAddress(int addr) => StartAddress = addr;
-
-        /// <summary>
-        /// Sets the bytecode end address for this function. Called by the parser during the second pass.
-        /// This is usually the final return instruction of the function's body.
-        /// </summary>
-        internal void SetEndAddress(int adr) => EndAddress = adr;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void SetStartAndEndAddresses(int start, int end)
-        {
-            StartAddress = start;
-            EndAddress = end;
-        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="FunctionSymbol"/> class for a native C# intrinsic.

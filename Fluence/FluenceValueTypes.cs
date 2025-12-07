@@ -363,7 +363,7 @@ namespace Fluence
     internal sealed record class LambdaValue(FunctionValue Function) : Value()
     {
         internal override string ToFluenceString() => $"<internal: lambda__{Function.Name}__{Function.Arity}>";
-        public override string ToString() => $"LambdaValue: {Function.Name}__{Function.Arity}_{Function.StartAddress}_{Function.EndAddress}";
+        public override string ToString() => $"LambdaValue: {Function.Name}__{Function.Arity}_{Function.StartAddress}";
     }
 
     /// <summary>Represents a function's compile-time blueprint, including its bytecode address or native implementation.</summary>
@@ -379,11 +379,6 @@ namespace Fluence
         /// The address of the first instruction of the function's body in the bytecode.
         /// </summary>
         internal int StartAddress { get; private set; }
-
-        /// <summary>
-        /// The address of the last instruction of the function's body in the bytecode.
-        /// </summary>
-        internal int EndAddress { get; private set; }
 
         /// <summary>The arguments of the function by name.</summary>
         internal List<string> Arguments { get; init; }
@@ -440,24 +435,11 @@ namespace Fluence
         /// </summary>
         internal void SetStartAddress(int addr) => StartAddress = addr;
 
-        /// <summary>
-        /// Sets the bytecode end address for this function. Called by the parser during the second pass.
-        /// This is usually the final return instruction of the function's body.
-        /// </summary>
-        internal void SetEndAddress(int adr) => EndAddress = adr;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void SetStartAndEndAddresses(int start, int end)
-        {
-            StartAddress = start;
-            EndAddress = end;
-        }
-
         internal void SetName(string name) => Name = name;
 
         internal override string ToFluenceString() => $"<internal: function__{Name}/{Arity}, RegSize: {TotalRegisterSlots}>";
 
-        internal override string ToByteCodeString() => $"Func_{Name}_{Arity}_{TotalRegisterSlots}_{DefiningScope}_{StartAddress}/{EndAddress}";
+        internal override string ToByteCodeString() => $"Func_{Name}_{Arity}_{TotalRegisterSlots}_{DefiningScope}_{StartAddress}";
 
         public override string ToString()
         {

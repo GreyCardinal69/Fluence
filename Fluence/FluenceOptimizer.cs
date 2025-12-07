@@ -585,16 +585,16 @@ namespace Fluence
 
                 if (insn.Rhs is FunctionValue fvRhs)
                 {
-                    fvRhs.SetStartAndEndAddresses(MapAddr(fvRhs.StartAddress), MapAddr(fvRhs.EndAddress));
+                    fvRhs.SetStartAddress(MapAddr(fvRhs.StartAddress));
                 }
                 else if (insn.Rhs is LambdaValue lambda)
                 {
-                    lambda.Function.SetStartAndEndAddresses(MapAddr(lambda.Function.StartAddress), MapAddr(lambda.Function.EndAddress));
+                    lambda.Function.SetStartAddress(MapAddr(lambda.Function.StartAddress));
                 }
 
                 if (insn.Rhs2 is FunctionValue fvRhs2)
                 {
-                    fvRhs2.SetStartAndEndAddresses(MapAddr(fvRhs2.StartAddress), MapAddr(fvRhs2.EndAddress));
+                    fvRhs2.SetStartAddress(MapAddr(fvRhs2.StartAddress));
                 }
             }
 
@@ -614,11 +614,11 @@ namespace Fluence
                     {
                         foreach (KeyValuePair<string, FunctionValue> item in s.Constructors)
                         {
-                            item.Value.SetStartAndEndAddresses(MapAddr(item.Value.StartAddress), MapAddr(item.Value.EndAddress));
+                            item.Value.SetStartAddress(MapAddr(item.Value.StartAddress));
                         }
                         foreach (FunctionValue m in s.Functions.Values)
                         {
-                            m.SetStartAndEndAddresses(MapAddr(m.StartAddress), MapAddr(m.EndAddress));
+                            m.SetStartAddress(MapAddr(m.StartAddress));
                         }
                     }
                 }

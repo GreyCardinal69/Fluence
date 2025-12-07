@@ -43,7 +43,7 @@ namespace Fluence
             outMethod("Value types with unique print format:");
             outMethod("VariableValue: Var_{Name}_{Register Index}_{Is Global?}");
             outMethod("TempValue: {Name}_{Register Index}");
-            outMethod("FunctionValue: Func_{Name}_{Arity}_{TotalRegisters}_{Scope}_{StartAddress}_{EndAddress}\n");
+            outMethod("FunctionValue: Func_{Name}_{Arity}_{TotalRegisters}_{Scope}_{StartAddress}\n");
             outMethod(string.Format("{0,-5} {1,-25} {2,-40} {3,-55} {4,-40} {5, -40}", "", "TYPE", "LHS", "RHS", "RHS2", "RHS3"));
             outMethod("");
 

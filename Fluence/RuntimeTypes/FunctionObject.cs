@@ -33,11 +33,6 @@ namespace Fluence.RuntimeTypes
         /// </summary>
         internal int TotalRegisterSlots { get; set; }
 
-        /// <summary>
-        /// The address of the last instruction of the function's body in the bytecode.
-        /// </summary>
-        internal int EndAddress { get; set; }
-
         /// <summary>The names of the function's parameters.</summary>
         internal List<string> Arguments { get; private set; }
 
@@ -92,7 +87,6 @@ namespace Fluence.RuntimeTypes
             StartAddressInSource = function.StartAddressInSource;
             ArgumentsByRef = function.ArgumentsByRef;
             TotalRegisterSlots = function.TotalRegisterSlots;
-            EndAddress = function.EndAddress;
         }
 
         internal void Initialize(FunctionSymbol function)
@@ -108,7 +102,6 @@ namespace Fluence.RuntimeTypes
             StartAddressInSource = function.StartAddressInSource;
             ArgumentsByRef = function.ArgumentsByRef;
             TotalRegisterSlots = function.TotalRegisterSlots;
-            EndAddress = function.EndAddress;
         }
 
         internal void Initialize(string name, int arity, IntrinsicMethod body, FluenceScope definingScope, FunctionSymbol symb)

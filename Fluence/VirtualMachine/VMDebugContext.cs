@@ -1,5 +1,6 @@
 ﻿using Fluence.RuntimeTypes;
 using static Fluence.FluenceByteCode;
+using static Fluence.FluenceByteCode.InstructionLine;
 
 namespace Fluence.VirtualMachine
 {
@@ -30,7 +31,24 @@ namespace Fluence.VirtualMachine
 
             if (!func.IsIntrinsic)
             {
-                for (int i = func.StartAddress; i < func.EndAddress; i++)
+                int jumpInstructionIndex = func.StartAddress - 1;
+
+                // The instruction at StartAddress - 1 is always a Goto that points to the EndAddress.
+                int endAddress = 0;
+
+                if (jumpInstructionIndex >= 0 &&
+                    bytecode[jumpInstructionIndex].Instruction == InstructionCode.Goto &&
+                    bytecode[jumpInstructionIndex].Lhs is NumberValue jumpTarget)
+                {
+                    endAddress = (int)jumpTarget.Value;
+                }
+                else
+                {
+                    // Fallback.
+                    endAddress = bytecode.Count;
+                }
+
+                for (int i = func.StartAddress; i < endAddress; i++)
                 {
                     InstructionLine insn = bytecode[i];
                     MapIndexToName(insn.Lhs, indexToNameMap);

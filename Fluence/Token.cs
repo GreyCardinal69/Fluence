@@ -373,6 +373,9 @@
         /// <summary>A shared, single instance of the No Use token.</summary>
         internal static readonly Token NoUse = new Token(TokenType.NO_USE);
 
+        /// <summary>A shared, single instance of the End-Of-Line (;) token.</summary>
+        internal static readonly Token EOL = new Token(TokenType.EOL);
+
         /// <summary>
         /// Initializes a new instance of the <see cref="Token"/> struct.
         /// </summary>

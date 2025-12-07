@@ -572,7 +572,9 @@ namespace Fluence
                 case '}': return MakeTokenAndTryAdvance(TokenType.R_BRACE, 1);
                 case '(': return MakeTokenAndTryAdvance(TokenType.L_PAREN, 1);
                 case ')': return MakeTokenAndTryAdvance(TokenType.R_PAREN, 1);
-                case ';': return MakeTokenAndTryAdvance(TokenType.EOL, 1);
+                case ';':
+                    AdvancePosition();
+                    return EOL;
                 case ',': return MakeTokenAndTryAdvance(TokenType.COMMA, 1);
                 case '?':
                     if (CanLookAheadStartInclusive(2))

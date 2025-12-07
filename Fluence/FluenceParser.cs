@@ -584,8 +584,10 @@ namespace Fluence
 
                     ParseEnumDeclaration(declarationStartIndex, declarationEndIndex);
 
-                    int count = declarationEndIndex - declarationStartIndex + 1;
-                    _lexer.RemoveTokenRange(declarationStartIndex, count);
+                    for (int i = declarationStartIndex; i < declarationEndIndex + 1; i++)
+                    {
+                        _lexer.ModifyTokenAt(i, Token.EOL);
+                    }
                     continue;
                 }
                 else if (type == TokenType.TRAIT)
@@ -595,8 +597,10 @@ namespace Fluence
 
                     ParseTraitDeclaration(declarationStartIndex, declarationEndIndex);
 
-                    int count = declarationEndIndex - declarationStartIndex + 1;
-                    _lexer.RemoveTokenRange(declarationStartIndex, count);
+                    for (int i = declarationStartIndex; i < declarationEndIndex + 1; i++)
+                    {
+                        _lexer.ModifyTokenAt(i, Token.EOL);
+                    }
                     continue;
                 }
                 else if (type == TokenType.FUNC)

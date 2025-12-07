@@ -47,12 +47,6 @@ namespace Fluence.RuntimeTypes
         /// <summary>The names of the function's parameters passed by reference.</summary>
         internal HashSet<string> ArgumentsByRef { get; set; }
 
-        /// <summary>
-        /// A list of the register slot indices corresponding to the function's parameters, in order.
-        /// This is populated by the parser after the slot allocation pass.
-        /// </summary>
-        internal int[] ArgumentRegisterIndices { get; private set; }
-
         /// <summary>The lexical scope in which the function was defined, used for resolving non-local variables.</summary>
         internal FluenceScope DefiningScope { get; private set; }
 
@@ -99,7 +93,6 @@ namespace Fluence.RuntimeTypes
             ArgumentsByRef = function.ArgumentsByRef;
             TotalRegisterSlots = function.TotalRegisterSlots;
             EndAddress = function.EndAddress;
-            ArgumentRegisterIndices = function.ArgumentRegisterIndices;
         }
 
         internal void Initialize(FunctionSymbol function)
@@ -116,7 +109,6 @@ namespace Fluence.RuntimeTypes
             ArgumentsByRef = function.ArgumentsByRef;
             TotalRegisterSlots = function.TotalRegisterSlots;
             EndAddress = function.EndAddress;
-            ArgumentRegisterIndices = function.ArgumentRegisterIndices;
         }
 
         internal void Initialize(string name, int arity, IntrinsicMethod body, FluenceScope definingScope, FunctionSymbol symb)

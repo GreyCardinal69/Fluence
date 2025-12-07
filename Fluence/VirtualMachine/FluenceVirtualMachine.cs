@@ -400,7 +400,7 @@ namespace Fluence.VirtualMachine
                 }
             }
 
-            // We no longer need the indicator, it will result in time wasted.
+            // We no longer need the indicator.
             _byteCode.RemoveAt(startIndex);
 
             for (int i = startIndex; i < _byteCode.Count; i++)
@@ -2035,10 +2035,11 @@ namespace Fluence.VirtualMachine
 
             CallFrame newFrame = _callFramePool.Get();
             newFrame.Initialize(this, function, _ip, (TempValue)instruction.Lhs);
+            int initialArgIndex = 0;
 
             for (int i = argCount - 1; i >= 0; i--)
             {
-                int paramIndex = function.ArgumentRegisterIndices[i];
+                int paramIndex = initialArgIndex + i;
                 RuntimeValue argValue = _operandStack.Pop();
 
                 if (function.ArgumentsByRef.Contains(function.Arguments[i]))
@@ -2171,10 +2172,11 @@ namespace Fluence.VirtualMachine
 
             // Implicitly pass 'self'.
             newFrame.Registers[0] = instanceVal;
+            int initialArgIndex = 1;
 
             for (int i = functionToExecute.Arity - 1; i >= 0; i--)
             {
-                int paramIndex = functionToExecute.ArgumentRegisterIndices[i];
+                int paramIndex = initialArgIndex + i;
                 RuntimeValue argValue = _operandStack.Pop();
 
                 if (functionToExecute.ArgumentsByRef.Contains(functionToExecute.Arguments[i]))
@@ -2316,10 +2318,11 @@ namespace Fluence.VirtualMachine
 
             CallFrame newFrame = _callFramePool.Get();
             newFrame.Initialize(this, functionToExecute, _ip, (TempValue)instruction.Lhs);
+            int initialArgIndex = 0;
 
             for (int i = functionToExecute.Arity - 1; i >= 0; i--)
             {
-                int paramIndex = functionToExecute.ArgumentRegisterIndices[i];
+                int paramIndex = initialArgIndex + i;
                 RuntimeValue argValue = _operandStack.Pop();
 
                 if (functionToExecute.ArgumentsByRef.Contains(functionToExecute.Arguments[i]))

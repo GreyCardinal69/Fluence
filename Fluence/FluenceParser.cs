@@ -2173,19 +2173,11 @@ namespace Fluence
 
             func.TotalRegisterSlots = nextSlotIndex;
 
-            int[] parameterIndices = new int[func.Arguments.Count];
-            for (int i = 0; i < func.Arguments.Count; i++)
-            {
-                parameterIndices[i] = _variableSlotMap[func.ArgumentHashCodes[i]];
-            }
-            func.SetArgumentRegisterIndices(parameterIndices);
-
             if (_currentParseState.CurrentScope.TryResolve(func.Hash, out Symbol symbol) && symbol is FunctionSymbol funcSymbol)
             {
                 funcSymbol.TotalRegisterSlots = func.TotalRegisterSlots;
                 funcSymbol.SetEndAddress(func.EndAddress);
                 funcSymbol.BelongsToAStruct = inStruct;
-                funcSymbol.SetArgumentRegisterIndices(parameterIndices);
             }
 
             for (int i = 0; i < _currentParseState.FunctionVariableDeclarations.Count; i++)
@@ -4857,13 +4849,6 @@ namespace Fluence
             }
 
             lambdaFunction.TotalRegisterSlots = nextSlotIndex;
-
-            int[] parameterIndices = new int[lambdaFunction.Arguments.Count];
-            for (int i = 0; i < lambdaFunction.Arguments.Count; i++)
-            {
-                parameterIndices[i] = variableSlotMap[lambdaFunction.ArgumentHashCodes[i]];
-            }
-            lambdaFunction.SetArgumentRegisterIndices(parameterIndices);
 
             for (int i = 0; i < _currentParseState.FunctionVariableDeclarations.Count; i++)
             {

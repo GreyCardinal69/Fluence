@@ -1512,12 +1512,6 @@ namespace Fluence.VirtualMachine
                 };
             }
 
-            int[] parameterIndices = new int[argCount];
-            for (int i = 0; i < argCount; i++)
-            {
-                parameterIndices[i] = functionBlueprint.ArgumentRegisterIndices[i];
-            }
-
             bool[] isRefParameter = new bool[argCount];
             for (int i = 0; i < argCount; i++)
             {
@@ -1526,6 +1520,8 @@ namespace Fluence.VirtualMachine
                     isRefParameter[i] = true;
                 }
             }
+
+            int baseArgRegisterIndex = func.BelongsToAStruct ? 1 : 0;
 
             FunctionObject function = function = vm.CreateFunctionObject(functionBlueprint);
 
@@ -1536,7 +1532,8 @@ namespace Fluence.VirtualMachine
 
                 for (int i = argCount - 1; i >= 0; i--)
                 {
-                    int paramIndex = parameterIndices[i];
+                    int paramIndex = baseArgRegisterIndex + i;
+
                     RuntimeValue argValue = vm.PopStack();
 
                     if (isRefParameter[i])

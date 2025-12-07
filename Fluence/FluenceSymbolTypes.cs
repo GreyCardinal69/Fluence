@@ -243,12 +243,6 @@ namespace Fluence
         internal HashSet<string> ArgumentsByRef { get; private set; }
 
         /// <summary>
-        /// A list of the register slot indices corresponding to the function's parameters, in order.
-        /// This is populated by the parser after the slot allocation pass.
-        /// </summary>
-        internal int[] ArgumentRegisterIndices { get; private set; }
-
-        /// <summary>
         /// Keeps track which namespace the function is defined in.
         /// </summary>
         internal FluenceScope DefiningScope { get; init; }
@@ -273,9 +267,6 @@ namespace Fluence
         /// This is usually the final return instruction of the function's body.
         /// </summary>
         internal void SetEndAddress(int adr) => EndAddress = adr;
-
-        /// <summary>Sets the register indices of this functions arguments.</summary>>
-        internal void SetArgumentRegisterIndices(int[] indices) => ArgumentRegisterIndices = indices;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void SetStartAndEndAddresses(int start, int end)

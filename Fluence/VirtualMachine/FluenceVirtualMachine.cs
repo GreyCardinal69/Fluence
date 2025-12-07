@@ -727,7 +727,7 @@ namespace Fluence.VirtualMachine
             SignalError($"Runtime Error: Cannot apply operator '-' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
-        /// <summary>Handles the MULTIPLY instruction for numeric subtraction or list difference.</summary>
+        /// <summary>Handles the MULTIPLY instruction.</summary>
         private void ExecuteMultiplication(InstructionLine instruction)
         {
             RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
@@ -784,7 +784,7 @@ namespace Fluence.VirtualMachine
             SignalError($"Runtime Error: Cannot apply operator '*' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
-        /// <summary>Handles the DIVIDE instruction for numeric subtraction or list difference.</summary>
+        /// <summary>Handles the DIVIDE instruction.</summary>
         internal void ExecuteDivision(InstructionLine instruction)
         {
             RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
@@ -801,7 +801,7 @@ namespace Fluence.VirtualMachine
             SignalError($"Runtime Error: Cannot apply operator '/' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
-        /// <summary>Handles the MULTIPLY instruction for numeric subtraction or list difference.</summary>
+        /// <summary>Handles the MULTIPLY.</summary>
         private void ExecuteModulo(InstructionLine instruction)
         {
             RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
@@ -929,12 +929,6 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecuteBitwiseOperation(InstructionLine instruction)
         {
-            if (instruction.SpecializedHandler != null)
-            {
-                instruction.SpecializedHandler(instruction, this);
-                return;
-            }
-
             RuntimeValue leftValue = GetRuntimeValue(instruction.Rhs, instruction);
             long leftLong = ToLong(leftValue);
 

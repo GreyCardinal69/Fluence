@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Fluence
 {
@@ -8,9 +9,24 @@ namespace Fluence
         /// <summary> The constant separator used to distinguish the base name from the mangled arity suffix.</summary>
         private const string _separator = "__";
 
+        private static readonly Dictionary<(string, int), string> _cache = new();
+
         /// <summary> Mangles a base function name by appending a special separator at the end and appending its arity.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static string Mangle(string baseName, int arity) => $"{baseName}{_separator}{arity}";
+        public static string Mangle(string name, int arity)
+        {
+            ref string? cached = ref CollectionsMarshal.GetValueRefOrAddDefault(_cache, (name, arity), out bool exists);
+
+            if (exists)
+            {
+                return cached;
+            }
+
+            string mangled = $"{name}__{arity}";
+            cached = mangled;
+
+            return mangled;
+        }
 
         /// <summary> Demangles a name, separating it back into its base name and arity.</summary>
         internal static string Demangle(string mangledName, out int arity)

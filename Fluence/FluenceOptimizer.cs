@@ -569,9 +569,9 @@ namespace Fluence
                 ref InstructionLine insn = ref byteCodeSpan[i];
                 if (insn == null) continue;
 
-                if (IsJumpInstruction(insn.Instruction) && insn.Lhs is NumberValue targetAddr)
+                if (IsJumpInstruction(insn.Instruction) && insn.Lhs is GoToValue targetAddr)
                 {
-                    targetAddr.ReAssign(MapAddr((int)targetAddr.Value));
+                    targetAddr.Address = MapAddr(targetAddr.Address);
                     // Goto here, no need to check other cases.
                     continue;
                 }

@@ -656,7 +656,7 @@ namespace Fluence.VirtualMachine
         {
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;
-            int jumpTarget = (int)((NumberValue)insn.Lhs).Value;
+            int jumpTarget = ((GoToValue)insn.Lhs).Address;
             RuntimeValue[] globalRegisters = vm.GlobalRegisters;
 
             if ((lhsOperand is VariableValue || lhsOperand is TempValue) &&
@@ -763,7 +763,7 @@ namespace Fluence.VirtualMachine
         {
             Value lhsOperand = insn.Rhs;
             Value rhsOperand = insn.Rhs2;
-            int jumpTarget = (int)((NumberValue)insn.Lhs).Value;
+            int jumpTarget = ((GoToValue)insn.Lhs).Address;
             RuntimeValue[] globalRegisters = vm.GlobalRegisters;
 
             Func<RuntimeValue, RuntimeValue, bool> comparisonFunc = op switch

@@ -95,6 +95,28 @@ namespace Fluence
                     $"RangeValue: {Start.ToFluenceString()}..{End.ToFluenceString()}";
     }
 
+    /// <summary>
+    /// Holds a non boxed integer value for the use in the GoTo family of instructions.
+    /// </summary>
+    internal sealed record class GoToValue : Value
+    {
+        internal int Address { get; set; }
+
+        internal GoToValue(int address) : base()
+        {
+            Address = address;
+        }
+
+        internal override string ToFluenceString() =>
+                    $"<internal: goto_{Address}";
+
+        internal override string ToByteCodeString() =>
+                    $"GoTo {Address}";
+
+        public override string ToString() =>
+                    $"GoToValue: {Address}";
+    }
+
     /// <summary>Represents a numerical literal, which can be an Integer, Float, Long, or Double.</summary>
     public sealed record class NumberValue : Value
     {

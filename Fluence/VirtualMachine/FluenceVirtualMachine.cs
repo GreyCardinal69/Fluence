@@ -859,7 +859,7 @@ namespace Fluence.VirtualMachine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void ExecuteGoto(InstructionLine insn)
         {
-            _ip = (int)((NumberValue)insn.Lhs).Value;
+            _ip = ((GoToValue)insn.Lhs).Address;
         }
 
         /// <summary>Handles the ASSIGN instruction, which is used for variable assignment and range-to-list expansion.</summary>
@@ -1041,22 +1041,22 @@ namespace Fluence.VirtualMachine
         {
             RuntimeValue condition = GetRuntimeValue(instruction.Rhs, instruction);
 
-            if (instruction.Lhs is not NumberValue target)
+            if (instruction.Lhs is not GoToValue target)
             {
-                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
+                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a GoToValue.");
             }
 
             if (condition.IsTruthy == requiredCondition)
             {
-                _ip = (int)target.Value;
+                _ip = target.Address;
             }
         }
 
         internal void ExecuteBranchIfEqual(InstructionLine instruction, bool target)
         {
-            if (instruction.Lhs is not NumberValue jmp)
+            if (instruction.Lhs is not GoToValue jmp)
             {
-                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
+                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a GoToValue.");
             }
 
             RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
@@ -1067,15 +1067,15 @@ namespace Fluence.VirtualMachine
 
             if (result == target)
             {
-                _ip = (int)jmp.Value;
+                _ip = jmp.Address;
             }
         }
 
         private void ExecuteBranchIfGreaterThan(InstructionLine instruction)
         {
-            if (instruction.Lhs is not NumberValue jmp)
+            if (instruction.Lhs is not GoToValue jmp)
             {
-                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
+                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a GoToValue.");
             }
 
             RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
@@ -1085,15 +1085,15 @@ namespace Fluence.VirtualMachine
 
             if (left.DoubleValue > right.DoubleValue)
             {
-                _ip = (int)jmp.Value;
+                _ip = jmp.Address;
             }
         }
 
         private void ExecuteBranchIfGreaterOrEqual(InstructionLine instruction)
         {
-            if (instruction.Lhs is not NumberValue jmp)
+            if (instruction.Lhs is not GoToValue jmp)
             {
-                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
+                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a GoToValue.");
             }
 
             RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
@@ -1102,15 +1102,15 @@ namespace Fluence.VirtualMachine
 
             if (left.DoubleValue >= right.DoubleValue)
             {
-                _ip = (int)jmp.Value;
+                _ip = jmp.Address;
             }
         }
 
         private void ExecuteBranchIfLessThan(InstructionLine instruction)
         {
-            if (instruction.Lhs is not NumberValue jmp)
+            if (instruction.Lhs is not GoToValue jmp)
             {
-                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
+                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a GoToValue.");
             }
 
             RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
@@ -1119,15 +1119,15 @@ namespace Fluence.VirtualMachine
 
             if (left.DoubleValue < right.DoubleValue)
             {
-                _ip = (int)jmp.Value;
+                _ip = jmp.Address;
             }
         }
 
         private void ExecuteBranchIfLessOrEqual(InstructionLine instruction)
         {
-            if (instruction.Lhs is not NumberValue jmp)
+            if (instruction.Lhs is not GoToValue jmp)
             {
-                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a NumberValue.");
+                throw ConstructRuntimeException("Internal VM Error: The target of a jump instruction must be a GoToValue.");
             }
 
             RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
@@ -1136,7 +1136,7 @@ namespace Fluence.VirtualMachine
 
             if (left.DoubleValue <= right.DoubleValue)
             {
-                _ip = (int)jmp.Value;
+                _ip = jmp.Address;
             }
         }
 
@@ -2252,7 +2252,7 @@ namespace Fluence.VirtualMachine
                 {
                     if (instruction.Instruction is InstructionCode.Goto)
                     {
-                        _ip = (int)((NumberValue)instruction.Lhs).Value;
+                        _ip = ((GoToValue)instruction.Lhs).Address;
                         continue;
                     }
                     _dispatchTable[(int)instruction.Instruction](instruction);

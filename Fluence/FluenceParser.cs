@@ -1723,7 +1723,7 @@ namespace Fluence
             ParseAssignment();
             AdvanceAndExpect(TokenType.EOL, "Expected a ';' after the 'for'-loop incrementer.");
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(conditionCheckIndex - 1)));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new GoToValue(conditionCheckIndex - 1)));
 
             LoopContext loopContext = new LoopContext();
             _currentParseState.ActiveLoopContexts.Push(loopContext);
@@ -1731,11 +1731,11 @@ namespace Fluence
 
             ParseStatementBody("Expected an '->' for a single-line 'for' loop body.");
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(incrementerStartIndex)));
-            _currentParseState.CodeInstructions[loopBodyJumpPatchIndex].Lhs = new NumberValue(bodyStartIndex);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new GoToValue(incrementerStartIndex)));
+            _currentParseState.CodeInstructions[loopBodyJumpPatchIndex].Lhs = new GoToValue(bodyStartIndex);
 
             int loopEndAddress = _currentParseState.CodeInstructions.Count;
-            _currentParseState.CodeInstructions[loopExitPatchIndex].Lhs = new NumberValue(loopEndAddress);
+            _currentParseState.CodeInstructions[loopExitPatchIndex].Lhs = new GoToValue(loopEndAddress);
 
             PatchLoopExits(loopContext, loopEndAddress, incrementerStartIndex);
 
@@ -1779,11 +1779,11 @@ namespace Fluence
                 ParseStatementBody($"Expected an '->' for a single-line 'for-in' loop body.");
 
                 int loopCheckAddress = _currentParseState.CodeInstructions.Count;
-                _currentParseState.CodeInstructions[jumpToConditionPatchIndex].Lhs = new NumberValue(loopCheckAddress);
+                _currentParseState.CodeInstructions[jumpToConditionPatchIndex].Lhs = new GoToValue(loopCheckAddress);
 
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.IterNext, iteratorReg, valueReg, continueReg));
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, new NumberValue(loopBodyAddress), continueReg));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, new GoToValue(loopBodyAddress), continueReg));
 
                 int loopEndAddress = _currentParseState.CodeInstructions.Count;
                 PatchLoopExits(loopContext, loopEndAddress, loopCheckAddress);
@@ -1818,10 +1818,10 @@ namespace Fluence
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Add, incrementedIndex, indexVar, NumberValue.One));
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, indexVar, incrementedIndex));
 
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopTopAddress)));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new GoToValue(loopTopAddress)));
 
                 int loopEndAddress = _currentParseState.CodeInstructions.Count;
-                _currentParseState.CodeInstructions[loopExitPatchIndex].Lhs = new NumberValue(loopEndAddress);
+                _currentParseState.CodeInstructions[loopExitPatchIndex].Lhs = new GoToValue(loopEndAddress);
                 PatchLoopExits(loopContext, loopEndAddress, continueAddress);
             }
 
@@ -1859,13 +1859,13 @@ namespace Fluence
 
             int checkStartIndex = _currentParseState.CodeInstructions.Count;
 
-            _currentParseState.CodeInstructions[initialJumpIndex].Lhs = new NumberValue(checkStartIndex);
+            _currentParseState.CodeInstructions[initialJumpIndex].Lhs = new GoToValue(checkStartIndex);
 
             _currentParseState.CodeInstructions.AddRange(conditionInstructions);
 
             InstructionCode branchOp = parseAsUntil ? InstructionCode.GotoIfFalse : InstructionCode.GotoIfTrue;
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(branchOp, new NumberValue(loopBodyIndex), condition));
+            _currentParseState.AddCodeInstruction(new InstructionLine(branchOp, new GoToValue(loopBodyIndex), condition));
 
             int loopExitIndex = _currentParseState.CodeInstructions.Count;
             PatchLoopExits(whileContext, loopExitIndex, checkStartIndex);
@@ -1888,7 +1888,7 @@ namespace Fluence
             ParseBlockStatement();
 
             // After the body executes, unconditionally jump back to the start.
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex)));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new GoToValue(loopStartIndex)));
 
             int loopEndIndex = _currentParseState.CodeInstructions.Count;
 
@@ -1912,7 +1912,7 @@ namespace Fluence
             ParseStatementBody("Expected '->' token for a single-line Unless statement body.");
 
             int endAddress = _currentParseState.CodeInstructions.Count;
-            _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(endAddress);
+            _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new GoToValue(endAddress);
         }
 
         /// <summary>
@@ -1938,7 +1938,7 @@ namespace Fluence
                 _lexer.Advance();
 
                 int elseAddress = _currentParseState.CodeInstructions.Count;
-                _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(elseAddress);
+                _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new GoToValue(elseAddress);
 
                 // This is an else-if, we just call ParseIf again.
                 if (_lexer.TokenTypeMatches(TokenType.IF))
@@ -1955,13 +1955,13 @@ namespace Fluence
                     ParseStatement();
                 }
 
-                _currentParseState.CodeInstructions[elseIfJumpOverIndex].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+                _currentParseState.CodeInstructions[elseIfJumpOverIndex].Lhs = new GoToValue(_currentParseState.CodeInstructions.Count);
             }
             else
             {
                 // No other else/else-ifs.
                 int endAddress = _currentParseState.CodeInstructions.Count;
-                _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new NumberValue(endAddress);
+                _currentParseState.CodeInstructions[elsePatchIndex].Lhs = new GoToValue(endAddress);
             }
         }
 
@@ -2123,7 +2123,7 @@ namespace Fluence
             }
 
             int afterBodyAddress = _currentParseState.CodeInstructions.Count;
-            _currentParseState.CodeInstructions[functionStartAddress - 1].Lhs = new NumberValue(afterBodyAddress + _currentParseState.LambdaBodyInstructions.Count);
+            _currentParseState.CodeInstructions[functionStartAddress - 1].Lhs = new GoToValue(afterBodyAddress + _currentParseState.LambdaBodyInstructions.Count);
             _currentParseState.IsParsingFunctionBody = false;
 
             int functionCodeEnd = afterBodyAddress;
@@ -2387,7 +2387,7 @@ namespace Fluence
                 // Patch all fall-throughs from the previous case to jump here.
                 foreach (int patch in nextCasePatches)
                 {
-                    _currentParseState.CodeInstructions[patch].Lhs = new NumberValue(nextCaseAddress);
+                    _currentParseState.CodeInstructions[patch].Lhs = new GoToValue(nextCaseAddress);
                 }
                 nextCasePatches.Clear();
 
@@ -2405,7 +2405,7 @@ namespace Fluence
 
                     if (fallThrough)
                     {
-                        _currentParseState.CodeInstructions[fallThroughSkipIndex].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+                        _currentParseState.CodeInstructions[fallThroughSkipIndex].Lhs = new GoToValue(_currentParseState.CodeInstructions.Count);
                         fallThrough = false;
                         fallThroughSkipIndex = 0;
                     }
@@ -2470,12 +2470,12 @@ namespace Fluence
 
             foreach (int patch in nextCasePatches)
             {
-                _currentParseState.CodeInstructions[patch].Lhs = new NumberValue(matchEndAddress);
+                _currentParseState.CodeInstructions[patch].Lhs = new GoToValue(matchEndAddress);
             }
 
             foreach (int patch in context.BreakPatches)
             {
-                _currentParseState.CodeInstructions[patch].Lhs = new NumberValue(matchEndAddress);
+                _currentParseState.CodeInstructions[patch].Lhs = new GoToValue(matchEndAddress);
             }
         }
 
@@ -2562,7 +2562,7 @@ namespace Fluence
                 if (nextCasePatchIndex != -1)
                 {
                     int nextCaseAddress = _currentParseState.CodeInstructions.Count;
-                    _currentParseState.CodeInstructions[nextCasePatchIndex].Lhs = new NumberValue(nextCaseAddress);
+                    _currentParseState.CodeInstructions[nextCasePatchIndex].Lhs = new GoToValue(nextCaseAddress);
                 }
 
                 AdvanceAndExpect(TokenType.EOL, "Expected a ';' after each match case.");
@@ -2579,7 +2579,7 @@ namespace Fluence
 
             foreach (int endJump in endJumpPatches)
             {
-                _currentParseState.CodeInstructions[endJump].Lhs = new NumberValue(matchEndAddress);
+                _currentParseState.CodeInstructions[endJump].Lhs = new GoToValue(matchEndAddress);
             }
 
             return result;
@@ -2750,7 +2750,7 @@ namespace Fluence
 
                 foreach (KeyValuePair<int, Symbol> entry in namespaceToUse.Symbols)
                 {
-                    if (!_currentParseState.CurrentScope.Declare(entry.Key, entry.Value) && !_currentParseState.CurrentScope.DeclaredSymbolNames.Contains(entry.Key))
+                    if (!_currentParseState.GlobalScope.DeclaredSymbolNames.Contains(entry.Key) && !_currentParseState.GlobalScope.Declare(entry.Key, entry.Value))
                     {
                         throw ConstructParserException($"Symbol '{entry.Key}' from namespace '{namespaceName}' conflicts with a symbol already defined in this scope.", nameToken);
                     }
@@ -3138,10 +3138,10 @@ namespace Fluence
 
             for (int i = 0; i < boolyExitPatches.Count; i++)
             {
-                _currentParseState.CodeInstructions[boolyExitPatches[i]].Lhs = new NumberValue(exitIndex);
+                _currentParseState.CodeInstructions[boolyExitPatches[i]].Lhs = new GoToValue(exitIndex);
             }
 
-            _currentParseState.CodeInstructions[breakIndex].Lhs = new NumberValue(exitIndex + 1);
+            _currentParseState.CodeInstructions[breakIndex].Lhs = new GoToValue(exitIndex + 1);
         }
 
         /// <summary>
@@ -3176,10 +3176,10 @@ namespace Fluence
 
             for (int i = 0; i < boolyExitPatches.Count; i++)
             {
-                _currentParseState.CodeInstructions[boolyExitPatches[i]].Lhs = new NumberValue(exitIndex);
+                _currentParseState.CodeInstructions[boolyExitPatches[i]].Lhs = new GoToValue(exitIndex);
             }
 
-            _currentParseState.CodeInstructions[breakIndex].Lhs = new NumberValue(exitIndex + 1);
+            _currentParseState.CodeInstructions[breakIndex].Lhs = new GoToValue(exitIndex + 1);
         }
 
         /// <summary>
@@ -3214,7 +3214,7 @@ namespace Fluence
 
                 if (skipOptionalAssign != -1)
                 {
-                    _currentParseState.CodeInstructions[skipOptionalAssign].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+                    _currentParseState.CodeInstructions[skipOptionalAssign].Lhs = new GoToValue(_currentParseState.CodeInstructions.Count);
                 }
 
                 lhsIndex++;
@@ -3306,7 +3306,7 @@ namespace Fluence
                     {
                         for (int i = 0; i < optionalSkipIndexes.Count; i++)
                         {
-                            _currentParseState.CodeInstructions[optionalSkipIndexes[i]].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+                            _currentParseState.CodeInstructions[optionalSkipIndexes[i]].Lhs = new GoToValue(_currentParseState.CodeInstructions.Count);
                         }
                         optionalSkipIndexes.Clear();
                     }
@@ -3379,7 +3379,7 @@ namespace Fluence
 
                 if (skipOptionalAssign != -1)
                 {
-                    _currentParseState.CodeInstructions[skipOptionalAssign].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+                    _currentParseState.CodeInstructions[skipOptionalAssign].Lhs = new GoToValue(_currentParseState.CodeInstructions.Count);
                 }
             }
         }
@@ -3457,7 +3457,7 @@ namespace Fluence
 
                     if (skipOptionalAssign != -1)
                     {
-                        _currentParseState.CodeInstructions[skipOptionalAssign].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+                        _currentParseState.CodeInstructions[skipOptionalAssign].Lhs = new GoToValue(_currentParseState.CodeInstructions.Count);
                     }
                 }
             }
@@ -3495,7 +3495,7 @@ namespace Fluence
             int endJumpPatch = _currentParseState.CodeInstructions.Count - 1;
 
             int falsePathAddress = _currentParseState.CodeInstructions.Count;
-            _currentParseState.CodeInstructions[falseJumpPatch].Lhs = new NumberValue(falsePathAddress);
+            _currentParseState.CodeInstructions[falseJumpPatch].Lhs = new GoToValue(falsePathAddress);
 
             // Consume the ':' or ',' delimiter.
             if (type == TokenType.QUESTION)
@@ -3511,7 +3511,7 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, result, falseExpr));
 
             int endAddress = _currentParseState.CodeInstructions.Count;
-            _currentParseState.CodeInstructions[endJumpPatch].Lhs = new NumberValue(endAddress);
+            _currentParseState.CodeInstructions[endJumpPatch].Lhs = new GoToValue(endAddress);
 
             // The "value" of this entire ternary expression for the rest of the parser
             // is the temporary variable that holds the chosen result.
@@ -3614,10 +3614,10 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, accumulatorRegister, lambda, new NumberValue(2)));
 
             int conditionStartIndex = _currentParseState.CodeInstructions.Count;
-            _currentParseState.CodeInstructions[gotoEndIndex].Lhs = new NumberValue(conditionStartIndex);
+            _currentParseState.CodeInstructions[gotoEndIndex].Lhs = new GoToValue(conditionStartIndex);
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.IterNext, iteratorRegister, elementRegister, continueFlagRegister));
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, new NumberValue(loopBodyStartIndex), continueFlagRegister));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, new GoToValue(loopBodyStartIndex), continueFlagRegister));
 
             return accumulatorRegister;
         }
@@ -4530,7 +4530,7 @@ namespace Fluence
                             break;
                     }
 
-                    _currentParseState.CodeInstructions[ifIndex].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count + 1);
+                    _currentParseState.CodeInstructions[ifIndex].Lhs = new GoToValue(_currentParseState.CodeInstructions.Count + 1);
                 }
                 // Property access.
                 else if (type == TokenType.DOT)
@@ -4713,13 +4713,13 @@ namespace Fluence
             _lexer.InsertNextToken(TokenType.EOL);
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.IncrementIntUnrestricted, condition));
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new NumberValue(loopStartIndex - 1)));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new GoToValue(loopStartIndex - 1)));
 
             int loopEndIndex = _currentParseState.CodeInstructions.Count;
 
             int continueAddress = loopStartIndex;
             PatchLoopExits(loopContext, loopEndIndex, continueAddress);
-            _currentParseState.CodeInstructions[loopExitPatch].Lhs = new NumberValue(loopEndIndex);
+            _currentParseState.CodeInstructions[loopExitPatch].Lhs = new GoToValue(loopEndIndex);
 
             _currentParseState.ActiveLoopContexts.Pop();
         }
@@ -4803,7 +4803,7 @@ namespace Fluence
 
             _currentParseState.AddCodeInstruction(LambdaClosure);
 
-            _currentParseState.CodeInstructions[lambdaBodySkipIndex].Lhs = new NumberValue(_currentParseState.CodeInstructions.Count);
+            _currentParseState.CodeInstructions[lambdaBodySkipIndex].Lhs = new GoToValue(_currentParseState.CodeInstructions.Count);
             FunctionValue lambdaFunction = new FunctionValue($"lambda__{args.Count}", false, args.Count, lambdaCodeStartIndex, startAddressInSource, args, argsByRef, _currentParseState.CurrentScope);
 
             int functionCodeEnd = _currentParseState.CodeInstructions.Count;
@@ -5178,12 +5178,12 @@ namespace Fluence
         {
             foreach (int patchIndex in loopContext.BreakPatchAddresses)
             {
-                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(breakAddress);
+                _currentParseState.CodeInstructions[patchIndex].Lhs = new GoToValue(breakAddress);
             }
 
             foreach (int patchIndex in loopContext.ContinuePatchAddresses)
             {
-                _currentParseState.CodeInstructions[patchIndex].Lhs = new NumberValue(continueAddress);
+                _currentParseState.CodeInstructions[patchIndex].Lhs = new GoToValue(continueAddress);
             }
         }
 

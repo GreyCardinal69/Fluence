@@ -307,7 +307,7 @@ namespace Fluence
 
             for (int i = 0; i < relevantSpan.Length; i++)
             {
-                ref InstructionLine? insn = ref relevantSpan[i];
+                ref InstructionLine insn = ref relevantSpan[i];
 
                 if (insn is null) continue;
 

@@ -8,19 +8,7 @@
         internal RuntimeValue Start { get; private set; }
         internal RuntimeValue End { get; private set; }
 
-        internal RangeObject(RuntimeValue start, RuntimeValue end)
-        {
-            Start = start;
-            End = end;
-        }
-
         public RangeObject() { }
-
-        internal void Reset()
-        {
-            Start = default;
-            End = default;
-        }
 
         internal void Initialize(RuntimeValue start, RuntimeValue end)
         {

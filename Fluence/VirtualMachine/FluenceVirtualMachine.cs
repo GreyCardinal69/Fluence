@@ -233,7 +233,7 @@ namespace Fluence.VirtualMachine
             _charObjectPool = new ObjectPool<CharObject>(chr => chr.Reset());
             _functionObjectPool = new ObjectPool<FunctionObject>();
             _stringObjectPool = new ObjectPool<StringObject>(str => str.Reset());
-            _rangeObjectPool = new ObjectPool<RangeObject>(range => range.Reset());
+            _rangeObjectPool = new ObjectPool<RangeObject>();
 
             _parser = parseState.ParserInstance;
             _byteCode = bytecode;

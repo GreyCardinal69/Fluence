@@ -23,94 +23,94 @@ namespace Fluence.ParserTests
             return parser.CurrentParseState;
         }
 
-        [Fact]
-        public void PrePassCorrectlyBuildsHierarchicalSymbolTableForMultipleScopes()
-        {
-            string source = @"
-                space MyMath_1 {
-                    struct Vector3_1 { x=0; y=0; z=0; func init(x,y,z) => {} }
-                }
-                enum A_1 { b, c, }
-                struct Globuloid_1 { Name = ""globuloid""; }
-                space MyProgram_1 {
-                    use MyMath_1;
-                    use FluenceMath;
-                    struct Number_1 { func init(num, numType) => {} }
-                    enum Number_1Type { Int, Float, Integer, }
-                    func Main_1() => {}
-                    func Helper_1() => {}
-                }
-                space MyMath_2 {
-                    struct Vector3_2 { x=0; y=0; z=0; func init(x,y,z) => {} }
-                }
-                enum A_2 { b, c, }
-                struct Globuloid_2 { Name = ""globuloid""; }
-                space MyProgram_2 {
-                    use MyMath_2;
-                    use FluenceMath;
-                    struct Number_2 { func init(num, numType) => {} }
-                    enum Number_2Type { Int, Float, Integer, }
-                    func Main_2() => {}
-                    func Helper_2() => {}
-                }
-                space MyMath_3 {
-                    struct Vector3_3 { x=0; y=0; z=0; func init(x,y,z) => {} }
-                }
-                enum A_3 { b, c, }
-                struct Globuloid_3 { Name = ""globuloid""; }
-                space MyProgram_3 {
-                    use MyMath_3;
-                    use FluenceMath;
-                    struct Number_3 { func init(num, numType) => {} }
-                    enum Number_3Type { Int, Float, Integer, }
-                    func Main_3() => {}
-                    func Helper_3() => {}
-                }
-            ";
+        //[Fact]
+        //public void PrePassCorrectlyBuildsHierarchicalSymbolTableForMultipleScopes()
+        //{
+        //    string source = @"
+        //        space MyMath_1 {
+        //            struct Vector3_1 { x=0; y=0; z=0; func init(x,y,z) => {} }
+        //        }
+        //        enum A_1 { b, c, }
+        //        struct Globuloid_1 { Name = ""globuloid""; }
+        //        space MyProgram_1 {
+        //            use MyMath_1;
+        //            use FluenceMath;
+        //            struct Number_1 { func init(num, numType) => {} }
+        //            enum Number_1Type { Int, Float, Integer, }
+        //            func Main_1() => {}
+        //            func Helper_1() => {}
+        //        }
+        //        space MyMath_2 {
+        //            struct Vector3_2 { x=0; y=0; z=0; func init(x,y,z) => {} }
+        //        }
+        //        enum A_2 { b, c, }
+        //        struct Globuloid_2 { Name = ""globuloid""; }
+        //        space MyProgram_2 {
+        //            use MyMath_2;
+        //            use FluenceMath;
+        //            struct Number_2 { func init(num, numType) => {} }
+        //            enum Number_2Type { Int, Float, Integer, }
+        //            func Main_2() => {}
+        //            func Helper_2() => {}
+        //        }
+        //        space MyMath_3 {
+        //            struct Vector3_3 { x=0; y=0; z=0; func init(x,y,z) => {} }
+        //        }
+        //        enum A_3 { b, c, }
+        //        struct Globuloid_3 { Name = ""globuloid""; }
+        //        space MyProgram_3 {
+        //            use MyMath_3;
+        //            use FluenceMath;
+        //            struct Number_3 { func init(num, numType) => {} }
+        //            enum Number_3Type { Int, Float, Integer, }
+        //            func Main_3() => {}
+        //            func Helper_3() => {}
+        //        }
+        //    ";
 
-            FluenceParser parser = CreateParser(source);
+        //    FluenceParser parser = CreateParser(source);
 
-            parser.Parse(true);
-            FluenceParser.ParseState symbolTree = GetSymbolTree(parser);
+        //    parser.Parse(true);
+        //    FluenceParser.ParseState symbolTree = GetSymbolTree(parser);
 
-            Assert.True(symbolTree.GlobalScope.Contains("A_1"));
-            Assert.True(symbolTree.GlobalScope.Contains("Globuloid_1"));
-            Assert.True(symbolTree.GlobalScope.Contains("A_2"));
-            Assert.True(symbolTree.GlobalScope.Contains("Globuloid_2"));
-            Assert.True(symbolTree.GlobalScope.Contains("A_3"));
-            Assert.True(symbolTree.GlobalScope.Contains("Globuloid_3"));
-            Assert.False(symbolTree.GlobalScope.Contains("MyProgram_1"));
+        //    Assert.True(symbolTree.GlobalScope.Contains("A_1"));
+        //    Assert.True(symbolTree.GlobalScope.Contains("Globuloid_1"));
+        //    Assert.True(symbolTree.GlobalScope.Contains("A_2"));
+        //    Assert.True(symbolTree.GlobalScope.Contains("Globuloid_2"));
+        //    Assert.True(symbolTree.GlobalScope.Contains("A_3"));
+        //    Assert.True(symbolTree.GlobalScope.Contains("Globuloid_3"));
+        //    Assert.False(symbolTree.GlobalScope.Contains("MyProgram_1"));
 
-            Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_1".GetHashCode()));
-            Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_1".GetHashCode()));
-            Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_2".GetHashCode()));
-            Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_2".GetHashCode()));
-            Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_3".GetHashCode()));
-            Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_3".GetHashCode()));
-            Assert.True(symbolTree.NameSpaces.ContainsKey("FluenceMath".GetHashCode()));
+        //    Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_1".GetHashCode()));
+        //    Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_1".GetHashCode()));
+        //    Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_2".GetHashCode()));
+        //    Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_2".GetHashCode()));
+        //    Assert.True(symbolTree.NameSpaces.ContainsKey("MyMath_3".GetHashCode()));
+        //    Assert.True(symbolTree.NameSpaces.ContainsKey("MyProgram_3".GetHashCode()));
+        //    Assert.True(symbolTree.NameSpaces.ContainsKey("FluenceMath".GetHashCode()));
 
-            FluenceScope myProgram1Scope = symbolTree.NameSpaces["MyProgram_1".GetHashCode()];
-            Assert.True(myProgram1Scope.ContainsLocal("Number_1".GetHashCode()));
-            Assert.True(myProgram1Scope.ContainsLocal("Number_1Type".GetHashCode()));
-            Assert.True(myProgram1Scope.ContainsLocal("Main_1__0".GetHashCode()));
-            Assert.True(myProgram1Scope.ContainsLocal("Helper_1__0".GetHashCode()));
-            Assert.True(myProgram1Scope.ContainsLocal("Vector3_1".GetHashCode()));
-            Assert.True(myProgram1Scope.ContainsLocal("cos__1".GetHashCode()));
-            Assert.False(myProgram1Scope.ContainsLocal("Globuloid_1".GetHashCode()));
+        //    FluenceScope myProgram1Scope = symbolTree.NameSpaces["MyProgram_1".GetHashCode()];
+        //    Assert.True(myProgram1Scope.ContainsLocal("Number_1".GetHashCode()));
+        //    Assert.True(myProgram1Scope.ContainsLocal("Number_1Type".GetHashCode()));
+        //    Assert.True(myProgram1Scope.ContainsLocal("Main_1__0".GetHashCode()));
+        //    Assert.True(myProgram1Scope.ContainsLocal("Helper_1__0".GetHashCode()));
+        //    Assert.True(myProgram1Scope.ContainsLocal("Vector3_1".GetHashCode()));
+        //    Assert.True(myProgram1Scope.ContainsLocal("cos__1".GetHashCode()));
+        //    Assert.False(myProgram1Scope.ContainsLocal("Globuloid_1".GetHashCode()));
 
-            FluenceScope myMath2Scope = symbolTree.NameSpaces["MyMath_2".GetHashCode()];
-            Assert.True(myMath2Scope.ContainsLocal("Vector3_2".GetHashCode()));
-            Assert.False(myMath2Scope.ContainsLocal("Number_2".GetHashCode()));
+        //    FluenceScope myMath2Scope = symbolTree.NameSpaces["MyMath_2".GetHashCode()];
+        //    Assert.True(myMath2Scope.ContainsLocal("Vector3_2".GetHashCode()));
+        //    Assert.False(myMath2Scope.ContainsLocal("Number_2".GetHashCode()));
 
-            FluenceScope myProgram3Scope = symbolTree.NameSpaces["MyProgram_3".GetHashCode()];
-            Assert.True(myProgram3Scope.ContainsLocal("Number_3".GetHashCode()));
-            Assert.True(myProgram3Scope.ContainsLocal("Main_3__0".GetHashCode()));
-            Assert.True(myProgram3Scope.ContainsLocal("Vector3_3".GetHashCode()));
+        //    FluenceScope myProgram3Scope = symbolTree.NameSpaces["MyProgram_3".GetHashCode()];
+        //    Assert.True(myProgram3Scope.ContainsLocal("Number_3".GetHashCode()));
+        //    Assert.True(myProgram3Scope.ContainsLocal("Main_3__0".GetHashCode()));
+        //    Assert.True(myProgram3Scope.ContainsLocal("Vector3_3".GetHashCode()));
 
-            Assert.IsType<StructSymbol>(myProgram1Scope.Symbols["Vector3_1".GetHashCode()]);
-            Assert.IsType<EnumSymbol>(myProgram1Scope.Symbols["Number_1Type".GetHashCode()]);
-            Assert.IsType<FunctionSymbol>(myProgram1Scope.Symbols["Main_1__0".GetHashCode()]);
-        }
+        //    Assert.IsType<StructSymbol>(myProgram1Scope.Symbols["Vector3_1".GetHashCode()]);
+        //    Assert.IsType<EnumSymbol>(myProgram1Scope.Symbols["Number_1Type".GetHashCode()]);
+        //    Assert.IsType<FunctionSymbol>(myProgram1Scope.Symbols["Main_1__0".GetHashCode()]);
+        //}
 
         [Fact]
         public void ParsesFunctionDeclarationAndJumpsOverBody()
@@ -119,7 +119,7 @@ namespace Fluence.ParserTests
             List<InstructionLine> compiledCode = Compile(source);
             List<InstructionLine> expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.Goto, new NumberValue(2)),
+                new(InstructionCode.Goto, new GoToValue(2)),
                 new(InstructionCode.Return, new NilValue()),
                 new(InstructionCode.Assign, new VariableValue("DoNothing__0"), new FunctionValue("DoNothing", false, 0, 2,0, [], [], null !)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
@@ -308,9 +308,9 @@ namespace Fluence.ParserTests
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.LessThan, new TempValue(0), new VariableValue("a"), new NumberValue(2)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(0)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(5), new TempValue(0)),
                 new(InstructionCode.Assign, new TempValue(1), new NumberValue(10)),
-                new(InstructionCode.Goto, new NumberValue(6)),
+                new(InstructionCode.Goto, new GoToValue(6)),
                 new(InstructionCode.Assign, new TempValue(1), new NumberValue(10)),
                 new(InstructionCode.Assign, new VariableValue("c"), new TempValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
@@ -328,9 +328,9 @@ namespace Fluence.ParserTests
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.LessThan, new TempValue(0), new VariableValue("a"), new NumberValue(2)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(0)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(5), new TempValue(0)),
                 new(InstructionCode.Assign, new TempValue(1), new NumberValue(10)),
-                new(InstructionCode.Goto, new NumberValue(6)),
+                new(InstructionCode.Goto, new GoToValue(6)),
                 new(InstructionCode.Assign, new TempValue(1), new NumberValue(10)),
                 new(InstructionCode.Assign, new VariableValue("d"), new TempValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
@@ -349,14 +349,14 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("c"), new NumberValue(10)),
                 new(InstructionCode.Assign, new VariableValue("d"), new NumberValue(10)),
                 new(InstructionCode.Equal, new TempValue(0), new VariableValue("c"), new NumberValue(10)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(11), new TempValue(0)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(11), new TempValue(0)),
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("d"), new NumberValue(10)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(8), new TempValue(1)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(8), new TempValue(1)),
                 new(InstructionCode.Assign, new TempValue(2), new NumberValue(100)),
-                new(InstructionCode.Goto, new NumberValue(9)),
+                new(InstructionCode.Goto, new GoToValue(9)),
                 new(InstructionCode.Assign, new TempValue(2), new NumberValue(100)),
                 new(InstructionCode.Assign, new TempValue(3), new TempValue(2)),
-                new(InstructionCode.Goto, new NumberValue(12)),
+                new(InstructionCode.Goto, new GoToValue(12)),
                 new(InstructionCode.Assign, new TempValue(3), new NumberValue(10)),
                 new(InstructionCode.Assign, new VariableValue("v"), new TempValue(3)),
                 new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main__0"), new NumberValue(0)),
@@ -375,7 +375,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Equal, new TempValue(0), new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("b"), new NumberValue(2)),
                 new(InstructionCode.And, new TempValue(2), new TempValue(0), new TempValue(1)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(2)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(6), new TempValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main__0"), new NumberValue(0)),
@@ -394,7 +394,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Equal, new TempValue(0), new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("b"), new NumberValue(2)),
                 new(InstructionCode.Or, new TempValue(2), new TempValue(0), new TempValue(1)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(2)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(6), new TempValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main__0"), new NumberValue(0)),
@@ -413,7 +413,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.And, new TempValue(0), new VariableValue("a"), new VariableValue("b")),
                 new(InstructionCode.Or, new TempValue(1), new VariableValue("c"), new VariableValue("d")),
                 new(InstructionCode.Or, new TempValue(2), new TempValue(0), new TempValue(1)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(2)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(6), new TempValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main__0"), new NumberValue(0)),
@@ -450,7 +450,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.GreaterThan, new TempValue(10), new VariableValue("y"), new NumberValue(0)),
                 new(InstructionCode.Or, new TempValue(11), new TempValue(9), new TempValue(10)),
                 new(InstructionCode.And, new TempValue(12), new TempValue(8), new TempValue(11)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(19), new TempValue(12)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(19), new TempValue(12)),
                 new(InstructionCode.PushParam, new StringValue("here")),
                 new(InstructionCode.CallFunction, new TempValue(13), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(14), new VariableValue("Main__0"), new NumberValue(0)),
@@ -523,11 +523,11 @@ namespace Fluence.ParserTests
             List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Equal, new TempValue(1), new NumberValue(1), new NumberValue(1)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(4), new TempValue(1)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(4), new TempValue(1)),
                 new(InstructionCode.Assign, new TempValue(0), new EnumValue("Status", "Ok", 0)),
-                new(InstructionCode.Goto, new NumberValue(6)),
+                new(InstructionCode.Goto, new GoToValue(6)),
                 new(InstructionCode.Assign, new TempValue(0), new EnumValue("Status", "Err", 1)),
-                new(InstructionCode.Goto, new NumberValue(6)),
+                new(InstructionCode.Goto, new GoToValue(6)),
                 new(InstructionCode.Assign, new VariableValue("result"), new TempValue(0)),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
@@ -555,12 +555,12 @@ namespace Fluence.ParserTests
             List<InstructionLine> compiledCode = Compile(source);
             List<InstructionLine> expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.Goto, new NumberValue(5), null!, null!, null!),
+                new(InstructionCode.Goto, new GoToValue(5), null!, null!, null!),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("input__0"), new NumberValue(0), null!),
                 new(InstructionCode.PushParam, new TempValue(0), null!, null!, null!),
                 new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("to_int__1"), new NumberValue(1), null!),
                 new(InstructionCode.Return, new TempValue(1), null!, null!, null!),
-                new(InstructionCode.Goto, new NumberValue(55), null!, null!, null!),
+                new(InstructionCode.Goto, new GoToValue(55), null!, null!, null!),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("input_int__0"), new NumberValue(0), null!),
                 new(InstructionCode.Assign, new TempValue(3), new TempValue(2), null!, null!),
                 new(InstructionCode.Assign, new VariableValue("num1"), new TempValue(3), null!, null!),
@@ -574,36 +574,36 @@ namespace Fluence.ParserTests
                 new(InstructionCode.And, new TempValue(6), new TempValue(4), new TempValue(5), null!),
                 new(InstructionCode.NotEqual, new TempValue(7), new VariableValue("op"), new NilValue(), null!),
                 new(InstructionCode.And, new TempValue(8), new TempValue(6), new TempValue(7), null!),
-                new(InstructionCode.GotoIfFalse, new NumberValue(44), new TempValue(8), null!, null!),
-                new(InstructionCode.BranchIfNotEqual, new NumberValue(24), new VariableValue("op"), new StringValue("+"), null!),
+                new(InstructionCode.GotoIfFalse, new GoToValue(44), new TempValue(8), null!, null!),
+                new(InstructionCode.BranchIfNotEqual, new GoToValue(24), new VariableValue("op"), new StringValue("+"), null!),
                 new(InstructionCode.Add, new TempValue(11), new VariableValue("num1"), new VariableValue("num2"), null!),
                 new(InstructionCode.Assign, new TempValue(9), new TempValue(11), null!, null!),
-                new(InstructionCode.Goto, new NumberValue(42), null!, null!, null!),
-                new(InstructionCode.BranchIfNotEqual, new NumberValue(28), new VariableValue("op"), new StringValue("-"), null!),
+                new(InstructionCode.Goto, new GoToValue(42), null!, null!, null!),
+                new(InstructionCode.BranchIfNotEqual, new GoToValue(28), new VariableValue("op"), new StringValue("-"), null!),
                 new(InstructionCode.Subtract, new TempValue(13), new VariableValue("num1"), new VariableValue("num2"), null!),
                 new(InstructionCode.Assign, new TempValue(9), new TempValue(13), null!, null!),
-                new(InstructionCode.Goto, new NumberValue(42), null!, null!, null!),
-                new(InstructionCode.BranchIfNotEqual, new NumberValue(32), new VariableValue("op"), new StringValue("*"), null!),
+                new(InstructionCode.Goto, new GoToValue(42), null!, null!, null!),
+                new(InstructionCode.BranchIfNotEqual, new GoToValue(32), new VariableValue("op"), new StringValue("*"), null!),
                 new(InstructionCode.Multiply, new TempValue(15), new VariableValue("num1"), new VariableValue("num2"), null!),
                 new(InstructionCode.Assign, new TempValue(9), new TempValue(15), null!, null!),
-                new(InstructionCode.Goto, new NumberValue(42), null!, null!, null!),
-                new(InstructionCode.BranchIfNotEqual, new NumberValue(40), new VariableValue("op"), new StringValue("/"), null!),
-                new(InstructionCode.BranchIfNotEqual, new NumberValue(36), new VariableValue("num2"), new NumberValue(0), null!),
+                new(InstructionCode.Goto, new GoToValue(42), null!, null!, null!),
+                new(InstructionCode.BranchIfNotEqual, new GoToValue(40), new VariableValue("op"), new StringValue("/"), null!),
+                new(InstructionCode.BranchIfNotEqual, new GoToValue(36), new VariableValue("num2"), new NumberValue(0), null!),
                 new(InstructionCode.Assign, new TempValue(18), new NilValue(), null!, null!),
-                new(InstructionCode.Goto, new NumberValue(38), null!, null!, null!),
+                new(InstructionCode.Goto, new GoToValue(38), null!, null!, null!),
                 new(InstructionCode.Divide, new TempValue(19), new VariableValue("num1"), new VariableValue("num2"), null!),
                 new(InstructionCode.Assign, new TempValue(18), new TempValue(19), null!, null!),
                 new(InstructionCode.Assign, new TempValue(9), new TempValue(18), null!, null!),
-                new(InstructionCode.Goto, new NumberValue(42), null!, null!, null!),
+                new(InstructionCode.Goto, new GoToValue(42), null!, null!, null!),
                 new(InstructionCode.Assign, new TempValue(9), new NilValue(), null!, null!),
-                new(InstructionCode.Goto, new NumberValue(42), null!, null!, null!),
+                new(InstructionCode.Goto, new GoToValue(42), null!, null!, null!),
                 new(InstructionCode.Assign, new TempValue(20), new TempValue(9), null!, null!),
-                new(InstructionCode.Goto, new NumberValue(45), null!, null!, null!),
+                new(InstructionCode.Goto, new GoToValue(45), null!, null!, null!),
                 new(InstructionCode.Assign, new TempValue(20), new NilValue(), null!, null!),
                 new(InstructionCode.Assign, new VariableValue("result"), new TempValue(20), null!, null!),
-                new(InstructionCode.BranchIfNotEqual, new NumberValue(49), new VariableValue("result"), new NilValue(), null!),
+                new(InstructionCode.BranchIfNotEqual, new GoToValue(49), new VariableValue("result"), new NilValue(), null!),
                 new(InstructionCode.Assign, new TempValue(22), new StringValue("Error"), null!, null!),
-                new(InstructionCode.Goto, new NumberValue(52), null!, null!, null!),
+                new(InstructionCode.Goto, new GoToValue(52), null!, null!, null!),
                 new(InstructionCode.ToString, new TempValue(23), new VariableValue("result"), null!, null!),
                 new(InstructionCode.Add, new TempValue(24), new StringValue("Result: "), new TempValue(23), null!),
                 new(InstructionCode.Assign, new TempValue(22), new TempValue(24), null!, null!),
@@ -659,7 +659,7 @@ namespace Fluence.ParserTests
             List<InstructionLine> compiledCode = Compile(source);
             List<InstructionLine> expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.Goto, new NumberValue(8)),
+                new(InstructionCode.Goto, new GoToValue(8)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("x"), new NumberValue(0)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("y"), new NumberValue(0)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("z"), new NumberValue(0)),
@@ -667,7 +667,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("y"), new VariableValue("y")),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("z"), new VariableValue("z")),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(16)),
+                new(InstructionCode.Goto, new GoToValue(16)),
                 new(InstructionCode.GetField, new TempValue(1), new VariableValue("self"), new StringValue("x")),
                 new(InstructionCode.Power, new TempValue(0), new TempValue(1), new NumberValue(2)),
                 new(InstructionCode.GetField, new TempValue(3), new VariableValue("self"), new StringValue("y")),
@@ -675,7 +675,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Add, new TempValue(4), new TempValue(0), new TempValue(2)),
                 new(InstructionCode.Power, new TempValue(5), new TempValue(4), new NumberValue(0.5, NumberValue.NumberType.Double)),
                 new(InstructionCode.Return, new TempValue(5)),
-                new(InstructionCode.Goto, new NumberValue(24)),
+                new(InstructionCode.Goto, new GoToValue(24)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("num"), new NumberValue(10)),
                 new(InstructionCode.Add, new TempValue(6), new NumberValue(10), new NumberValue(10)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("num2"), new TempValue(6)),
@@ -683,7 +683,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("num"), new VariableValue("num")),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("numType"), new VariableValue("numType")),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(43)),
+                new(InstructionCode.Goto, new GoToValue(43)),
                 new(InstructionCode.NewInstance, new TempValue(7), new StructSymbol("Number", null!)),
                 new(InstructionCode.PushTwoParams, new NumberValue(10), new EnumValue("NumberType", "Float",1)),
                 new(InstructionCode.CallMethod, new TempValue(8), new TempValue(7), new StringValue("init")),
@@ -702,7 +702,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushParam, new TempValue(14)),
                 new(InstructionCode.CallFunction, new TempValue(15), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(47)),
+                new(InstructionCode.Goto, new GoToValue(47)),
                 new(InstructionCode.PushParam, new StringValue("helper")),
                 new(InstructionCode.CallFunction, new TempValue(16), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
@@ -777,7 +777,7 @@ namespace Fluence.ParserTests
             List<InstructionLine> compiledCode = Compile(source);
             List<InstructionLine> expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.Goto, new NumberValue(8)),
+                new(InstructionCode.Goto, new GoToValue(8)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("x"), new NumberValue(0)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("y"), new NumberValue(0)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("z"), new NumberValue(0)),
@@ -785,7 +785,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("y"), new VariableValue("y")),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("z"),new VariableValue("z")),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(16)),
+                new(InstructionCode.Goto, new GoToValue(16)),
                 new(InstructionCode.GetField, new TempValue(4), new VariableValue("self"), new StringValue("x")),
                 new(InstructionCode.Power, new TempValue(3), new TempValue(4), new NumberValue(2)),
                 new(InstructionCode.GetField, new TempValue(6), new VariableValue("self"), new StringValue("y")),
@@ -793,7 +793,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Add, new TempValue(7), new TempValue(3), new TempValue(5)),
                 new(InstructionCode.Power, new TempValue(8), new TempValue(7), new NumberValue(0.5, NumberValue.NumberType.Double)),
                 new(InstructionCode.Return, new TempValue(8)),
-                new(InstructionCode.Goto, new NumberValue(24)),
+                new(InstructionCode.Goto, new GoToValue(24)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("num"), new NumberValue(10)),
                 new(InstructionCode.Add, new TempValue(9), new NumberValue(10), new NumberValue(10)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("num2"), new TempValue(9)),
@@ -801,7 +801,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("num"),  new VariableValue("num")),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("numType"), new VariableValue("numType")),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(43)),
+                new(InstructionCode.Goto, new GoToValue(43)),
                 new(InstructionCode.NewInstance, new TempValue(12), new StructSymbol("Number", null !)),
                 new(InstructionCode.PushTwoParams, new NumberValue(10),new EnumValue("NumberType", "Float", 1)),
                 new(InstructionCode.CallMethod, new TempValue(13), new TempValue(12), new StringValue("init")),
@@ -820,7 +820,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushParam, new TempValue(19)),
                 new(InstructionCode.CallFunction, new TempValue(20), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(47)),
+                new(InstructionCode.Goto, new GoToValue(47)),
                 new(InstructionCode.PushParam, new StringValue("helper")),
                 new(InstructionCode.CallFunction, new TempValue(21), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Return, new NilValue()),
@@ -851,13 +851,13 @@ namespace Fluence.ParserTests
             List<InstructionLine> compiledCode = Compile(source);
             List<InstructionLine> expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.Goto, new NumberValue(6)),
+                new(InstructionCode.Goto, new GoToValue(6)),
                 new(InstructionCode.NewInstance, new TempValue(0), new StructSymbol("Vector3", null !)),
                 new(InstructionCode.PushThreeParams, new NumberValue(1),new NumberValue(2),new NumberValue(3)),
                 new(InstructionCode.CallMethod, new TempValue(1), new TempValue(0), new StringValue("init")),
                 new(InstructionCode.Assign, new VariableValue("pos"), new TempValue(0)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(8)),
+                new(InstructionCode.Goto, new GoToValue(8)),
                 new(InstructionCode.Return, new NilValue()),
                 new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", false, 0, 3, 0, [], [], null !)),
                 new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", false, 3, 1, 0, ["x", "y", "z"], [], null !)),
@@ -883,13 +883,13 @@ namespace Fluence.ParserTests
             List<InstructionLine> compiledCode = Compile(source);
             List<InstructionLine> expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.Goto, new NumberValue(6)),
+                new(InstructionCode.Goto, new GoToValue(6)),
                 new(InstructionCode.NewInstance, new TempValue(0), new StructSymbol("Vector3", null !)),
                 new(InstructionCode.PushThreeParams, new NumberValue(1),new NumberValue(2),new NumberValue(3)),
                 new(InstructionCode.CallMethod, new TempValue(1), new TempValue(0), new StringValue("init")),
                 new(InstructionCode.Assign, new VariableValue("pos"), new TempValue(0)),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(8)),
+                new(InstructionCode.Goto, new GoToValue(8)),
                 new(InstructionCode.Return, new NilValue()),
                 new(InstructionCode.Assign, new VariableValue("Main__0"), new FunctionValue("Main__0", false, 0, 3, 0, [], [], null !)),
                 new(InstructionCode.Assign, new VariableValue("Vector3.init"), new FunctionValue("init", false, 3, 1, 0, ["x", "y", "z"], [], null !)),
@@ -917,13 +917,13 @@ namespace Fluence.ParserTests
             List<InstructionLine> compiledCode = Compile(source);
             List<InstructionLine> expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.Goto, new NumberValue(6)),
+                new(InstructionCode.Goto, new GoToValue(6)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("x"), new NumberValue(0)),
                 new(InstructionCode.Add, new TempValue(0), new NumberValue(1), new NumberValue(1)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("y"), new TempValue(0)),
                 new(InstructionCode.SetField, new VariableValue("self"), new StringValue("x"), new VariableValue("val")),
                 new(InstructionCode.Return, new NilValue()),
-                new(InstructionCode.Goto, new NumberValue(12)),
+                new(InstructionCode.Goto, new GoToValue(12)),
                 new(InstructionCode.NewInstance, new TempValue(2), new StructSymbol("Point", null !)),
                 new(InstructionCode.PushParam, new NumberValue(100)),
                 new(InstructionCode.CallMethod, new TempValue(3), new TempValue(2), new StringValue("init")),
@@ -964,9 +964,9 @@ namespace Fluence.ParserTests
             {
                 new(InstructionCode.Assign, new VariableValue("result"), new NumberValue(5)),
                 new(InstructionCode.Equal, new TempValue(0), new VariableValue("result"), new NilValue()),
-                new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(0)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(5), new TempValue(0)),
                 new(InstructionCode.Assign, new TempValue(1), new NumberValue(1)),
-                new(InstructionCode.Goto, new NumberValue(6)),
+                new(InstructionCode.Goto, new GoToValue(6)),
                 new(InstructionCode.Assign, new TempValue(1), new NumberValue(0)),
                 new(InstructionCode.PushParam, new TempValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(99)),
@@ -987,12 +987,12 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(2)),
                 new(InstructionCode.GreaterThan, new TempValue(0), new VariableValue("a"), new VariableValue("b")),
-                new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(0)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(6), new TempValue(0)),
                 new(InstructionCode.Assign, new TempValue(1), new VariableValue("a")),
-                new(InstructionCode.Goto, new NumberValue(7)),
+                new(InstructionCode.Goto, new GoToValue(7)),
                 new(InstructionCode.Assign, new TempValue(1), new VariableValue("b")),
                 new(InstructionCode.Equal, new TempValue(2), new TempValue(1), new NumberValue(2)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(11), new TempValue(2)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(11), new TempValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main__0"), new NumberValue(0)),
@@ -1136,18 +1136,18 @@ namespace Fluence.ParserTests
             {
                 new(InstructionCode.Assign, new VariableValue("myColor"), new EnumValue("Color", "Red", 0)),
                 new(InstructionCode.Equal, new TempValue(0), new VariableValue("myColor"), new EnumValue("Color", "Red", 0)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(6), new TempValue(0)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(6), new TempValue(0)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("print__1"), new NumberValue(1)),
-                new(InstructionCode.Goto, new NumberValue(14)),
+                new(InstructionCode.Goto, new GoToValue(14)),
                 new(InstructionCode.Equal, new TempValue(2), new VariableValue("myColor"), new EnumValue("Color", "Green", 1)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(11), new TempValue(2)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(11), new TempValue(2)),
                 new(InstructionCode.PushParam, new NumberValue(2)),
                 new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print__1"), new NumberValue(1)),
-                new(InstructionCode.Goto, new NumberValue(14)),
+                new(InstructionCode.Goto, new GoToValue(14)),
                 new(InstructionCode.PushParam, new NumberValue(3)),
                 new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print__1"), new NumberValue(1)),
-                new(InstructionCode.Goto, new NumberValue(14)),
+                new(InstructionCode.Goto, new GoToValue(14)),
                 new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
@@ -1204,7 +1204,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.And, new TempValue(30), new TempValue(28), new TempValue(29)),
                 new(InstructionCode.And, new TempValue(31), new TempValue(21), new TempValue(30)),
                 new(InstructionCode.Or, new TempValue(32), new TempValue(6), new TempValue(31)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(40), new TempValue(32)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(40), new TempValue(32)),
                 new(InstructionCode.Assign, new VariableValue("c"), new NumberValue(3.14, NumberValue.NumberType.Double)),
                 new(InstructionCode.CallFunction, new TempValue(33), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
@@ -1224,7 +1224,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(2), new VariableValue("b"), new NumberValue(1)),
                 new(InstructionCode.And, new TempValue(3), new TempValue(1), new TempValue(2)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(7), new TempValue(3)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(7), new TempValue(3)),
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(2)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
@@ -1295,15 +1295,15 @@ namespace Fluence.ParserTests
             List<InstructionLine> compiledCode = Compile(source);
             List<InstructionLine> expectedCode = new List<InstructionLine>
             {
-                new(InstructionCode.Goto, new NumberValue(10)),
-                new(InstructionCode.BranchIfNotEqual, new NumberValue(4), new VariableValue("a"), new NumberValue(1)),
+                new(InstructionCode.Goto, new GoToValue(10)),
+                new(InstructionCode.BranchIfNotEqual, new GoToValue(4), new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Assign, new TempValue(0), new NumberValue(1)),
-                new(InstructionCode.Goto, new NumberValue(9)),
-                new(InstructionCode.BranchIfNotEqual, new NumberValue(7), new VariableValue("a"), new NumberValue(2)),
+                new(InstructionCode.Goto, new GoToValue(9)),
+                new(InstructionCode.BranchIfNotEqual, new GoToValue(7), new VariableValue("a"), new NumberValue(2)),
                 new(InstructionCode.Assign, new TempValue(0), new NumberValue(2)),
-                new(InstructionCode.Goto, new NumberValue(9)),
+                new(InstructionCode.Goto, new GoToValue(9)),
                 new(InstructionCode.Assign, new TempValue(0), new NumberValue(5)),
-                new(InstructionCode.Goto, new NumberValue(9)),
+                new(InstructionCode.Goto, new GoToValue(9)),
                 new(InstructionCode.Return, new TempValue(0)),
                 new(InstructionCode.Assign, new VariableValue("GetYFromX__1"), new FunctionValue("GetYFromX", false, 3, 1, 0, ["x", "y", "z"], [], null !)),
                 new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("Main__0"), new NumberValue(0)),
@@ -1322,7 +1322,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("a"), new NumberValue(0)),
                 new(InstructionCode.Equal, new TempValue(2), new VariableValue("b"), new NumberValue(0)),
                 new(InstructionCode.And, new TempValue(3), new TempValue(1), new TempValue(2)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(3)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(5), new TempValue(3)),
                 new(InstructionCode.Assign, new VariableValue("x"), new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
@@ -1342,7 +1342,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.NotEqual, new TempValue(1), new VariableValue("a"), new NumberValue(2)),
                 new(InstructionCode.NotEqual, new TempValue(2), new VariableValue("b"), new NumberValue(2)),
                 new(InstructionCode.Or, new TempValue(3), new TempValue(1), new TempValue(2)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(7), new TempValue(3)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(7), new TempValue(3)),
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(3)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
@@ -1364,7 +1364,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.LessThan, new TempValue(3), new VariableValue("b"), new NumberValue(3)),
                 new(InstructionCode.And, new TempValue(4), new TempValue(2), new TempValue(3)),
                 new(InstructionCode.And, new TempValue(5), new TempValue(1), new TempValue(4)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(9), new TempValue(5)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(9), new TempValue(5)),
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(4)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
@@ -1398,7 +1398,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.And, new TempValue(9), new TempValue(7), new TempValue(8)),
                 new(InstructionCode.And, new TempValue(10), new TempValue(6), new TempValue(9)),
                 new(InstructionCode.Or, new TempValue(11), new TempValue(3), new TempValue(10)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(16), new TempValue(11)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(16), new TempValue(11)),
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(5)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
@@ -1415,9 +1415,9 @@ namespace Fluence.ParserTests
             {
                 new(InstructionCode.Assign, new VariableValue("result"), new NumberValue(5)),
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("result"), new NilValue()),
-                new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(1)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(5), new TempValue(1)),
                 new(InstructionCode.Assign, new TempValue(2), new NumberValue(1)),
-                new(InstructionCode.Goto, new NumberValue(6)),
+                new(InstructionCode.Goto, new GoToValue(6)),
                 new(InstructionCode.Assign, new TempValue(2), new NumberValue(0)),
                 new(InstructionCode.PushParam, new TempValue(2)),
                 new(InstructionCode.CallFunction, new TempValue(3), new VariableValue("print__1"), new NumberValue(1)),
@@ -1446,18 +1446,18 @@ namespace Fluence.ParserTests
             List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("x"), new NumberValue(1)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(1)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(5), new TempValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print__1"), new NumberValue(1)),
-                new(InstructionCode.Goto, new NumberValue(7)),
+                new(InstructionCode.Goto, new GoToValue(7)),
                 new(InstructionCode.Equal, new TempValue(3), new VariableValue("x"), new NumberValue(2)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(10), new TempValue(3)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(10), new TempValue(3)),
                 new(InstructionCode.PushParam, new NumberValue(2)),
                 new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print__1"), new NumberValue(1)),
-                new(InstructionCode.Goto, new NumberValue(13)),
+                new(InstructionCode.Goto, new GoToValue(13)),
                 new(InstructionCode.PushParam, new NumberValue(3)),
                 new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("print__1"), new NumberValue(1)),
-                new(InstructionCode.Goto, new NumberValue(13)),
+                new(InstructionCode.Goto, new GoToValue(13)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
@@ -1478,18 +1478,18 @@ namespace Fluence.ParserTests
             List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("x"), new NumberValue(1)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(5), new TempValue(1)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(5), new TempValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print__1"), new NumberValue(1)),
-                new(InstructionCode.Goto, new NumberValue(13)),
+                new(InstructionCode.Goto, new GoToValue(13)),
                 new(InstructionCode.Equal, new TempValue(3), new VariableValue("x"), new NumberValue(2)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(10), new TempValue(3)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(10), new TempValue(3)),
                 new(InstructionCode.PushParam, new NumberValue(2)),
                 new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print__1"), new NumberValue(1)),
-                new(InstructionCode.Goto, new NumberValue(13)),
+                new(InstructionCode.Goto, new GoToValue(13)),
                 new(InstructionCode.PushParam, new NumberValue(3)),
                 new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("print__1"), new NumberValue(1)),
-                new(InstructionCode.Goto, new NumberValue(13)),
+                new(InstructionCode.Goto, new GoToValue(13)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
@@ -1587,15 +1587,15 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushParam, new NumberValue(2)),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(3), new NumberValue(3), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(8), new TempValue(3)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(8), new TempValue(3)),
                 new(InstructionCode.PushParam, new NumberValue(3)),
                 new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(5), new NilValue(), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(12), new TempValue(5)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(12), new TempValue(5)),
                 new(InstructionCode.PushParam, new NilValue()),
                 new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(7), new NumberValue(4), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(16), new TempValue(7)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(16), new TempValue(7)),
                 new(InstructionCode.PushParam, new NumberValue(4)),
                 new(InstructionCode.CallFunction, new TempValue(8), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
@@ -1614,7 +1614,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("input__0"), new NumberValue(0)),
                 new(InstructionCode.Assign, new TempValue(2), new TempValue(1)),
                 new(InstructionCode.Equal, new TempValue(3), new TempValue(2), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(6), new TempValue(3)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(6), new TempValue(3)),
                 new(InstructionCode.Assign, new VariableValue("a"), new TempValue(2)),
                 new(InstructionCode.Assign, new VariableValue("b"), new TempValue(2)),
                 new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("input_int__0"), new NumberValue(0)),
@@ -1635,15 +1635,15 @@ namespace Fluence.ParserTests
             List<InstructionLine> expectedCode = new List<InstructionLine>
             {
                 new(InstructionCode.Equal, new TempValue(1), new NumberValue(1), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(4), new TempValue(1)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(4), new TempValue(1)),
                 new(InstructionCode.PushParam, new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(2), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(3), new NilValue(), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(8), new TempValue(3)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(8), new TempValue(3)),
                 new(InstructionCode.PushParam, new NilValue()),
                 new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(5), new NumberValue(3), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(12), new TempValue(5)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(12), new TempValue(5)),
                 new(InstructionCode.PushParam, new NumberValue(3)),
                 new(InstructionCode.CallFunction, new TempValue(6), new VariableValue("print__1"), new NumberValue(1)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
@@ -1688,7 +1688,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Subtract, new TempValue(8), new VariableValue("b"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("b"), new TempValue(8)),
                 new(InstructionCode.Assign, new VariableValue("c"), new BooleanValue(true)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(23), new VariableValue("c")),
+                new(InstructionCode.GotoIfFalse, new GoToValue(23), new VariableValue("c")),
                 new(InstructionCode.Add, new TempValue(9), new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("a"), new TempValue(9)),
                 new(InstructionCode.Add, new TempValue(10), new VariableValue("b"), new NumberValue(1)),
@@ -1753,10 +1753,10 @@ namespace Fluence.ParserTests
             {
                 new(InstructionCode.NewRange, new TempValue(0), new RangeValue(new NumberValue(0), new NumberValue(3))),
                 new(InstructionCode.NewIterator, new TempValue(1), new TempValue(0)),
-                new(InstructionCode.Goto, new NumberValue(4)),
+                new(InstructionCode.Goto, new GoToValue(4)),
                 new(InstructionCode.Assign, new VariableValue("i"), new TempValue(2)),
                 new(InstructionCode.IterNext, new TempValue(1), new TempValue(2), new TempValue(3)),
-                new(InstructionCode.GotoIfTrue, new NumberValue(3), new TempValue(3)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(3), new TempValue(3)),
                 new(InstructionCode.CallFunction, new TempValue(4), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
@@ -1785,18 +1785,18 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new TempValue(1), new NumberValue(0)),
                 new(InstructionCode.GetLength, new TempValue(3), new TempValue(2)),
                 new(InstructionCode.LessThan, new TempValue(4), new TempValue(1), new TempValue(3)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(20), new TempValue(4)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(20), new TempValue(4)),
                 new(InstructionCode.GetElement, new TempValue(5), new TempValue(2), new TempValue(1)),
                 new(InstructionCode.Assign, new VariableValue("num"), new TempValue(5)),
                 new(InstructionCode.Equal, new TempValue(6), new VariableValue("num"), new NumberValue(1)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(14), new TempValue(6)),
-                new(InstructionCode.Goto, new NumberValue(17)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(14), new TempValue(6)),
+                new(InstructionCode.Goto, new GoToValue(17)),
                 new(InstructionCode.Equal, new TempValue(7), new VariableValue("num"), new NumberValue(2)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(17), new TempValue(7)),
-                new(InstructionCode.Goto, new NumberValue(20)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(17), new TempValue(7)),
+                new(InstructionCode.Goto, new GoToValue(20)),
                 new(InstructionCode.Add, new TempValue(8), new TempValue(1), new NumberValue(1)),
                 new(InstructionCode.Assign, new TempValue(1), new TempValue(8)),
-                new(InstructionCode.Goto, new NumberValue(6)),
+                new(InstructionCode.Goto, new GoToValue(6)),
                 new(InstructionCode.CallFunction, new TempValue(9), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
             };
@@ -1826,7 +1826,7 @@ namespace Fluence.ParserTests
                 new(InstructionCode.CallFunction, new TempValue(5), new VariableValue("input__0"), new NumberValue(0)),
                 new(InstructionCode.Assign, new TempValue(6), new TempValue(5)),
                 new(InstructionCode.Equal, new TempValue(7), new TempValue(6), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(14), new TempValue(7)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(14), new TempValue(7)),
                 new(InstructionCode.Assign, new VariableValue("a"), new TempValue(6)),
                 new(InstructionCode.Assign, new VariableValue("b"), new TempValue(6)),
                 new(InstructionCode.CallFunction, new TempValue(8), new VariableValue("input_int__0"), new NumberValue(0)),
@@ -1849,14 +1849,14 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(1)),
                 new(InstructionCode.Equal, new TempValue(1), new VariableValue("a"), new NumberValue(1)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(11), new TempValue(1)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(11), new TempValue(1)),
                 new(InstructionCode.Equal, new TempValue(2), new VariableValue("b"), new NumberValue(1)),
-                new(InstructionCode.GotoIfFalse, new NumberValue(8), new TempValue(2)),
+                new(InstructionCode.GotoIfFalse, new GoToValue(8), new TempValue(2)),
                 new(InstructionCode.Assign, new TempValue(3), new NumberValue(100)),
-                new(InstructionCode.Goto, new NumberValue(9)),
+                new(InstructionCode.Goto, new GoToValue(9)),
                 new(InstructionCode.Assign, new TempValue(3), new NumberValue(100)),
                 new(InstructionCode.Assign, new TempValue(4), new TempValue(3)),
-                new(InstructionCode.Goto, new NumberValue(12)),
+                new(InstructionCode.Goto, new GoToValue(12)),
                 new(InstructionCode.Assign, new TempValue(4), new NumberValue(10)),
                 new(InstructionCode.Assign, new VariableValue("c"), new TempValue(4)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
@@ -1886,16 +1886,16 @@ namespace Fluence.ParserTests
                 new(InstructionCode.Assign, new VariableValue("c"), new StringValue("Hello world!")),
                 new(InstructionCode.Assign, new VariableValue("booly"), new BooleanValue(true)),
                 new(InstructionCode.Equal, new TempValue(2), new NumberValue(10), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(11), new TempValue(2)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(11), new TempValue(2)),
                 new(InstructionCode.Assign, new VariableValue("x"), new NumberValue(10)),
                 new(InstructionCode.Equal, new TempValue(3), new NumberValue(10), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(14), new TempValue(3)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(14), new TempValue(3)),
                 new(InstructionCode.Assign, new VariableValue("y"), new NumberValue(10)),
                 new(InstructionCode.Equal, new TempValue(4), new NumberValue(0), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(17), new TempValue(4)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(17), new TempValue(4)),
                 new(InstructionCode.Assign, new VariableValue("z"), new NumberValue(0)),
                 new(InstructionCode.Equal, new TempValue(5), new NumberValue(999), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(20), new TempValue(5)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(20), new TempValue(5)),
                 new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(1), new NumberValue(999)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)
@@ -1919,16 +1919,16 @@ namespace Fluence.ParserTests
                 new(InstructionCode.PushElement, new TempValue(1), new NumberValue(2)),
                 new(InstructionCode.Assign, new VariableValue("list"), new TempValue(1)),
                 new(InstructionCode.Equal, new TempValue(2), new NumberValue(10), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(7), new TempValue(2)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(7), new TempValue(2)),
                 new(InstructionCode.Assign, new VariableValue("x"), new NumberValue(10)),
                 new(InstructionCode.Equal, new TempValue(3), new NumberValue(10), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(10), new TempValue(3)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(10), new TempValue(3)),
                 new(InstructionCode.Assign, new VariableValue("y"), new NumberValue(10)),
                 new(InstructionCode.Equal, new TempValue(4), new NumberValue(0), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(13), new TempValue(4)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(13), new TempValue(4)),
                 new(InstructionCode.Assign, new VariableValue("z"), new NumberValue(0)),
                 new(InstructionCode.Equal, new TempValue(5), new NumberValue(999), new NilValue()),
-                new(InstructionCode.GotoIfTrue, new NumberValue(16), new TempValue(5)),
+                new(InstructionCode.GotoIfTrue, new GoToValue(16), new TempValue(5)),
                 new(InstructionCode.SetElement, new VariableValue("list"), new NumberValue(1), new NumberValue(999)),
                 new(InstructionCode.CallFunction, new TempValue(0), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)

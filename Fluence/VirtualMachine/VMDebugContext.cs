@@ -38,9 +38,9 @@ namespace Fluence.VirtualMachine
 
                 if (jumpInstructionIndex >= 0 &&
                     bytecode[jumpInstructionIndex].Instruction == InstructionCode.Goto &&
-                    bytecode[jumpInstructionIndex].Lhs is NumberValue jumpTarget)
+                    bytecode[jumpInstructionIndex].Lhs is GoToValue jumpTarget)
                 {
-                    endAddress = (int)jumpTarget.Value;
+                    endAddress = jumpTarget.Address;
                 }
                 else
                 {

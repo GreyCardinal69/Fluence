@@ -1,6 +1,8 @@
 ﻿using Fluence.RuntimeTypes;
 using System.Globalization;
 using System.Numerics;
+using System.Security.Cryptography;
+using System.Xml.Linq;
 using static Fluence.FluenceInterpreter;
 using static Fluence.IntrinsicHelpers;
 
@@ -61,6 +63,52 @@ namespace Fluence.Global
             {
                 Console.Clear();
                 return nilResult;
+            }, globalScope, []));
+
+            //
+            //      ==!!==
+            //      Random functions.
+            //
+
+            StructSymbol random = new StructSymbol("Random", globalScope);
+            globalScope.Declare("Random".GetHashCode(), random);
+
+            random.StaticIntrinsics.Add("between_exclusive__2", new FunctionSymbol("between_2", 2, (vm, argCount) =>
+            {
+                Random rand = new Random();
+                
+                RuntimeValue max = vm.PopStack();
+                RuntimeValue min = vm.PopStack();
+
+                if (min.Type != RuntimeValueType.Number || max.Type != RuntimeValueType.Number)
+                {
+                    return vm.SignalRecoverableErrorAndReturnNil("Random.between_exclusive expects two integer arguments for maximum and minimum.", Exceptions.RuntimeExceptionType.NonSpecific);
+                }
+
+                // min + 1 to get exclusive min, max is already exclusive
+                return new RuntimeValue(rand.Next(min.IntValue + 1, max.IntValue));
+            }, globalScope, ["min", "max"]));
+
+            random.StaticIntrinsics.Add("between_inclusive__2", new FunctionSymbol("between_2", 2, (vm, argCount) =>
+            {
+                Random rand = new Random();
+
+                RuntimeValue max = vm.PopStack();
+                RuntimeValue min = vm.PopStack();
+
+                if (min.Type != RuntimeValueType.Number || max.Type != RuntimeValueType.Number)
+                {
+                    return vm.SignalRecoverableErrorAndReturnNil("Random.between_inclusive expects two integer arguments for maximum and minimum.", Exceptions.RuntimeExceptionType.NonSpecific);
+                }
+
+                // max + 1 to get exclusive max.
+                return new RuntimeValue(rand.Next(min.IntValue, max.IntValue + 1));
+            }, globalScope, ["min", "max"]));
+
+            random.StaticIntrinsics.Add("random", new FunctionSymbol("random", 0, (vm, argCount) =>
+            {
+                Random rand = new Random();
+                return new RuntimeValue(rand.NextSingle());
             }, globalScope, []));
 
             //

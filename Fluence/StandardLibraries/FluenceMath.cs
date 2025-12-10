@@ -34,8 +34,8 @@ namespace Fluence
         /// </summary>
         internal static void Register(FluenceScope mathNamespace)
         {
-            StructSymbol math = new StructSymbol("math", mathNamespace);
-            mathNamespace.Declare("math".GetHashCode(), math);
+            StructSymbol math = new StructSymbol("Math", mathNamespace);
+            mathNamespace.Declare("Math".GetHashCode(), math);
 
             math.StaticFields.Add("Pi", new RuntimeValue(Math.PI));
             math.StaticFields.Add("E", new RuntimeValue(Math.E));

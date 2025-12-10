@@ -675,6 +675,14 @@ namespace Fluence.VirtualMachine
 
         private void ExecuteIncrementIntUnrestricted(InstructionLine instruction)
         {
+            SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedIncrementIntUnrestrictedHandler(instruction, this);
+            if (handler != null)
+            {
+                instruction.SpecializedHandler = handler;
+                handler(instruction, this);
+                return;
+            }
+
             if (instruction.Lhs is TempValue temp)
             {
                 SetRegister(temp, new RuntimeValue(GetRuntimeValue(temp, instruction).IntValue + 1));

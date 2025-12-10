@@ -4682,11 +4682,8 @@ namespace Fluence
             if (_lexer.PeekNextTokenType() == TokenType.AS)
             {
                 _lexer.Advance();
+                if (_lexer.PeekNextTokenType() == TokenType.SOLID) _lexer.Advance();
 
-                if (_lexer.PeekNextTokenType() == TokenType.SOLID)
-                {
-                    _lexer.Advance();
-                }
                 Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected an identifier for a 'x times as y' statement");
                 condition = new VariableValue(nameToken.Text);
                 GenerateWriteBackInstruction(condition, NumberValue.Zero);
@@ -4697,29 +4694,31 @@ namespace Fluence
                 _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, condition, NumberValue.Zero));
             }
 
-            TempValue truthy = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
+            int jumpToCheckIndex = _currentParseState.CodeInstructions.Count - 1;
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GreaterEqual, truthy, condition, count));
-            int loopStartIndex = _currentParseState.CodeInstructions.Count;
+            int bodyStartIndex = _currentParseState.CodeInstructions.Count;
 
             LoopContext loopContext = new LoopContext();
             _currentParseState.ActiveLoopContexts.Push(loopContext);
 
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, null!, truthy));
-            int loopExitPatch = _currentParseState.CodeInstructions.Count - 1;
-
             ParseStatementBody("Expected an '->' for a single-line while loop body.");
 
             _lexer.InsertNextToken(TokenType.EOL);
-
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.IncrementIntUnrestricted, condition));
-            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, new GoToValue(loopStartIndex - 1)));
+
+            int checkStartIndex = _currentParseState.CodeInstructions.Count;
+            _currentParseState.CodeInstructions[jumpToCheckIndex].Lhs = new GoToValue(checkStartIndex);
+
+            TempValue truthy = new TempValue(_currentParseState.NextTempNumber++);
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.LessThan, truthy, condition, count));
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfTrue, new GoToValue(bodyStartIndex), truthy));
 
             int loopEndIndex = _currentParseState.CodeInstructions.Count;
+            int continueAddress = checkStartIndex - 1;
 
-            int continueAddress = loopStartIndex;
             PatchLoopExits(loopContext, loopEndIndex, continueAddress);
-            _currentParseState.CodeInstructions[loopExitPatch].Lhs = new GoToValue(loopEndIndex);
 
             _currentParseState.ActiveLoopContexts.Pop();
         }

@@ -1,4 +1,5 @@
 ﻿using Fluence.RuntimeTypes;
+using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
 using System.Security.Cryptography;
@@ -110,6 +111,42 @@ namespace Fluence.Global
                 Random rand = new Random();
                 return new RuntimeValue(rand.NextSingle());
             }, globalScope, []));
+
+            //
+            //      ==!!==
+            //      Time functions.
+            //
+
+            StructSymbol time = new StructSymbol("Time", globalScope);
+            globalScope.Declare("Time".GetHashCode(), time);
+
+            time.StaticIntrinsics.Add("now__0", new FunctionSymbol("now__0", 0, (vm, argCount) =>
+            {
+                double ms = DateTime.UtcNow.Subtract(DateTime.UnixEpoch).TotalMilliseconds;
+                return new RuntimeValue(ms);
+            }, globalScope, []));
+
+            time.StaticIntrinsics.Add("utc_now__0", new FunctionSymbol("utc_now__0", 0, (vm, argCount) =>
+            {
+                return vm.ResolveStringObjectRuntimeValue(DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"));
+            }, globalScope, []));
+
+            time.StaticIntrinsics.Add("sleep__1", new FunctionSymbol("sleep__1", 1, (vm, argCount) =>
+            {
+                RuntimeValue msVal = vm.PopStack();
+                if (msVal.Type != RuntimeValueType.Number)
+                    return vm.SignalRecoverableErrorAndReturnNil("Time.sleep expects a number (milliseconds).");
+
+                int ms = msVal.ToInt();
+                if (ms > 0) Thread.Sleep(ms);
+
+                return RuntimeValue.Nil;
+            }, globalScope, ["milliseconds"]));
+
+            foreach (FunctionSymbol item in StopwatchWrapper.CreateConstructors(globalScope))
+            {
+                globalScope.Declare(item.Hash, item);
+            }
 
             //
             //      ==!!==

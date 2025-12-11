@@ -45,6 +45,7 @@ Fluence is a dynamically-typed, interpreted, multi-paradigm scripting language t
 - [Lambdas](#lambdas)
   - [Lambda Pipes](#lambda-pipes)
 - [Exceptions](#exceptions)
+- [Getting Started](#getting-started)
 - [Miscellanea](#miscellanea)
 - [Examples](#examples)
 - [TO DO](#to-do)
@@ -1219,6 +1220,107 @@ Modified example with block body.
   });
   printl(sum);
 ```
+Here is the "Getting Started" section for your README. It covers the CLI usage and the C# Embedding API (since that is your main target audience).
+
+---
+
+## Getting Started
+
+### 1. Using the CLI (Standalone)
+Fluence comes with a command-line interface for running scripts directly.
+
+**Installation (Windows):**
+1.  Download the latest release zip.
+2.  Unzip it.
+3.  Run `install_path.cmd` to add `fluence` to your PATH.
+
+**Running a Script:**
+```bash
+fluence -run myscript.fl
+```
+
+**Running a Project:**
+If your script is split across multiple files, point Fluence to the folder containing them. It will look for a `Main` function.
+```bash
+fluence -project ./my_project_folder
+```
+
+**Profiling:**
+Want to see how fast your code is? Add the `-profile` flag to see execution time.
+```bash
+fluence -run game_of_life.fl -profile
+```
+
+**Misc**
+For other info type `-help`
+
+---
+
+### 2. Embedding in C#
+Fluence is designed to be embedded. You can run scripts, set variables, and extend the language with C# code.
+
+**Basic Usage:**
+```csharp
+using Fluence;
+
+var interpreter = new FluenceInterpreter();
+
+// Compile source code.
+string code = @"
+    func Main() => {
+        printl(""Hello from Fluence!"");
+    }
+";
+
+if (interpreter.Compile(code))
+{
+    // Run it.
+    interpreter.RunUntilDone();
+}
+```
+
+**Sharing Data**
+```csharp
+interpreter.Compile(@"
+    func Main() => {
+        player_health = 100;
+        if player_health < 50 -> printl(""Warning: Low Health"");
+        root result = player_health * 2;
+    }
+");
+interpreter.RunUntilDone();
+
+// Get a result back.
+int result = (int)interpreter.GetGlobal("result");
+```
+
+**Extending the Language (Custom Intrinsics):**
+You can add your own C# functions to Fluence.
+
+For example;
+```csharp
+interpreter.RegisterLibrary("MyGame", (builder) => 
+{
+    // Add a function 'MyGame.Spawn(name, count)'.
+    builder.AddStruct("Game");
+    // Function name must be appended with "__" followed by its arity.
+    builder.AddFunctionToStruct("Game", "Spawn__2", 2, (vm, args) => 
+    {
+        // Last argument is at the top of the stack.
+        int count = vm.PopStack().ToInt();
+        string name = vm.PopStack().ToString();
+        
+        Console.WriteLine($"[C#] Spawning {count} {name}s...");
+        return RuntimeValue.Nil;
+    }, "name", "count");
+});
+
+// Now the script can use:
+// use MyGame;
+// Game.Spawn("Goblin", 5);
+```
+
+You can look through the standard libraries' source code to get a better idea of how to do intrinsics.
 
 ### Building from Source
 Fluence is built on .NET. To create a command-line executable for your platform:
@@ -1228,11 +1330,6 @@ dotnet publish -c Release -r win-x64 --self-contained true
 ```
 This creates a `publish` directory containing `fluence.exe`. Add this directory to your system's PATH to make the `fluence` command available everywhere.
 
-### Running a Script
-Once the command is in your PATH, you can run scripts from any terminal:
-```sh
-fluence -run my_script.fl
-```
 ## Miscellanea
 
 ### The `root` Keyword (Global Variables)

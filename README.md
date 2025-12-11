@@ -4,9 +4,7 @@
 <p>
 <strong>An expressive, embeddable scripting language engineered for developer ergonomics.</strong>
 </p>
-<p>
-<a href="https://github.com/your-repo/fluence/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
-</p>
+ 
 </div>
 
 Fluence is a dynamically-typed, interpreted, multi-paradigm scripting language that rejects verbosity and boilerplate. It provides a rich suite of unique operators and constructs that enable a declarative, pipeline-oriented style. Designed for embedding in applications or standalone scripting, Fluence prioritizes concise syntax, powerful control flow, and ergonomic features to boost developer productivity.

@@ -286,10 +286,10 @@ namespace Fluence
                     case RuntimeValueType.Number:
                         return val.NumberType switch
                         {
-                            RuntimeNumberType.Long => Convert.ToInt64(val.LongValue),
                             RuntimeNumberType.Int => Convert.ToInt32(val.IntValue),
-                            RuntimeNumberType.Float => val.FloatValue,
-                            RuntimeNumberType.Double => Convert.ToDouble(val.DoubleValue),
+                            RuntimeNumberType.Long => Convert.ToInt64(val.LongValue),
+                            RuntimeNumberType.Float => Convert.ToSingle(val.FloatValue),
+                            RuntimeNumberType.Double => (object)Convert.ToDouble(val.DoubleValue),
                             _ => throw new NotImplementedException(),
                         };
                     case RuntimeValueType.Object:

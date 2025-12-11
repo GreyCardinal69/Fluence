@@ -160,14 +160,8 @@ namespace Fluence
                 float => NumberType.Float,
                 double => NumberType.Double,
                 long => NumberType.Long,
-                _ => NumberType.Double,
+                _ => NumberType.Integer,
             };
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void ReAssign(object newValue)
-        {
-            Value = newValue;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

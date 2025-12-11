@@ -1279,16 +1279,7 @@ func Collatz() => {
 func Main() => printl(Collatz());
 ```
 ## TO DO
-Fluence is still a language heavily in development, as such many features and much content is yet to be done. This includes
-- A very rich set of built-in libraries and global types
-- Several Lambda based pipes the concepts of which exist, but due to not yet being implemented are not included in the readme.
-- Default function argument values
-- Some form of pattern matching
-- Enums as full objects.
-- Structs in structs, currently the parser cant parse nested structs, it can parse enums defined in structs, but not structs.
-- And much more.
-
-
+Fluence is still in its very early stages, as such much is yet to be done and added.
 
 
 

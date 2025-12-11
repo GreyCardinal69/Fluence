@@ -45,6 +45,7 @@ Fluence is a dynamically-typed, interpreted, multi-paradigm scripting language t
 - [Lambdas](#lambdas)
   - [Lambda Pipes](#lambda-pipes)
 - [Exceptions](#exceptions)
+- [Miscellanea](#miscellanea)
 - [Examples](#examples)
 - [TO DO](#to-do)
 
@@ -1232,7 +1233,31 @@ Once the command is in your PATH, you can run scripts from any terminal:
 ```sh
 fluence -run my_script.fl
 ```
+## Miscellanea
 
+### The `root` Keyword (Global Variables)
+
+Fluence supports explicit global variables using the `root` keyword. A `root` variable is accessible from **any function** in the file, regardless of where it is declared. This allows functions to share state without passing arguments.
+
+```rust
+func Initialize() => {
+    # Declares 'score' in the global scope, not the local function scope.
+    # It will persist after Initialize() returns.
+    root score = 0; 
+}
+
+func AddScore(points) => {
+    # Accesses the same 'score' variable.
+    score += points;
+}
+
+func Main() => {
+    Initialize();
+    AddScore(10);
+    print(score); # Prints 10
+}
+```
+*Note: `root` variables are initialized when the line of code is executed. Accessing a `root` variable before it has been assigned will return `nil`.*
 
 ## Examples
 

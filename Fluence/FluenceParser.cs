@@ -2837,11 +2837,16 @@ namespace Fluence
             VariableValue variable = (VariableValue)left;
             variable.IsGlobal = true;
 
-            AdvanceAndExpect(TokenType.EQUAL, "Expected an assignment for a root ( global ) variable or field.");
-
-            Value value = ParseExpression();
-
-            GenerateWriteBackInstruction(variable, value);
+            if (_lexer.PeekNextTokenType() == TokenType.EQUAL)
+            {
+                _lexer.Advance();
+                Value value = ParseExpression();
+                GenerateWriteBackInstruction(variable, value);
+            }
+            else
+            {
+                GenerateWriteBackInstruction(variable, NilValue.NilInstance);
+            }
         }
 
         /// <summary>

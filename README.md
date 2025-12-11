@@ -1259,6 +1259,11 @@ func Main() => {
 ```
 *Note: `root` variables are initialized when the line of code is executed. Accessing a `root` variable before it has been assigned will return `nil`.*
 
+### Standard Library
+Fluence comes with a comprehensive standard library for File I/O, Math, Collections, and Timing.
+
+*   **[Full Standard Library Reference](docs/StandardLibrary.md)** – Complete documentation of all built-in functions and types.
+
 ## Examples
 
 ## A simple calculator in Fluence:

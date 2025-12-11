@@ -45,6 +45,7 @@ namespace Fluence
                 TokenType.IMPL or
                 TokenType.TRAIT or
                 TokenType.THROW or
+                TokenType.ROOT or
                 TokenType.REST => true,
                 _ => false,
             };
@@ -89,6 +90,7 @@ namespace Fluence
                     if (text.SequenceEqual("rest")) return TokenType.REST;
                     if (text.SequenceEqual("self")) return TokenType.SELF;
                     if (text.SequenceEqual("impl")) return TokenType.IMPL;
+                    if (text.SequenceEqual("root")) return TokenType.ROOT;
                     break;
                 case 5:
                     if (text.SequenceEqual("break")) return TokenType.BREAK;

@@ -1349,6 +1349,7 @@ namespace Fluence
                 case TokenType.LOOP: ParseLoopStatement(); break;
                 case TokenType.MATCH: ParseMatchStatement(); break;
                 case TokenType.SOLID: ParseSolidStatement(); break;
+                case TokenType.ROOT: ParseRootStatement(); break;
                 case TokenType.UNLESS: ParseUnlessStatement(); break;
                 case TokenType.TRY: ParseTryCatch(); break;
 
@@ -2812,6 +2813,31 @@ namespace Fluence
             variable.IsReadOnly = true;
 
             AdvanceAndExpect(TokenType.EQUAL, "Expected an assignment for an immutable solid variable or field.");
+
+            Value value = ParseExpression();
+
+            GenerateWriteBackInstruction(variable, value);
+        }
+
+
+        /// <summary>
+        /// Parses the assignment of a global aka root variable, the variable is marked as a global variable for the scope.
+        /// </summary>
+        private void ParseRootStatement()
+        {
+            _lexer.Advance(); // Consume 'root'.
+
+            Value left = ParseExpression();
+
+            if (left is not VariableValue)
+            {
+                throw ConstructParserException("Can not declare a constant value, or a non variable as root ( global ).", _lexer.PeekCurrentToken());
+            }
+
+            VariableValue variable = (VariableValue)left;
+            variable.IsGlobal = true;
+
+            AdvanceAndExpect(TokenType.EQUAL, "Expected an assignment for a root ( global ) variable or field.");
 
             Value value = ParseExpression();
 

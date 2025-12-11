@@ -369,6 +369,8 @@ namespace Fluence.VirtualMachine
             _dispatchTable[(int)InstructionCode.BranchIfEqual] = (inst) => ExecuteBranchIfEqual(inst, true);
             _dispatchTable[(int)InstructionCode.BranchIfNotEqual] = (inst) => ExecuteBranchIfEqual(inst, false);
 
+            _dispatchTable[(int)InstructionCode.Skip] = ExecuteSkip;
+
             _dispatchTable[(int)InstructionCode.BranchIfGreaterThan] = ExecuteBranchIfGreaterThan;
             _dispatchTable[(int)InstructionCode.BranchIfGreaterOrEqual] = ExecuteBranchIfGreaterOrEqual;
             _dispatchTable[(int)InstructionCode.BranchIfLessThan] = ExecuteBranchIfLessThan;
@@ -378,6 +380,29 @@ namespace Fluence.VirtualMachine
             _dispatchTable[(int)InstructionCode.Terminate] = (inst) => _ip = _byteCode.Count;
 
             Namespaces = parseState.NameSpaces;
+        }
+
+        private static bool IsAGlobalVariable(Value val, out VariableValue variable)
+        {
+            if (val is VariableValue var && var.IsGlobal)
+            {
+                variable = var;
+                return true;
+            }
+
+            variable = null!;
+            return false;
+        }
+
+        private void RegisterVariableToGlobalRegister(VariableValue variable, HashSet<string> globalVars, ref int registerIndex)
+        {
+            globalVars.Add(variable.Name);
+            variable.IsGlobal = true;
+            variable.RegisterIndex = registerIndex;
+            registerIndex++;
+
+            // We store the global variables to allow the access and setting of their values by the interpreter.
+            _globalVariableRegister.Add(variable.Name, variable);
         }
 
         /// <summary>
@@ -393,6 +418,28 @@ namespace Fluence.VirtualMachine
 
             for (int i = 0; i < _byteCode.Count; i++)
             {
+                InstructionLine insn = _byteCode[i];
+
+                // Any variables defined inside functions with the keyword "root" become global, but since they are not defined outside functions
+                // They are not present in the global section after the "SectionGlobal" indicator, we have to go through all the instructions and pre-register them.
+
+                if (insn.Lhs is not null && IsAGlobalVariable(insn.Lhs, out VariableValue variable) && !globalVars.Contains(variable.Name))
+                {
+                    RegisterVariableToGlobalRegister(variable, globalVars, ref index);
+                }
+                if (insn.Rhs is not null && IsAGlobalVariable(insn.Rhs, out VariableValue variable2) && !globalVars.Contains(variable2.Name))
+                {
+                    RegisterVariableToGlobalRegister(variable2, globalVars, ref index);
+                }
+                if (insn.Rhs2 is not null && IsAGlobalVariable(insn.Rhs2, out VariableValue variable3) && !globalVars.Contains(variable3.Name))
+                {
+                    RegisterVariableToGlobalRegister(variable3, globalVars, ref index);
+                }
+                if (insn.Rhs3 is not null && IsAGlobalVariable(insn.Rhs3, out VariableValue variable4) && !globalVars.Contains(variable4.Name))
+                {
+                    RegisterVariableToGlobalRegister(variable4, globalVars, ref index);
+                }
+
                 if (_byteCode[i].Instruction == InstructionCode.SectionGlobal)
                 {
                     startIndex = i;
@@ -401,7 +448,7 @@ namespace Fluence.VirtualMachine
             }
 
             // We no longer need the indicator.
-            _byteCode.RemoveAt(startIndex);
+            _byteCode[startIndex].Instruction = InstructionCode.Skip;
 
             for (int i = startIndex; i < _byteCode.Count; i++)
             {
@@ -628,6 +675,8 @@ namespace Fluence.VirtualMachine
         /// <param name="id">The address of the next instruction to execute.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void SetInstructionPointer(int id) => _ip = id;
+
+        internal static void ExecuteSkip(InstructionLine _) { }
 
         /// <summary>Handles the ADD instruction, which performs numeric addition, string concatenation, or list concatenation.</summary>
         private void ExecuteAdd(InstructionLine instruction)

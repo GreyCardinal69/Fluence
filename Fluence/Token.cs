@@ -104,6 +104,7 @@
             CATCH,
             IMPL,   // Inheritance.
             TRAIT,  // Inheritable.
+            ROOT,   // Marks a variable inside a function as a global in the scope.
 
             CONDITIONAL_IF,     // '#IF' Represents a conditional block of code.
 

@@ -12,8 +12,8 @@ namespace Fluence
     /// </summary>
     internal sealed class FluenceLexer
     {
-        private readonly string _sourceCode;
-        private readonly int _sourceLength;
+        private string _sourceCode;
+        private int _sourceLength;
         private int _currentPosition;
         private int _currentLine;
         private int _currentColumn;
@@ -27,6 +27,11 @@ namespace Fluence
         internal bool HasReachedEnd => _currentPosition >= _sourceLength & _tokenBuffer.HasReachedEnd;
         internal int TokenCount => _tokenBuffer.TokenCount;
         internal string SourceCode => _sourceCode;
+
+        public FluenceLexer()
+        {
+            _tokenBuffer = new TokenBuffer(this);
+        }
 
         internal FluenceLexer(string source, string fileName = null!)
         {
@@ -86,6 +91,13 @@ namespace Fluence
             internal TokenBuffer(FluenceLexer lexer)
             {
                 _lexer = lexer;
+            }
+
+            internal void Reset()
+            {
+                _buffer.Clear();
+                _head = 0;
+                _lexerFinished = false;
             }
 
             /// <summary>
@@ -279,6 +291,30 @@ namespace Fluence
                     }
                 }
             }
+        }
+
+        internal void Reset()
+        {
+            _tokenBuffer.Reset();
+            _currentLine = 0;
+            _currentColumn = 0;
+            _currentColumnBeforeWhiteSpace = 0;
+            _currentLineBeforeWhiteSpace = 0;
+            _currentPosition = 0;
+        }
+
+        internal void Initialize(string source)
+        {
+            _sourceCode = source;
+            _sourceLength = source.Length;
+            _currentPosition = 0;
+            _currentLine = 1;
+            _currentColumn = 1;
+        }
+
+        internal void Initialize(List<Token> tokens)
+        {
+            _tokenBuffer.AddRange(tokens);
         }
 
         /// <summary>

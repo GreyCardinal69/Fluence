@@ -1,9 +1,6 @@
 ﻿using Fluence.RuntimeTypes;
-using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
-using System.Security.Cryptography;
-using System.Xml.Linq;
 using static Fluence.FluenceInterpreter;
 using static Fluence.IntrinsicHelpers;
 
@@ -77,7 +74,7 @@ namespace Fluence.Global
             random.StaticIntrinsics.Add("between_exclusive__2", new FunctionSymbol("between_2", 2, (vm, argCount) =>
             {
                 Random rand = new Random();
-                
+
                 RuntimeValue max = vm.PopStack();
                 RuntimeValue min = vm.PopStack();
 

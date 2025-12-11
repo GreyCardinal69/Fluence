@@ -34,6 +34,8 @@ namespace Fluence
 
         private readonly List<List<Token>> _tokenStreams = new List<List<Token>>();
 
+        private readonly ObjectPool<FluenceLexer> _lexerPool = new ObjectPool<FluenceLexer>(lexer => lexer.Reset(), 4);
+
         /// <summary>
         /// Indicates that we are parsing a multi-file Fluence project.
         /// </summary>
@@ -1511,7 +1513,6 @@ namespace Fluence
 
             _currentParseState.CurrentStructContext = structSymbol;
 
-            // Bytecode for solid, static fields must be generated before the application is run.
             foreach (KeyValuePair<string, List<Token>> field in structSymbol.DefaultFieldValuesAsTokens)
             {
                 Value defaultValueResult;
@@ -1526,11 +1527,14 @@ namespace Fluence
                     }
 
                     _fieldLexer = _lexer;
-                    _lexer = new FluenceLexer(expressionTokens);
+                    _lexer = _lexerPool.Get();
+                    _lexer.Initialize(expressionTokens);
 
                     _currentParseState.IsParsingStaticSolid = true;
                     defaultValueResult = ResolveValue(ParseExpression());
                     _currentParseState.IsParsingStaticSolid = false;
+
+                    _lexerPool.Return(_lexer);
 
                     _lexer = _fieldLexer; // Restore the main lexer.
 
@@ -2041,10 +2045,12 @@ namespace Fluence
                     }
 
                     _fieldLexer = _lexer;
-                    _lexer = new FluenceLexer(expressionTokens);
+                    _lexer = _lexerPool.Get();
+                    _lexer.Initialize(expressionTokens);
 
                     defaultValueResult = ParseTernary();
 
+                    _lexerPool.Return(_lexer);
                     _lexer = _fieldLexer; // Restore the main lexer.
 
                     _currentParseState.AddCodeInstruction(
@@ -2682,15 +2688,15 @@ namespace Fluence
         }
 
         /// <summary>
-        /// A robust helper to parse a sub-expression from a string, using a temporary, isolated lexer.
-        /// This safely handles parsing interpolated expressions inside f-strings.
+        /// A helper to parse a sub-expression from a string, using a temporary, isolated lexer.
         /// </summary>
         private Value ParseSubExpression(string source)
         {
             FluenceLexer savedLexer = _lexer;
             try
             {
-                _lexer = new FluenceLexer(source);
+                _lexer = _lexerPool.Get();
+                _lexer.Initialize(source);
                 _lexer.LexFullSource();
                 return ResolveValue(ParseTernary());
             }
@@ -2700,6 +2706,7 @@ namespace Fluence
             }
             finally
             {
+                _lexerPool.Return(_lexer);
                 _lexer = savedLexer;
             }
         }
@@ -4788,7 +4795,7 @@ namespace Fluence
             {
                 ParseBlockStatement();
                 _lexer.InsertNextToken(TokenType.EOL);
-                // If block doesnt end with return the VM will be stuck in an infinite loop.
+                // If block doesnt end with return the VM will explode.
                 if (_currentParseState.CodeInstructions[^1].Instruction != InstructionCode.Return)
                 {
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Return, NilValue.NilInstance));
@@ -4805,8 +4812,6 @@ namespace Fluence
             _currentParseState.CodeInstructions[lambdaBodySkipIndex].Lhs = new GoToValue(_currentParseState.CodeInstructions.Count);
             FunctionValue lambdaFunction = new FunctionValue($"lambda__{args.Count}", false, args.Count, lambdaCodeStartIndex, startAddressInSource, args, argsByRef, _currentParseState.CurrentScope);
 
-            int functionCodeEnd = _currentParseState.CodeInstructions.Count;
-
             if (_vmConfiguration.OptimizeByteCode)
             {
                 FluenceOptimizer.OptimizeChunk(
@@ -4815,9 +4820,9 @@ namespace Fluence
                     lambdaCodeStartIndex,
                     _vmConfiguration
                 );
-
-                functionCodeEnd = _currentParseState.CodeInstructions.Count;
             }
+
+            int functionCodeEnd = _currentParseState.CodeInstructions.Count;
 
             int nextSlotIndex = 0;
 

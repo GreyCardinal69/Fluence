@@ -641,16 +641,57 @@ namespace Fluence.VirtualMachine
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsGreaterThan(RuntimeValue left, RuntimeValue right) => left.IntValue > right.IntValue;
+        private static int CompareNumeric(RuntimeValue left, RuntimeValue right)
+        {
+            var lt = left.NumberType;
+            var rt = right.NumberType;
+
+            // Same type → direct comparison.
+            if (lt == RuntimeNumberType.Int && rt == RuntimeNumberType.Int)
+                return left.IntValue.CompareTo(right.IntValue);
+
+            if (lt == RuntimeNumberType.Long && rt == RuntimeNumberType.Long)
+                return left.LongValue.CompareTo(right.LongValue);
+
+            if (lt == RuntimeNumberType.Float && rt == RuntimeNumberType.Float)
+                return left.FloatValue.CompareTo(right.FloatValue);
+
+            if (lt == RuntimeNumberType.Double && rt == RuntimeNumberType.Double)
+                return left.DoubleValue.CompareTo(right.DoubleValue);
+
+            // Mixed-type → find common promotion type.
+            RuntimeNumberType promoted = (RuntimeNumberType)Math.Max((byte)lt, (byte)rt);
+
+            return promoted switch
+            {
+                RuntimeNumberType.Long =>
+                    left.ToLong().CompareTo(right.ToLong()),
+
+                RuntimeNumberType.Float =>
+                    left.ToFloat().CompareTo(right.ToFloat()),
+
+                RuntimeNumberType.Double =>
+                    left.ToDouble().CompareTo(right.ToDouble()),
+
+                _ => throw new InvalidOperationException("Invalid numeric promotion."),
+            };
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsGreaterOrEqual(RuntimeValue left, RuntimeValue right) => left.IntValue >= right.IntValue;
+        private static bool IsGreaterThan(RuntimeValue left, RuntimeValue right)
+            => CompareNumeric(left, right) > 0;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsLessThan(RuntimeValue left, RuntimeValue right) => left.IntValue < right.IntValue;
+        private static bool IsGreaterOrEqual(RuntimeValue left, RuntimeValue right)
+            => CompareNumeric(left, right) >= 0;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsLessOrEqual(RuntimeValue left, RuntimeValue right) => left.IntValue <= right.IntValue;
+        private static bool IsLessThan(RuntimeValue left, RuntimeValue right)
+            => CompareNumeric(left, right) < 0;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsLessOrEqual(RuntimeValue left, RuntimeValue right)
+            => CompareNumeric(left, right) <= 0;
 
         internal static SpecializedOpcodeHandler? CreateSpecializedBranchHandler(InstructionLine insn, FluenceVirtualMachine vm, RuntimeValue right, bool target)
         {

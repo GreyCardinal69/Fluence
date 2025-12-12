@@ -1305,6 +1305,12 @@ namespace Fluence.VirtualMachine
         /// A generic handler for all relational comparison operations (&gt;, &gt;=, &lt;, &lt;=).
         /// It correctly handles comparisons for both numbers and strings.
         /// </summary>
+        /// <summary>
+        /// Performs relational comparisons between numeric types (int, long, float, double),
+        /// and string comparisons when both sides are strings.
+        /// Ensures no fall-through occurs after string comparison,
+        /// and guarantees correct coercion for mixed numeric types.
+        /// </summary>
         private void ExecuteNumericComparison(
             InstructionLine instruction,
             Func<int, int, bool> intOp,
@@ -1313,10 +1319,12 @@ namespace Fluence.VirtualMachine
             Func<double, double, bool> doubleOp)
         {
             TempValue destination = (TempValue)instruction.Lhs;
+
             RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
 
-            if (left.ObjectReference is StringObject leftStr && right.ObjectReference is StringObject rightStr)
+            if (left.ObjectReference is StringObject leftStr &&
+                right.ObjectReference is StringObject rightStr)
             {
                 bool stringResult = instruction.Instruction switch
                 {
@@ -1324,52 +1332,42 @@ namespace Fluence.VirtualMachine
                     InstructionCode.GreaterThan => string.CompareOrdinal(leftStr.Value, rightStr.Value) > 0,
                     InstructionCode.LessEqual => string.CompareOrdinal(leftStr.Value, rightStr.Value) <= 0,
                     InstructionCode.GreaterEqual => string.CompareOrdinal(leftStr.Value, rightStr.Value) >= 0,
-                    _ => SignalError<bool>("Internal VM Error: Invalid comparison instruction for strings.")
+                    _ => SignalError<bool>("Invalid comparison instruction for strings.")
                 };
+
                 SetRegister(destination, new RuntimeValue(stringResult));
+                return;
             }
 
             if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number)
             {
-                SignalError($"Internal VM Error: Cannot perform numeric comparison on non-number types: ({left.Type}, {right.Type}).");
+                SignalError($"Cannot perform numeric comparison on non-number types: ({left.Type}, {right.Type})");
                 return;
             }
-
-            bool result = left.NumberType switch
+            
+            bool result = (left.NumberType, right.NumberType) switch
             {
-                RuntimeNumberType.Int => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => intOp(left.IntValue, right.IntValue),
-                    RuntimeNumberType.Long => longOp(left.IntValue, right.LongValue),
-                    RuntimeNumberType.Float => floatOp(left.IntValue, right.FloatValue),
-                    RuntimeNumberType.Double => doubleOp(left.IntValue, right.DoubleValue),
-                    _ => SignalError<bool>("Internal VM Error: Unsupported right-hand number type."),
-                },
-                RuntimeNumberType.Long => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => longOp(left.LongValue, right.IntValue),
-                    RuntimeNumberType.Long => longOp(left.LongValue, right.LongValue),
-                    RuntimeNumberType.Float => floatOp(left.LongValue, right.FloatValue),
-                    RuntimeNumberType.Double => doubleOp(left.LongValue, right.DoubleValue),
-                    _ => SignalError<bool>("Internal VM Error: Unsupported right-hand number type."),
-                },
-                RuntimeNumberType.Float => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => floatOp(left.FloatValue, right.IntValue),
-                    RuntimeNumberType.Long => floatOp(left.FloatValue, right.LongValue),
-                    RuntimeNumberType.Float => floatOp(left.FloatValue, right.FloatValue),
-                    RuntimeNumberType.Double => doubleOp(left.FloatValue, right.DoubleValue),
-                    _ => SignalError<bool>("Internal VM Error: Unsupported right-hand number type."),
-                },
-                RuntimeNumberType.Double => right.NumberType switch
-                {
-                    RuntimeNumberType.Int => doubleOp(left.DoubleValue, right.IntValue),
-                    RuntimeNumberType.Long => doubleOp(left.DoubleValue, right.LongValue),
-                    RuntimeNumberType.Float => doubleOp(left.DoubleValue, right.FloatValue),
-                    RuntimeNumberType.Double => doubleOp(left.DoubleValue, right.DoubleValue),
-                    _ => SignalError<bool>("Internal VM Error: Unsupported right-hand number type."),
-                },
-                _ => SignalError<bool>("Internal VM Error: Unsupported right-hand number type."),
+                (RuntimeNumberType.Int, RuntimeNumberType.Int) => intOp(left.IntValue, right.IntValue),
+                (RuntimeNumberType.Int, RuntimeNumberType.Long) => longOp(left.IntValue, right.LongValue),
+                (RuntimeNumberType.Int, RuntimeNumberType.Float) => floatOp(left.IntValue, right.FloatValue),
+                (RuntimeNumberType.Int, RuntimeNumberType.Double) => doubleOp(left.IntValue, right.DoubleValue),
+
+                (RuntimeNumberType.Long, RuntimeNumberType.Int) => longOp(left.LongValue, right.IntValue),
+                (RuntimeNumberType.Long, RuntimeNumberType.Long) => longOp(left.LongValue, right.LongValue),
+                (RuntimeNumberType.Long, RuntimeNumberType.Float) => floatOp(left.LongValue, right.FloatValue),
+                (RuntimeNumberType.Long, RuntimeNumberType.Double) => doubleOp(left.LongValue, right.DoubleValue),
+
+                (RuntimeNumberType.Float, RuntimeNumberType.Int) => floatOp(left.FloatValue, right.IntValue),
+                (RuntimeNumberType.Float, RuntimeNumberType.Long) => floatOp(left.FloatValue, right.LongValue),
+                (RuntimeNumberType.Float, RuntimeNumberType.Float) => floatOp(left.FloatValue, right.FloatValue),
+                (RuntimeNumberType.Float, RuntimeNumberType.Double) => doubleOp(left.FloatValue, right.DoubleValue),
+
+                (RuntimeNumberType.Double, RuntimeNumberType.Int) => doubleOp(left.DoubleValue, right.IntValue),
+                (RuntimeNumberType.Double, RuntimeNumberType.Long) => doubleOp(left.DoubleValue, right.LongValue),
+                (RuntimeNumberType.Double, RuntimeNumberType.Float) => doubleOp(left.DoubleValue, right.FloatValue),
+                (RuntimeNumberType.Double, RuntimeNumberType.Double) => doubleOp(left.DoubleValue, right.DoubleValue),
+
+                _ => SignalError<bool>("Unsupported numeric type for comparison.")
             };
 
             SetRegister(destination, new RuntimeValue(result));

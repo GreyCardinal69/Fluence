@@ -104,7 +104,7 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Scans for an arithmetic operation followed by an assignment to a variable, fusing them into a single compound assignment instruction (e.g., AddAssign).
+        /// Scans for an arithmetic operation followed by an assignment to a variable, fusing them into a single compound assignment instruction.
         /// The second, now redundant, instruction is replaced with a null placeholder for later removal.
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>
@@ -296,6 +296,7 @@ namespace Fluence
                 }
             }
         }
+
         /// <summary>
         /// Performs aggressive constant propagation for local variables.
         /// Analyzes variable usage. Identifies variables that are assigned a constant value exactly once 
@@ -381,7 +382,7 @@ namespace Fluence
 
                 static void TryReplace(ref Value operand, ref bool changed, ref bool folded, ref Span<InstructionLine> span)
                 {
-                    if (operand is VariableValue varOp && !varOp.IsGlobal && _varStatsMap.TryGetValue(varOp.Hash, out var stat))
+                    if (operand is VariableValue varOp && !varOp.IsGlobal && _varStatsMap.TryGetValue(varOp.Hash, out (int Count, Value? ConstVal, int DefIndex) stat))
                     {
                         if (stat.Count == 1 && stat.ConstVal != null)
                         {

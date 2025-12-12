@@ -7,7 +7,7 @@
  
 </div>
 
-Fluence is a dynamically-typed, interpreted, multi-paradigm scripting language that rejects verbosity and boilerplate. It provides a rich suite of unique operators and constructs that enable a declarative, pipeline-oriented style. Designed for embedding in applications or standalone scripting, Fluence prioritizes concise syntax, powerful control flow, and ergonomic features to boost developer productivity.
+Fluence is a dynamically-typed, embeddable interpreted scripting language. It provides a rich suite of unique operators and constructs that enable a declarative, pipeline-oriented style. Designed for embedding in applications or standalone scripting, Fluence prioritizes concise syntax, powerful control flow, and ergonomic features to boost developer productivity.
 
 ## Table of Contents
 

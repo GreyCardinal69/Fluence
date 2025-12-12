@@ -1334,7 +1334,8 @@ This creates a `publish` directory containing `fluence.exe`. Add this directory 
 
 ### The `root` Keyword (Global Variables)
 
-Fluence supports explicit global variables using the `root` keyword. A `root` variable is accessible from **any function** in the file, regardless of where it is declared. This allows functions to share state without passing arguments.
+Fluence supports explicit global variables using the `root` keyword. A `root` variable is accessible from **any function** in the file, regardless of where it is declared. This allows functions to share state without passing arguments, or to get/set variables values via the interpreter
+without having to declare those variables outside of function bodies.
 
 ```rust
 func Initialize() => {

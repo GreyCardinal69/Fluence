@@ -806,7 +806,7 @@ space MyGame {
 Any code outside any space automatically belongs to the global namespace!
 
 ## Operators
-Operators can be considered the most distinct feature of Flunce. The operators are designed with ease of use and readability in mind.
+Operators can be considered the most distinct feature of Flunce. The operators are designed with ease of use and readability in mind ( for the most part ).
 
 ### Basic Operators
 Starting Simple:

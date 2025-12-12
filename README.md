@@ -82,7 +82,7 @@ Single line comments with '#'
 my_var = 5; # some comment.
 ```
 
-Multi-line comments with '#*' -> '*#'.
+Multi-line comments with '#\*' -> '\*#'.
 ```cs
 my_var = 5;
 #* some comment line1
@@ -1377,7 +1377,7 @@ func Main() => {
             "*" -> num1 * num2;
             "/" -> num2 == 0 ? nil : num1 / num2;
             rest -> nil;
-        } ->> print(result is nil ?: "Error: Invalid operation or division by zero.", f"Result: {result}") <<-;
+        } ->> print(result == nil ?: "Error: Invalid operation or division by zero.", f"Result: {result}") <<-;
     else -> print("Error: Invalid input, one or more arguments were null.");
 }
 ```

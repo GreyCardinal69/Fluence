@@ -176,7 +176,7 @@ func Main() => ....;
 ```
 
 Block bodied functions must define an explicit 'return expr' to return a value, otherwise they will return 'nil' by default.
-When calling a function you always pass arguments by value, this means that any change to them does not affect them outside the function.
+When calling a function currently only primitives such as booleans and numerics are passed by value, this means that any change to them does not affect them outside the function.
 
 ### Reference Arguments
 To pass an argument by reference you may use the 'ref' keyword.

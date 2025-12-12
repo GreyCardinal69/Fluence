@@ -126,16 +126,18 @@ list2 = [1..5]; # [1, 2, 3, 4, 5]
 ```
 
 Ranges:
-Ranges are defined as \[Start\]..\[End\] where both start and end are inclusive. They support both numbers and variables, and expressions.
+Ranges are defined as \[Start\]..\[End\] where both start and end are inclusive. They support both numbers and variables, and expressions. Ranges are almost always converted to lists, the 
+only exception is when used in a for-in loop and other control flow ( usage outside of a for-in loop may lead to undefined or unintended behaviour ).
+
 ```rust
-1..5; # 1,2,3,4,5
+1..5; # list [ 1,2,3,4,5 ]
 
 a = 1;
-a..5; # 1,2,3,4,5
+a..5; # list [ 1,2,3,4,5 ]
 
 b = 5;
 
-a..b; # 1,2,3,4,5
+a..b; # list [ 1,2,3,4,5 ]
 ```
 
 Chars and Booleans:

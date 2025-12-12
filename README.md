@@ -152,7 +152,7 @@ my_var = nil;
 ```
 
 ## Functions
-Functions are first-class citizens. All functions start with the 'func' keyword and come in two formats.
+Functions are Second-Class Citizens. All functions start with the 'func' keyword and come in two formats.
 
 ```rust
 # Expression bodied, returns the value result of an expression.

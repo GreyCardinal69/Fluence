@@ -15,6 +15,7 @@ namespace Fluence
         private static readonly Dictionary<int, Value> _constantsMap = new();
         private static readonly List<int> _instructionsToRemove = new();
         private static readonly HashSet<int> _uniqueSymbols = new HashSet<int>();
+        private static readonly Dictionary<int, (int Count, Value? ConstVal, int DefIndex)> _varStatsMap = new();
 
         /// <summary>
         /// A private struct to hold information about a temporary register's assignments.
@@ -39,6 +40,7 @@ namespace Fluence
             bool constantFoldingDidWork = false;
 
             FuseGotoConditionals(ref bytecode, startIndex, ref byteCodeChanged);
+            ApplyAggressiveConstantPropagation(ref bytecode, startIndex, ref byteCodeChanged, ref constantFoldingDidWork);
             RemoveConstTempRegisters(ref bytecode, startIndex, ref byteCodeChanged, ref constantFoldingDidWork);
             FuseCompoundAssignments(ref bytecode, startIndex, ref byteCodeChanged);
             FuseSimpleAssignments(ref bytecode, startIndex, ref byteCodeChanged);
@@ -55,6 +57,7 @@ namespace Fluence
 
             if (constantFoldingDidWork)
             {
+                _varStatsMap.Clear();
                 _registerInfoMap.Clear();
                 _constantsMap.Clear();
                 _instructionsToRemove.Clear();
@@ -291,6 +294,112 @@ namespace Fluence
                     bytecode[i + 1] = null!;
                     i++;
                 }
+            }
+        }
+        /// <summary>
+        /// Performs aggressive constant propagation for local variables.
+        /// Analyzes variable usage. Identifies variables that are assigned a constant value exactly once 
+        /// and are never modified (reassigned or mutated) within the current scope.
+        /// Replaces all usages of these constants with the immediate value. 
+        /// Crucially, it performs Dead Code Elimination by removing the original assignment instruction, 
+        /// as the value is now propagated.
+        /// Handles nested lambdas by tracking depth; variables inside lambdas are ignored to prevent scope collision issues.
+        /// </summary>
+        /// <param name="bytecode">The reference to the bytecode list.</param>
+        /// <param name="startIndex">The start index for the current optimization chunk.</param>
+        /// <param name="byteCodeChanged">Ref bool indicating if any changes were made.</param>
+        /// <param name="constantFoldingDidWork">Ref bool indicating if this specific pass performed work (used for cleanup).</param>
+        private static void ApplyAggressiveConstantPropagation(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged, ref bool constantFoldingDidWork)
+        {
+            Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
+            Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
+
+            int lambdaDepth = 0;
+
+            for (int i = 0; i < relevantSpan.Length; i++)
+            {
+                ref InstructionLine insn = ref relevantSpan[i];
+                if (insn == null) continue;
+
+                if (insn.Instruction == InstructionCode.SectionLambdaStart)
+                {
+                    lambdaDepth++;
+                    continue;
+                }
+                if (insn.Instruction == InstructionCode.SectionLambdaEnd)
+                {
+                    lambdaDepth--;
+                    continue;
+                }
+
+                if (lambdaDepth > 0) continue;
+
+                if (insn.Lhs is VariableValue varLhs && !varLhs.IsGlobal)
+                {
+                    ref (int Count, Value? ConstVal, int DefIndex) stats = ref CollectionsMarshal.GetValueRefOrAddDefault(_varStatsMap, varLhs.Hash, out _);
+
+                    if (insn.Instruction == InstructionCode.Assign)
+                    {
+                        stats.Count++;
+                        if (IsAConstantValue(insn.Rhs))
+                        {
+                            stats.ConstVal = insn.Rhs;
+                            stats.DefIndex = i;
+                        }
+                        else
+                        {
+                            stats.ConstVal = null;
+                        }
+                    }
+                    else
+                    {
+                        stats.Count = 1000; // Can be whatever except 1.
+                        stats.ConstVal = null;
+                    }
+                }
+            }
+
+            lambdaDepth = 0;
+
+            for (int i = 0; i < relevantSpan.Length; i++)
+            {
+                ref InstructionLine insn = ref relevantSpan[i];
+                if (insn == null) continue;
+
+                if (insn.Instruction == InstructionCode.SectionLambdaStart)
+                {
+                    lambdaDepth++;
+                    continue;
+                }
+                if (insn.Instruction == InstructionCode.SectionLambdaEnd)
+                {
+                    lambdaDepth--;
+                    continue;
+                }
+
+                if (lambdaDepth > 0) continue;
+
+                static void TryReplace(ref Value operand, ref bool changed, ref bool folded, ref Span<InstructionLine> span)
+                {
+                    if (operand is VariableValue varOp && !varOp.IsGlobal && _varStatsMap.TryGetValue(varOp.Hash, out var stat))
+                    {
+                        if (stat.Count == 1 && stat.ConstVal != null)
+                        {
+                            operand = stat.ConstVal;
+                            changed = true;
+                            folded = true;
+
+                            if (span[stat.DefIndex] != null)
+                            {
+                                span[stat.DefIndex] = null!;
+                            }
+                        }
+                    }
+                }
+
+                TryReplace(ref insn.Rhs, ref byteCodeChanged, ref constantFoldingDidWork, ref relevantSpan);
+                TryReplace(ref insn.Rhs2, ref byteCodeChanged, ref constantFoldingDidWork, ref relevantSpan);
+                TryReplace(ref insn.Rhs3, ref byteCodeChanged, ref constantFoldingDidWork, ref relevantSpan);
             }
         }
 

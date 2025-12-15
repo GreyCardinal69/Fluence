@@ -53,6 +53,8 @@ Fluence is a dynamically-typed, embeddable interpreted scripting language. It pr
 
 ## Performance
 All stages of the Fluence Interpreter, those being the Lexer, Parser, Optimizer and the Virtual Machine are heavily optimized and extremely fast, making Fluence into a very fast interpreted language, with minimum memory allocation.
+You can view some of the tests and their benchmarks here: **[Benchmarks](docs/Benchmarks.md)**.
+Alternatively you can run the benchmarks via the Fluence.Benchmarks VS Solution.
 
 ## Language Fundamentals
 ### Variables

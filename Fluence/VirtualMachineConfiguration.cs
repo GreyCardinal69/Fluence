@@ -37,5 +37,15 @@
         /// This value is absolutely crucial for the correct generation of bytecode and must not be set to false outside of parser tests.
         /// </remarks>
         internal bool EmitSectionGlobal { get; set; }
+
+        /// <summary>
+        /// Gets or sets the global timeout for script execution when the VM is instructed to run until completion.
+        /// If the script exceeds this duration, the Virtual Machine will pause or terminate.
+        /// </summary>
+        /// <remarks>
+        /// This prevents scripts with infinite loops from freezing the host application. 
+        /// Defaults to infinite (<see cref="TimeSpan.MaxValue"/>, no timeout).
+        /// </remarks>
+        public TimeSpan DefaultTimeoutPeriod { get; set; } = TimeSpan.MaxValue;
     }
 }

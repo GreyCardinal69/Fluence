@@ -601,10 +601,12 @@ namespace Fluence.VirtualMachine
 
             int instructionCount = _byteCode.Count;
             Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(_byteCode);
+            bool timeOutEnalbed = true;
 
-            if (willRunUntilDone)
+            if (willRunUntilDone && _configuration.DefaultTimeoutPeriod == TimeSpan.MaxValue)
             {
                 stopwatch.Stop();
+                timeOutEnalbed = false;
             }
 
             while (_ip < instructionCount)
@@ -616,10 +618,10 @@ namespace Fluence.VirtualMachine
                 }
 
                 // If the VM is set to run until completion, we can save a lot of time on just not doing time elapsed checks.
-                if (!willRunUntilDone)
+                if (!willRunUntilDone || timeOutEnalbed)
                 {
                     instructionsUntilNextCheck--;
-
+                    Console.WriteLine("here");
                     if (instructionsUntilNextCheck == 0)
                     {
                         instructionsUntilNextCheck = _timeCheckInterval;
@@ -1344,7 +1346,7 @@ namespace Fluence.VirtualMachine
                 SignalError($"Cannot perform numeric comparison on non-number types: ({left.Type}, {right.Type})");
                 return;
             }
-            
+
             bool result = (left.NumberType, right.NumberType) switch
             {
                 (RuntimeNumberType.Int, RuntimeNumberType.Int) => intOp(left.IntValue, right.IntValue),

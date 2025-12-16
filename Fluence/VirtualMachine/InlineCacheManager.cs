@@ -643,8 +643,8 @@ namespace Fluence.VirtualMachine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int CompareNumeric(RuntimeValue left, RuntimeValue right)
         {
-            var lt = left.NumberType;
-            var rt = right.NumberType;
+            RuntimeNumberType lt = left.NumberType;
+            RuntimeNumberType rt = right.NumberType;
 
             // Same type → direct comparison.
             if (lt == RuntimeNumberType.Int && rt == RuntimeNumberType.Int)

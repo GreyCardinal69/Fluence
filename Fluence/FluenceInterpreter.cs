@@ -208,10 +208,23 @@ namespace Fluence
         /// If the script was finished, it will be reset and run again from the beginning.
         /// </summary>
         /// <exception cref="InvalidOperationException">Thrown if no code has been compiled.</exception>
-        public void RunUntilDone()
-        {
-            RunFor(TimeSpan.MaxValue);
-        }
+        public void RunUntilDone() => RunFor(TimeSpan.MaxValue);
+
+        /// <summary>
+        /// Runs the compiled script for a given number of seconds.
+        /// If the script was previously paused, execution will resume and run for the given time.
+        /// If the script was finished, it will be reset and run again from the beginning.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown if no code has been compiled.</exception>
+        public void RunForSeconds(int seconds) => RunFor(TimeSpan.FromSeconds(seconds));
+
+        /// <summary>
+        /// Runs the compiled script for a given number of milliseconds.
+        /// If the script was previously paused, execution will resume and run for the given time.
+        /// If the script was finished, it will be reset and run again from the beginning.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown if no code has been compiled.</exception>
+        public void RunForMilliseconds(int seconds) => RunFor(TimeSpan.FromMilliseconds(seconds));
 
         /// <summary>
         /// Runs or resumes the compiled script for a specified maximum duration.

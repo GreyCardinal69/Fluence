@@ -21,6 +21,7 @@ namespace Fluence
         private int _currentColumnBeforeWhiteSpace;
         private readonly TokenBuffer _tokenBuffer;
         private readonly string _fileName;
+        private readonly StringBuilder _sb = new StringBuilder();
 
         private bool _hasReachedEndInternal => _currentPosition >= _sourceLength;
 
@@ -864,11 +865,10 @@ namespace Fluence
 
         private Token ScanString(bool isFString = false)
         {
+            _sb.Clear();
             int stringOpenColumn = _currentColumn;
             int stringInitialLine = _currentLine;
-
-            StringBuilder sb = new StringBuilder();
-
+             
             while (Peek() != '"' && !_hasReachedEndInternal)
             {
                 char currentChar = AdvanceAndGet();
@@ -885,21 +885,21 @@ namespace Fluence
                     char escapedChar = AdvanceAndGet();
                     switch (escapedChar)
                     {
-                        case 'n': sb.Append('\n'); break;
-                        case 't': sb.Append('\t'); break;
-                        case 'r': sb.Append('\r'); break;
-                        case '"': sb.Append('\"'); break;
-                        case '\\': sb.Append('\\'); break;
+                        case 'n': _sb.Append('\n'); break;
+                        case 't': _sb.Append('\t'); break;
+                        case 'r': _sb.Append('\r'); break;
+                        case '"': _sb.Append('\"'); break;
+                        case '\\': _sb.Append('\\'); break;
                         default:
-                            sb.Append('\\');
-                            sb.Append(escapedChar);
+                            _sb.Append('\\');
+                            _sb.Append(escapedChar);
                             break;
                     }
                 }
                 else
                 {
                     // It's a regular character.
-                    sb.Append(currentChar);
+                    _sb.Append(currentChar);
                 }
             }
 
@@ -915,7 +915,7 @@ namespace Fluence
 
             TokenType type = isFString ? TokenType.F_STRING : TokenType.STRING;
 
-            return MakeTokenAndTryAdvance(type, 0, null!, sb.ToString());
+            return MakeTokenAndTryAdvance(type, 0, null!, _sb.ToString());
         }
 
         private char AdvanceAndGet()

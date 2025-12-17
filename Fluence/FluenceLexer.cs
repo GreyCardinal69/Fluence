@@ -30,39 +30,39 @@ namespace Fluence
 
         public FluenceLexer()
         {
-            _tokenBuffer = new TokenBuffer(this);
+            _tokenBuffer = new TokenBuffer(this, 0);
         }
 
         internal FluenceLexer(string source, string fileName = null!)
         {
-            _tokenBuffer = new TokenBuffer(this);
             _sourceCode = source;
             _sourceLength = source.Length;
             _currentPosition = 0;
             _currentLine = 1;
             _currentColumn = 1;
             _fileName = fileName;
+            _tokenBuffer = new TokenBuffer(this, _sourceLength / 4);
         }
 
         internal FluenceLexer(List<Token> stream, string fileName = null!)
         {
-            _tokenBuffer = new TokenBuffer(this);
-            _tokenBuffer.SetTokens(stream);
             _currentPosition = 0;
             _currentLine = 1;
             _currentColumn = 1;
             _fileName = fileName;
+            _tokenBuffer = new TokenBuffer(this, 0);
+            _tokenBuffer.SetTokens(stream);
         }
 
         internal FluenceLexer(List<Token> tokens)
         {
-            _tokenBuffer = new TokenBuffer(this);
+            _tokenBuffer = new TokenBuffer(this, 0);
             _tokenBuffer.AddRange(tokens);
         }
 
         private sealed class TokenBuffer
         {
-            private List<Token> _buffer = new List<Token>();
+            private List<Token> _buffer;
             private readonly FluenceLexer _lexer;
             private int _head;
             private bool _lexerFinished;
@@ -88,8 +88,9 @@ namespace Fluence
                 }
             }
 
-            internal TokenBuffer(FluenceLexer lexer)
+            internal TokenBuffer(FluenceLexer lexer, int estimatedTokenCount)
             {
+                _buffer = new List<Token>(estimatedTokenCount);
                 _lexer = lexer;
             }
 

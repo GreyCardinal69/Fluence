@@ -572,7 +572,7 @@ namespace Fluence.VirtualMachine
             }
             else
             {
-                throw ConstructRuntimeException($"Invalid global variable name: {name}, unable to set new value.");
+                throw new FluenceException($"Invalid global variable name: {name}, unable to set new value. Is the name of the global variable correct? Is it defined in the code?");
             }
         }
 

@@ -108,9 +108,7 @@ namespace Fluence
         /// <summary>
         /// Initializes a new instance of the <see cref="FluenceInterpreter"/>.
         /// </summary>
-        public FluenceInterpreter()
-        {
-        }
+        public FluenceInterpreter() { }
 
         /// <summary>
         /// Configures the library sandbox with a specific set of allowed and disallowed standard libraries.
@@ -326,17 +324,11 @@ namespace Fluence
         /// </summary>
         /// <param name="name">The name of the variable.</param>
         /// <param name="value">The value to set (can be a primitive like int, double, string, or bool).</param>
-        public void SetGlobal(string name, object value)
-        {
-            _vm.SetGlobal(name, value);
-        }
+        public void SetGlobal(string name, object value) => _vm.SetGlobal(name, value);
 
         /// <summary>
         /// Handles the formatting and display of runtime exceptions.
         /// </summary>
-        private void ConstructAndThrowException(FluenceException ex)
-        {
-            OnErrorOutput(ex.Message);
-        }
+        private void ConstructAndThrowException(FluenceException ex) => OnErrorOutput(ex.Message);
     }
 }

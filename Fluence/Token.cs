@@ -352,7 +352,7 @@
         /// </summary>
         internal readonly object Literal;
 
-        // Line and Column indexes are stored as a short, this means that code length of a file
+        // Line and Column indexes are stored as a ushort, this means that code length of a file
         // Is limited to 65,535 lines, which is more than a reasonable amount.
 
         /// <summary>

@@ -116,7 +116,7 @@ namespace Fluence.RuntimeTypes
 
         internal RuntimeValue(object? obj) : this(RuntimeValueType.Object)
         {
-            ObjectReference = obj;
+            ObjectReference ??= obj ?? RuntimeValue.Nil;
         }
 
         internal bool Is<T>() where T : class => ObjectReference is T;

@@ -1045,6 +1045,7 @@ namespace Fluence
                     // Only assign the number as text/literal, the rest of the operator is in the TokenType.
                     return new Token(TokenType.OPTIONAL_ASSIGN_N, null!, n, (ushort)_currentLine, (ushort)_currentColumn);
                 }
+
                 if (Match("|"))
                 {
                     return new Token(TokenType.CHAIN_ASSIGN_N, null!, n, (ushort)_currentLine, (ushort)_currentColumn);
@@ -1055,6 +1056,7 @@ namespace Fluence
                 {
                     return new Token(TokenType.CHAIN_N_UNIQUE_ASSIGN, null!, n, (ushort)_currentLine, (ushort)_currentColumn);
                 }
+
                 // <n!?|
                 if (Match("!?|"))
                 {

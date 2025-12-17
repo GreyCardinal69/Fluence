@@ -560,6 +560,8 @@ namespace Fluence.VirtualMachine
 
                 // TO DO, lists.
 
+                List<RuntimeValue> list => new RuntimeValue(new ListObject(list)),
+
                 _ => SignalError<RuntimeValue>(
                     $"Unsupported type '{value.GetType().FullName}' for SetGlobal. " +
                     "Supported types are null, bool, int, long, float, double, string, char.")
@@ -621,7 +623,7 @@ namespace Fluence.VirtualMachine
                 if (!willRunUntilDone || timeOutEnalbed)
                 {
                     instructionsUntilNextCheck--;
-                    Console.WriteLine("here");
+
                     if (instructionsUntilNextCheck == 0)
                     {
                         instructionsUntilNextCheck = _timeCheckInterval;

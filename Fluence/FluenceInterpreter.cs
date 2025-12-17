@@ -159,7 +159,10 @@ namespace Fluence
 
                 _byteCode = parser.CompiledCode;
                 _parseState = parser.CurrentParseState;
-                _vm = null!;
+                if (_vm == null || _vm.State == FluenceVMState.NotStarted)
+                {
+                    _vm = new FluenceVirtualMachine(_byteCode, _vmConfiguration, _parseState, OnOutput, OnOutputLine, OnInput);
+                }
                 return true;
             }
             catch (FluenceException ex)
@@ -192,7 +195,10 @@ namespace Fluence
 #endif
                 _byteCode = parser.CompiledCode;
                 _parseState = parser.CurrentParseState;
-                _vm = null!;
+                if (_vm == null || _vm.State == FluenceVMState.NotStarted)
+                {
+                    _vm = new FluenceVirtualMachine(_byteCode, _vmConfiguration, _parseState, OnOutput, OnOutputLine, OnInput);
+                }
                 return true;
             }
             catch (FluenceException ex)
@@ -241,11 +247,6 @@ namespace Fluence
 
             try
             {
-                if (_vm == null || _vm.State == FluenceVMState.NotStarted)
-                {
-                    _vm = new FluenceVirtualMachine(_byteCode, _vmConfiguration, _parseState, OnOutput, OnOutputLine, OnInput);
-                }
-
                 if (_vm.State is FluenceVMState.Finished or FluenceVMState.Error)
                 {
                     _vm = new FluenceVirtualMachine(_byteCode, _vmConfiguration, _parseState, OnOutput, OnOutputLine, OnInput);
@@ -306,7 +307,13 @@ namespace Fluence
                             _ => throw new NotImplementedException(),
                         };
                     case RuntimeValueType.Object:
-                        return val.ObjectReference;
+                        return val.ObjectReference switch
+                        {
+                            CharObject ch => ch.Value,
+                            StringObject str => str.Value,
+                            ListObject list => list.Elements,
+                            _ => throw new NotImplementedException()
+                        };
                 }
             }
 

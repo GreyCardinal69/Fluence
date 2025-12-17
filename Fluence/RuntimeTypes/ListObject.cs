@@ -12,6 +12,13 @@ namespace Fluence.RuntimeTypes
         /// <summary>The elements of the list.</summary>
         internal List<RuntimeValue> Elements { get; } = new();
 
+        internal ListObject(List<RuntimeValue> elements)
+        {
+            Elements = elements;
+        }
+
+        internal ListObject() { }
+
         public IFluenceObject CloneObject()
         {
             ListObject newList = new ListObject();

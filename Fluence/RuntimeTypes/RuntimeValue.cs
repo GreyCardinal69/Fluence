@@ -72,6 +72,13 @@ namespace Fluence.RuntimeTypes
         public static readonly RuntimeValue True = new RuntimeValue(true);
         public static readonly RuntimeValue False = new RuntimeValue(false);
 
+        /// <summary>
+        /// If the <see cref="RuntimeValue"/> does not represent a numeric value or a boolean, 
+        /// then this property returns the complex object reference it holds. This can be from 
+        /// <see cref="CharObject"/>, <see cref="StringObject"/> to <see cref="Wrapper"/>.
+        /// </summary>
+        public object ObjectValue => ObjectReference;
+
         private RuntimeValue(RuntimeValueType type)
         {
             this = default;

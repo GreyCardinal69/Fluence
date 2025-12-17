@@ -23,7 +23,7 @@
         /// </summary>
         /// <remarks>
         /// When enabled, the optimizer may merge, replace, or reorder instructions to improve
-        /// execution speed. This can result in a slightly longer compilation phase but typically
+        /// execution speed. This can result in a slightly longer compilation phase but
         /// leads to better runtime performance.
         /// <para>The default value is <c>true</c>.</para>
         /// </remarks>

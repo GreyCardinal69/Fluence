@@ -176,7 +176,7 @@ func Main() => {
 
 ---
 
-## 5. Branching Stress (Collatz Conjecture)
+## 5. Branching Stress (Collatz Conjecture 3n + 1)
 **Test:** Calculating the Collatz sequence for every number from 1 to 100,000. This tests conditional jump performance.
 
 ### Code

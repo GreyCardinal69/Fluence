@@ -2143,7 +2143,7 @@ namespace Fluence
             if (_vmConfiguration.OptimizeByteCode)
             {
                 FluenceOptimizer.OptimizeChunk(
-                    ref _currentParseState.CodeInstructions,
+                    _currentParseState.CodeInstructions,
                     _currentParseState,
                     _lastOptimizationIndex,
                     _vmConfiguration
@@ -4858,7 +4858,7 @@ namespace Fluence
             if (_vmConfiguration.OptimizeByteCode)
             {
                 FluenceOptimizer.OptimizeChunk(
-                    ref _currentParseState.CodeInstructions,
+                    _currentParseState.CodeInstructions,
                     _currentParseState,
                     lambdaCodeStartIndex,
                     _vmConfiguration

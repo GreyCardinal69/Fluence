@@ -34,24 +34,24 @@ namespace Fluence
         /// <param name="bytecode">The list of bytecode instructions to be modified. It is passed by reference and will be modified in-place.</param>
         /// <param name="parseState">The current state of the parser, containing symbol tables which are required for patching function and method start addresses.</param>
         /// <param name="startIndex">The index in the bytecode list from which to start scanning for optimizations.</param>
-        internal static void OptimizeChunk(ref List<InstructionLine> bytecode, ParseState parseState, int startIndex, VirtualMachineConfiguration config)
+        internal static void OptimizeChunk(List<InstructionLine> bytecode, ParseState parseState, int startIndex, VirtualMachineConfiguration config)
         {
             bool byteCodeChanged = false;
             bool constantFoldingDidWork = false;
 
-            FuseGotoConditionals(ref bytecode, startIndex, ref byteCodeChanged);
-            ApplyAggressiveConstantPropagation(ref bytecode, startIndex, ref byteCodeChanged, ref constantFoldingDidWork);
-            RemoveConstTempRegisters(ref bytecode, startIndex, ref byteCodeChanged, ref constantFoldingDidWork);
-            FuseCompoundAssignments(ref bytecode, startIndex, ref byteCodeChanged);
-            FuseSimpleAssignments(ref bytecode, startIndex, ref byteCodeChanged);
-            FusePushParams(ref bytecode, startIndex, ref byteCodeChanged);
-            ConvertToIncrementsDecrements(ref bytecode, startIndex);
-            ApplyStrengthReduction(ref bytecode, startIndex, ref byteCodeChanged);
-            FuseComparisonBranches(ref bytecode, startIndex, ref byteCodeChanged);
+            FuseGotoConditionals(bytecode, startIndex, ref byteCodeChanged);
+            ApplyAggressiveConstantPropagation(bytecode, startIndex, ref byteCodeChanged, ref constantFoldingDidWork);
+            RemoveConstTempRegisters(bytecode, startIndex, ref byteCodeChanged, ref constantFoldingDidWork);
+            FuseCompoundAssignments(bytecode, startIndex, ref byteCodeChanged);
+            FuseSimpleAssignments(bytecode, startIndex, ref byteCodeChanged);
+            FusePushParams(bytecode, startIndex, ref byteCodeChanged);
+            ConvertToIncrementsDecrements(bytecode, startIndex);
+            ApplyStrengthReduction(bytecode, startIndex, ref byteCodeChanged);
+            FuseComparisonBranches(bytecode, startIndex, ref byteCodeChanged);
 
             if (byteCodeChanged)
             {
-                CompactAndRealignFromBottomUp(ref bytecode, parseState);
+                CompactAndRealignFromBottomUp(bytecode, parseState);
                 _uniqueSymbols.Clear();
             }
 
@@ -71,7 +71,7 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>
         /// <param name="startIndex">The index from which to begin scanning.</param>
-        private static void ApplyStrengthReduction(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
+        private static void ApplyStrengthReduction(List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
             Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
             Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
@@ -109,7 +109,7 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>
         /// <param name="startIndex">The index from which to begin scanning.</param>
-        private static void FuseCompoundAssignments(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
+        private static void FuseCompoundAssignments(List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
             Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
             Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
@@ -158,7 +158,7 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>
         /// <param name="startIndex">The index from which to begin scanning.</param>
-        private static void FusePushParams(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
+        private static void FusePushParams(List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
             Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
             Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
@@ -243,7 +243,7 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>
         /// <param name="startIndex">The index from which to begin scanning.</param>
-        private static void ConvertToIncrementsDecrements(ref List<InstructionLine> bytecode, int startIndex)
+        private static void ConvertToIncrementsDecrements(List<InstructionLine> bytecode, int startIndex)
         {
             for (int i = startIndex; i < bytecode.Count - 1; i++)
             {
@@ -277,7 +277,7 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>
         /// <param name="startIndex">The index from which to begin scanning.</param>
-        private static void FuseSimpleAssignments(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
+        private static void FuseSimpleAssignments(List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
             for (int i = startIndex; i < bytecode.Count - 1; i++)
             {
@@ -310,7 +310,7 @@ namespace Fluence
         /// <param name="startIndex">The start index for the current optimization chunk.</param>
         /// <param name="byteCodeChanged">Ref bool indicating if any changes were made.</param>
         /// <param name="constantFoldingDidWork">Ref bool indicating if this specific pass performed work (used for cleanup).</param>
-        private static void ApplyAggressiveConstantPropagation(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged, ref bool constantFoldingDidWork)
+        private static void ApplyAggressiveConstantPropagation(List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged, ref bool constantFoldingDidWork)
         {
             Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
             Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
@@ -410,7 +410,7 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>
         /// <param name="startIndex">The index from which to begin scanning.</param>
-        private static void RemoveConstTempRegisters(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged, ref bool constantFoldingDidWork)
+        private static void RemoveConstTempRegisters(List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged, ref bool constantFoldingDidWork)
         {
             Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
             Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
@@ -497,7 +497,7 @@ namespace Fluence
         /// </summary>
         /// <param name="bytecode">The bytecode list to modify.</param>
         /// <param name="startIndex">The index from which to begin scanning.</param>
-        private static void FuseGotoConditionals(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
+        private static void FuseGotoConditionals(List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
             for (int i = startIndex; i < bytecode.Count - 1; i++)
             {
@@ -535,7 +535,7 @@ namespace Fluence
         /// <param name="bytecode">The bytecode list to modify.</param>
         /// <param name="startIndex">The index from which to begin scanning.</param>
         /// <param name="byteCodeChanged">Flag to indicate if the bytecode was modified.</param>
-        private static void FuseComparisonBranches(ref List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
+        private static void FuseComparisonBranches(List<InstructionLine> bytecode, int startIndex, ref bool byteCodeChanged)
         {
             Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(bytecode);
             Span<InstructionLine> relevantSpan = byteCodeSpan[startIndex..];
@@ -646,14 +646,14 @@ namespace Fluence
         /// Compacts the bytecode list by removing all null placeholders and realigns all absolute addresses.
         /// It iterates from the end of the list to the beginning, which provides a stable and correct approach for in-place removal and patching.
         /// </summary>
-        private static void CompactAndRealignFromBottomUp(ref List<InstructionLine> bytecode, ParseState state)
+        private static void CompactAndRealignFromBottomUp(List<InstructionLine> bytecode, ParseState state)
         {
             for (int i = bytecode.Count - 1; i >= 0; i--)
             {
                 if (bytecode[i] == null)
                 {
                     bytecode.RemoveAt(i);
-                    PatchAllAddressesAfterRemoval(ref bytecode, state, i);
+                    PatchAllAddressesAfterRemoval(bytecode, state, i);
                 }
             }
         }
@@ -664,7 +664,7 @@ namespace Fluence
         /// <param name="bytecode">The bytecode list, now one element shorter.</param>
         /// <param name="state">The parse state containing symbols to patch.</param>
         /// <param name="removedIndex">The index of the instruction that was just removed. All addresses greater than this index will be decremented.</param>
-        private static void PatchAllAddressesAfterRemoval(ref List<InstructionLine> bytecode, ParseState state, int removedIndex)
+        private static void PatchAllAddressesAfterRemoval(List<InstructionLine> bytecode, ParseState state, int removedIndex)
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             int MapAddr(int oldAddr)

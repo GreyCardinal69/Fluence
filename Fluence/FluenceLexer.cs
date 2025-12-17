@@ -317,10 +317,7 @@ namespace Fluence
             _currentColumn = 1;
         }
 
-        internal void Initialize(List<Token> tokens)
-        {
-            _tokenBuffer.AddRange(tokens);
-        }
+        internal void Initialize(List<Token> tokens) => _tokenBuffer.AddRange(tokens);
 
         /// <summary>
         /// Peeks at the next token in the stream without consuming it.
@@ -388,10 +385,7 @@ namespace Fluence
         /// </summary>
         /// <param name="startIndex">The start index of the range.</param>
         /// <param name="count">How many tokens to remove.</param>
-        internal void RemoveTokenRange(int startIndex, int count)
-        {
-            _tokenBuffer.RemoveRange(startIndex, count);
-        }
+        internal void RemoveTokenRange(int startIndex, int count) => _tokenBuffer.RemoveRange(startIndex, count);
 
         /// <summary>
         /// Checks if the provided <see cref="TokenType"/> matches the next token's type in the buffer.

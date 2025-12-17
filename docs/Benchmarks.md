@@ -251,7 +251,7 @@ func Main() => {
 
 ## 7. Compiler Performance
 **Test:** Parsing and compiling a large source file containing complex constructs, namespaces, functions, and structs.
-*   **Source Size:** ~28,000 characters (~1,750 lines) featuring 31 namespaces, 31 structs, 31 enums, several functions pee namespace ( struct method or function ).
+*   **Source Size:** ~28,000 characters (~1,750 lines) featuring 31 namespaces, 31 structs, 31 enums, several functions per namespace ( struct method or function ).
 
 ### Results
 | Component | Time | Mean (us) | Allocated |

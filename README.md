@@ -376,18 +376,6 @@ The `match` statement is a flexible tool for handling complex conditional logic 
 This is the most common form. It's an expression that evaluates to the value of the first matching case. It must be exhaustive, meaning a `rest` (default) case is required if all other possibilities aren't covered.
 
 ```rust
-# Before: A clunky if/else if/else chain.
-
-icon = "";
-if tile == Tile.Hit {
-    icon = "X";
-} else if tile == Tile.Miss {
-    icon = "0";
-} else {
-    icon = "?";
-}
-
-# After: A clean, single match expression.
 row_str += match tile
     {
         Tile.Hit -> "X";

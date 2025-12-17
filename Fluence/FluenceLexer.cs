@@ -818,7 +818,7 @@ namespace Fluence
                     {
                         return MakeTokenAndTryAdvance(TokenType.TYPE_OF, 0, identifierSpan.ToString());
                     }
-                    string text = identifierSpan.ToString();
+                    string text = StringPool.Intern(identifierSpan);
                     return MakeTokenAndTryAdvance(TokenType.IDENTIFIER, 0, text);
                 }
             }

@@ -1,6 +1,7 @@
+
 # Benchmarks
 
-This document contains performance metrics for the Fluence programming language (v0.1.1).
+This document contains performance metrics for the Fluence programming language (v0.1.3).
 
 **Environment:**
 *   **OS:** Windows 11 (10.0.26100)
@@ -27,7 +28,7 @@ func Main() => {
 ### Results
 | Time | Mean (us) | Error | StdDev | Gen0 | Allocated |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **11.99 s** | 11,992,689.3 | 233,918.73 | 312,274.81 | - | 44.79 KB |
+| **14.03 s** | 14,031,794.0 | 488,439.22 | 1,440,174.17 | - | 41.57 KB |
 
 ---
 
@@ -38,11 +39,12 @@ func Main() => {
 ```rust
 use FluenceIO;
 
-func fib(n) => {
-    if n < 0 -> return 0;
-    if n == 1 -> return 1;
-    return fib(n-1) + fib(n-2);
-}
+func fib(n) =>
+    match n {
+        n < 0 -> 0;
+        1 -> 1;
+        rest -> fib(n-1) + fib(n-2);
+    };
 
 func Main() => fib(30);
 ```
@@ -50,7 +52,7 @@ func Main() => fib(30);
 ### Results
 | Time | Mean (us) | Error | StdDev | Gen0 | Allocated |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **276.84 ms** | 276,841.7 | 2,316.92 | 2,167.25 | - | 62.99 KB |
+| **302.24 ms** | 302,240.0 | 6,243.56 | 18,311.28 | - | 63.08 KB |
 
 ---
 
@@ -72,7 +74,7 @@ func get_idx(x, y) => {
 
 func count_neighbors(grid, x, y) => {
     count = 0;
-    for dy in -1..1 -> for dx in (-1)..1 {
+    for dy in -1..1 -> for dx in -1..1 {
         if dx, dy <==| 0 -> continue;
         idx = get_idx(x + dx, y + dy);
         if grid[idx] == 1 -> count++;
@@ -101,7 +103,7 @@ func Main() => {
         next_grid.push(0); 
     };
 
-    # 80 random cells
+    # 80 random cells.
     80 times {
         grid[Random.between_exclusive(-1, TOTAL_CELLS)] = 1;
     } 
@@ -120,7 +122,7 @@ func Main() => {
             next_grid[current_idx] = new_state;
         }
 
-        grid >< next_grid; # Pointer swap
+        grid >< next_grid; # Pointer swap.
         generation++;
     }
 }
@@ -129,7 +131,7 @@ func Main() => {
 ### Results
 | Time | Mean (us) | Error | StdDev | Gen0 | Allocated |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **332.05 ms** | 332,053.1 | 6,623.70 | 11,773.62 | 2000.0 | 14,967.02 KB |
+| **307.29 ms** | 307,290.8 | 6,045.94 | 5,048.63 | 2000.0 | 14,948.78 KB |
 
 ---
 
@@ -170,7 +172,7 @@ func Main() => {
 ### Results
 | Time | Mean (us) | Error | StdDev | Gen0 | Allocated |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **227.69 ms** | 227,690.5 | 4,187.83 | 8,266.36 | 333.3 | 29,669.83 KB |
+| **259.61 ms** | 259,606.6 | 5,624.11 | 16,582.82 | 333.3 | 29,661.21 KB |
 
 ---
 
@@ -199,7 +201,7 @@ func Main() => Collatz();
 ### Results
 | Time | Mean (us) | Error | StdDev | Gen0 | Allocated |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **542.78 ms** | 542,779.9 | 10,806.41 | 18,350.10 | - | 52.64 KB |
+| **498.75 ms** | 498,748.6 | 3,221.45 | 2,690.05 | - | 54.66 KB |
 
 ---
 
@@ -216,16 +218,13 @@ use FluenceMath;
 func min(a, b, c) => (a < b ? (a < c ? a : c) : (b < c ? b : c));
 
 func levenshtein(s1, s2) => {
-    m, n <~| s1.length(), s2.length();
-    dp <~| [0..n];
+    m, n, dp <~| s1.length(), s2.length(), [0..n];
 
     for i in 1..m {
-        prev_row_prev_col <~| i - 1;
-        dp[0] = i;
+        prev_row_prev_col, dp[0] <~| i - 1, i;
 
         for j in 1..n {
-            temp <~| dp[j];
-            cost <~| 0;
+            temp, cost <~| dp[j], 0;
             if s1[i-1] != s2[j-1] -> cost = 1;
  
             dp[j] = min(dp[j] + 1, dp[j-1] + 1, prev_row_prev_col + cost);
@@ -236,25 +235,25 @@ func levenshtein(s1, s2) => {
 } 
 
 func Main() => {
-    # Inputs are loaded from file in actual benchmark
+    # Inputs too large to include here.
     s1, s2 <~| "...", "..."; 
-    dist <~| levenshtein(s1, s2);
+    dist = levenshtein(s1, s2);
 }
 ```
 
 ### Results
 | Time | Mean (us) | Error | StdDev | Gen0 | Allocated |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **18.62 s** | 18,622,482.9 | 372,447.50 | 671,599.73 | - | 1,732.16 KB |
+| **19.16 s** | 19,161,939.8 | 374,082.51 | 978,908.79 | - | 1.85 MB |
 
 ---
 
 ## 7. Compiler Performance
-**Test:** Parsing and compiling a large source file containing complex constructs, namespaces, functions, and structs.
-*   **Source Size:** ~28,000 characters (~1,750 lines) featuring 31 namespaces, 31 structs, 31 enums, several functions per namespace ( struct method or function ).
+**Test:** Parsing and compiling a large source file containing complex constructs.
+*   **Source Size:** ~28,000 characters (~1,750 lines) including 31 namespaces, 31 structs, 31 enums, and multiple functions per namespace.
 
 ### Results
 | Component | Time | Mean (us) | Allocated |
 | :--- | :--- | :--- | :--- |
-| **Lexer** | **0.23 ms** | 231.8 | 78.27 KB |
-| **Parser + Lexer** | **1.55 ms** | 1,553.1 | 1,124.8 KB |
+| **Lexer** | **0.32 ms** | 319.0 | 188.04 KB |
+| **Parser + Lexer** | **1.32 ms** | 1,315.0 | 852.27 KB |

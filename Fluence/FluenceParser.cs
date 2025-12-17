@@ -116,7 +116,7 @@ namespace Fluence
 
             // Two operands
             SetUsage(OperandUsage.LhsAndRhs,
-                InstructionCode.Assign, InstructionCode.GotoIfTrue, InstructionCode.GotoIfFalse,
+                InstructionCode.Assign, InstructionCode.AssignIfNil, InstructionCode.GotoIfTrue, InstructionCode.GotoIfFalse,
                 InstructionCode.Negate, InstructionCode.Not, InstructionCode.BitwiseNot,
                 InstructionCode.NewInstance, InstructionCode.GetField, InstructionCode.NewRange,
                 InstructionCode.PushElement, InstructionCode.GetLength, InstructionCode.GetStatic,
@@ -280,6 +280,11 @@ namespace Fluence
 
                 if (!AllowTestCode && (!IsParsingFunctionBody || IsParsingStaticSolid))
                 {
+                    if (instructionLine.Instruction == InstructionCode.Assign)
+                    {
+                        instructionLine.Instruction = InstructionCode.AssignIfNil;
+                    }
+
                     ScriptInitializerCode.Add(instructionLine);
                     return;
                 }
@@ -2841,11 +2846,18 @@ namespace Fluence
             {
                 _lexer.Advance();
                 Value value = ParseExpression();
-                GenerateWriteBackInstruction(variable, value);
+
+                if (value is LambdaValue lambda)
+                {
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewLambda, new VariableValue(Mangler.Mangle(variable.Name, lambda.Function.Arity)), value));
+                    return;
+                }
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.AssignIfNil, variable, value));
             }
             else
             {
-                GenerateWriteBackInstruction(variable, NilValue.NilInstance);
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.AssignIfNil, variable, NilValue.NilInstance));
             }
         }
 

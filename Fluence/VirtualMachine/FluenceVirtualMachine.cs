@@ -281,6 +281,7 @@ namespace Fluence.VirtualMachine
             _dispatchTable = new OpcodeHandler[maxOpCode + 1];
 
             _dispatchTable[(int)InstructionCode.Assign] = ExecuteAssign;
+            _dispatchTable[(int)InstructionCode.AssignIfNil] = ExecuteAssignIfNil;
             _dispatchTable[(int)InstructionCode.Add] = ExecuteAdd;
             _dispatchTable[(int)InstructionCode.Subtract] = ExecuteSubtraction;
             _dispatchTable[(int)InstructionCode.Multiply] = ExecuteMultiplication;
@@ -453,7 +454,7 @@ namespace Fluence.VirtualMachine
             for (int i = startIndex; i < _byteCode.Count; i++)
             {
                 InstructionLine insn = _byteCode[i];
-                if (insn.Instruction == InstructionCode.Assign && insn.Lhs is VariableValue variable && !globalVars.Contains(variable.Name))
+                if ((insn.Instruction == InstructionCode.Assign || insn.Instruction == InstructionCode.AssignIfNil) && insn.Lhs is VariableValue variable && !globalVars.Contains(variable.Name))
                 {
                     globalVars.Add(variable.Name);
                     variable.IsGlobal = true;
@@ -557,8 +558,6 @@ namespace Fluence.VirtualMachine
 
                 string stringVal => ResolveStringObjectRuntimeValue(stringVal),
                 char charVal => ResolveCharObjectRuntimeValue(charVal),
-
-                // TO DO, lists.
 
                 List<RuntimeValue> list => new RuntimeValue(new ListObject(list)),
 
@@ -921,6 +920,15 @@ namespace Fluence.VirtualMachine
         internal void ExecuteGoto(InstructionLine insn)
         {
             _ip = ((GoToValue)insn.Lhs).Address;
+        }
+
+        /// <summary>Handles the ASSIGN_IF_NIL instruction, which is used for global variable initialization.</summary>
+        private void ExecuteAssignIfNil(InstructionLine instruction)
+        {
+            if (_globals[((VariableValue)instruction.Lhs).RegisterIndex] == RuntimeValue.Nil)
+            {
+                AssignTo(instruction.Lhs, instruction.Rhs, instruction);
+            }
         }
 
         /// <summary>Handles the ASSIGN instruction, which is used for variable assignment and range-to-list expansion.</summary>

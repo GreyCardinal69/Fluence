@@ -24,6 +24,7 @@ namespace Fluence
                 Terminate,      // Halt program execution.
 
                 Assign,
+                AssignIfNil,    // Assigns value to nil ( initializes ) if a value is not already set ( not initialized ), this is for global variable declarations.
 
                 Add,
                 Subtract,

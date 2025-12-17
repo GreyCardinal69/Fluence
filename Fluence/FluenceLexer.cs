@@ -67,7 +67,10 @@ namespace Fluence
             private readonly FluenceLexer _lexer;
             private int _head;
             private bool _lexerFinished;
-            private const int _trimThreshold = 32;
+
+            // There doesn't seem to be any notable beneift to frequent compacting, shifting a huge array of tokens
+            // often is way worse than having it stay in full in memory until compilation is over. 
+            // private const int _trimThreshold = 32;
 
             internal int TokenCount => _buffer.Count;
 
@@ -127,10 +130,10 @@ namespace Fluence
                     _head++;
                 }
 
-                if (_head >= _trimThreshold)
-                {
-                    Compact();
-                }
+                //if (_head >= _trimThreshold)
+                //{
+                //    Compact();
+                //}
 
                 return token;
             }
@@ -225,10 +228,10 @@ namespace Fluence
                     _head = _buffer.Count;
                 }
 
-                if (_head >= _trimThreshold)
-                {
-                    Compact();
-                }
+                //if (_head >= _trimThreshold)
+                //{
+                //    Compact();
+                //}
             }
 
             /// <summary>
@@ -868,7 +871,7 @@ namespace Fluence
             _sb.Clear();
             int stringOpenColumn = _currentColumn;
             int stringInitialLine = _currentLine;
-             
+
             while (Peek() != '"' && !_hasReachedEndInternal)
             {
                 char currentChar = AdvanceAndGet();

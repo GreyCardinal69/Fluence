@@ -6,8 +6,11 @@
 </p>
  
 </div>
-
 Fluence is a dynamically-typed, embeddable interpreted scripting language. It provides a rich suite of unique operators and constructs that enable a declarative, pipeline-oriented style. Designed for embedding in applications or standalone scripting, Fluence prioritizes concise syntax, powerful control flow, and ergonomic features to boost developer productivity.
+
+## Community & Support
+Have questions, ideas, want to contact me or just want to chat about Fluence? Join the following discord server:
+*   **[Discord Server](https://discord.com/invite/p3Vt5MJ)**
 
 ## Table of Contents
 
@@ -49,6 +52,8 @@ Fluence is a dynamically-typed, embeddable interpreted scripting language. It pr
 - [Miscellanea](#miscellanea)
 - [Examples](#examples)
 - [TO DO](#to-do)
+
+
 
 
 ## Performance

@@ -137,8 +137,7 @@ namespace Fluence.ParserTests
             {
                 new(InstructionCode.Assign, new VariableValue("a"), new NumberValue(1)),
                 new(InstructionCode.Assign, new VariableValue("b"), new NumberValue(2)),
-                new(InstructionCode.Assign, new TempValue(0), new VariableValue("a")),
-                new(InstructionCode.Assign, new VariableValue("a"), new VariableValue("b")),
+                new(InstructionCode.AssignTwo, new TempValue(0), new VariableValue("a"), new VariableValue("a"), new VariableValue("b")),
                 new(InstructionCode.Assign, new VariableValue("b"), new TempValue(0)),
                 new(InstructionCode.CallFunction, new TempValue(1), new VariableValue("Main__0"), new NumberValue(0)),
                 new(InstructionCode.Terminate, null!)

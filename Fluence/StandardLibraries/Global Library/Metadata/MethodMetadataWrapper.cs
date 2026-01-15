@@ -60,13 +60,15 @@ namespace Fluence.Global
 
             ListObject list = new ListObject();
 
-            foreach (string parameter in metadata.Parameters)
+            for (int i = 0; i < metadata.Parameters.Count; i++)
             {
+                string parameterName = metadata.Parameters[i];
+                bool isRef = (metadata.RefMask & (1 << i)) != 0;
+
                 list.Elements.Add(ParameterMetadataWrapper.Create(new ParameterMetadata()
                 {
-                    ByRef = metadata.RefParameters.Contains(parameter),
-                    Name = parameter
-                    // TO DO - default values.
+                    ByRef = isRef,
+                    Name = parameterName
                 }));
             }
 

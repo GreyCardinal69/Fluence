@@ -1217,7 +1217,7 @@ namespace Fluence.VirtualMachine
                     return;
                 }
             }
-            else // is OR
+            else // is OR.
             {
                 if (left.IsTruthy)
                 {
@@ -1968,8 +1968,8 @@ namespace Fluence.VirtualMachine
                     case FunctionObject func:
                         bool isLambda = operand is LambdaValue;
 
-                        MethodMetadata methodMeta = new MethodMetadata(func.Name, func.Arity, false, func.Arguments, func.ArgumentsByRef);
-                        metadata = new TypeMetadata("function", "function", TypeCategory.Function, func.Arity, isLambda, null, null, null, [methodMeta], null, func.Arguments, func.ArgumentsByRef);
+                        MethodMetadata methodMeta = new MethodMetadata(func.Name, func.Arity, false, func.Arguments, func.RefMask);
+                        metadata = new TypeMetadata("function", "function", TypeCategory.Function, func.Arity, isLambda, null, null, null, [methodMeta], null, func.Arguments, func.RefMask);
                         break;
                     default:
                         metadata = new TypeMetadata(name, name, TypeCategory.Primitive, 0, false);
@@ -1993,8 +1993,8 @@ namespace Fluence.VirtualMachine
                 false,
                 instanceFields: s.Fields.Select(f => new FieldMetadata(f, IsStatic: false, IsSolid: false)).ToList(),
                 staticFields: s.StaticFields.Keys.Select(f => new FieldMetadata(f, IsStatic: true, IsSolid: true)).ToList(),
-                constructors: s.Constructors.Values.Select(c => new MethodMetadata(c.Name, c.Arity, true, c.Arguments!, c.ArgumentsByRef!)).ToList(),
-                instanceMethods: s.Functions.Values.Select(m => new MethodMetadata(m.Name, m.Arity, false, m.Arguments!, m.ArgumentsByRef!)).ToList()
+                constructors: s.Constructors.Values.Select(c => new MethodMetadata(c.Name, c.Arity, true, c.Arguments!, c.RefMask)).ToList(),
+                instanceMethods: s.Functions.Values.Select(m => new MethodMetadata(m.Name, m.Arity, false, m.Arguments!, m.RefMask)).ToList()
             );
 
         /// <summary>
@@ -2094,11 +2094,14 @@ namespace Fluence.VirtualMachine
                 int paramIndex = initialArgIndex + i;
                 RuntimeValue argValue = _operandStack.Pop();
 
-                if (function.ArgumentsByRef.Contains(function.Arguments[i]))
+                bool isRef = (function.RefMask & (1 << i)) != 0;
+
+                if (isRef)
                 {
                     if (argValue.ObjectReference is not ReferenceValue reference)
                     {
-                        SignalError($"Internal VM Error: Argument '{function.Arguments[i]}' in function: \"{function.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                        string argName = function.Arguments[i];
+                        SignalError($"Internal VM Error: Argument '{argName}' in function: \"{function.ToCodeLikeString()}\" must be passed by reference ('ref').");
                         return;
                     }
                     else
@@ -2231,11 +2234,15 @@ namespace Fluence.VirtualMachine
                 int paramIndex = initialArgIndex + i;
                 RuntimeValue argValue = _operandStack.Pop();
 
-                if (functionToExecute.ArgumentsByRef.Contains(functionToExecute.Arguments[i]))
+                bool isRef = (functionToExecute.RefMask & (1 << i)) != 0;
+
+                if (isRef)
                 {
                     if (argValue.ObjectReference is not ReferenceValue reference)
                     {
-                        throw ConstructRuntimeException($"Internal VM Error: Argument '{functionToExecute.Arguments[i]}' in function: \"{functionToExecute.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                        string argName = functionToExecute.Arguments[i];
+                        SignalError($"Internal VM Error: Argument '{argName}' in function: \"{functionToExecute.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                        return;
                     }
                     else
                     {
@@ -2377,11 +2384,15 @@ namespace Fluence.VirtualMachine
                 int paramIndex = initialArgIndex + i;
                 RuntimeValue argValue = _operandStack.Pop();
 
-                if (functionToExecute.ArgumentsByRef.Contains(functionToExecute.Arguments[i]))
+                bool isRef = (functionToExecute.RefMask & (1 << i)) != 0;
+
+                if (isRef)
                 {
                     if (argValue.ObjectReference is not ReferenceValue reference)
                     {
-                        throw ConstructRuntimeException($"Internal VM Error: Argument '{functionToExecute.Arguments[i]}' in function: \"{functionToExecute.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                        string argName = functionToExecute.Arguments[i];
+                        SignalError($"Internal VM Error: Argument '{argName}' in function: \"{functionToExecute.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                        return;
                     }
                     else
                     {

@@ -59,9 +59,11 @@
         internal HashSet<string> Parameters { get; }
 
         /// <summary>
-        /// The parameters of the function passed by reference, if the type is that of a lambda or a function.
+        /// A bitmask identifying which arguments are passed by reference. 
+        /// If the bit at position 'i' is set, the argument at index 'i' is passed by reference.
+        /// Limits the function to a maximum of 32 arguments ( more than reasonalbe ).
         /// </summary>
-        internal HashSet<string> ParametersByRef { get; }
+        internal int RefMask { get; }
 
         /// <summary>
         /// A list of metadata for each constructor defined on the struct.
@@ -91,7 +93,7 @@
             IReadOnlyList<MethodMetadata>? instanceMethods = null,
             IReadOnlyList<string>? enumMembers = null,
             IReadOnlyList<string>? parameters = null,
-            HashSet<string>? parametersRef = null)
+            int refMask = 0)
         {
             Name = name;
             FullName = fullName;
@@ -104,7 +106,7 @@
             InstanceMethods = instanceMethods ?? [];
             EnumMembers = enumMembers ?? [];
             Parameters = parameters is not null ? new HashSet<string>(parameters) : [];
-            ParametersByRef = parametersRef ?? [];
+            RefMask = refMask;
 
             InstanceFieldNames = new HashSet<string>(InstanceFields.Select(x => x.Name));
             StaticFieldNames = new HashSet<string>(StaticFields.Select(x => x.Name));
@@ -128,7 +130,7 @@
             if (!new HashSet<MethodMetadata>(Constructors).SetEquals(other.Constructors)) return false;
             if (!new HashSet<MethodMetadata>(InstanceMethods).SetEquals(other.InstanceMethods)) return false;
             if (!Parameters.SetEquals(other.Parameters)) return false;
-            if (!ParametersByRef.SetEquals(other.ParametersByRef)) return false;
+            if (RefMask != other.RefMask) return false;
 
             // If all checks pass, the objects are identical.
             return true;
@@ -159,9 +161,7 @@
             foreach (MethodMetadata item in InstanceMethods) { instanceMethodsHash ^= item.GetHashCode(); }
             hash.Add(instanceMethodsHash);
 
-            int refParamsHash = 0;
-            foreach (string item in ParametersByRef) { refParamsHash ^= item.GetHashCode(); }
-            hash.Add(refParamsHash);
+            hash.Add(RefMask);
 
             int paramsHash = 0;
             foreach (string item in Parameters) { paramsHash ^= item.GetHashCode(); }

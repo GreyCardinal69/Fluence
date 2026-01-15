@@ -3,7 +3,7 @@
     /// <summary>
     /// An immutable record holding metadata about a single function or method.
     /// </summary>
-    internal sealed record class MethodMetadata(string Name, int Arity, bool IsCtor, IReadOnlyList<string> Parameters, IReadOnlySet<string> RefParameters)
+    internal sealed record class MethodMetadata(string Name, int Arity, bool IsCtor, IReadOnlyList<string> Parameters, int RefMask)
     {
         /// <summary>
         /// The user-facing, unmangled name of the method.
@@ -20,8 +20,14 @@
         /// </summary>
         internal string GetSignature()
         {
-            IEnumerable<string> paramStrings = Parameters.Select(p => RefParameters.Contains(p) ? $"ref {p}" : p);
-            return $"func {BaseName}({string.Join(", ", paramStrings)})";
+            List<string> parts = new List<string>();
+            for (int i = 0; i < Parameters.Count; i++)
+            {
+                bool isRef = (RefMask & (1 << i)) != 0;
+                string p = Parameters[i];
+                parts.Add(isRef ? $"ref {p}" : p);
+            }
+            return $"func {BaseName}({string.Join(", ", parts)})";
         }
 
         public bool Equals(MethodMetadata? other)
@@ -31,8 +37,8 @@
 
             return MangledName == other.MangledName &&
                    Arity == other.Arity &&
-                   Parameters.SequenceEqual(other.Parameters) &&
-                   RefParameters.SetEquals(other.RefParameters);
+                   RefMask == other.RefMask &&
+                   Parameters.SequenceEqual(other.Parameters);
         }
 
         public override int GetHashCode()
@@ -40,8 +46,8 @@
             HashCode hash = new();
             hash.Add(MangledName);
             hash.Add(Arity);
+            hash.Add(RefMask);
             foreach (string p in Parameters) hash.Add(p);
-            foreach (string r in RefParameters) hash.Add(r);
             return hash.ToHashCode();
         }
     }

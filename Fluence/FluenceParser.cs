@@ -42,11 +42,6 @@ namespace Fluence
         private readonly bool _multiFileProject;
 
         /// <summary>
-        /// The stack of all Fluence script file paths in the target project's root directory and its children.
-        /// </summary>
-        private readonly Stack<string> _fileStack;
-
-        /// <summary>
         /// The instance of <see cref="VirtualMachineConfiguration"/> dictating certain parsing and runtime rules.
         /// </summary>
         private readonly VirtualMachineConfiguration _vmConfiguration;
@@ -315,7 +310,6 @@ namespace Fluence
             _vmConfiguration = config;
             _currentParseState = new ParseState(this);
             _multiFileProject = true;
-            _fileStack = new Stack<string>();
 
             StageCoreLibraries(root);
             _allProjectFiles.AddRange(Directory.GetFiles(root, "*.fl", SearchOption.AllDirectories));
@@ -786,8 +780,9 @@ namespace Fluence
             // Starts scanning for members after the opening '('.
             // aka `func Name (`.
             int currentIndex = startTokenIndex + 3;
+
             List<string> paramaters = new List<string>();
-            HashSet<string> paramatersByRef = new HashSet<string>();
+            int refMask = 0;
             bool paramByRef = false;
 
             while (currentIndex < endTokenIndex)
@@ -797,6 +792,10 @@ namespace Fluence
                 if (currentTokenType == TokenType.REF)
                 {
                     paramByRef = true;
+
+                    if (arity >= 32) throw ConstructParserException("Argument limit (32) exceeded ( What are you even doing? ).", _lexer.PeekAheadByN(currentIndex + 1));
+
+                    refMask |= 1 << arity;
 
                     if (_lexer.PeekTokenTypeAheadByN(currentIndex + 2) != TokenType.IDENTIFIER)
                     {
@@ -808,7 +807,6 @@ namespace Fluence
                     paramaters.Add(_lexer.PeekAheadByN(currentIndex + 1).Text);
                     if (paramByRef)
                     {
-                        paramatersByRef.Add(_lexer.PeekAheadByN(currentIndex + 1).Text);
                         paramByRef = false;
                     }
                     arity++;
@@ -823,7 +821,7 @@ namespace Fluence
             }
 
             string parsedName = funcName.EndsWith($"__{arity}", StringComparison.Ordinal) ? funcName : Mangler.Mangle(funcName, arity);
-            FunctionSymbol functionSymbol = new FunctionSymbol(parsedName, arity, -1, nameToken.LineInSourceCode, _currentParseState.CurrentScope, paramaters, paramatersByRef);
+            FunctionSymbol functionSymbol = new FunctionSymbol(parsedName, arity, -1, nameToken.LineInSourceCode, _currentParseState.CurrentScope, paramaters, refMask);
 
             _lexer.ModifyTokenAt(startTokenIndex + 1, new Token(TokenType.IDENTIFIER, parsedName, nameToken.Literal, nameToken.LineInSourceCode, nameToken.ColumnInSourceCode));
             _currentParseState.CurrentScope.Declare(parsedName.GetHashCode(), functionSymbol);
@@ -1083,14 +1081,18 @@ namespace Fluence
                     }
 
                     List<string> args = new List<string>();
-                    HashSet<string> argsByRef = new HashSet<string>();
-
+                    int refMask = 0;
                     int arity = 0;
+
                     for (int argScanIndex = currentIndex + 3; argScanIndex < headerEndIndex; argScanIndex++)
                     {
                         if (_lexer.PeekTokenTypeAheadByN(argScanIndex + 1) == TokenType.REF)
                         {
                             argByRef = true;
+
+                            if (arity >= 32) throw ConstructParserException("Argument limit (32) exceeded ( What are you even doing? ).", token);
+
+                            refMask |= 1 << arity;
 
                             if (_lexer.PeekTokenTypeAheadByN(argScanIndex + 2) != TokenType.IDENTIFIER)
                             {
@@ -1104,13 +1106,12 @@ namespace Fluence
                             if (argByRef)
                             {
                                 argByRef = false;
-                                argsByRef.Add(argToken.Text);
                             }
                             arity++;
                         }
                     }
 
-                    FunctionValue functionValue = new FunctionValue(funcName, true, arity, -1, nameToken.LineInSourceCode, args, argsByRef, _currentParseState.CurrentScope);
+                    FunctionValue functionValue = new FunctionValue(funcName, true, arity, -1, nameToken.LineInSourceCode, args, refMask, _currentParseState.CurrentScope);
                     string templated;
 
                     if (funcName == "init")
@@ -2099,13 +2100,13 @@ namespace Fluence
         private void ParseFunction(bool inStruct = false, bool isInit = false, string structName = null!)
         {
             _currentParseState.IsParsingFunctionBody = true;
-            (Token nameToken, List<string> parameters, HashSet<string> parametersByRef) = ParseFunctionHeader();
+            (Token nameToken, List<string> parameters, int refMask) = ParseFunctionHeader();
             string functionName = nameToken.Text;
 
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Goto, null!));
             int functionStartAddress = _currentParseState.CodeInstructions.Count;
 
-            FunctionValue func = new FunctionValue(functionName, inStruct, parameters.Count, functionStartAddress, nameToken.LineInSourceCode, parameters, parametersByRef, _currentParseState.CurrentScope);
+            FunctionValue func = new FunctionValue(functionName, inStruct, parameters.Count, functionStartAddress, nameToken.LineInSourceCode, parameters, refMask, _currentParseState.CurrentScope);
             UpdateFunctionSymbolsAndGenerateDeclaration(func, nameToken, inStruct, isInit, structName);
 
             // Either => for one line, or => {...} for a block.
@@ -2288,49 +2289,57 @@ namespace Fluence
         /// Helper to parse the function header, from `func` up to the `=>`.
         /// </summary>
         /// <returns>A tuple containing the function's name token and a list of its parameter names.</returns>
-        private (Token nameToken, List<string> parameters, HashSet<string> parametersByRef) ParseFunctionHeader()
+        /// <summary>
+        /// Helper to parse the function header, from `func` up to the `=>`.
+        /// Uses a bitmask for ref parameters instead of a HashSet.
+        /// </summary>
+        private (Token nameToken, List<string> parameters, int refMask) ParseFunctionHeader()
         {
             AdvanceAndExpect(TokenType.FUNC, "Expected the 'func' keyword.");
             Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a function name after 'func'.");
             AdvanceAndExpect(TokenType.L_PAREN, $"Expected an opening '(' for function '{nameToken.Text}' parameters.");
 
-            HashSet<string> parametersByRef = new HashSet<string>();
+            int refMask = 0;
             List<string> parameters = new List<string>();
+            int argIndex = 0;
 
             if (!_lexer.TokenTypeMatches(TokenType.R_PAREN))
             {
-                // TO DO, allow expressions for default values.
                 do
                 {
+                    if (argIndex >= 32)
+                    {
+                        throw ConstructParserException("Argument limit (32) exceeded ( What are you even doing? ).", _lexer.PeekCurrentToken());
+                    }
+
                     Token next = _lexer.ConsumeToken();
 
                     if (next.Type == TokenType.REF)
                     {
-                        bool paramByRef = true;
                         if (_lexer.PeekNextTokenType() != TokenType.IDENTIFIER)
                         {
                             throw ConstructParserExceptionWithUnexpectedToken("Expected an argument identifier after a 'ref' keyword", _lexer.PeekCurrentToken());
                         }
 
-                        Token paramToken = _lexer.ConsumeToken();
+                        refMask |= 1 << argIndex;
 
-                        if (paramByRef)
-                        {
-                            parametersByRef.Add(paramToken.Text);
-                        }
+                        Token paramToken = _lexer.ConsumeToken();
                         parameters.Add(paramToken.Text);
                     }
                     else
                     {
                         parameters.Add(next.Text);
                     }
+
+                    argIndex++;
+
                 } while (AdvanceTokenIfMatch(TokenType.COMMA));
             }
 
             AdvanceAndExpect(TokenType.R_PAREN, $"Expected a closing ')' after parameters for function '{nameToken.Text}'.");
             AdvanceAndExpect(TokenType.ARROW, $"Expected an '=>' to define the body of function '{nameToken.Text}'.");
 
-            return (nameToken, parameters, parametersByRef);
+            return (nameToken, parameters, refMask);
         }
 
         /// <summary>
@@ -4784,7 +4793,8 @@ namespace Fluence
             int startAddressInSource = _lexer.PeekCurrentToken().LineInSourceCode;
 
             List<string> args = new List<string>();
-            HashSet<string> argsByRef = new HashSet<string>();
+            int refMask = 0;
+            int argIndex = 0;
             bool argByRef = false;
 
             while (true)
@@ -4797,6 +4807,11 @@ namespace Fluence
                 else if (type == TokenType.REF)
                 {
                     argByRef = true;
+
+                    if (argIndex >= 32) throw ConstructParserException("Argument limit (32) exceeded ( What are you even doing? ).", _lexer.PeekCurrentToken());
+
+                    refMask |= 1 << argIndex;
+
                     _lexer.Advance();
 
                     if (_lexer.PeekNextTokenType() != TokenType.IDENTIFIER)
@@ -4812,8 +4827,8 @@ namespace Fluence
                     if (argByRef)
                     {
                         argByRef = false;
-                        argsByRef.Add(arg.Text);
                     }
+                    argIndex++;
                 }
                 else if (type == TokenType.R_PAREN)
                 {
@@ -4853,7 +4868,7 @@ namespace Fluence
             _currentParseState.AddCodeInstruction(LambdaClosure);
 
             _currentParseState.CodeInstructions[lambdaBodySkipIndex].Lhs = new GoToValue(_currentParseState.CodeInstructions.Count);
-            FunctionValue lambdaFunction = new FunctionValue($"lambda__{args.Count}", false, args.Count, lambdaCodeStartIndex, startAddressInSource, args, argsByRef, _currentParseState.CurrentScope);
+            FunctionValue lambdaFunction = new FunctionValue($"lambda__{args.Count}", false, args.Count, lambdaCodeStartIndex, startAddressInSource, args, refMask, _currentParseState.CurrentScope);
 
             if (_vmConfiguration.OptimizeByteCode)
             {
@@ -5306,7 +5321,7 @@ namespace Fluence
             {
                 FileName = _currentParsingFileName,
                 Column = infoToken.ColumnInSourceCode,
-                FaultyLine = FluenceDebug.TruncateLine(FluenceLexer.GetCodeLineFromSource(source, infoToken.LineInSourceCode)),
+                FaultyLine = FluenceDebug.TruncateLine(FluenceLexer.GetCodeLineFromSource(source, infoToken.LineInSourceCode), 100),
                 LineNum = infoToken.LineInSourceCode,
                 UnexpectedToken = Token.NoUse,
             };

@@ -232,9 +232,11 @@ namespace Fluence
         internal List<int> ArgumentHashCodes { get; private set; }
 
         /// <summary>
-        /// The arguments of the function passed by reference by name.
+        /// A bitmask identifying which arguments are passed by reference. 
+        /// If the bit at position 'i' is set, the argument at index 'i' is passed by reference.
+        /// Limits the function to a maximum of 32 arguments ( more than reasonalbe ).
         /// </summary>
-        internal HashSet<string> ArgumentsByRef { get; private set; }
+        internal int RefMask { get; private set; }
 
         /// <summary>
         /// Keeps track which namespace the function is defined in.
@@ -285,7 +287,7 @@ namespace Fluence
         /// <param name="name">The name of the function.</param>
         /// <param name="arity">The number of arguments the function expects.</param>
         /// <param name="startAddress">The initial start address (usually -1, resolved later).</param>
-        internal FunctionSymbol(string name, int arity, int startAddress, int lineInSource, FluenceScope definingScope, List<string> arguments, HashSet<string> argumentsByRef) : base(name)
+        internal FunctionSymbol(string name, int arity, int startAddress, int lineInSource, FluenceScope definingScope, List<string> arguments, int refMask) : base(name)
         {
             StartAddressInSource = lineInSource;
             Arity = arity;
@@ -299,7 +301,7 @@ namespace Fluence
                 ArgumentHashCodes.Add(Arguments[i].GetHashCode());
             }
 
-            ArgumentsByRef = argumentsByRef;
+            RefMask = refMask;
             DefiningScope = definingScope;
         }
 

@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Fluence
 {
@@ -403,9 +404,11 @@ namespace Fluence
         internal List<int> ArgumentHashCodes { get; init; }
 
         /// <summary>
-        /// The arguments of the function passed by reference by name.
+        /// A bitmask identifying which arguments are passed by reference. 
+        /// If the bit at position 'i' is set, the argument at index 'i' is passed by reference.
+        /// Limits the function to a maximum of 32 arguments ( more than reasonalbe ).
         /// </summary>
-        internal HashSet<string> ArgumentsByRef { get; init; }
+        internal int RefMask { get; init; }
 
         /// <summary>
         /// Sets the bytecode start address for this function. Called by the parser during the second pass.
@@ -425,7 +428,7 @@ namespace Fluence
         /// </summary>
         internal bool BelongsToAStruct { get; init; }
 
-        internal FunctionValue(string name, bool inStruct, int arity, int startAddress, int lineInSource, List<string> arguments, HashSet<string> argsByRef, FluenceScope scope)
+        internal FunctionValue(string name, bool inStruct, int arity, int startAddress, int lineInSource, List<string> arguments, int refMask, FluenceScope scope)
         {
             BelongsToAStruct = inStruct;
             Name = name;
@@ -439,7 +442,7 @@ namespace Fluence
                 ArgumentHashCodes.Add(Arguments[i].GetHashCode());
             }
 
-            ArgumentsByRef = argsByRef;
+            RefMask = refMask;
             StartAddressInSource = lineInSource;
             DefiningScope = scope;
 
@@ -459,9 +462,23 @@ namespace Fluence
 
         public override string ToString()
         {
-            string args = (Arguments == null || Arguments.Count == 0) ? "None" : string.Join(", ", Arguments);
-            string argsRef = (ArgumentsByRef == null || ArgumentsByRef.Count == 0) ? "None" : string.Join(", ", ArgumentsByRef);
-            return $"FunctionValue: {Name} {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} args: {args}. refArgs: {argsRef}, RegSize: {TotalRegisterSlots}, Scope: {DefiningScope}";
+            if (Arguments == null || Arguments.Count == 0)
+            {
+                return $"FunctionValue: {Name} {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #0 args, RegSize: {TotalRegisterSlots}, Scope: {DefiningScope}";
+            }
+
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < Arguments.Count; i++)
+            {
+                bool isRef = (RefMask & (1 << i)) != 0;
+
+                if (isRef) sb.Append("ref ");
+                sb.Append(Arguments[i]);
+
+                if (i < Arguments.Count - 1) sb.Append(", ");
+            }
+
+            return $"FunctionValue: {Name} {FluenceDebug.FormatByteCodeAddress(StartAddress)}, #{Arity} args: [{sb}], RegSize: {TotalRegisterSlots}, Scope: {DefiningScope}";
         }
     }
 

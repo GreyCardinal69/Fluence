@@ -239,13 +239,17 @@ namespace Fluence.Global
 
         private static RuntimeValue GetParametersRef(FluenceVirtualMachine vm, RuntimeValue self)
         {
-            TypeMetadata metadata = (TypeMetadata)self.As<Wrapper>().Instance;
+            MethodMetadata metadata = (MethodMetadata)self.As<Wrapper>().Instance;
 
             ListObject list = new ListObject();
 
-            foreach (string item in metadata.ParametersByRef)
+            for (int i = 0; i < metadata.Parameters.Count; i++)
             {
-                list.Elements.Add(vm.ResolveStringObjectRuntimeValue(item));
+                if ((metadata.RefMask & (1 << i)) != 0)
+                {
+                    // This arg is ref.
+                    list.Elements.Add(vm.ResolveStringObjectRuntimeValue(metadata.Parameters[i]));
+                }
             }
 
             return new RuntimeValue(list);

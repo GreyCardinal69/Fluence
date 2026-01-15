@@ -135,8 +135,6 @@ namespace Fluence
             string indent = new string(' ', indentationLevel * 4);
             string innerIndent = new string(' ', (indentationLevel + 1) * 4);
 
-            string args, argsRef;
-
             switch (symbol)
             {
                 case EnumSymbol enumSymbol:
@@ -150,14 +148,23 @@ namespace Fluence
 
                 case FunctionSymbol functionSymbol:
                     string scope = functionSymbol.DefiningScope == null || functionSymbol.Arguments == null ? $"None {(functionSymbol.IsIntrinsic ? "(Intrinsic)" : "Global?")}" : functionSymbol.DefiningScope.Name;
-                    args = functionSymbol.Arguments == null ? "None" : string.Join(",", functionSymbol.Arguments);
-                    argsRef = (functionSymbol.ArgumentsByRef == null || functionSymbol.ArgumentsByRef.Count == 0) ? "None" : string.Join(",", functionSymbol.ArgumentsByRef);
 
-                    if (string.IsNullOrEmpty(args)) args = "None";
+                    List<string> argList = new List<string>();
+                    if (functionSymbol.Arguments != null)
+                    {
+                        for (int i = 0; i < functionSymbol.Arguments.Count; i++)
+                        {
+                            bool isRef = (functionSymbol.RefMask & (1 << i)) != 0;
+                            string arg = functionSymbol.Arguments[i];
+                            argList.Add(isRef ? $"ref {arg}" : arg);
+                        }
+                    }
+
+                    string argsStr = argList.Count > 0 ? string.Join(", ", argList) : "None";
 
                     sb.Append(indent).Append($"Symbol: {symbolName}, type: Function Header {{");
                     sb.Append($" Arity: {functionSymbol.Arity}, Scope: {scope}, StartAddress: {FluenceDebug.FormatByteCodeAddress(functionSymbol.StartAddress)},");
-                    sb.Append($" Args: {args}, ").Append($" RefArgs: {argsRef}, ").Append($" LocationInSource: {functionSymbol.StartAddressInSource}").AppendLine();
+                    sb.Append($" Signature: {argsStr}, ").Append($" LocationInSource: {functionSymbol.StartAddressInSource}").AppendLine();
                     break;
                 case VariableSymbol variableSymbol:
                     sb.Append(indent).Append($"Symbol: {symbolName}, {variableSymbol}.").AppendLine();
@@ -199,18 +206,24 @@ namespace Fluence
                     sb.Append(indent).Append($"Symbol: {symbolName}, type Struct {{").AppendLine();
                     sb.Append(innerIndent).Append("Fields: ").Append(structSymbol.Fields.Count != 0 ? string.Join(", ", structSymbol.Fields) : "None").AppendLine(".");
 
-                    if (structSymbol.Functions.Count != 0)
+                    foreach (KeyValuePair<string, FunctionValue> function in structSymbol.Functions)
                     {
-                        sb.Append(innerIndent).AppendLine("Functions: {");
-                        foreach (KeyValuePair<string, FunctionValue> function in structSymbol.Functions)
-                        {
-                            args = function.Value.Arguments == null || function.Value.Arguments.Count == 0 ? "None" : string.Join(",", function.Value.Arguments);
-                            argsRef = function.Value.ArgumentsByRef == null || function.Value.ArgumentsByRef.Count == 0 ? "None" : string.Join(",", function.Value.ArgumentsByRef);
+                        FunctionValue fv = function.Value;
+                        List<string> fArgs = new List<string>();
 
-                            sb.Append(innerIndent).Append($"    Name: {function.Key}, Arity: {function.Value.Arity}, Start Address: {FormatByteCodeAddress(function.Value.StartAddress)}")
-                              .Append($" Args: {args}, ").Append($" RefArgs: {argsRef}, ").Append($"Scope: {function.Value.DefiningScope}, ").Append($"Registers Size: {function.Value.TotalRegisterSlots}").AppendLine();
+                        if (fv.Arguments != null)
+                        {
+                            for (int i = 0; i < fv.Arguments.Count; i++)
+                            {
+                                bool isRef = (fv.RefMask & (1 << i)) != 0;
+                                fArgs.Add(isRef ? $"ref {fv.Arguments[i]}" : fv.Arguments[i]);
+                            }
                         }
-                        sb.Append(innerIndent).AppendLine("}");
+
+                        string fArgsStr = fArgs.Count > 0 ? string.Join(", ", fArgs) : "None";
+
+                        sb.Append(innerIndent).Append($"    Name: {function.Key}, Arity: {fv.Arity}, Start Address: {FormatByteCodeAddress(fv.StartAddress)}")
+                          .Append($" Signature: {fArgsStr}, ").Append($"Scope: {fv.DefiningScope}, ").Append($"Registers Size: {fv.TotalRegisterSlots}").AppendLine();
                     }
 
                     sb.Append("\tDefault Values of Fields:");

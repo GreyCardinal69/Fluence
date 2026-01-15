@@ -39,8 +39,12 @@ namespace Fluence.RuntimeTypes
         /// <summary>The hash codes of the function's parameters.</summary>
         internal List<int> ArgumentHashCodes { get; private set; }
 
-        /// <summary>The names of the function's parameters passed by reference.</summary>
-        internal HashSet<string> ArgumentsByRef { get; set; }
+        /// <summary>
+        /// A bitmask identifying which arguments are passed by reference. 
+        /// If the bit at position 'i' is set, the argument at index 'i' is passed by reference.
+        /// Limits the function to a maximum of 32 arguments ( more than reasonalbe ).
+        /// </summary>
+        internal int RefMask { get; private set; }
 
         /// <summary>The lexical scope in which the function was defined, used for resolving non-local variables.</summary>
         internal FluenceScope DefiningScope { get; private set; }
@@ -85,7 +89,7 @@ namespace Fluence.RuntimeTypes
             StartAddress = function.StartAddress;
             DefiningScope = function.DefiningScope;
             StartAddressInSource = function.StartAddressInSource;
-            ArgumentsByRef = function.ArgumentsByRef;
+            RefMask = function.RefMask;
             TotalRegisterSlots = function.TotalRegisterSlots;
         }
 
@@ -100,7 +104,7 @@ namespace Fluence.RuntimeTypes
             DefiningScope = function.DefiningScope;
             BluePrint = function;
             StartAddressInSource = function.StartAddressInSource;
-            ArgumentsByRef = function.ArgumentsByRef;
+            RefMask = function.RefMask;
             TotalRegisterSlots = function.TotalRegisterSlots;
         }
 
@@ -118,17 +122,20 @@ namespace Fluence.RuntimeTypes
         internal string ToCodeLikeString()
         {
             StringBuilder sb = new StringBuilder($"func {Mangler.Demangle(Name)}(");
+
             for (int i = 0; i < Arguments?.Count; i++)
             {
                 string arg = Arguments[i];
-                if (ArgumentsByRef.Contains(arg))
+
+                bool isRef = (RefMask & (1 << i)) != 0;
+
+                if (isRef)
                 {
-                    sb.Append($"ref {arg}");
+                    sb.Append("ref ");
                 }
-                else
-                {
-                    sb.Append(arg);
-                }
+
+                sb.Append(arg);
+
                 if (i < Arguments.Count - 1) sb.Append(", ");
             }
             sb.Append(") => ...");

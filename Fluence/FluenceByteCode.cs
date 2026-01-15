@@ -127,7 +127,10 @@ namespace Fluence
                 /// <summary>Global setup section marker.</summary>
                 SectionGlobal,
                 SectionLambdaStart,
-                SectionLambdaEnd
+                SectionLambdaEnd,
+
+                // More performant way to get the total amount of opcodes in the VM ctor, relies on first opcode being 0.
+                NumberOfOpcodes,
             }
 
             /// <summary>The operation code for this instruction.</summary>

@@ -249,10 +249,9 @@ namespace Fluence.VirtualMachine
             _input = input ?? Console.ReadLine!;
 
             // This represents the top-level global execution context.
-            FunctionObject mainScriptFunc = new FunctionObject("<script>", 0, new List<string>(), new List<int>(), 0, _globalScope);
+            FunctionObject mainScriptFunc = new FunctionObject("<script>", 0, null!, null!, 0, _globalScope);
 
-            InstructionCode[] opCodeValues = Enum.GetValues<InstructionCode>();
-            int maxOpCode = 0;
+            int maxOpCode = (int)InstructionCode.NumberOfOpcodes;
 
             int globalRegisterSlotCount = PrepareGlobalRegistry();
 
@@ -272,11 +271,6 @@ namespace Fluence.VirtualMachine
             FluenceDebug.DumpByteCodeInstructions(_parser.CompiledCode, _outputLine);
             FluenceDebug.GenerateCSharpCodeForInstructionList(_parser.CurrentParseState.CodeInstructions, _outputLine);
 #endif
-
-            foreach (InstructionCode value in opCodeValues)
-            {
-                if ((int)value > maxOpCode) maxOpCode = (int)value;
-            }
 
             _dispatchTable = new OpcodeHandler[maxOpCode + 1];
 
@@ -563,7 +557,7 @@ namespace Fluence.VirtualMachine
 
                 _ => SignalError<RuntimeValue>(
                     $"Unsupported type '{value.GetType().FullName}' for SetGlobal. " +
-                    "Supported types are null, bool, int, long, float, double, string, char.")
+                    "Supported types are null, bool, int, long, float, double, string, char, list.")
             };
 
             if (_globalVariableRegister.TryGetValue(name, out VariableValue var))
@@ -602,12 +596,12 @@ namespace Fluence.VirtualMachine
 
             int instructionCount = _byteCode.Count;
             Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(_byteCode);
-            bool timeOutEnalbed = true;
+            bool timeOutEnabled = true;
 
             if (willRunUntilDone && _configuration.DefaultTimeoutPeriod == TimeSpan.MaxValue)
             {
                 stopwatch.Stop();
-                timeOutEnalbed = false;
+                timeOutEnabled = false;
             }
 
             while (_ip < instructionCount)
@@ -619,7 +613,7 @@ namespace Fluence.VirtualMachine
                 }
 
                 // If the VM is set to run until completion, we can save a lot of time on just not doing time elapsed checks.
-                if (!willRunUntilDone || timeOutEnalbed)
+                if (!willRunUntilDone || timeOutEnabled)
                 {
                     instructionsUntilNextCheck--;
 
@@ -667,10 +661,7 @@ namespace Fluence.VirtualMachine
         /// <summary>
         /// Signals the VM to stop execution at the next available opportunity.
         /// </summary>
-        internal void Stop()
-        {
-            _stopRequested = true;
-        }
+        internal void Stop() => _stopRequested = true;
 
         /// <summary>
         /// Directly sets the instruction pointer. Used for debugging or advanced control.

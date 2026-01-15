@@ -366,16 +366,16 @@
         internal readonly ushort ColumnInSourceCode;
 
         /// <summary>A shared, single instance of the End-Of-Line-Lexer token.</summary>
-        internal static readonly Token NEW_LINE = new Token(TokenType.NEW_LINE);
+        internal static readonly Token NEW_LINE = new Token(TokenType.NEW_LINE, null!);
 
         /// <summary>A shared, single instance of the End-of-File token.</summary>
-        internal static readonly Token EOF = new Token(TokenType.EOF);
+        internal static readonly Token EOF = new Token(TokenType.EOF, null!);
 
         /// <summary>A shared, single instance of the No Use token.</summary>
-        internal static readonly Token NoUse = new Token(TokenType.NO_USE);
+        internal static readonly Token NoUse = new Token(TokenType.NO_USE, null!);
 
         /// <summary>A shared, single instance of the End-Of-Line (;) token.</summary>
-        internal static readonly Token EOL = new Token(TokenType.EOL);
+        internal static readonly Token EOL = new Token(TokenType.EOL, null!);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Token"/> struct.

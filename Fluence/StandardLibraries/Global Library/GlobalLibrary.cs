@@ -83,7 +83,7 @@ namespace Fluence.Global
                     return vm.SignalRecoverableErrorAndReturnNil("Random.between_exclusive expects two integer arguments for maximum and minimum.", Exceptions.RuntimeExceptionType.NonSpecific);
                 }
 
-                // min + 1 to get exclusive min, max is already exclusive
+                // min + 1 to get exclusive min, max is already exclusive.
                 return new RuntimeValue(rand.Next(min.IntValue + 1, max.IntValue));
             }, globalScope, ["min", "max"]));
 
@@ -274,7 +274,7 @@ namespace Fluence.Global
 
             globalScope.Declare(exceptionHash, exceptionTrait);
 
-            // Others
+            // Others.
 
             // This simply returns the name of the type, not the type metadata.
             globalScope.Declare("type_of__1".GetHashCode(), new FunctionSymbol("typeof__1", 1, (vm, argCount) =>

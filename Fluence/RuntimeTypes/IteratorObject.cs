@@ -22,7 +22,6 @@
         internal void Reset()
         {
             Iterable = null;
-            CurrentIndex = 0;
         }
 
         internal void Initialize(object? iterator)

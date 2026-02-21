@@ -3,6 +3,7 @@ using Fluence.RuntimeTypes;
 using Fluence.VirtualMachine;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 using static Fluence.FluenceInterpreter;
@@ -91,11 +92,11 @@ namespace Fluence
                 }
             }
 
-            // Four operands
+            // Four operands.
             SetUsage(OperandUsage.AllFour,
                 InstructionCode.AssignTwo, InstructionCode.PushFourParams);
 
-            // Three operands
+            // Three operands.
             SetUsage(OperandUsage.AllThree,
                 InstructionCode.Add, InstructionCode.Subtract, InstructionCode.Multiply, InstructionCode.Divide,
                 InstructionCode.Modulo, InstructionCode.Power, InstructionCode.Equal, InstructionCode.NotEqual,
@@ -109,7 +110,7 @@ namespace Fluence
                 InstructionCode.BranchIfGreaterThan, InstructionCode.BranchIfGreaterOrEqual, InstructionCode.BranchIfLessThan,
                 InstructionCode.BranchIfLessOrEqual, InstructionCode.PushThreeParams, InstructionCode.IterNext, InstructionCode.IsType);
 
-            // Two operands
+            // Two operands.
             SetUsage(OperandUsage.LhsAndRhs,
                 InstructionCode.Assign, InstructionCode.AssignIfNil, InstructionCode.GotoIfTrue, InstructionCode.GotoIfFalse,
                 InstructionCode.Negate, InstructionCode.Not, InstructionCode.BitwiseNot,
@@ -118,7 +119,7 @@ namespace Fluence
                 InstructionCode.ToString, InstructionCode.NewLambda, InstructionCode.PushTwoParams,
                 InstructionCode.NewIterator, InstructionCode.GetType);
 
-            // One operand
+            // One operand.
             SetUsage(OperandUsage.Lhs,
                 InstructionCode.Return, InstructionCode.PushParam, InstructionCode.LoadAddress,
                 InstructionCode.Increment, InstructionCode.Decrement, InstructionCode.IncrementIntUnrestricted,
@@ -2601,86 +2602,104 @@ namespace Fluence
             TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Add, temp, left, right));
             return temp;
-        }
-
-        /// <summary>
-        /// Parses a formatted string (f-string) literal, breaking it into literal text and interpolated expressions.
-        /// It generates bytecode to evaluate expressions, convert them to strings, and concatenate all parts.
-        /// </summary>
-        /// <param name="literal">The raw string content from the token, without the leading 'f' or quotes.</param>
-        /// <returns>A Value (StringValue or TempValue) that will hold the final concatenated string at runtime.</returns>
+        }/// <summary>
+         /// Parses a formatted string (f-string) literal, breaking it into literal text and interpolated expressions.
+         /// It generates bytecode to evaluate expressions, convert them to strings, and concatenate all parts.
+         /// </summary>
+         /// <param name="literal">The raw string content from the token, without the leading 'f' or quotes.</param>
+         /// <returns>A Value (StringValue or TempValue) that will hold the final concatenated string at runtime.</returns>
         private Value ParseFString(object literal)
         {
-            string fstringContent = literal.ToString()!;
-            List<Value> stringParts = new List<Value>();
-            int lastIndex = 0;
+            string content = literal.ToString()!;
+            List<Value> parts = new List<Value>();
+            StringBuilder currentLiteral = new StringBuilder();
 
-            while (lastIndex < fstringContent.Length)
+            int i = 0;
+            while (i < content.Length)
             {
-                int exprStart = fstringContent.IndexOf('{', lastIndex);
+                char c = content[i];
 
-                if (exprStart == -1) // No more expressions found.
+                if (c == '{')
                 {
-                    string literalPart = fstringContent[lastIndex..];
-                    if (!string.IsNullOrEmpty(literalPart))
+                    if (i + 1 < content.Length && content[i + 1] == '{')
                     {
-                        stringParts.Add(new StringValue(literalPart));
+                        currentLiteral.Append('{');
+                        i += 2;
                     }
-                    break;
+                    else
+                    {
+                        if (currentLiteral.Length > 0)
+                        {
+                            parts.Add(new StringValue(currentLiteral.ToString()));
+                            currentLiteral.Clear();
+                        }
+
+                        int exprStart = i + 1;
+                        int braceDepth = 1;
+                        int scan = exprStart;
+
+                        while (scan < content.Length && braceDepth > 0)
+                        {
+                            if (content[scan] == '{') braceDepth++;
+                            else if (content[scan] == '}') braceDepth--;
+                            scan++;
+                        }
+
+                        if (braceDepth > 0)
+                        {
+                            throw ConstructParserException("Unclosed expression in f-string.", _lexer.PeekCurrentToken());
+                        }
+
+                        int exprLength = (scan - 1) - exprStart;
+                        string expressionSource = content.Substring(exprStart, exprLength);
+
+                        Value exprValue = ParseSubExpression(expressionSource);
+
+                        TempValue stringResult = new TempValue(_currentParseState.NextTempNumber++);
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.ToString, stringResult, exprValue));
+                        parts.Add(stringResult);
+
+                        i = scan;
+                    }
                 }
-
-                if (exprStart > lastIndex)
+                else if (c == '}')
                 {
-                    string literalPart = fstringContent[lastIndex..exprStart];
-                    stringParts.Add(new StringValue(literalPart));
-                }
-
-                int braceDepth = 1;
-                int scanIndex = exprStart + 1;
-
-                while (braceDepth > 0 && scanIndex < fstringContent.Length)
-                {
-                    char c = fstringContent[scanIndex];
-                    if (c == '{') braceDepth++;
-                    else if (c == '}') braceDepth--;
-                    scanIndex++;
-                }
-
-                int exprEnd;
-                if (braceDepth == 0)
-                {
-                    exprEnd = scanIndex - 1;
+                    if (i + 1 < content.Length && content[i + 1] == '}')
+                    {
+                        currentLiteral.Append('}');
+                        i += 2;
+                    }
+                    else
+                    {
+                        throw ConstructParserException("Unexpected '}' in f-string. To output a brace, use '}}'.", _lexer.PeekCurrentToken());
+                    }
                 }
                 else
                 {
-                    // If the loop finished without finding a match, the brace is unclosed.
-                    throw ConstructParserException("Unclosed expression in f-string.", _lexer.PeekCurrentToken());
+                    currentLiteral.Append(c);
+                    i++;
                 }
-
-                string expressionSource = fstringContent.Substring(exprStart + 1, exprEnd - exprStart - 1);
-                Value expressionValue = ParseSubExpression(expressionSource);
-
-                TempValue stringResult = new TempValue(_currentParseState.NextTempNumber++);
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.ToString, stringResult, expressionValue));
-                stringParts.Add(stringResult);
-
-                lastIndex = exprEnd + 1;
             }
 
-            if (stringParts.Count == 0)
+            if (currentLiteral.Length > 0)
+            {
+                parts.Add(new StringValue(currentLiteral.ToString()));
+            }
+
+            if (parts.Count == 0)
             {
                 return new StringValue("");
             }
-            if (stringParts.Count == 1)
+
+            if (parts.Count == 1)
             {
-                // If there's only one part, no concatenation is needed.
-                return stringParts[0];
+                return parts[0];
             }
 
-            Value finalResult = stringParts[0];
-            for (int i = 1; i < stringParts.Count; i++)
+            Value finalResult = parts[0];
+            for (int k = 1; k < parts.Count; k++)
             {
-                finalResult = ConcatenateStringValues(finalResult, stringParts[i]);
+                finalResult = ConcatenateStringValues(finalResult, parts[k]);
             }
 
             return finalResult;

@@ -234,12 +234,12 @@ namespace Fluence
         /// <summary>
         /// A bitmask identifying which arguments are passed by reference. 
         /// If the bit at position 'i' is set, the argument at index 'i' is passed by reference.
-        /// Limits the function to a maximum of 32 arguments ( more than reasonalbe ).
+        /// Limits the function to a maximum of 32 arguments ( more than reasonable ).
         /// </summary>
         internal int RefMask { get; private set; }
 
         /// <summary>
-        /// Keeps track which namespace the function is defined in.
+        /// Keeps track of which namespace the function is defined in.
         /// </summary>
         internal FluenceScope DefiningScope { get; init; }
 

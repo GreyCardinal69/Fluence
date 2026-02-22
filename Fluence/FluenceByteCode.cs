@@ -77,6 +77,8 @@ namespace Fluence
 
                 // List & Collection Operations.
                 NewList,
+                NewDictionary,
+                PushKeyValuePair,
                 NewRange,
                 PushElement,
                 GetElement,

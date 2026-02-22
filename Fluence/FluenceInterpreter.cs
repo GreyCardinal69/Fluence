@@ -310,6 +310,7 @@ namespace Fluence
                             CharObject ch => ch.Value,
                             StringObject str => str.Value,
                             ListObject list => list.Elements,
+                            DictionaryObject dictionary => dictionary.Dictionary,
                             _ => throw new NotImplementedException()
                         };
                 }

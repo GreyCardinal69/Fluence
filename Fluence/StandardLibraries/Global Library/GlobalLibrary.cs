@@ -240,11 +240,6 @@ namespace Fluence.Global
                 globalScope.Declare(item.Hash, item);
             }
 
-            foreach (FunctionSymbol item in DictionaryWrapper.CreateConstructors(globalScope))
-            {
-                globalScope.Declare(item.Hash, item);
-            }
-
             // Core exception class and trait.
 
             foreach (FunctionSymbol item in ExceptionWrapper.CreateConstructors(globalScope))

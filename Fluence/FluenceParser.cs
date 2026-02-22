@@ -108,7 +108,7 @@ namespace Fluence
                 InstructionCode.AddAssign, InstructionCode.SubAssign, InstructionCode.MulAssign, InstructionCode.DivAssign,
                 InstructionCode.ModAssign, InstructionCode.BranchIfEqual, InstructionCode.BranchIfNotEqual,
                 InstructionCode.BranchIfGreaterThan, InstructionCode.BranchIfGreaterOrEqual, InstructionCode.BranchIfLessThan,
-                InstructionCode.BranchIfLessOrEqual, InstructionCode.PushThreeParams, InstructionCode.IterNext, InstructionCode.IsType);
+                InstructionCode.BranchIfLessOrEqual, InstructionCode.PushThreeParams, InstructionCode.IterNext, InstructionCode.IsType, InstructionCode.PushKeyValuePair);
 
             // Two operands.
             SetUsage(OperandUsage.LhsAndRhs,
@@ -123,7 +123,7 @@ namespace Fluence
             SetUsage(OperandUsage.Lhs,
                 InstructionCode.Return, InstructionCode.PushParam, InstructionCode.LoadAddress,
                 InstructionCode.Increment, InstructionCode.Decrement, InstructionCode.IncrementIntUnrestricted,
-                InstructionCode.NewList, InstructionCode.Goto, InstructionCode.TryBlock, InstructionCode.Throw);
+                InstructionCode.NewList, InstructionCode.Goto, InstructionCode.TryBlock, InstructionCode.Throw, InstructionCode.NewDictionary);
 
             // Zero operands.
             SetUsage(OperandUsage.None,
@@ -2602,12 +2602,14 @@ namespace Fluence
             TempValue temp = new TempValue(_currentParseState.NextTempNumber++);
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Add, temp, left, right));
             return temp;
-        }/// <summary>
-         /// Parses a formatted string (f-string) literal, breaking it into literal text and interpolated expressions.
-         /// It generates bytecode to evaluate expressions, convert them to strings, and concatenate all parts.
-         /// </summary>
-         /// <param name="literal">The raw string content from the token, without the leading 'f' or quotes.</param>
-         /// <returns>A Value (StringValue or TempValue) that will hold the final concatenated string at runtime.</returns>
+        }
+
+        /// <summary>
+        /// Parses a formatted string (f-string) literal, breaking it into literal text and interpolated expressions.
+        /// It generates bytecode to evaluate expressions, convert them to strings, and concatenate all parts.
+        /// </summary>
+        /// <param name="literal">The raw string content from the token, without the leading 'f' or quotes.</param>
+        /// <returns>A Value (StringValue or TempValue) that will hold the final concatenated string at runtime.</returns>
         private Value ParseFString(object literal)
         {
             string content = literal.ToString()!;
@@ -2650,7 +2652,7 @@ namespace Fluence
                             throw ConstructParserException("Unclosed expression in f-string.", _lexer.PeekCurrentToken());
                         }
 
-                        int exprLength = (scan - 1) - exprStart;
+                        int exprLength = scan - 1 - exprStart;
                         string expressionSource = content.Substring(exprStart, exprLength);
 
                         Value exprValue = ParseSubExpression(expressionSource);
@@ -2727,6 +2729,55 @@ namespace Fluence
                 _lexerPool.Return(_lexer);
                 _lexer = savedLexer;
             }
+        }
+
+        /// <summary>
+        /// Parses a dictionary literal expression.
+        /// </summary>
+        /// <returns>A TempValue that will hold the new list instance at runtime.</returns>
+        private TempValue ParseDictionary()
+        {
+            // '{' is already consumed.
+
+            TempValue dictionary = new TempValue(_currentParseState.NextTempNumber++);
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewDictionary, dictionary));
+
+            if (!_lexer.TokenTypeMatches(TokenType.R_BRACE))
+            {
+                ParseDictionaryKeyValuePair(dictionary);
+            }
+
+            AdvanceAndExpect(TokenType.R_BRACE, "Expected a closing '}' to end the dictionary literal.");
+            return dictionary;
+        }
+
+        /// <summary>
+        /// Parses a key-value pair for a dictionary declaration.
+        /// </summary>
+        /// <param name="dictionary">The dictionary the key-value pair will be added to.</param>
+        private void ParseDictionaryKeyValuePair(TempValue dictionary)
+        {
+            do
+            {
+                Value key = ResolveValue(ParseExpression());
+
+                AdvanceAndExpect(TokenType.THIN_ARROW, "Expected a '->' after the key of a key-value pair in a dictionary declaration.");
+
+                Value value;
+
+                // Dictionary as value.
+                if (_lexer.PeekNextTokenType() == TokenType.L_BRACE)
+                {
+                    AdvanceTokenIfMatch(TokenType.L_BRACE);
+                    value = ParseDictionary();
+                }
+                else
+                {
+                    value = ResolveValue(ParseExpression());
+                }
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushKeyValuePair, dictionary, key, value));
+            } while (AdvanceTokenIfMatch(TokenType.COMMA));
         }
 
         /// <summary>
@@ -4712,7 +4763,7 @@ namespace Fluence
 
             if (type.Type is not TokenType.IDENTIFIER)
             {
-                throw ConstructParserExceptionWithUnexpectedToken("Expected an identifier of a trait or struct type name after 'is' keyword", type);
+                throw ConstructParserExceptionWithUnexpectedToken("Expected an identifier of a trait or a struct type name after 'is' keyword", type);
             }
             else
             {
@@ -5163,6 +5214,7 @@ namespace Fluence
                 case TokenType.CHARACTER: return new CharValue((char)token.Literal);
                 case TokenType.L_BRACKET: return ParseList();
                 case TokenType.MATCH: return ParseMatchStatement();
+                case TokenType.L_BRACE: return ParseDictionary();
                 case TokenType.THROW:
                     Value val = ResolveValue(ParseExpression());
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Throw, val));

@@ -291,7 +291,9 @@ namespace Fluence.VirtualMachine
             _dispatchTable[(int)InstructionCode.GetField] = ExecuteGetField;
             _dispatchTable[(int)InstructionCode.CallMethod] = ExecuteCallMethod;
             _dispatchTable[(int)InstructionCode.NewList] = ExecuteNewList;
+            _dispatchTable[(int)InstructionCode.NewDictionary] = ExecuteNewDictionary;
             _dispatchTable[(int)InstructionCode.PushElement] = ExecutePushElement;
+            _dispatchTable[(int)InstructionCode.PushKeyValuePair] = ExecutePushKeyValuePair;
             _dispatchTable[(int)InstructionCode.GetElement] = ExecuteGetElement;
             _dispatchTable[(int)InstructionCode.SetElement] = ExecuteSetElement;
             _dispatchTable[(int)InstructionCode.NewRange] = ExecuteNewRange;
@@ -555,9 +557,11 @@ namespace Fluence.VirtualMachine
 
                 List<RuntimeValue> list => new RuntimeValue(new ListObject(list)),
 
+                Dictionary<RuntimeValue, RuntimeValue> dictionary => new RuntimeValue(new DictionaryObject(dictionary)),
+
                 _ => SignalError<RuntimeValue>(
                     $"Unsupported type '{value.GetType().FullName}' for SetGlobal. " +
-                    "Supported types are null, bool, int, long, float, double, string, char, list.")
+                    "Supported types are null, bool, int, long, float, double, string, char, list, dictionary (Map).")
             };
 
             if (_globalVariableRegister.TryGetValue(name, out VariableValue var))
@@ -1305,6 +1309,14 @@ namespace Fluence.VirtualMachine
         }
 
         /// <summary>
+        /// Handles the NEW_DICTIONARY instruction, creating a new, empty dictionary object.
+        /// </summary>
+        private void ExecuteNewDictionary(InstructionLine instruction)
+        {
+            SetRegister((TempValue)instruction.Lhs, new RuntimeValue(new DictionaryObject()));
+        }
+
+        /// <summary>
         /// A generic handler for all relational comparison operations (&gt;, &gt;=, &lt;, &lt;=).
         /// It correctly handles comparisons for both numbers and strings.
         /// </summary>
@@ -1432,6 +1444,26 @@ namespace Fluence.VirtualMachine
             }
 
             SetRegister((TempValue)instruction.Lhs, new RuntimeValue(length));
+        }
+
+        /// <summary>
+        /// Handles the PUSH_KEY_VALUE_PAIR instruction, which adds a key-value pair to a dictionary object.
+        /// </summary>
+        private void ExecutePushKeyValuePair(InstructionLine instruction)
+        {
+            // Rhs is key, Rhs2 is value.
+
+            RuntimeValue dictVal = GetRuntimeValue(instruction.Lhs, instruction);
+            if (dictVal.ObjectReference is not DictionaryObject dictionary)
+            {
+                SignalError($"Runtime Error: Cannot push a key-value pair element to a non-dictionary value (got type '{GetDetailedTypeName(dictVal)}').");
+                return;
+            }
+
+            RuntimeValue key = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue value = GetRuntimeValue(instruction.Rhs2, instruction);
+
+            dictionary.Dictionary.Add(key, value);
         }
 
         /// <summary>
@@ -1659,6 +1691,11 @@ namespace Fluence.VirtualMachine
                         SetRegister((TempValue)instruction.Lhs, new RuntimeValue(resultChar));
                         break;
                     }
+                case DictionaryObject dictionary:
+                    {
+                        SetRegister((TempValue)instruction.Lhs, dictionary.Dictionary[indexVal]);
+                        break;
+                    }
                 // Not an indexable type.
                 default:
                     SignalError($"Runtime Error: Cannot apply index operator [...] to a non-indexable type '{GetDetailedTypeName(collection)}'.");
@@ -1676,6 +1713,12 @@ namespace Fluence.VirtualMachine
             RuntimeValue collection = GetRuntimeValue(instruction.Lhs, instruction);
             RuntimeValue indexVal = GetRuntimeValue(instruction.Rhs, instruction);
             RuntimeValue valueToSet = GetRuntimeValue(instruction.Rhs2, instruction);
+
+            if (collection.As<DictionaryObject>() is DictionaryObject dictionary)
+            {
+                dictionary.Dictionary[indexVal] = valueToSet;
+                return;
+            }
 
             if (collection.As<ListObject>() is not ListObject list)
             {

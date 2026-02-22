@@ -177,21 +177,22 @@ Import using: `use FluenceIO;`
 ## Collections
 Advanced data structures available globally.
 
-### Map (Dictionary)
-A key-value store. Keys can be any type.
-| Method | Description |
-| :--- | :--- |
-| `Map()` | Creates a new Map. |
-| `Map(capacity)` | Creates a Map with initial capacity. |
-| `.set(key, val)` | Adds or updates a key-value pair. |
-| `.get(key)` | Returns value, or `nil` if missing. |
-| `.get(key, default)` | Returns value, or `default` if missing. |
-| `.contains_key(key)` | Returns `true` if key exists. |
-| `.remove(key)` | Removes the key. |
-| `.keys()` | Returns a List of all keys. |
-| `.values()` | Returns a List of all values. |
-| `.length()` | Returns count of items. |
-| `.clear()` | Empties the map. |
+### Dictionary (Map)
+A key-value store created via `{ key -> val }`.
+
+| Method | Arguments | Description |
+| :--- | :--- | :--- |
+| `.add(key, val)` | `key`, `val` | Adds or updates a key-value pair. |
+| `.get(key)` | `key` | Returns the value, or `nil` if missing. |
+| `.get(key, default)` | `key`, `val` | Returns the value, or `default` if missing. |
+| `.contains_key(key)` | `key` | Returns `true` if the key exists. |
+| `.remove(key)` | `key` | Removes the key and its value. |
+| `.keys()` | None | Returns a List of all keys. |
+| `.values()` | None | Returns a List of all values. |
+| `.count()` | None | Returns the number of items. |
+| `.is_empty()` | None | Returns `true` if the map has no items. |
+| `.clear()` | None | Removes all items. |
+| `.to_string()` | None | Returns string representation `{ k -> v, ... }`. |
 
 ### HashSet
 A collection of unique values.
@@ -240,3 +241,4 @@ Used for high-precision benchmarking.
 | `.elapsed_ticks()` | Returns elapsed timer ticks. |
 
 --
+

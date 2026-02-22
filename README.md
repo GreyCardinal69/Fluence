@@ -132,6 +132,27 @@ list = [....];
 list2 = [1..5]; # [1, 2, 3, 4, 5]
 ```
 
+Dictionaries (Maps)
+Key-value collections can be created using the literal syntax `{ key -> value }`. Keys can be any immutable type (Number, String, Boolean, Enum).
+
+```rust
+# Creating a dictionary.
+player = {
+    "name" -> "Hero",
+    "level" -> 5,
+    "inventory" -> { "Sword" -> "Potion" } # Nested dictionary.
+};
+
+# Accessing values.
+printl(player["name"]);
+
+# Modifying values.
+player["level"] = 6;
+
+# Adding new keys.
+player["status"] = "Active";
+```
+
 Ranges:
 Ranges are defined as \[Start\]..\[End\] where both start and end are inclusive. They support both numbers and variables, and expressions. Ranges are almost always converted to lists, the 
 only exception is when used in a for-in loop and other control flow ( usage outside of a for-in loop may lead to undefined or unintended behaviour ).

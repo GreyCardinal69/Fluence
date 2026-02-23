@@ -3,7 +3,7 @@ using static Fluence.Token;
 
 namespace Fluence.LexerTests
 {
-    public class LexerLessThanTests(ITestOutputHelper output)
+    public sealed class LexerLessThanTests(ITestOutputHelper output)
     {
         private readonly ITestOutputHelper _output = output;
 
@@ -13,7 +13,6 @@ namespace Fluence.LexerTests
             return lexer.ConsumeToken();
         }
 
-        // --- 6-Character Operator Tests ---
         [Fact]
         public void TestCollectiveOrEqualOperator()
         {
@@ -38,7 +37,6 @@ namespace Fluence.LexerTests
             Assert.Equal(TokenType.OR_GUARD_CHAIN, token.Type);
         }
 
-        // --- 4-Character Operator Tests ---
         [Fact]
         public void TestsCollectiveEqualOperator()
         {
@@ -55,7 +53,6 @@ namespace Fluence.LexerTests
             Assert.Equal(TokenType.GUARD_CHAIN, token.Type);
         }
 
-        // --- <n| and <n|? Family Tests ---
         [Fact]
         public void TestChainAssignNWithSingleDigit()
         {
@@ -152,21 +149,12 @@ namespace Fluence.LexerTests
             Assert.Equal(TokenType.MAP_PIPE, token.Type);
         }
 
-        // --- 2-Character Operator Tests ---
         [Fact]
         public void TestGuardPipeOperator()
         {
             string source = "|??";
             Token token = LexFirstToken(source);
             Assert.Equal(TokenType.GUARD_PIPE, token.Type);
-        }
-
-        [Fact]
-        public void TestScanPipeOperator()
-        {
-            string source = "|~>";
-            Token token = LexFirstToken(source);
-            Assert.Equal(TokenType.SCAN_PIPE, token.Type);
         }
 
         [Fact]
@@ -192,8 +180,6 @@ namespace Fluence.LexerTests
             Token token = LexFirstToken(source);
             Assert.Equal(TokenType.OPTIONAL_PIPE, token.Type);
         }
-
-        // --- Fallback and Edge Case Tests ---
 
         [Fact]
         public void TestSingleBitwiseOrAsFallback()

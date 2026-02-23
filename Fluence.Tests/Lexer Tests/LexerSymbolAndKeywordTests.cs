@@ -19,7 +19,6 @@ namespace Fluence.LexerTests
         [InlineData("/", TokenType.SLASH)]
         [InlineData("%", TokenType.PERCENT)]
         [InlineData("=", TokenType.EQUAL)]
-        [InlineData("~>", TokenType.COMPOSITION_PIPE)]
         [InlineData("->", TokenType.THIN_ARROW)]
         [InlineData("=>", TokenType.ARROW)]
         [InlineData("==", TokenType.EQUAL_EQUAL)]

@@ -511,7 +511,7 @@ namespace Fluence
              */
 
             /* For others we have:
-             * [, ], {, }, (, )
+             * [,], {,}, (,)
              * . , ; :
              * Keywords
              * .. for ranges

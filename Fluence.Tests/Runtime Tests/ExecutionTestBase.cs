@@ -1,5 +1,4 @@
-﻿using Fluence;
-using Fluence.Exceptions;
+﻿using Fluence.Exceptions;
 
 namespace Fluence.RuntimeTests
 {
@@ -19,7 +18,7 @@ namespace Fluence.RuntimeTests
 
         public static void AssertScriptResult(string scriptBody, object expectedValue, FluenceTestType expectedType)
         {
-            var interpreter = new FluenceInterpreter();
+            FluenceInterpreter interpreter = new FluenceInterpreter();
             interpreter.Configuration.OptimizeByteCode = true;
 
             string fullSource = $@"
@@ -50,7 +49,7 @@ namespace Fluence.RuntimeTests
             }
 
             Assert.NotNull(actualRaw);
-            
+
             object convertedActual = expectedType switch
             {
                 FluenceTestType.Integer => Convert.ToInt32(actualRaw),
@@ -68,7 +67,7 @@ namespace Fluence.RuntimeTests
 
         public static void AssertFullSourceResult(string fullSourceCode, object expectedValue, FluenceTestType expectedType)
         {
-            var interpreter = new FluenceInterpreter();
+            FluenceInterpreter interpreter = new FluenceInterpreter();
             interpreter.Configuration.OptimizeByteCode = true;
 
             if (!interpreter.Compile(fullSourceCode))

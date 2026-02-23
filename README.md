@@ -1056,6 +1056,12 @@ Assigns a single value to all remaining variables on the left.
 a, b, c <1| 1 <| 2;
 printl(f"{a},{b},{c}"); # a is '1', b and c become '2'.
 ```
+###Unique Rest Assignment `<!|`
+A middle between `<|` and `<N!|`, assign all values on the left the value on the right, fetching the value N times where N is the count of LHS elements.
+```rust
+a, b, c <!| input(); #input is called 3 times for each individual LHS value.
+```
+
 NOTE! That not all special assignment operators can be used together!
 
 Both Chain N Assignment and Rest Assignment operators support an Optional variant: `<N?|` and `<?|`.

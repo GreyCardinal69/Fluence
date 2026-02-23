@@ -612,8 +612,13 @@ namespace Fluence
                     return MakeTokenAndTryAdvance(TokenType.EOL, 1);
                 case ',': return MakeTokenAndTryAdvance(TokenType.COMMA, 1);
                 case '?':
+                    if (CanLookAheadStartInclusive(3))
+                    {
+                        if (PeekString(3).SequenceEqual("??=")) return MakeTokenAndTryAdvance(TokenType.NULL_COALESCING_ASSIGN, 3);
+                    }
                     if (CanLookAheadStartInclusive(2))
                     {
+                        if (PeekString(2).SequenceEqual("??")) return MakeTokenAndTryAdvance(TokenType.NULL_COALESCING, 2);
                         if (PeekString(2).SequenceEqual("?:")) return MakeTokenAndTryAdvance(TokenType.TERNARY_JOINT, 2);
                         if (PeekString(2).SequenceEqual("?.")) return MakeTokenAndTryAdvance(TokenType.NULL_COND, 2);
                     }

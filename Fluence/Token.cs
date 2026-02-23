@@ -117,6 +117,9 @@
             SCAN_PIPE,          // |~>
             COMPOSITION_PIPE,   // ~>
 
+            NULL_COALESCING, // ??
+            NULL_COALESCING_ASSIGN, // ??=
+
             // Chain Assignment & Broadcast Family Operators.
             CHAIN_ASSIGN_N,                      // <n|
             REST_ASSIGN,                         // <|
@@ -286,6 +289,9 @@
                 TokenType.CHAIN_N_UNIQUE_ASSIGN => "<!|",
                 TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN => "<!?|",
                 TokenType.OPTIONAL_SEQUENTIAL_REST_ASSIGN => "<~?|",
+
+                TokenType.NULL_COALESCING => "??",
+                TokenType.NULL_COALESCING_ASSIGN => "??=",
 
                 TokenType.GUARD_CHAIN => "<??|",
                 TokenType.OR_GUARD_CHAIN => "<||??|",

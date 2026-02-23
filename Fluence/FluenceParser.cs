@@ -2734,7 +2734,7 @@ namespace Fluence
         /// <summary>
         /// Parses a dictionary literal expression.
         /// </summary>
-        /// <returns>A TempValue that will hold the new list instance at runtime.</returns>
+        /// <returns>A TempValue that will hold the new dictionary instance at runtime.</returns>
         private TempValue ParseDictionary()
         {
             // '{' is already consumed.
@@ -3581,7 +3581,7 @@ namespace Fluence
         private Value ParseTernary()
         {
             // If Ternary, this becomes the condition.
-            Value left = ParsePipe();
+            Value left = ParseNullCoalescing();
 
             TokenType type = _lexer.PeekNextTokenType();
 
@@ -3628,6 +3628,38 @@ namespace Fluence
             // The "value" of this entire ternary expression for the rest of the parser
             // is the temporary variable that holds the chosen result.
             return result;
+        }
+
+        /// <summary>
+        /// Parses a null-coalescing expression.
+        /// </summary>
+        private Value ParseNullCoalescing()
+        {
+            Value left = ParsePipe();
+
+            while (_lexer.PeekNextTokenType() == TokenType.NULL_COALESCING)
+            {
+                _lexer.ConsumeToken();
+
+                Value fallbackValue = ResolveValue(ParsePipe());
+
+                TempValue isNull = new TempValue(_currentParseState.NextTempNumber++);
+                TempValue returnValue = new TempValue(_currentParseState.NextTempNumber++);
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, returnValue, left));
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Equal, isNull, left, NilValue.NilInstance));
+
+                int gotoIndex = _currentParseState.CodeInstructions.Count;
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.GotoIfFalse, null!, isNull));
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Assign, returnValue, fallbackValue));
+
+                _currentParseState.CodeInstructions[gotoIndex].Lhs = new GoToValue(_currentParseState.CodeInstructions.Count);
+
+                left = returnValue;
+            }
+
+            return left;
         }
 
         /// <summary>

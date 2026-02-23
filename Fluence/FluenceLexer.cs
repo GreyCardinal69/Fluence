@@ -582,9 +582,7 @@ namespace Fluence
                         if (nextChar == '=') return MakeTokenAndTryAdvance(TokenType.GREATER_EQUAL, 2);
                     }
                     return MakeTokenAndTryAdvance(TokenType.GREATER, 1);
-                case '~':
-                    if (CanLookAheadStartInclusive(2) && PeekNext() == '>') return MakeTokenAndTryAdvance(TokenType.COMPOSITION_PIPE, 2);
-                    return MakeTokenAndTryAdvance(TokenType.TILDE, 1);
+                case '~':return MakeTokenAndTryAdvance(TokenType.TILDE, 1);
                 case '!':
                     if (CanLookAheadStartInclusive(2))
                     {
@@ -958,13 +956,6 @@ namespace Fluence
                             return MakeTokenAndTryAdvance(TokenType.GUARD_PIPE, 3);
                         }
                         return MakeTokenAndTryAdvance(TokenType.OPTIONAL_PIPE, 2);
-
-                    case '~': // Could be |~>
-                        if (peek.Length >= 3 && peek[2] == '>')
-                        {
-                            return MakeTokenAndTryAdvance(TokenType.SCAN_PIPE, 3);
-                        }
-                        break;
 
                     case '|': // Must be ||
                         return MakeTokenAndTryAdvance(TokenType.OR, 2);

@@ -114,8 +114,6 @@
             GUARD_PIPE,         // |??
             MAP_PIPE,           // |>>
             REDUCER_PIPE,       // |>>=
-            SCAN_PIPE,          // |~>
-            COMPOSITION_PIPE,   // ~>
 
             NULL_COALESCING, // ??
             NULL_COALESCING_ASSIGN, // ??=
@@ -279,8 +277,6 @@
                 TokenType.GUARD_PIPE => "|??",
                 TokenType.MAP_PIPE => "|>>",
                 TokenType.REDUCER_PIPE => "|>>=",
-                TokenType.SCAN_PIPE => "|~>",
-                TokenType.COMPOSITION_PIPE => "~>",
 
                 TokenType.CHAIN_ASSIGN_N => "<n|",
                 TokenType.REST_ASSIGN => "<|",

@@ -1080,6 +1080,7 @@ namespace Fluence
                     case "<>|": return MakeTokenAndTryAdvance(TokenType.COLLECTIVE_GREATER, 3);
                     case "<?|": return MakeTokenAndTryAdvance(TokenType.OPTIONAL_REST_ASSIGN, 3);
                     case "<~|": return MakeTokenAndTryAdvance(TokenType.SEQUENTIAL_REST_ASSIGN, 3);
+                    case "<!|": return MakeTokenAndTryAdvance(TokenType.UNIQUE_REST_ASSIGN, 3);
                 }
             }
             else if (peek.Length >= 3 && peek[..3].SequenceEqual("<<-"))

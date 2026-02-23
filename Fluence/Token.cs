@@ -123,6 +123,7 @@
             // Chain Assignment & Broadcast Family Operators.
             CHAIN_ASSIGN_N,                      // <n|
             REST_ASSIGN,                         // <|
+            UNIQUE_REST_ASSIGN,                  // <!|
             OPTIONAL_ASSIGN_N,                   // <n?|
             OPTIONAL_REST_ASSIGN,                // <?|
             SEQUENTIAL_REST_ASSIGN,              // <~|

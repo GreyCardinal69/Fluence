@@ -2973,7 +2973,7 @@ namespace Fluence
                     _lhsPool.Return(lhsList);
                     return;
                 }
-                else if (opType is TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN or TokenType.CHAIN_N_UNIQUE_ASSIGN)
+                else if (opType is TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN or TokenType.CHAIN_N_UNIQUE_ASSIGN or TokenType.UNIQUE_REST_ASSIGN)
                 {
                     ParseUniqueChainAssignment(lhsList);
                     _lhsPool.Return(lhsList);
@@ -3376,9 +3376,11 @@ namespace Fluence
                 bool isOptional = IsOptionalChainAssignmentOperator(op.Type);
                 List<int> optionalSkipIndexes = new List<int>();
 
-                if (op.Type is TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN or TokenType.CHAIN_N_UNIQUE_ASSIGN)
+                bool isUniqueRestAssignment = op.Type == TokenType.UNIQUE_REST_ASSIGN;
+
+                if (op.Type is TokenType.OPTIONAL_CHAIN_N_UNIQUE_ASSIGN or TokenType.CHAIN_N_UNIQUE_ASSIGN || isUniqueRestAssignment)
                 {
-                    int count = int.Parse((string)op.Literal);
+                    int count = isUniqueRestAssignment ? lhsExpressions.Count : int.Parse((string)op.Literal);
 
                     int start = _currentParseState.CodeInstructions.Count;
                     Value rhs = ParseTernary();
@@ -3482,6 +3484,7 @@ namespace Fluence
                 }
                 else
                 {
+                    // Rest assignment here "<|".
                     while (lhsIndex < lhsExpressions.Count)
                     {
                         GenerateWriteBackInstruction(lhsExpressions[lhsIndex], valueToAssign);

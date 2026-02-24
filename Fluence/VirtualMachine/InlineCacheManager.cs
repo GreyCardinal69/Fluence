@@ -1,5 +1,6 @@
 ﻿using Fluence.RuntimeTypes;
 using System.Runtime.CompilerServices;
+using System.Xml.Linq;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 
@@ -321,7 +322,6 @@ namespace Fluence.VirtualMachine
             {
                 int destIndex = destTemp.RegisterIndex;
 
-                // 1a: Temp = Var op Var.
                 if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
                 {
                     int leftIndex = varLeft.RegisterIndex;
@@ -339,7 +339,6 @@ namespace Fluence.VirtualMachine
                     return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
                 }
 
-                // 1b: Temp = Temp op Temp.
                 if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
                 {
                     int leftIndex = tempLeft.RegisterIndex;
@@ -347,7 +346,6 @@ namespace Fluence.VirtualMachine
                     return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
                 }
 
-                // 1c: Temp = Temp op Var.
                 if (lhsOperand is TempValue tempLeft2 && rhsOperand is VariableValue varRight2)
                 {
                     int leftIndex = tempLeft2.RegisterIndex;
@@ -359,7 +357,6 @@ namespace Fluence.VirtualMachine
                     return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
                 }
 
-                // 1d: Temp = Var op Temp.
                 if (lhsOperand is VariableValue varLeft2 && rhsOperand is TempValue tempRight2)
                 {
                     int leftIndex = varLeft2.RegisterIndex;
@@ -371,7 +368,6 @@ namespace Fluence.VirtualMachine
                     return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
                 }
 
-                // 1e: Temp = Temp op Const.
                 if (lhsOperand is TempValue tempLeft3 && rhsOperand is NumberValue num2)
                 {
                     int leftIndex = tempLeft3.RegisterIndex;
@@ -379,7 +375,6 @@ namespace Fluence.VirtualMachine
                     return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], rightConst);
                 }
 
-                // 1f: Temp = Var op Const.
                 if (lhsOperand is VariableValue varOp2 && rhsOperand is NumberValue numConst)
                 {
                     int leftIndex = varOp2.RegisterIndex;
@@ -391,14 +386,12 @@ namespace Fluence.VirtualMachine
                     return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], rightConst);
                 }
 
-                // 1g: Temp = Const op Const.
                 if (lhsOperand is NumberValue num1 && rhsOperand is NumberValue num3)
                 {
                     RuntimeValue precalculated = opFunction(vm, vm.GetRuntimeValue(num1, insn), vm.GetRuntimeValue(num3, insn));
                     return (i, v) => v.CurrentRegisters[destIndex] = precalculated;
                 }
 
-                // 1h: Temp = Const op Temp.
                 if (lhsOperand is NumberValue num4 && rhsOperand is TempValue temp4)
                 {
                     RuntimeValue leftConst = vm.GetRuntimeValue(num4, insn);
@@ -406,7 +399,6 @@ namespace Fluence.VirtualMachine
                     return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, leftConst, v.CurrentRegisters[rightIndex]);
                 }
 
-                // 1i: Temp = Const op Var.
                 if (lhsOperand is NumberValue num5 && rhsOperand is VariableValue varRight3)
                 {
                     RuntimeValue leftConst = vm.GetRuntimeValue(num5, insn);
@@ -423,7 +415,6 @@ namespace Fluence.VirtualMachine
                 int destIndex = destVar.RegisterIndex;
                 bool destIsGlobal = destVar.IsGlobal;
 
-                // 2a: Var = Var op Var.
                 if (lhsOperand is VariableValue varLeft && rhsOperand is VariableValue varRight)
                 {
                     int leftIndex = varLeft.RegisterIndex;
@@ -457,7 +448,6 @@ namespace Fluence.VirtualMachine
                     }
                 }
 
-                // 2b: Var = Temp op Temp.
                 if (lhsOperand is TempValue tempLeft && rhsOperand is TempValue tempRight)
                 {
                     int leftIndex = tempLeft.RegisterIndex;
@@ -469,7 +459,6 @@ namespace Fluence.VirtualMachine
                     return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], v.CurrentRegisters[rightIndex]);
                 }
 
-                // 2c: Var = Temp op Var.
                 if (lhsOperand is TempValue tempLeft2 && rhsOperand is VariableValue varRight2)
                 {
                     int leftIndex = tempLeft2.RegisterIndex;
@@ -491,7 +480,6 @@ namespace Fluence.VirtualMachine
                     }
                 }
 
-                // 2d: Var = Var op Temp.
                 if (lhsOperand is VariableValue varLeft2 && rhsOperand is TempValue tempRight2)
                 {
                     int leftIndex = varLeft2.RegisterIndex;
@@ -513,7 +501,6 @@ namespace Fluence.VirtualMachine
                     }
                 }
 
-                // 2e: Var = Temp op Const.
                 if (lhsOperand is TempValue tempLeft3 && rhsOperand is NumberValue num2)
                 {
                     int leftIndex = tempLeft3.RegisterIndex;
@@ -525,7 +512,6 @@ namespace Fluence.VirtualMachine
                     return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, v.CurrentRegisters[leftIndex], rightConst);
                 }
 
-                // 2f: Var = Var op Const.
                 if (lhsOperand is VariableValue varOp2 && rhsOperand is NumberValue numConst)
                 {
                     int leftIndex = varOp2.RegisterIndex;
@@ -547,7 +533,6 @@ namespace Fluence.VirtualMachine
                     }
                 }
 
-                // 2g: Var = Const op Const.
                 if (lhsOperand is NumberValue && rhsOperand is NumberValue)
                 {
                     RuntimeValue precalculated = opFunction(vm, vm.GetRuntimeValue(lhsOperand, insn), vm.GetRuntimeValue(rhsOperand, insn));
@@ -558,7 +543,6 @@ namespace Fluence.VirtualMachine
                     return (i, v) => v.CurrentRegisters[destIndex] = precalculated;
                 }
 
-                // 2h: Var = Const op Temp.
                 if (lhsOperand is NumberValue num4 && rhsOperand is TempValue temp4)
                 {
                     RuntimeValue leftConst = vm.GetRuntimeValue(num4, insn);
@@ -570,7 +554,6 @@ namespace Fluence.VirtualMachine
                     return (i, v) => v.CurrentRegisters[destIndex] = opFunction(v, leftConst, v.CurrentRegisters[rightIndex]);
                 }
 
-                // 2i: Var = Const op Var.
                 if (lhsOperand is NumberValue num5 && rhsOperand is VariableValue varRight3)
                 {
                     RuntimeValue leftConst = vm.GetRuntimeValue(num5, insn);
@@ -646,7 +629,6 @@ namespace Fluence.VirtualMachine
             RuntimeNumberType lt = left.NumberType;
             RuntimeNumberType rt = right.NumberType;
 
-            // Same type → direct comparison.
             if (lt == RuntimeNumberType.Int && rt == RuntimeNumberType.Int)
                 return left.IntValue.CompareTo(right.IntValue);
 
@@ -659,7 +641,6 @@ namespace Fluence.VirtualMachine
             if (lt == RuntimeNumberType.Double && rt == RuntimeNumberType.Double)
                 return left.DoubleValue.CompareTo(right.DoubleValue);
 
-            // Mixed-type → find common promotion type.
             RuntimeNumberType promoted = (RuntimeNumberType)Math.Max((byte)lt, (byte)rt);
 
             return promoted switch
@@ -1003,7 +984,6 @@ namespace Fluence.VirtualMachine
                 VariableValue? collectionVar = collectionOperand as VariableValue;
                 int collectionIndex = collectionVar?.RegisterIndex ?? ((TempValue)collectionOperand).RegisterIndex;
 
-                // 1a: list[constant].
                 if (indexOperand is NumberValue num)
                 {
                     int constIndex = (int)num.Value;
@@ -1013,7 +993,6 @@ namespace Fluence.VirtualMachine
                         return (i, v) => v.CurrentRegisters[destIndex] = ((ListObject)v.CurrentRegisters[collectionIndex].ObjectReference).Elements[constIndex];
                 }
 
-                // 1b: list[temp/var].
                 if (indexOperand is VariableValue or TempValue)
                 {
                     VariableValue? indexVar = indexOperand as VariableValue;
@@ -1041,7 +1020,6 @@ namespace Fluence.VirtualMachine
                 VariableValue? collectionVar = collectionOperand as VariableValue;
                 int collectionIndex = collectionVar?.RegisterIndex ?? ((TempValue)collectionOperand).RegisterIndex;
 
-                // 2a: string[constant].
                 if (indexOperand is NumberValue num)
                 {
                     int constIndex = (int)num.Value;
@@ -1059,7 +1037,6 @@ namespace Fluence.VirtualMachine
                         };
                 }
 
-                // 2b: string[temp/var].
                 if (indexOperand is VariableValue or TempValue)
                 {
                     VariableValue? indexVar = indexOperand as VariableValue;
@@ -1150,15 +1127,15 @@ namespace Fluence.VirtualMachine
 
         internal static SpecializedOpcodeHandler CreateSpecializedIncrementDecrementHandler(InstructionLine insn, FluenceVirtualMachine vm, bool increment)
         {
-            if (AttemptToModifyAReadonlyVariable(insn, vm, out string name))
-            {
-                vm.CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly solid variable '{name}'.");
-                return null;
-            }
-
             VariableValue var = (VariableValue)insn.Lhs;
             int regIndex = var.RegisterIndex;
             int amount = increment ? 1 : -1;
+
+            if (var.IsReadOnly)
+            {
+                vm.CreateAndThrowRuntimeException($"Runtime Error: Cannot increment the readonly solid variable '{var.Name}'.");
+                return null;
+            }
 
             if (var.IsGlobal)
             {

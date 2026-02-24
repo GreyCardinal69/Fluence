@@ -368,8 +368,15 @@ namespace Fluence
             Hash = Name.GetHashCode();
         }
 
+        internal VariableValue(string identifierValue, bool isReadonly)
+        {
+            Name = identifierValue;
+            IsReadOnly = isReadonly;
+            Hash = Name.GetHashCode();
+        }
+
         internal override string ToFluenceString() => $"<internal: variable_{(IsReadOnly ? "solid" : "fluid")}>";
-        internal override string ToByteCodeString() => $"Var_{Name}_{RegisterIndex}_{IsGlobal}";
+        internal override string ToByteCodeString() => $"Var_{Name}_{RegisterIndex}_{IsGlobal}_{IsReadOnly}";
         public override string ToString() => $"VariableValue: {Name}:{(IsReadOnly ? "solid" : "fluid")}, Index: {RegisterIndex}, IsGlobal: {IsGlobal}";
     }
 

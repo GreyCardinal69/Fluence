@@ -582,7 +582,7 @@ namespace Fluence
                         if (nextChar == '=') return MakeTokenAndTryAdvance(TokenType.GREATER_EQUAL, 2);
                     }
                     return MakeTokenAndTryAdvance(TokenType.GREATER, 1);
-                case '~':return MakeTokenAndTryAdvance(TokenType.TILDE, 1);
+                case '~': return MakeTokenAndTryAdvance(TokenType.TILDE, 1);
                 case '!':
                     if (CanLookAheadStartInclusive(2))
                     {

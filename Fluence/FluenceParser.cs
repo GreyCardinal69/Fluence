@@ -239,6 +239,13 @@ namespace Fluence
             /// <summary>A counter for generating unique temporary variable names.</summary>
             internal int NextTempNumber;
 
+            internal readonly Dictionary<int, VariableValue> LocalVariableInterner = new Dictionary<int, VariableValue>();
+
+            internal void ResetLocalInterner()
+            {
+                LocalVariableInterner.Clear();
+            }
+
             internal void AddFunctionVariableDeclaration(InstructionLine instructionLine)
             {
                 FunctionVariableDeclarations.Add(instructionLine);
@@ -368,7 +375,7 @@ namespace Fluence
                 new InstructionLine(
                     InstructionCode.CallFunction,
                     new TempValue(_currentParseState.NextTempNumber++),
-                    new VariableValue("Main__0"),
+                    GetOrCreateVariable("Main__0"),
                     NumberValue.Zero
                 )
             );
@@ -1748,7 +1755,7 @@ namespace Fluence
         private void ParseForInStatement()
         {
             Token itemToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected a loop variable name after 'for'.");
-            VariableValue loopVariable = new VariableValue(itemToken.Text);
+            VariableValue loopVariable = GetOrCreateVariable(itemToken.Text);
 
             AdvanceAndExpect(TokenType.IN, "Expected the 'in' keyword in a 'for-in' loop.");
 
@@ -2005,7 +2012,7 @@ namespace Fluence
                     }
 
                     functionValue!.SetStartAddress(functionStartAddress);
-                    _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{functionValue.Name}"), functionValue));
+                    _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, GetOrCreateVariable($"{structName}.{functionValue.Name}"), functionValue));
 
                     return;
                 }
@@ -2061,7 +2068,7 @@ namespace Fluence
 
                 FunctionValue constructor = structSymbol.Constructors[nameToken.Text];
                 constructor.SetStartAddress(functionStartAddress);
-                _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{structName}.{constructor.Name}"), constructor));
+                _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, GetOrCreateVariable($"{structName}.{constructor.Name}"), constructor));
             }
             // Standalone function.
             else
@@ -2074,7 +2081,7 @@ namespace Fluence
                 else
                 {
                     functionSymbol.SetStartAddress(functionStartAddress);
-                    _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, new VariableValue($"{funcValue.Name}"), funcValue));
+                    _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, GetOrCreateVariable($"{funcValue.Name}"), funcValue));
                 }
             }
         }
@@ -2088,6 +2095,8 @@ namespace Fluence
         /// <param name="structName">The name of the struct, if `inStruct` is true.</param>
         private void ParseFunction(bool inStruct = false, bool isInit = false, string structName = null!)
         {
+            _currentParseState.ResetLocalInterner();
+
             _currentParseState.IsParsingFunctionBody = true;
             (Token nameToken, List<string> parameters, int refMask) = ParseFunctionHeader();
             string functionName = nameToken.Text;
@@ -2213,6 +2222,24 @@ namespace Fluence
 
             _tempSlotMap.Clear();
             _variableSlotMap.Clear();
+            _currentParseState.ResetLocalInterner();
+        }
+
+        private VariableValue GetOrCreateVariable(string name, bool isReadonly = false, bool isGlobal = false)
+        {
+            int hash = name.GetHashCode();
+
+            ref VariableValue variable = ref CollectionsMarshal.GetValueRefOrNullRef(_currentParseState.LocalVariableInterner, hash);
+
+            if (!Unsafe.IsNullRef(ref variable))
+            {
+                return variable;
+            }
+
+            VariableValue newVal = new VariableValue(name, isReadonly);
+            newVal.IsGlobal = isGlobal;
+            _currentParseState.LocalVariableInterner[hash] = newVal;
+            return newVal;
         }
 
         private static void ProcessValue(Value val, Dictionary<int, int> variableSlotMap, Dictionary<int, int> tempSlotMap, ref int nextSlotIndex)
@@ -2912,7 +2939,7 @@ namespace Fluence
 
                 if (value is LambdaValue lambda)
                 {
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewLambda, new VariableValue(Mangler.Mangle(variable.Name, lambda.Function.Arity)), value));
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewLambda, GetOrCreateVariable(Mangler.Mangle(variable.Name, lambda.Function.Arity)), value));
                     return;
                 }
 
@@ -3174,7 +3201,7 @@ namespace Fluence
                 else
                 {
                     _lexer.Advance();
-                    functionToCall = new PropertyAccessValue(new VariableValue(name), _lexer.ConsumeToken().Text);
+                    functionToCall = new PropertyAccessValue(GetOrCreateVariable(name), _lexer.ConsumeToken().Text);
                 }
             }
             else
@@ -3566,7 +3593,7 @@ namespace Fluence
                     else
                     {
                         VariableValue var = (VariableValue)broadcastCall.Callable;
-                        VariableValue mangle = new VariableValue(Mangler.Mangle(var.Name, broadcastCall.Arguments.Count));
+                        VariableValue mangle = GetOrCreateVariable(Mangler.Mangle(var.Name, broadcastCall.Arguments.Count));
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, temp, mangle, new NumberValue(broadcastCall.Arguments.Count)));
                     }
 
@@ -3844,7 +3871,7 @@ namespace Fluence
 
             TempValue result = new TempValue(_currentParseState.NextTempNumber++);
             VariableValue var = (VariableValue)targetFunction;
-            VariableValue mangle = new VariableValue(Mangler.Mangle(var.Name, args.Count));
+            VariableValue mangle = GetOrCreateVariable(Mangler.Mangle(var.Name, args.Count));
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.CallFunction, result, mangle, new NumberValue(args.Count)));
 
             return result;
@@ -4422,7 +4449,7 @@ namespace Fluence
 
                     if (valueToAssign is LambdaValue lambda)
                     {
-                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewLambda, new VariableValue(Mangler.Mangle(variable.Name, lambda.Function.Arity)), valueToAssign));
+                        _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewLambda, GetOrCreateVariable(Mangler.Mangle(variable.Name, lambda.Function.Arity)), valueToAssign));
                         return;
                     }
 
@@ -4780,7 +4807,7 @@ namespace Fluence
                 _currentParseState.AddCodeInstruction(new InstructionLine(
                     InstructionCode.CallFunction,
                     result,
-                    new VariableValue(templated),
+                    GetOrCreateVariable(templated),
                     new NumberValue(arguments.Count)
                 ));
             }
@@ -4829,10 +4856,16 @@ namespace Fluence
             if (_lexer.PeekNextTokenType() == TokenType.AS)
             {
                 _lexer.Advance();
-                if (_lexer.PeekNextTokenType() == TokenType.SOLID) _lexer.Advance();
+                bool isReadonly = false;
+
+                if (_lexer.PeekNextTokenType() == TokenType.SOLID)
+                {
+                    _lexer.Advance();
+                    isReadonly = true;
+                }
 
                 Token nameToken = ConsumeAndExpect(TokenType.IDENTIFIER, "Expected an identifier for a 'x times as y' statement");
-                condition = new VariableValue(nameToken.Text);
+                condition = GetOrCreateVariable(nameToken.Text, isReadonly);
                 GenerateWriteBackInstruction(condition, NumberValue.Zero);
             }
             else
@@ -5221,17 +5254,17 @@ namespace Fluence
                         // But must return a value, so we return StatementComplete.
                         if (_lexer.PeekNextTokenType() == TokenType.TIMES)
                         {
-                            ParseTimesStatement(new VariableValue(name));
+                            ParseTimesStatement(GetOrCreateVariable(name));
                             return StatementCompleteValue.StatementCompleted;
                         }
                         else if (_lexer.PeekNextTokenType() == TokenType.IS)
                         {
                             // Some form of pattern matching, currently only a check whether a struct implements a trait, TO DO pattern matching for other cases.
-                            return ParseIsAStatement(new VariableValue(name));
+                            return ParseIsAStatement(GetOrCreateVariable(name));
                         }
 
                         // Otherwise, it's just a regular variable.
-                        return new VariableValue(name);
+                        return GetOrCreateVariable(name);
                     }
                 case TokenType.NUMBER:
                     // "x times" consumes the number, and dispatches the appropriate method.

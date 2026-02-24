@@ -2236,7 +2236,7 @@ namespace Fluence
                 return variable;
             }
 
-            var newVal = new VariableValue(name, isReadonly);
+            VariableValue newVal = new VariableValue(name, isReadonly);
             newVal.IsGlobal = isGlobal;
             _currentParseState.LocalVariableInterner[hash] = newVal;
             return newVal;

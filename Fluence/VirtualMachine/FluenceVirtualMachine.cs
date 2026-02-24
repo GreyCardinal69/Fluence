@@ -2835,10 +2835,24 @@ namespace Fluence.VirtualMachine
         }
 
         /// <summary>
+        /// Manually sets the readonly flag for a global or local variable.
+        /// </summary>
+        /// <param name="var">The variable to set the flag for.</param>
+        internal void MarkWritableCacheAsReadonly(VariableValue var)
+        {
+            if (var.IsGlobal)
+            {
+                _globalWritableCache[var.RegisterIndex] = true;
+                return;
+            }
+
+            _cachedWritableCache[var.RegisterIndex] = true;
+        }
+
+        /// <summary>
         /// Sets the value of a variable directly, avoiding extra checks.
         /// </summary>
         /// <param name="var">The Variable.</param>
-        /// <param name="val">The value to assign to.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void SetVariable(VariableValue var, RuntimeValue value)
         {

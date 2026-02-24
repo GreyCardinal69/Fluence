@@ -1,6 +1,5 @@
 ﻿using Fluence.RuntimeTypes;
 using System.Runtime.CompilerServices;
-using System.Xml.Linq;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;
 
@@ -1080,6 +1079,12 @@ namespace Fluence.VirtualMachine
 
         internal static SpecializedOpcodeHandler? CreateSpecializedAssignHandler(InstructionLine insn, FluenceVirtualMachine vm)
         {
+            if (AttemptToModifyAReadonlyVariable(insn, vm, out string name))
+            {
+                vm.CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly solid variable '{((VariableValue)insn.Lhs).Name}'.");
+                return null;
+            }
+
             Value dest = insn.Lhs;
             Value source = insn.Rhs;
             RuntimeValue[] globalRegisters = vm.GlobalRegisters;
@@ -1165,6 +1170,16 @@ namespace Fluence.VirtualMachine
             Value dest2 = insn.Rhs2;
             Value source3 = insn.Rhs3;
             RuntimeValue[] globalRegisters = vm.GlobalRegisters;
+
+            if (dest1 is VariableValue v1 && v1.IsReadOnly)
+            {
+                vm.MarkWritableCacheAsReadonly(v1);
+            }
+
+            if (dest2 is VariableValue v2 && v2.IsReadOnly)
+            {
+                vm.MarkWritableCacheAsReadonly(v2);
+            }
 
             VariableValue? dest1Var = dest1 as VariableValue;
             int dest1Index = dest1Var?.RegisterIndex ?? ((TempValue)dest1).RegisterIndex;

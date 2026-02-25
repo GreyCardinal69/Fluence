@@ -22,9 +22,11 @@
             R_BRACE,      // }
             L_BRACKET,    // [
             R_BRACKET,    // ]
+
             COMMA,        // ,
             DOT,          // .
             COLON,        // :
+
             PLUS,         // +
             MINUS,        // -
             STAR,         // *
@@ -34,6 +36,7 @@
             PIPE_CHAR,    // | (Bitwise OR)
             CARET,        // ^ (Bitwise XOR)
             TILDE,        // ~ (Bitwise NOT)
+
             QUESTION,     // ?
             NULL_COND,    // ?. 
 
@@ -97,7 +100,7 @@
             REST,   // `rest` keyword in match statements.
             SOLID,  // immutable.
             TIMES,  // N times do x.
-            UNLESS, // Reverse of if, unless ( x ) do something.
+            UNLESS, // Reverse of if.
             AS,     // Used with 'times', and maybe others in the future.
             REF,    // Passed by reference.
             TRY,
@@ -181,11 +184,75 @@
             EOF
         }
 
-        /// <summary>Provides a user-friendly string representation of a token.</summary>
-        /// <returns>A string representing the token.</returns>
+        /// <summary>
+        /// The grammatical classification of this token.
+        /// </summary>
+        internal readonly TokenType Type;
+
+        /// <summary>
+        /// The raw string of characters from the source code that this token represents.
+        /// </summary>
+        internal readonly string Text;
+
+        /// <summary>
+        /// For literal tokens (Number, String, Char), this holds the parsed value.
+        /// For other tokens, this is typically null.
+        /// </summary>
+        internal readonly object Literal;
+
+        /// <summary>
+        /// The line number in the source code where this token appears (1-based).
+        /// </summary>
+        /// <remarks>
+        /// Stored as a <see cref="ushort"/> to reduce the struct size, which improves cache locality.
+        /// This imposes a theoretical limit of 65,535 lines per source file.
+        /// </remarks>
+        internal readonly ushort LineInSourceCode;
+
+        /// <summary>
+        /// The column number in the source code where this token appears (1-based).
+        /// </summary>
+        /// <remarks>
+        /// Stored as a <see cref="ushort"/> to reduce the struct size, which improves cache locality.
+        /// This imposes a theoretical limit of 65,535 lines per source file.
+        /// </remarks>
+        internal readonly ushort ColumnInSourceCode;
+
+        /// <summary>A shared, single instance of the End-Of-Line-Lexer token.</summary>
+        internal static readonly Token NEW_LINE = new Token(TokenType.NEW_LINE, null!);
+
+        /// <summary>A shared, single instance of the End-of-File token.</summary>
+        internal static readonly Token EOF = new Token(TokenType.EOF, null!);
+
+        /// <summary>A shared, single instance of the No Use token.</summary>
+        internal static readonly Token NoUse = new Token(TokenType.NO_USE, null!);
+
+        /// <summary>A shared, single instance of the End-Of-Line (;) token.</summary>
+        internal static readonly Token EOL = new Token(TokenType.EOL, null!);
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Token"/> struct.
+        /// </summary>
+        /// <param name="type">The type of the token.</param>
+        /// <param name="text">The raw text of the token.</param>
+        /// <param name="literal">The literal value, if any.</param>
+        /// <param name="line">The source line number.</param>
+        /// <param name="column">The source column number.</param>
+        internal Token(TokenType type = TokenType.UNKNOWN, string text = "", object literal = null!, ushort line = 0, ushort column = 0)
+        {
+            Type = type;
+            Text = text;
+            Literal = literal;
+            LineInSourceCode = line;
+            ColumnInSourceCode = column;
+        }
+
+        /// <summary>
+        /// Returns a user-friendly string representation of the token type for error messages and debugging.
+        /// If the token contains specific text, that text is returned; otherwise, the operator symbol or keyword is returned.
+        /// </summary>
         internal string ToDisplayString()
         {
-            // If the token has explicit text return that.
             if (!string.IsNullOrEmpty(Text))
             {
                 return Text;
@@ -324,75 +391,13 @@
                 TokenType.TRAIN_PIPE_END => "<<-",
 
                 TokenType.TYPE_OF => "typeof",
-
                 TokenType.UNDERSCORE => "_",
-
-                // This method is called in the FluenceParser only, in the parser
-                // EOL means ';' semicolon.
                 TokenType.EOL => ";",
-
                 TokenType.NEW_LINE => "\n",
                 TokenType.EOF => "<EOF>",
 
-                // For other token types without text, the type name is the best we can do.
                 _ => Type.ToString()
             };
-        }
-
-        /// <summary>
-        /// The grammatical type of the token.
-        /// </summary>
-        internal readonly TokenType Type;
-
-        /// <summary>
-        /// The raw string of characters from the source code that this token represents.
-        /// </summary>
-        internal readonly string Text;
-
-        /// <summary>
-        /// For literal tokens, this holds the actual value.
-        /// For other tokens, this is typically null.
-        /// </summary>
-        internal readonly object Literal;
-
-        // Line and Column indexes are stored as a ushort, this means that code length of a file
-        // Is limited to 65,535 lines, which is more than a reasonable amount.
-
-        /// <summary>
-        /// Stores the line location of the token in the original lexer stream, for debugging and better exception context.
-        /// </summary>
-        internal readonly ushort LineInSourceCode;
-
-        /// <summary>
-        /// Stores the column location of the token in the original lexer stream, for debugging and better exception context.
-        /// </summary>
-        internal readonly ushort ColumnInSourceCode;
-
-        /// <summary>A shared, single instance of the End-Of-Line-Lexer token.</summary>
-        internal static readonly Token NEW_LINE = new Token(TokenType.NEW_LINE, null!);
-
-        /// <summary>A shared, single instance of the End-of-File token.</summary>
-        internal static readonly Token EOF = new Token(TokenType.EOF, null!);
-
-        /// <summary>A shared, single instance of the No Use token.</summary>
-        internal static readonly Token NoUse = new Token(TokenType.NO_USE, null!);
-
-        /// <summary>A shared, single instance of the End-Of-Line (;) token.</summary>
-        internal static readonly Token EOL = new Token(TokenType.EOL, null!);
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Token"/> struct.
-        /// </summary>
-        /// <param name="type">The type of the token.</param>
-        /// <param name="text">The raw text of the token.</param>
-        /// <param name="literal">The literal value, if any.</param>
-        internal Token(TokenType type = TokenType.UNKNOWN, string text = "", object literal = null!, ushort line = 0, ushort column = 0)
-        {
-            Type = type;
-            Text = text;
-            Literal = literal;
-            LineInSourceCode = line;
-            ColumnInSourceCode = column;
         }
 
         public override string ToString()

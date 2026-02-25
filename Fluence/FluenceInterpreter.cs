@@ -35,11 +35,7 @@ namespace Fluence
         /// </summary>
         public TextOutputMethod OnOutputLine { get; set; } = Console.WriteLine;
 
-        private VirtualMachineConfiguration _vmConfiguration = new VirtualMachineConfiguration()
-        {
-            OptimizeByteCode = true,
-            EmitSectionGlobal = true
-        };
+        private VirtualMachineConfiguration _vmConfiguration = new VirtualMachineConfiguration();
 
         /// <summary>
         /// Gets the configuration object that defines the runtime behavior and settings for this
@@ -151,12 +147,12 @@ namespace Fluence
 
             if (allowed != null)
             {
-                foreach (string lib in allowed) { AllowedLibraries.Add(lib); }
+                foreach (string lib in allowed) AllowedLibraries.Add(lib);
             }
 
             if (disallowed != null)
             {
-                foreach (string lib in disallowed) { DisallowedLibraries.Add(lib); }
+                foreach (string lib in disallowed) DisallowedLibraries.Add(lib);
             }
         }
 

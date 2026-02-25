@@ -27,7 +27,7 @@
         /// leads to better runtime performance.
         /// <para>The default value is <c>true</c>.</para>
         /// </remarks>
-        public bool OptimizeByteCode { get; set; }
+        public bool OptimizeByteCode { get; set; } = true;
 
         /// <summary>
         /// Gets or sets a value indicating whether the parser should emit a <see cref="FluenceByteCode.InstructionLine.InstructionCode.SectionGlobal"/>
@@ -36,7 +36,7 @@
         /// <remarks>
         /// This value is absolutely crucial for the correct generation of bytecode and must not be set to false outside of parser tests.
         /// </remarks>
-        internal bool EmitSectionGlobal { get; set; }
+        internal bool EmitSectionGlobal { get; set; } = true;
 
         /// <summary>
         /// Gets or sets the global timeout for script execution when the VM is instructed to run until completion.
@@ -46,6 +46,6 @@
         /// This prevents scripts with infinite loops from freezing the host application. 
         /// Defaults to infinite (<see cref="TimeSpan.MaxValue"/>, no timeout).
         /// </remarks>
-        public TimeSpan DefaultTimeoutPeriod { get; set; } = TimeSpan.MaxValue;
+        public TimeSpan ExecutionTimeout { get; set; } = TimeSpan.MaxValue;
     }
 }

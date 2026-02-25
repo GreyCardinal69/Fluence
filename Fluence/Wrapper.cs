@@ -34,24 +34,13 @@ namespace Fluence
             _methods = methods;
         }
 
-        public bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method)
-        {
-            return _methods.TryGetValue(name, out method!);
-        }
+        /// <inheritdoc/>
+        public bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method) => _methods.TryGetValue(name, out method!);
 
         public override string ToString() => Instance.ToString();
 
-        public override bool Equals(object? obj)
-        {
-            if (obj == null) return false;
-            return ((Wrapper)obj).Instance.Equals(Instance);
-        }
+        public override bool Equals(object? obj) => obj is Wrapper other && Instance.Equals(other.Instance);
 
-        public override int GetHashCode()
-        {
-            HashCode hash = new HashCode();
-            hash.Add(Instance);
-            return hash.ToHashCode();
-        }
+        public override int GetHashCode() => Instance.GetHashCode();
     }
 }

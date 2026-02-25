@@ -601,7 +601,7 @@ namespace Fluence.VirtualMachine
             Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(_byteCode);
             bool timeOutEnabled = true;
 
-            if (willRunUntilDone && _configuration.DefaultTimeoutPeriod == TimeSpan.MaxValue)
+            if (willRunUntilDone && _configuration.ExecutionTimeout == TimeSpan.MaxValue)
             {
                 stopwatch.Stop();
                 timeOutEnabled = false;

@@ -1329,7 +1329,6 @@ namespace Fluence
             if (_lexer.TokenTypeMatches(TokenType.EOL))
             {
                 // It's a blank line. This is a valid, empty statement.
-                // Consume the EOL token and simply return. We are done with this statement.
                 _lexer.Advance();
                 return;
             }
@@ -1436,7 +1435,7 @@ namespace Fluence
 
             int jumpPatch = _currentParseState.CodeInstructions.Count;
 
-            // try CONTEXT.
+            // try context.
             _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.TryBlock, null!));
 
             ParseStatementBody("A 'try' statement expects a '->' for a single line statement of code.");
@@ -1468,8 +1467,6 @@ namespace Fluence
 
         /// <summary>
         /// Parses the body of a struct during the second (bytecode generation) pass.
-        /// Its primary responsibility is to find all `func` declarations within the struct
-        /// and dispatch to `ParseFunction` to generate their bytecode.
         /// </summary>
         private void ParseStructStatement()
         {
@@ -2878,7 +2875,7 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Parses a block of statements enclosed in custom end and start tokens. An imitation of a block of code.
+        /// Parses a block of statements enclosed in custom 'end' and 'start' tokens. An imitation of a block of code.
         /// </summary>
         private void ParseImitationBlockStatement(TokenType openToken, TokenType closeToken)
         {
@@ -2913,7 +2910,6 @@ namespace Fluence
 
             GenerateWriteBackInstruction(variable, value);
         }
-
 
         /// <summary>
         /// Parses the assignment of a global aka root variable, the variable is marked as a global variable for the scope.
@@ -3049,13 +3045,11 @@ namespace Fluence
             else
             {
                 // In Fluence the statement 'variable;' is valid, but it would be ignored.
-                // We should generate bytecode regardless. That would return StatementCompleteValue.
-                // It represents nothing so we just skip here.
                 if (firstLhs is StatementCompleteValue or ElementAccessValue)
                 {
                     // Either a StatementCompleteValue and we do nothing.
                     // Or some nonsense like:
-                    // list[0]; Not a write, but reading is pointless. Do nothing.
+                    // list[0]; Not a write, but reading is pointless.
                     _lhsPool.Return(lhsList);
                     return;
                 }
@@ -3922,7 +3916,7 @@ namespace Fluence
 
         /// <summary>
         /// The main entry point for parsing any expression.
-        /// It begins the chain of precedence by calling <see cref="ParseLogicalOr"/>.
+        /// It begins the chain of precedence by calling <see cref="ParseReducerPipe"/>.
         /// </summary>
         private Value ParseExpression() => ParseReducerPipe();
 
@@ -4444,9 +4438,6 @@ namespace Fluence
             switch (descriptor)
             {
                 case VariableValue variable:
-                    // Obsolete artefact?
-                    // _currentParseState.CurrentScope.Declare(variable.Hash, new VariableSymbol(variable.Name, valueToAssign, variable.IsReadOnly));
-
                     if (valueToAssign is LambdaValue lambda)
                     {
                         _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewLambda, GetOrCreateVariable(Mangler.Mangle(variable.Name, lambda.Function.Arity)), valueToAssign));
@@ -5176,42 +5167,6 @@ namespace Fluence
             if (token.Type == TokenType.NIL)
             {
                 return NilValue.NilInstance;
-            }
-
-            if (token.Type is TokenType.MINUS or TokenType.BANG or TokenType.TILDE)
-            {
-                Value operand = ParsePrimary();
-
-                if (operand is NumberValue numVal)
-                {
-                    if (token.Type == TokenType.MINUS)
-                    {
-                        switch (numVal.Type)
-                        {
-                            case NumberValue.NumberType.Integer:
-                                return new NumberValue(-Convert.ToInt32(numVal.Value), numVal.Type);
-                            case NumberValue.NumberType.Float:
-                                return new NumberValue(-float.Parse(numVal.Value.ToString()!), numVal.Type);
-                            case NumberValue.NumberType.Double:
-                                return new NumberValue(-Convert.ToDouble(numVal.Value), numVal.Type);
-                        }
-                    }
-                    else
-                    {
-                        return new BooleanValue((int)numVal.Value == 0);
-                    }
-                }
-
-                Value temp = new TempValue(_currentParseState.NextTempNumber++);
-
-                if (token.Type == TokenType.TILDE)
-                {
-                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.BitwiseNot, temp, operand));
-                    return temp;
-                }
-
-                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Negate, temp, operand));
-                return temp;
             }
 
             switch (token.Type)

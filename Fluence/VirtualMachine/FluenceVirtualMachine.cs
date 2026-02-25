@@ -3011,14 +3011,9 @@ namespace Fluence.VirtualMachine
                     _ip = tryCatchContext.TryGoToIndex;
                     tryCatchContext.CaughtException = true;
 
-                    // We empty any and all pushed arguments.
+                    // We empty any and all pushed arguments before jumping to catch ( if present ) and or beyond.
                     // This way arguments pushed for whatever reason in the try block won't be left behind.
-                    // Although this might be a bad decision.
-                    // TO DO: Needs testing.
-                    while (_operandStack.Count > 0)
-                    {
-                        _operandStack.Pop();
-                    }
+                    _operandStack.Clear();
 
                     _tryCatchBlocks.Push(tryCatchContext);
                 }
@@ -3079,9 +3074,7 @@ namespace Fluence.VirtualMachine
         //  4. undefined function.
         //  5. calling non function.
         //  6. wrong struct field/function.
-        //  7. break/continue outside loop.
         //  8. invalid return.
-        //  9. ???
 
         /// <summary>
         /// Creates and logs to the console a highly detailed exception with the current state of the VM.

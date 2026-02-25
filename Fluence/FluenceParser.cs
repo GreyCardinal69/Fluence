@@ -580,13 +580,7 @@ namespace Fluence
                     int declarationEndIndex = FindMatchingBrace(declarationStartIndex + 1);
 
                     ParseEnumDeclaration(declarationStartIndex, declarationEndIndex);
-
-                    // Tokens representing enums must be removed before second phase, but removing is too slow, we replace
-                    // them with an EOL (;), which the parser successfully consumes without issue.
-                    for (int i = declarationStartIndex; i < declarationEndIndex + 1; i++)
-                    {
-                        _lexer.ModifyTokenAt(i, Token.EOL);
-                    }
+                    _lexer.EraseTokenRange(declarationStartIndex, declarationEndIndex + 1);
                     continue;
                 }
                 else if (type == TokenType.TRAIT)
@@ -595,13 +589,7 @@ namespace Fluence
                     int declarationEndIndex = FindMatchingBrace(declarationStartIndex + 1);
 
                     ParseTraitDeclaration(declarationStartIndex, declarationEndIndex);
-
-                    // Tokens representing traits must be removed before second phase, but removing is too slow, we replace
-                    // them with an EOL (;), which the parser successfully consumes without issue.
-                    for (int i = declarationStartIndex; i < declarationEndIndex + 1; i++)
-                    {
-                        _lexer.ModifyTokenAt(i, Token.EOL);
-                    }
+                    _lexer.EraseTokenRange(declarationStartIndex, declarationEndIndex + 1);
                     continue;
                 }
                 else if (type == TokenType.FUNC)
@@ -774,7 +762,7 @@ namespace Fluence
 
             int arity = 0;
             // Starts scanning for members after the opening '('.
-            // aka `func Name (`.
+            // aka `func Name (...`.
             int currentIndex = startTokenIndex + 3;
 
             List<string> paramaters = new List<string>();

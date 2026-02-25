@@ -23,7 +23,7 @@ namespace Fluence
             {
                 for (int i = 0; i < span.Length; i++)
                 {
-                    hash = ((hash << 5) + hash) + span[i]; // hash * 33 + c.
+                    hash = (hash << 5) + hash + span[i]; // hash * 33 + c.
                 }
             }
 

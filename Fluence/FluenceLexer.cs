@@ -68,10 +68,6 @@ namespace Fluence
             private int _head;
             private bool _lexerFinished;
 
-            // There doesn't seem to be any notable beneift to frequent compacting, shifting a huge array of tokens
-            // often is way worse than having it stay in full in memory until compilation is over. 
-            // private const int _trimThreshold = 32;
-
             internal int TokenCount => _buffer.Count;
 
             internal bool HasReachedEnd
@@ -130,29 +126,27 @@ namespace Fluence
                     _head++;
                 }
 
-                //if (_head >= _trimThreshold)
-                //{
-                //    Compact();
-                //}
-
                 return token;
             }
 
-            /// <summary>
-            /// Removes consumed tokens from the beginning of the list.
-            /// </summary>
-            private void Compact()
-            {
-                if (_head > 0)
-                {
-                    _buffer.RemoveRange(0, _head);
-                    _head = 0;
-                }
-            }
+            internal void ModifyTokenAt(int index, Token newToken) => _buffer[index] = newToken;
 
-            internal void ModifyTokenAt(int index, Token newToken)
+            /// <summary>
+            /// Erases a sequence of tokens from the stream by overwriting them with End-Of-Line (<see cref="TokenType.EOL"/>) tokens.
+            /// </summary>
+            /// <remarks>
+            /// This is used heavily during the parser's pre-pass phase to remove declarations (like structs and enums) 
+            /// after their symbols have been built. Overwriting with EOL is a high-performance, zero-allocation alternative 
+            /// to removing items from the list, as the main parser pass naturally ignores trailing semicolons/EOLs.
+            /// </remarks>
+            /// <param name="startIndex">The zero-based index of the first token to erase.</param>
+            /// <param name="endIndex">The zero-based index of the last token to erase (inclusive).</param>
+            internal void EraseTokenRange(int startIndex, int endIndex)
             {
-                _buffer[index] = newToken;
+                for (int i = startIndex; i <= endIndex; i++)
+                {
+                    ModifyTokenAt(i, Token.EOL);
+                }
             }
 
             internal bool TokenTypeMatches(TokenType type)
@@ -222,16 +216,10 @@ namespace Fluence
                 if (_head + 1 <= _buffer.Count)
                 {
                     _head += 1;
-                }
-                else
-                {
-                    _head = _buffer.Count;
+                    return;
                 }
 
-                //if (_head >= _trimThreshold)
-                //{
-                //    Compact();
-                //}
+                _head = _buffer.Count;
             }
 
             /// <summary>
@@ -398,6 +386,18 @@ namespace Fluence
         /// Returns the <see cref="TokenType"/> of the next token in the buffer.
         /// </summary>
         internal TokenType PeekNextTokenType() => _tokenBuffer.PeekNextTokenType();
+
+        /// <summary>
+        /// Erases a sequence of tokens from the stream by overwriting them with End-Of-Line (<see cref="TokenType.EOL"/>) tokens.
+        /// </summary>
+        /// <remarks>
+        /// This is used heavily during the parser's pre-pass phase to remove declarations (like structs and enums) 
+        /// after their symbols have been built. Overwriting with EOL is a high-performance, zero-allocation alternative 
+        /// to removing items from the list, as the main parser pass naturally ignores trailing semicolons/EOLs.
+        /// </remarks>
+        /// <param name="startIndex">The zero-based index of the first token to erase.</param>
+        /// <param name="endIndex">The zero-based index of the last token to erase (inclusive).</param>
+        internal void EraseTokenRange(int startIndex, int endIndex) => _tokenBuffer.EraseTokenRange(startIndex, endIndex);
 
         internal void DumpTokenStream(string title, TextOutputMethod outMethod)
         {

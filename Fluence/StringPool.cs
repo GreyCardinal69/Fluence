@@ -2,27 +2,36 @@
 
 namespace Fluence
 {
-    internal sealed class StringPool
+    /// <summary>
+    /// A high-performance string interning cache designed to minimize string allocations during lexing.
+    /// </summary>
+    internal static class StringPool
     {
         private static readonly Dictionary<int, string> _pool = new Dictionary<int, string>();
 
+        /// <summary>
+        /// Retrieves an existing string instance for the given character span, or creates and caches a new one if it doesn't exist.
+        /// </summary>
+        /// <param name="span">The character span to intern.</param>
+        /// <returns>The interned string instance.</returns>
         internal static string Intern(ReadOnlySpan<char> span)
         {
-            // TO DO, potential hash collission, might need better hash.
+            // Djb2 hash algorithm.
             int hash = 5381;
-            for (int i = 0; i < span.Length; i++)
+
+            unchecked
             {
-                hash = (hash << 5) + hash + span[i]; // hash * 33 + c.
+                for (int i = 0; i < span.Length; i++)
+                {
+                    hash = ((hash << 5) + hash) + span[i]; // hash * 33 + c.
+                }
             }
 
             ref string? interned = ref CollectionsMarshal.GetValueRefOrAddDefault(_pool, hash, out bool exists);
 
-            if (exists)
+            if (exists && span.SequenceEqual(interned))
             {
-                if (interned!.Length == span.Length && span.SequenceEqual(interned))
-                {
-                    return interned!;
-                }
+                return interned!;
             }
 
             string newString = span.ToString();
@@ -31,11 +40,8 @@ namespace Fluence
         }
 
         /// <summary>
-        /// Clears the string pool.
+        /// Clears the string pool, releasing all cached string references.
         /// </summary>
-        public static void Clear()
-        {
-            _pool.Clear();
-        }
+        internal static void Clear() => _pool.Clear();
     }
 }

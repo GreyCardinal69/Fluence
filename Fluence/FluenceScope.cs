@@ -41,8 +41,6 @@ namespace Fluence
         /// </summary>
         internal readonly Dictionary<int, RuntimeValue> RuntimeStorage = new Dictionary<int, RuntimeValue>();
 
-        internal readonly List<FluenceScope> ImportedScopes = new List<FluenceScope>();
-
         // Used in Tests. Might also be useful for other purposes.
         internal bool Contains(string name) => TryResolve(name.GetHashCode(), out _);
         internal bool ContainsLocal(int name) => TryGetLocalSymbol(name, out _);
@@ -86,17 +84,6 @@ namespace Fluence
             {
                 symbol = localSymbol;
                 return true;
-            }
-
-            int count = ImportedScopes.Count;
-            for (int i = 0; i < count; i++)
-            {
-                ref Symbol importedSymbol = ref CollectionsMarshal.GetValueRefOrNullRef(ImportedScopes[i].Symbols, hash);
-                if (!Unsafe.IsNullRef(ref importedSymbol))
-                {
-                    symbol = importedSymbol;
-                    return true;
-                }
             }
 
             if (ParentScope != null)

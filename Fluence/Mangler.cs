@@ -11,7 +11,12 @@ namespace Fluence
 
         private static readonly Dictionary<(string, int), string> _cache = new();
 
-        /// <summary> Mangles a base function name by appending a special separator at the end and appending its arity.</summary>
+        /// <summary>
+        /// Mangles a base function name by appending a special separator and its arity.
+        /// </summary>
+        /// <param name="name">The base name of the function.</param>
+        /// <param name="arity">The number of arguments the function takes.</param>
+        /// <returns>The unique mangled name string.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string Mangle(string name, int arity)
         {
@@ -41,16 +46,11 @@ namespace Fluence
             return mangledName;
         }
 
-        /// <summary> Demangles a name, separating it back into only its base name.</summary>
-        internal static string Demangle(string mangledName)
-        {
-            int sepIndex = mangledName.LastIndexOf(_separator, StringComparison.Ordinal);
-            if (sepIndex > 0 && int.TryParse(mangledName[(sepIndex + _separator.Length)..], out _))
-            {
-                return mangledName[..sepIndex];
-            }
-
-            return mangledName;
-        }
+        /// <summary>
+        /// Demangles a name, returning only the base name and discarding the arity.
+        /// </summary>
+        /// <param name="mangledName">The full mangled name.</param>
+        /// <returns>The original base name.</returns>
+        internal static string Demangle(string mangledName) => Demangle(mangledName, out _);
     }
 }

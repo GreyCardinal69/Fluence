@@ -99,10 +99,7 @@ namespace Fluence.VirtualMachine
         /// The interval representing the amount of instructions per which executed we check the
         /// elapsed time since the start of the Virtual Machine.
         /// </summary>
-        // TO DO, the value of this needs to be tested, while the VM is very fast, the higher the value the less
-        // accurate the elapsed time check is. But the elapsed check is very expensive, so a golden middle needs
-        // to be identified.
-        private const int _timeCheckInterval = 100000;
+        private int _timeCheckInterval = 100000;
 
         /// <summary>
         /// A cache to store the readonly status of variables in the global scope.
@@ -378,6 +375,8 @@ namespace Fluence.VirtualMachine
 
             Namespaces = parseState.NameSpaces;
         }
+
+        public void SetElapsedTimeCheckInterval(int interval) => _timeCheckInterval = interval;
 
         private static bool IsAGlobalVariable(Value val, out VariableValue variable)
         {
@@ -2884,19 +2883,6 @@ namespace Fluence.VirtualMachine
                 RuntimeNumberType.Double => (long)value.DoubleValue,
                 _ => SignalError<long>("Internal VM Error: Unhandled number type in bitwise op."),
             };
-        }
-
-        /// <summary>
-        /// Helper to safely convert any numeric RuntimeValue to an int for bit shift amounts.
-        /// </summary>
-        private int ToInt(RuntimeValue value)
-        {
-            if (value.Type != RuntimeValueType.Number)
-            {
-                return SignalError<int>($"Internal VM Error: Left or Right Bit Shift amount must be an integer number, but got a {value.Type}.");
-            }
-
-            return (int)ToLong(value);
         }
 
         /// <summary>

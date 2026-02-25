@@ -111,6 +111,34 @@ namespace Fluence
         public FluenceInterpreter() { }
 
         /// <summary>
+        /// Configures the execution frequency of the runtime timeout check.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <b>Lower values</b> increase timeout precision (pausing closer to the limit) but add CPU overhead.
+        /// <b>Higher values</b> improve execution speed but may result in the script running slightly longer than the requested timeout.
+        /// </para>
+        /// Defaults to 100,000 instructions. Minimum value is clamped to 100.
+        /// The code must be compiled successfully before the timeout can be set.
+        /// </remarks>
+        /// <param name="interval">The number of instructions to execute between time checks.</param>
+        /// <exception cref="FluenceException">If the code is not compiled beforehand.</exception>
+        public void SetElapsedTimeCheckInterval(int interval)
+        {
+            if (_byteCode == null)
+            {
+                throw new FluenceException("Code must be compiled successfully before the time elapsed check interval can be adjusted.");
+            }
+
+            if (_vm == null || _vm.State == FluenceVMState.NotStarted)
+            {
+                _vm = new FluenceVirtualMachine(_byteCode, _vmConfiguration, _parseState, OnOutput, OnOutputLine, OnInput);
+            }
+
+            _vm.SetElapsedTimeCheckInterval(Math.Clamp(interval, 100, int.MaxValue));
+        }
+
+        /// <summary>
         /// Configures the library sandbox with a specific set of allowed and disallowed standard libraries.
         /// This method first clears both lists before applying the new rules.
         /// </summary>
@@ -211,7 +239,7 @@ namespace Fluence
         /// If the script was previously paused, execution will resume and run to completion.
         /// If the script was finished, it will be reset and run again from the beginning.
         /// </summary>
-        /// <exception cref="InvalidOperationException">Thrown if no code has been compiled.</exception>
+        /// <exception cref="FluenceException">Thrown if no code has been compiled.</exception>
         public void RunUntilDone() => RunFor(TimeSpan.MaxValue);
 
         /// <summary>
@@ -219,7 +247,7 @@ namespace Fluence
         /// If the script was previously paused, execution will resume and run for the given time.
         /// If the script was finished, it will be reset and run again from the beginning.
         /// </summary>
-        /// <exception cref="InvalidOperationException">Thrown if no code has been compiled.</exception>
+        /// <exception cref="FluenceException">Thrown if no code has been compiled.</exception>
         public void RunForSeconds(int seconds) => RunFor(TimeSpan.FromSeconds(seconds));
 
         /// <summary>
@@ -227,7 +255,7 @@ namespace Fluence
         /// If the script was previously paused, execution will resume and run for the given time.
         /// If the script was finished, it will be reset and run again from the beginning.
         /// </summary>
-        /// <exception cref="InvalidOperationException">Thrown if no code has been compiled.</exception>
+        /// <exception cref="FluenceException">Thrown if no code has been compiled.</exception>
         public void RunForMilliseconds(int seconds) => RunFor(TimeSpan.FromMilliseconds(seconds));
 
         /// <summary>
@@ -235,12 +263,12 @@ namespace Fluence
         /// If the duration is reached before the script finishes, the VM state will be 'Paused'.
         /// </summary>
         /// <param name="duration">The maximum time to run before pausing.</param>
-        /// <exception cref="InvalidOperationException">Thrown if no code has been compiled.</exception>
+        /// <exception cref="FluenceException">Thrown if no code has been compiled.</exception>
         public void RunFor(TimeSpan duration)
         {
             if (_byteCode == null)
             {
-                throw new InvalidOperationException("Code must be compiled successfully before it can be run.");
+                throw new FluenceException("Code must be compiled successfully before it can be run.");
             }
 
             try

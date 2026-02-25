@@ -580,7 +580,7 @@ namespace Fluence
                     int declarationEndIndex = FindMatchingBrace(declarationStartIndex + 1);
 
                     ParseEnumDeclaration(declarationStartIndex, declarationEndIndex);
-                    _lexer.EraseTokenRange(declarationStartIndex, declarationEndIndex + 1);
+                    _lexer.EraseTokenRange(declarationStartIndex, declarationEndIndex);
                     continue;
                 }
                 else if (type == TokenType.TRAIT)
@@ -589,7 +589,7 @@ namespace Fluence
                     int declarationEndIndex = FindMatchingBrace(declarationStartIndex + 1);
 
                     ParseTraitDeclaration(declarationStartIndex, declarationEndIndex);
-                    _lexer.EraseTokenRange(declarationStartIndex, declarationEndIndex + 1);
+                    _lexer.EraseTokenRange(declarationStartIndex, declarationEndIndex);
                     continue;
                 }
                 else if (type == TokenType.FUNC)

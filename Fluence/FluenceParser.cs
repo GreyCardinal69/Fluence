@@ -456,7 +456,14 @@ namespace Fluence
 #endif
 
                 _lexer = lexer;
-                ParseDeclarations(0, _lexer.TokenCount);
+
+                int parsedUpTo = 0;
+                while (parsedUpTo < _lexer.TokenCount)
+                {
+                    int currentTarget = _lexer.TokenCount;
+                    ParseDeclarations(parsedUpTo, currentTarget);
+                    parsedUpTo = currentTarget;
+                }
 
                 _tokenStreams.Add(_lexer.AllTokens());
             }
@@ -491,7 +498,13 @@ namespace Fluence
             _lexer.DumpTokenStream("Initial Token Stream (Before Pre-Parsing declarations)", _outputLine);
 #endif
 
-            ParseDeclarations(0, _lexer.TokenCount);
+            int parsedUpTo = 0;
+            while (parsedUpTo < _lexer.TokenCount)
+            {
+                int currentTarget = _lexer.TokenCount;
+                ParseDeclarations(parsedUpTo, currentTarget);
+                parsedUpTo = currentTarget;
+            }
 
 #if DEBUG
             _lexer.DumpTokenStream("Token stream after parsing declarations.", _outputLine);
@@ -985,6 +998,13 @@ namespace Fluence
             {
                 Token token = _lexer.PeekAheadByN(currentIndex + 1);
 
+                // Trailing semicolon in struct, ignorable.
+                if (token.Type == TokenType.EOL)
+                {
+                    currentIndex++;
+                    continue;
+                }
+
                 if (token.Type == TokenType.ENUM)
                 {
                     int start = currentIndex + 1;
@@ -1002,6 +1022,64 @@ namespace Fluence
 
                     ParseDeclarations(start - 1, end - 1);
                     endTokenIndex -= end - start;
+                    continue;
+                }
+
+                if (token.Type == TokenType.STRUCT)
+                {
+                    // The best way to handle nested structs is to extract the tokens of the nested struct, and whatever is inside it and put them
+                    // at the end of the file just before the EOF token, this way the nesting is gone, the first phase still goes through them and if the nested struct also has nested 
+                    // structs or enums, they'll get de-nested the same way, all until there are no nested structs in structs.
+                    int nestedStart = currentIndex;
+                    int scanIndex = nestedStart;
+                    int depth = 0;
+                    bool foundOpenBrace = false;
+
+                    while (scanIndex < _lexer.TokenCount)
+                    {
+                        TokenType currentType = _lexer.PeekTokenTypeAheadByN(scanIndex);
+
+                        if (currentType == TokenType.L_BRACE)
+                        {
+                            foundOpenBrace = true;
+                            depth++;
+                        }
+                        else if (currentType == TokenType.R_BRACE)
+                        {
+                            depth--;
+                        }
+                        scanIndex++;
+
+                        if (foundOpenBrace && depth == 0)
+                        {
+                            break;
+                        }
+                    }
+
+                    int nestedEnd = scanIndex;
+
+                    if (!foundOpenBrace || depth != 0)
+                    {
+                        throw ConstructParserException($"Unclosed nested struct inside '{structName}'.", token);
+                    }
+
+                    List<Token> nestedTokens = new List<Token>();
+                    for (int i = nestedStart + 1; i < nestedEnd; i++)
+                    {
+                        nestedTokens.Add(_lexer.PeekAheadByN(i));
+                    }
+
+                    // Needs to be a separate loop, otherwise the parser will explode.
+                    // Replacing the tokens with EOL ( which will be ignored just fine ) is much faster than removing a range of tokens
+                    // from the list and shifting the huge token array.
+                    for (int i = nestedStart; i < nestedEnd - 1; i++)
+                    {
+                        _lexer.ModifyTokenAt(i, Token.EOL);
+                    }
+
+                    _lexer.InsertBeforeEOF(nestedTokens);
+
+                    // CurrentIndex will now encounter a bunch of EOLs, which it will skip.
                     continue;
                 }
 

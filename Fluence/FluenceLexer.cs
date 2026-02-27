@@ -177,16 +177,9 @@ namespace Fluence
                 }
             }
 
-            internal void AddRange(List<Token> tokens)
-            {
-                _buffer.AddRange(tokens);
-                _head = 0;
-            }
+            internal void AddRange(List<Token> tokens) => _buffer.AddRange(tokens);
 
-            internal void ClearTokens()
-            {
-                _buffer.Clear();
-            }
+            internal void ClearTokens() => _buffer.Clear();
 
             /// <summary>
             /// Peeks ahead a given number of tokens from the current position.
@@ -284,6 +277,21 @@ namespace Fluence
                     }
                 }
             }
+
+            /// <summary>
+            /// Inserts a range of <see cref="Token"/>s at the very end of the token stream just before the <see cref="EOF"/> token.
+            /// </summary>
+            /// <param name="newTokens">The range of tokens to inser.</param>
+            internal void InsertBeforeEOF(List<Token> tokens)
+            {
+                if (_buffer.Count > 0 && _buffer[^1].Type == TokenType.EOF)
+                {
+                    _buffer.InsertRange(_buffer.Count - 1, tokens);
+                    return;
+                }
+
+                _buffer.AddRange(tokens);
+            }
         }
 
         internal void Reset()
@@ -304,6 +312,12 @@ namespace Fluence
             _currentLine = 1;
             _currentColumn = 1;
         }
+
+        /// <summary>
+        /// Inserts a range of <see cref="Token"/>s at the very end of the token stream just before the <see cref="EOF"/> token.
+        /// </summary>
+        /// <param name="newTokens">The range of tokens to inser.</param>
+        internal void InsertBeforeEOF(List<Token> newTokens) => _tokenBuffer.InsertBeforeEOF(newTokens);
 
         internal void Initialize(List<Token> tokens) => _tokenBuffer.AddRange(tokens);
 

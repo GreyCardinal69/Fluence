@@ -716,7 +716,6 @@ namespace Fluence.ParserTests
             AssertBytecodeEqual(expectedCode, compiledCode);
         }
 
-
         [Fact]
         public void ParsesBroadcastWithComplexArgumentExpression()
         {

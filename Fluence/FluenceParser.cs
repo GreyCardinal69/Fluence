@@ -2960,6 +2960,15 @@ namespace Fluence
         {
             _lexer.Advance(); // Consume 'solid'.
 
+            bool isRoot = false;
+
+            // Can be "solid root var", root won't be caught by ParseStatement here.
+            if (_lexer.PeekNextTokenType() == TokenType.ROOT)
+            {
+                _lexer.Advance();
+                isRoot = true;
+            }
+
             Value left = ParseExpression();
 
             if (left is not VariableValue)
@@ -2969,12 +2978,26 @@ namespace Fluence
 
             VariableValue variable = (VariableValue)left;
             variable.IsReadOnly = true;
+            variable.IsGlobal = isRoot;
 
             AdvanceAndExpect(TokenType.EQUAL, "Expected an assignment for an immutable solid variable or field.");
 
             Value value = ParseExpression();
 
-            GenerateWriteBackInstruction(variable, value);
+            if (isRoot)
+            {
+                if (value is LambdaValue lambda)
+                {
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.NewLambda, GetOrCreateVariable(Mangler.Mangle(variable.Name, lambda.Function.Arity)), value));
+                    return;
+                }
+
+                _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.AssignIfNil, variable, value));
+            }
+            else
+            {
+                GenerateWriteBackInstruction(variable, value);
+            }
         }
 
         /// <summary>
@@ -2983,6 +3006,15 @@ namespace Fluence
         private void ParseRootStatement()
         {
             _lexer.Advance(); // Consume 'root'.
+
+            bool isSolid = false;
+
+            // Can be "root solid var", solid won't be caught by ParseStatement here.
+            if (_lexer.PeekNextTokenType() == TokenType.SOLID)
+            {
+                _lexer.Advance();
+                isSolid = true;
+            }
 
             Value left = ParseExpression();
 
@@ -2993,6 +3025,7 @@ namespace Fluence
 
             VariableValue variable = (VariableValue)left;
             variable.IsGlobal = true;
+            variable.IsReadOnly = isSolid;
 
             if (_lexer.PeekNextTokenType() == TokenType.EQUAL)
             {

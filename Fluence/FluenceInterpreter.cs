@@ -107,18 +107,18 @@ namespace Fluence
         public FluenceInterpreter() { }
 
         /// <summary>
-        /// Configures the execution frequency of the runtime timeout check.
+        /// Configures the execution frequency of the runtime timeout check. The code must be compiled successfully before the timeout can be set.
         /// </summary>
         /// <remarks>
+        /// The Virtual Machine checks the <see cref="VirtualMachineConfiguration.ExecutionTimeout"/> every <paramref name="interval"/> instructions.
         /// <para>
         /// <b>Lower values</b> increase timeout precision (pausing closer to the limit) but add CPU overhead.
         /// <b>Higher values</b> improve execution speed but may result in the script running slightly longer than the requested timeout.
         /// </para>
-        /// Defaults to 100,000 instructions. Minimum value is clamped to 100.
-        /// The code must be compiled successfully before the timeout can be set.
+        /// At the default interval (100,000) and typical execution speeds, the timeout precision is within ~0.5 to 1.0 milliseconds.
+        /// For strict frame-time budgeting in game engines, a value of 25,000 is recommended. Minimum value is clamped to 100. Upper limit is 1,000,000.
         /// </remarks>
         /// <param name="interval">The number of instructions to execute between time checks.</param>
-        /// <exception cref="FluenceException">If the code is not compiled beforehand.</exception>
         public void SetElapsedTimeCheckInterval(int interval)
         {
             if (_byteCode == null)
@@ -126,13 +126,122 @@ namespace Fluence
                 throw new FluenceException("Code must be compiled successfully before the time elapsed check interval can be adjusted.");
             }
 
-            if (_vm == null || _vm.State == FluenceVMState.NotStarted)
+            _vm.SetElapsedTimeCheckInterval(Math.Clamp(interval, 100, 1000000));
+        }
+
+        /// <summary>
+        /// Calls a specific function defined in the global scope of the script by its name.
+        /// </summary>
+        /// <remarks>
+        /// Arguments are limited to primitives.
+        /// </remarks>
+        /// <param name="functionName">The unmangled name of the function.</param>
+        /// <param name="args">The arguments to pass to the function.</param>
+        /// <returns>The value returned by the function.</returns>
+        public object? CallFunction(string functionName, params object[] args)
+        {
+            if (_byteCode == null)
             {
-                _vm = new FluenceVirtualMachine(_byteCode, _vmConfiguration, _parseState, OnOutput, OnOutputLine, OnInput);
+                throw new InvalidOperationException("Code must be compiled successfully before a function can be called.");
             }
 
-            _vm.SetElapsedTimeCheckInterval(Math.Clamp(interval, 100, int.MaxValue));
+            _vm.InitializeGlobals();
+
+            string mangledName = Mangler.Mangle(functionName, args.Length);
+
+            if (!_parseState.GlobalScope.TryGetLocalSymbol(mangledName.GetHashCode(), out Symbol symbol) || symbol is not FunctionSymbol funcSymbol)
+            {
+                ConstructAndThrowException(new FluenceException($"Function '{functionName}' with {args.Length} arguments not found in the global scope."));
+                return null;
+            }
+
+            return TryExecuteFunctionDirectly(args, funcSymbol);
         }
+
+        /// <summary>
+        /// Calls a specific function defined in the given namespace of the script by its name.
+        /// </summary>
+        /// <remarks>
+        /// Arguments are limited to primitives.
+        /// </remarks>
+        /// <param name="functionName">The unmangled name of the function.</param>
+        /// <param name="args">The arguments to pass to the function.</param>
+        /// <returns>The value returned by the function.</returns>
+        public object? CallFunction(string functionName, string nameSpace, params object[] args)
+        {
+            if (_byteCode == null)
+            {
+                throw new InvalidOperationException("Code must be compiled successfully before a function can be called.");
+            }
+
+            _vm.InitializeGlobals();
+
+            string mangledName = Mangler.Mangle(functionName, args.Length);
+
+            if (!_parseState.NameSpaces.TryGetValue(nameSpace.GetHashCode(), out FluenceScope namespaceScope))
+            {
+                ConstructAndThrowException(new FluenceException($"Scope '{nameSpace}' not found in the script."));
+                return null;
+            }
+
+            if (!namespaceScope.TryGetLocalSymbol(mangledName.GetHashCode(), out Symbol symbol) || symbol is not FunctionSymbol funcSymbol)
+            {
+                ConstructAndThrowException(new FluenceException($"Function '{functionName}' with {args.Length} arguments not found in the {nameSpace} scope."));
+                return null;
+            }
+
+            return TryExecuteFunctionDirectly(args, funcSymbol);
+        }
+
+        private object? TryExecuteFunctionDirectly(object[] args, FunctionSymbol funcSymbol)
+        {
+            RuntimeValue[] vmArgs = new RuntimeValue[args.Length];
+            for (int i = 0; i < args.Length; i++)
+            {
+                vmArgs[i] = ConvertToRuntimeValue(args[i], _vm);
+            }
+
+            try
+            {
+                RuntimeValue result = _vm.ExecuteFunctionDirect(funcSymbol, vmArgs);
+                return ConvertToObject(result);
+            }
+            catch (FluenceException ex)
+            {
+                ConstructAndThrowException(ex);
+                return null;
+            }
+        }
+
+        private static RuntimeValue ConvertToRuntimeValue(object? value, FluenceVirtualMachine vm) => value switch
+        {
+            null => RuntimeValue.Nil,
+            int intVal => new RuntimeValue(intVal),
+            long longVal => new RuntimeValue(longVal),
+            double doubleVal => new RuntimeValue(doubleVal),
+            float floatVal => new RuntimeValue(floatVal),
+            bool boolVal => new RuntimeValue(boolVal),
+            string stringVal => vm.ResolveStringObjectRuntimeValue(stringVal),
+            char charVal => vm.ResolveCharObjectRuntimeValue(charVal),
+
+            _ => throw new ArgumentException($"Unsupported argument type: {value.GetType().Name}")
+        };
+
+        private static object? ConvertToObject(RuntimeValue val) => val.Type switch
+        {
+            RuntimeValueType.Nil => null,
+            RuntimeValueType.Boolean => val.IntValue != 0,
+            RuntimeValueType.Number => val.NumberType switch
+            {
+                RuntimeNumberType.Int => val.IntValue,
+                RuntimeNumberType.Long => val.LongValue,
+                RuntimeNumberType.Float => val.FloatValue,
+                RuntimeNumberType.Double => val.DoubleValue,
+                _ => 0d
+            },
+            RuntimeValueType.Object => val.ObjectReference,
+            _ => null
+        };
 
         /// <summary>
         /// Configures the library sandbox with a specific set of allowed and disallowed standard libraries.
@@ -252,7 +361,7 @@ namespace Fluence
         /// If the script was finished, it will be reset and run again from the beginning.
         /// </summary>
         /// <exception cref="FluenceException">Thrown if no code has been compiled.</exception>
-        public void RunForMilliseconds(int seconds) => RunFor(TimeSpan.FromMilliseconds(seconds));
+        public void RunForMilliseconds(double milliseconds) => RunFor(TimeSpan.FromMilliseconds(milliseconds));
 
         /// <summary>
         /// Runs or resumes the compiled script for a specified maximum duration.

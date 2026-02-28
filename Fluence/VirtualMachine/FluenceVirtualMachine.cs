@@ -117,6 +117,8 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private bool _stopRequested;
 
+        private bool _globalsInitialized;
+
         /// <summary>The delegate method used for non-newline output.</summary>
         private readonly TextOutputMethod _output;
 
@@ -503,6 +505,47 @@ namespace Fluence.VirtualMachine
             }
 
             return index;
+        }
+
+        /// <summary>
+        /// Runs the initialization instructions (globals) up to the point where the Main function is called.
+        /// </summary>
+        internal void InitializeGlobals()
+        {
+            if (_globalsInitialized) return;
+
+            while (_ip < _byteCode.Count)
+            {
+                InstructionLine instruction = _byteCode[_ip];
+
+                if (instruction.Instruction == InstructionCode.CallFunction &&
+                    instruction.Rhs is VariableValue var && var.Name.StartsWith("Main__", StringComparison.InvariantCulture))
+                {
+                    break;
+                }
+
+                if (instruction.Instruction == InstructionCode.Terminate)
+                {
+                    break;
+                }
+
+                _ip++;
+                if (instruction.SpecializedHandler != null)
+                {
+                    instruction.SpecializedHandler(instruction, this);
+                }
+                else
+                {
+                    if (instruction.Instruction is InstructionCode.Goto)
+                    {
+                        _ip = ((GoToValue)instruction.Lhs).Address;
+                        continue;
+                    }
+                    _dispatchTable[(int)instruction.Instruction](instruction);
+                }
+            }
+
+            _globalsInitialized = true;
         }
 
         /// <summary>
@@ -2334,6 +2377,88 @@ namespace Fluence.VirtualMachine
             _cachedRegisters = newFrame.Registers;
             _ip = functionToExecute.StartAddress;
 
+            RuntimeValue returnValue = RuntimeValue.Nil;
+
+            while (true)
+            {
+                if (_callStack.Peek() != newFrame)
+                {
+                    break;
+                }
+
+                InstructionLine instruction = _byteCode[_ip];
+                _ip++;
+
+                if (instruction.Instruction == InstructionCode.Return)
+                {
+                    returnValue = GetRuntimeValue(instruction.Lhs, instruction);
+
+                    _callStack.Pop();
+                    _callFramePool.Return(newFrame);
+                    break;
+                }
+
+                if (instruction.SpecializedHandler != null)
+                {
+                    instruction.SpecializedHandler(instruction, this);
+                }
+                else
+                {
+                    if (instruction.Instruction is InstructionCode.Goto)
+                    {
+                        _ip = ((GoToValue)instruction.Lhs).Address;
+                        continue;
+                    }
+                    _dispatchTable[(int)instruction.Instruction](instruction);
+                }
+            }
+
+            _ip = savedIp;
+            _cachedRegisters = savedRegisters;
+            return returnValue;
+        }
+
+        /// <summary>
+        /// Executes a specific function directly from the host application.
+        /// </summary>
+        /// <param name="funcBlueprint">The function blueprint to execute.</param>
+        /// <param name="args">The arguments to pass to the function.</param>
+        /// <returns>The result of the function execution.</returns>
+        internal RuntimeValue ExecuteFunctionDirect(FunctionSymbol funcBlueprint, RuntimeValue[] args)
+        {
+            int savedIp = _ip;
+            RuntimeValue[] savedRegisters = _cachedRegisters;
+
+            FunctionObject functionToExecute = CreateFunctionObject(funcBlueprint);
+            CallFrame newFrame = _callFramePool.Get();
+
+            newFrame.Initialize(this, functionToExecute, -1, null!);
+
+            _callStack.Push(newFrame);
+            _cachedRegisters = newFrame.Registers;
+            _ip = functionToExecute.StartAddress;
+
+            foreach (RuntimeValue arg in args) _operandStack.Push(arg);
+            int initialArgIndex = 0;
+
+            for (int i = functionToExecute.Arity - 1; i >= 0; i--)
+            {
+                int paramIndex = initialArgIndex + i;
+                RuntimeValue argValue = _operandStack.Pop();
+
+                bool isRef = (functionToExecute.RefMask & (1 << i)) != 0;
+
+                if (isRef)
+                {
+                    SignalError("Internal VM Error: Calling functions with reference arguments manually is not supported.");
+                    return RuntimeValue.Nil;
+                }
+
+                newFrame.Registers[paramIndex] = argValue;
+            }
+
+            _cachedRegisters = newFrame.Registers;
+            _cachedWritableCache = newFrame.WritableCache;
             RuntimeValue returnValue = RuntimeValue.Nil;
 
             while (true)

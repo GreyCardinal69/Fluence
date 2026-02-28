@@ -66,6 +66,11 @@
         internal int RefMask { get; }
 
         /// <summary>
+        /// The struct symbol of the type, if the type is that of a struct.
+        /// </summary>
+        internal StructSymbol StructSymbol { get; }
+
+        /// <summary>
         /// A list of metadata for each constructor defined on the struct.
         /// </summary>
         public IReadOnlyList<MethodMetadata> Constructors { get; }
@@ -93,7 +98,8 @@
             IReadOnlyList<MethodMetadata>? instanceMethods = null,
             IReadOnlyList<string>? enumMembers = null,
             IReadOnlyList<string>? parameters = null,
-            int refMask = 0)
+            int refMask = 0,
+            StructSymbol symbol = null!)
         {
             Name = name;
             FullName = fullName;
@@ -110,6 +116,7 @@
 
             InstanceFieldNames = new HashSet<string>(InstanceFields.Select(x => x.Name));
             StaticFieldNames = new HashSet<string>(StaticFields.Select(x => x.Name));
+            StructSymbol = symbol;
         }
 
         public bool Equals(TypeMetadata? other)

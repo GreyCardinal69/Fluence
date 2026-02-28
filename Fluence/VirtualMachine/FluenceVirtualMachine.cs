@@ -2036,7 +2036,11 @@ namespace Fluence.VirtualMachine
                 instanceFields: s.Fields.Select(f => new FieldMetadata(f, IsStatic: false, IsSolid: false)).ToList(),
                 staticFields: s.StaticFields.Keys.Select(f => new FieldMetadata(f, IsStatic: true, IsSolid: true)).ToList(),
                 constructors: s.Constructors.Values.Select(c => new MethodMetadata(c.Name, c.Arity, true, c.Arguments!, c.RefMask)).ToList(),
-                instanceMethods: s.Functions.Values.Select(m => new MethodMetadata(m.Name, m.Arity, false, m.Arguments!, m.RefMask)).ToList()
+                instanceMethods: s.Functions.Values.Select(m => new MethodMetadata(m.Name, m.Arity, false, m.Arguments!, m.RefMask)).ToList(),
+                null!,
+                null!,
+                0,
+                s
             );
 
         /// <summary>

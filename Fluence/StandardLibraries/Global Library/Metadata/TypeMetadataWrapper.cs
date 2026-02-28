@@ -31,12 +31,11 @@ namespace Fluence.Global
             _instanceMethods["parameters_ref__0"] = GetParametersRef;
             _instanceMethods["is_lambda__0"] = IsLambda;
 
-            // TO DO - IMPLEMENT ( TYPEs of structs & inheritance ).
-            //instanceMethods["implements__1"] = ImplementsType;
-
-            // TO DO - ENUMS as full objects.
-            //instanceMethods["enum_members__0"] = GetEnumMembers;
-            //instanceMethods["is_enum_member__1"] = IsEnumMember;
+            _instanceMethods["implements__1"] = ImplementsType;
+            _instanceMethods["get_field_value__2"] = GetFieldValue;
+            _instanceMethods["set_field_value__3"] = SetFieldValue;
+            _instanceMethods["get_static_value__1"] = GetStaticValue;
+            _instanceMethods["set_static_value__2"] = SetStaticValue;
         }
 
         internal static RuntimeValue Create(TypeMetadata metadata)
@@ -102,81 +101,68 @@ namespace Fluence.Global
         private static RuntimeValue GetInstanceFields(FluenceVirtualMachine vm, RuntimeValue self)
         {
             TypeMetadata metadata = (TypeMetadata)self.As<Wrapper>().Instance;
-
             ListObject list = new ListObject();
 
-            if (metadata.StaticFields.Count > 0)
+            if (metadata.InstanceFields.Count > 0)
             {
-                list.Elements.AddRange(metadata.InstanceFields.Select(fieldMetadata => vm.ResolveStringObjectRuntimeValue(fieldMetadata.Name)));
+                list.Elements.AddRange(metadata.InstanceFields.Select(f => vm.ResolveStringObjectRuntimeValue(f.Name)));
             }
-
             return new RuntimeValue(list);
         }
 
         private static RuntimeValue GetStaticSolidFields(FluenceVirtualMachine vm, RuntimeValue self)
         {
             TypeMetadata metadata = (TypeMetadata)self.As<Wrapper>().Instance;
-
             ListObject list = new ListObject();
 
             if (metadata.StaticFields.Count > 0)
             {
-                list.Elements.AddRange(metadata.StaticFields.Select(fieldMetadata => vm.ResolveStringObjectRuntimeValue(fieldMetadata.Name)));
+                list.Elements.AddRange(metadata.StaticFields.Select(f => vm.ResolveStringObjectRuntimeValue(f.Name)));
             }
-
             return new RuntimeValue(list);
         }
 
         private static RuntimeValue HasInstanceField(FluenceVirtualMachine vm, RuntimeValue self)
         {
             TypeMetadata metadata = (TypeMetadata)self.As<Wrapper>().Instance;
-
             string fieldName = IntrinsicHelpers.GetStringArg(vm, "has_instance_field()");
-
             return new RuntimeValue(metadata.InstanceFieldNames.Contains(fieldName));
         }
 
         private static RuntimeValue HasStaticField(FluenceVirtualMachine vm, RuntimeValue self)
         {
             TypeMetadata metadata = (TypeMetadata)self.As<Wrapper>().Instance;
-
             string fieldName = IntrinsicHelpers.GetStringArg(vm, "has_static_field()");
-
             return new RuntimeValue(metadata.StaticFieldNames.Contains(fieldName));
         }
 
         private static RuntimeValue GetConstructors(FluenceVirtualMachine vm, RuntimeValue self)
         {
             TypeMetadata metadata = (TypeMetadata)self.As<Wrapper>().Instance;
-
             ListObject list = new ListObject();
 
             foreach (MethodMetadata ctor in metadata.Constructors)
             {
                 list.Elements.Add(MethodMetadataWrapper.Create(ctor));
             }
-
             return new RuntimeValue(list);
         }
 
         private static RuntimeValue GetInstanceMethods(FluenceVirtualMachine vm, RuntimeValue self)
         {
             TypeMetadata metadata = (TypeMetadata)self.As<Wrapper>().Instance;
-
             ListObject list = new ListObject();
 
             foreach (MethodMetadata method in metadata.InstanceMethods)
             {
                 list.Elements.Add(MethodMetadataWrapper.Create(method));
             }
-
             return new RuntimeValue(list);
         }
 
         private static RuntimeValue GetAllMethods(FluenceVirtualMachine vm, RuntimeValue self)
         {
             TypeMetadata metadata = (TypeMetadata)self.As<Wrapper>().Instance;
-
             ListObject list = new ListObject();
 
             foreach (MethodMetadata method in metadata.InstanceMethods)
@@ -247,12 +233,87 @@ namespace Fluence.Global
             {
                 if ((metadata.RefMask & (1 << i)) != 0)
                 {
-                    // This arg is ref.
                     list.Elements.Add(vm.ResolveStringObjectRuntimeValue(metadata.Parameters[i]));
                 }
             }
 
             return new RuntimeValue(list);
+        }
+
+        private static RuntimeValue ImplementsType(FluenceVirtualMachine vm, RuntimeValue self)
+        {
+            TypeMetadata metadata = (TypeMetadata)self.As<Wrapper>().Instance;
+            string traitName = IntrinsicHelpers.GetStringArg(vm, "implements(trait_name)");
+
+            if (metadata.StructSymbol == null)
+            {
+                return new RuntimeValue(false);
+            }
+
+            return new RuntimeValue(metadata.StructSymbol.ImplementedTraits.Contains(traitName.GetHashCode()));
+        }
+
+        private static RuntimeValue GetFieldValue(FluenceVirtualMachine vm, RuntimeValue self)
+        {
+            TypeMetadata metadata = (TypeMetadata)self.As<Wrapper>().Instance;
+            string fieldName = IntrinsicHelpers.GetStringArg(vm, "get_field_value(instance, field_name)");
+            RuntimeValue instanceVal = vm.PopStack();
+
+            if (instanceVal.ObjectReference is InstanceObject instanceObj && instanceObj.Class == metadata.StructSymbol)
+            {
+                return instanceObj.GetField(fieldName, vm);
+            }
+
+            return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: Invalid instance or type mismatch in get_field_value.");
+        }
+
+        private static RuntimeValue SetFieldValue(FluenceVirtualMachine vm, RuntimeValue self)
+        {
+            TypeMetadata metadata = (TypeMetadata)self.As<Wrapper>().Instance;
+            RuntimeValue valueToSet = vm.PopStack();
+            string fieldName = IntrinsicHelpers.GetStringArg(vm, "set_field_value(instance, field_name, value)");
+            RuntimeValue instanceVal = vm.PopStack();
+
+            if (instanceVal.ObjectReference is InstanceObject instanceObj && instanceObj.Class == metadata.StructSymbol)
+            {
+                if (metadata.StructSymbol != null && metadata.StructSymbol.StaticFields.ContainsKey(fieldName))
+                {
+                    return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: Cannot set solid field '{fieldName}' via reflection.");
+                }
+
+                instanceObj.SetField(fieldName, valueToSet);
+                return RuntimeValue.Nil;
+            }
+
+            return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: Invalid instance or type mismatch in set_field_value.");
+        }
+
+        private static RuntimeValue GetStaticValue(FluenceVirtualMachine vm, RuntimeValue self)
+        {
+            TypeMetadata metadata = (TypeMetadata)self.As<Wrapper>().Instance;
+            string fieldName = IntrinsicHelpers.GetStringArg(vm, "get_static_value(field_name)");
+
+            if (metadata.StructSymbol != null && metadata.StructSymbol.StaticFields.TryGetValue(fieldName, out RuntimeValue value))
+            {
+                return value;
+            }
+
+            return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: Static field '{fieldName}' not found.");
+        }
+
+        private static RuntimeValue SetStaticValue(FluenceVirtualMachine vm, RuntimeValue self)
+        {
+            TypeMetadata metadata = (TypeMetadata)self.As<Wrapper>().Instance;
+            RuntimeValue valueToSet = vm.PopStack();
+            string fieldName = IntrinsicHelpers.GetStringArg(vm, "set_static_value(field_name, value)");
+
+            if (metadata.StructSymbol != null && metadata.StructSymbol.StaticFields.ContainsKey(fieldName))
+            {
+                metadata.StructSymbol.StaticFields[fieldName] = valueToSet;
+                return RuntimeValue.Nil;
+            }
+
+            return vm.SignalRecoverableErrorAndReturnNil($"Runtime Error: Static field '{fieldName}' not found.");
         }
     }
 }

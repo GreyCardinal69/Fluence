@@ -19,7 +19,9 @@ namespace Fluence
             /// </summary>
             internal enum InstructionCode
             {
-                Skip,           // NOP - No operation placeholder.
+                Skip,           // Only used in VM setup strictly.
+                Unknown,
+
                 Return,
                 Terminate,      // Halt program execution.
 

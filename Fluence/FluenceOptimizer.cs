@@ -133,7 +133,7 @@ namespace Fluence
                 // line2: [Assign]     Var   TempN
                 // =>
                 // line: [Arithmetic][Assign] Var TempN-1 Value
-                if (opCode != InstructionCode.Skip &&
+                if (opCode != InstructionCode.Unknown &&
                     line2.Instruction == InstructionCode.Assign &&
                     line1.Lhs is TempValue l1Lhs &&
                     line2.Rhs is TempValue l2Rhs &&
@@ -512,7 +512,7 @@ namespace Fluence
                 // GotoIfTrue/False      JMP      TEMPN      .
                 // =>
                 // BranchIfEqual/Not     JMP      A          B   
-                if (op != InstructionCode.Skip &&
+                if (op != InstructionCode.Unknown &&
                     line1.Lhs is TempValue cResult &&
                     line2.Rhs is TempValue jCond &&
                     cResult.Hash == jCond.Hash)
@@ -559,7 +559,7 @@ namespace Fluence
                 // [GotoIfTrue/False]    JMP        TempN      .
                 // =>
                 // [BranchIf...] JMP     A          B
-                if (fusedOp != InstructionCode.Skip &&
+                if (fusedOp != InstructionCode.Unknown &&
                     line1.Lhs is TempValue comparisonResult &&
                     line2.Rhs is TempValue jumpCondition &&
                     comparisonResult.Hash == jumpCondition.Hash)
@@ -580,7 +580,7 @@ namespace Fluence
         /// <summary>
         /// Gets the corresponding branch instruction for a given comparison and conditional goto pair.
         /// </summary>
-        /// <returns>The fused instruction code, or <see cref="InstructionCode.Skip"/> if no pattern matches.</returns>
+        /// <returns>The fused instruction code, or <see cref="InstructionCode.Unknown"/> if no pattern matches.</returns>
         private static InstructionCode GetFusedBranchOpCode(InstructionCode comparisonOp, InstructionCode jumpOp) => (comparisonOp, jumpOp) switch
         {
             (InstructionCode.GreaterThan, InstructionCode.GotoIfTrue) => InstructionCode.BranchIfGreaterThan,
@@ -595,7 +595,7 @@ namespace Fluence
             (InstructionCode.LessEqual, InstructionCode.GotoIfTrue) => InstructionCode.BranchIfLessOrEqual,
             (InstructionCode.LessEqual, InstructionCode.GotoIfFalse) => InstructionCode.BranchIfGreaterThan,
 
-            _ => InstructionCode.Skip,
+            _ => InstructionCode.Unknown,
         };
 
         /// <summary>
@@ -613,18 +613,18 @@ namespace Fluence
         /// <summary>
         /// Gets the corresponding branch instruction for a given comparison and conditional goto pair.
         /// </summary>
-        /// <returns>The fused instruction code, or <see cref="InstructionCode.Skip"/> if no pattern matches.</returns>
+        /// <returns>The fused instruction code, or <see cref="InstructionCode.Unknown"/> if no pattern matches.</returns>
         private static InstructionCode GetFusedGotoOpCode(InstructionCode op1, InstructionCode op2) => (op1, op2) switch
         {
             (InstructionCode.Equal, InstructionCode.GotoIfTrue) or (InstructionCode.NotEqual, InstructionCode.GotoIfFalse) => InstructionCode.BranchIfEqual,
             (InstructionCode.Equal, InstructionCode.GotoIfFalse) or (InstructionCode.NotEqual, InstructionCode.GotoIfTrue) => InstructionCode.BranchIfNotEqual,
-            _ => InstructionCode.Skip,
+            _ => InstructionCode.Unknown,
         };
 
         /// <summary>
         /// Gets the corresponding compound assignment instruction for a given arithmetic operation.
         /// </summary>
-        /// <returns>The fused instruction code, or <see cref="InstructionCode.Skip"/> if no pattern matches.</returns>
+        /// <returns>The fused instruction code, or <see cref="InstructionCode.Unknown"/> if no pattern matches.</returns>
         private static InstructionCode GetFusedOpcode(InstructionCode op) => op switch
         {
             InstructionCode.Add => InstructionCode.AddAssign,
@@ -632,7 +632,7 @@ namespace Fluence
             InstructionCode.Multiply => InstructionCode.MulAssign,
             InstructionCode.Divide => InstructionCode.DivAssign,
             InstructionCode.Modulo => InstructionCode.ModAssign,
-            _ => InstructionCode.Skip
+            _ => InstructionCode.Unknown
         };
 
         /// <summary>

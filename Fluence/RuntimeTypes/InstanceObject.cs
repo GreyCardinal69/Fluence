@@ -60,6 +60,8 @@ namespace Fluence.RuntimeTypes
             _fields[fieldName] = value;
         }
 
+        internal IEnumerable<string> GetActiveFieldNames() => _fields.Keys;
+
         private static RuntimeValue ImplementsTrait(FluenceVirtualMachine vm, RuntimeValue self)
         {
             RuntimeValue arg = vm.PopStack();
@@ -71,12 +73,7 @@ namespace Fluence.RuntimeTypes
 
             InstanceObject instance = self.As<InstanceObject>();
 
-            if (instance.Class.ImplementedTraits.Contains(stringObject.Value.GetHashCode()))
-            {
-                return RuntimeValue.True;
-            }
-
-            return RuntimeValue.False;
+            return new RuntimeValue(instance.Class.ImplementedTraits.Contains(stringObject.Value.GetHashCode()));
         }
 
         /// <inheritdoc/>
@@ -90,9 +87,6 @@ namespace Fluence.RuntimeTypes
             return method != null;
         }
 
-        public override string ToString()
-        {
-            return $"<instance of {Class.Name}>. Fields: {string.Join(", ", _fields.Select(kvp => $"{kvp.Key}: {kvp.Value}"))}";
-        }
+        public override string ToString() => $"<instance of {Class.Name}>. Fields: {string.Join(", ", _fields.Select(kvp => $"{kvp.Key}: {kvp.Value}"))}";
     }
 }

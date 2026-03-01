@@ -128,7 +128,7 @@ namespace Fluence
             // Zero operands.
             SetUsage(OperandUsage.None,
                 InstructionCode.Terminate, InstructionCode.Skip, InstructionCode.CatchBlock,
-                InstructionCode.SectionGlobal, InstructionCode.SectionLambdaEnd, InstructionCode.SectionLambdaStart);
+                InstructionCode.SectionGlobal, InstructionCode.SectionLambdaEnd, InstructionCode.SectionLambdaStart, InstructionCode.Unknown);
         }
 
         /// <summary>

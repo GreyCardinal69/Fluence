@@ -438,7 +438,7 @@ namespace Fluence.VirtualMachine
                     RegisterVariableToGlobalRegister(variable4, globalVars, ref index);
                 }
 
-                if (_byteCode[i].Instruction == InstructionCode.SectionGlobal)
+                if (_byteCode[i].Instruction is InstructionCode.SectionGlobal or InstructionCode.Skip)
                 {
                     startIndex = i;
                     break;
@@ -574,46 +574,21 @@ namespace Fluence.VirtualMachine
 
         /// <summary>
         /// Sets a global variable in the VM's global scope, converting from a standard C# type.
-        /// This is the primary way for a host application to pass data into a Fluence script.
         /// </summary>
         /// <param name="name">The name the variable will have in the script.</param>
         /// <param name="value">The C# object to convert and assign. Supported types are:
-        /// null, bool, int, long, float, double, string, and char.
+        /// null, bool, int, long, float, double, string, list, dictionary and char.
         /// </param>
-        /// <exception cref="ArgumentException">Thrown if the value is of an unsupported type.</exception>
         public void SetGlobal(string name, object? value)
         {
-            RuntimeValue runtimeValue = value switch
+            if (!_globalVariableRegister.TryGetValue(name, out VariableValue var))
             {
-                null => RuntimeValue.Nil,
-
-                int intVal => new RuntimeValue(intVal),
-                long longVal => new RuntimeValue(longVal),
-                double doubleVal => new RuntimeValue(doubleVal),
-                float floatVal => new RuntimeValue(floatVal),
-
-                bool boolVal => new RuntimeValue(boolVal),
-
-                string stringVal => ResolveStringObjectRuntimeValue(stringVal),
-                char charVal => ResolveCharObjectRuntimeValue(charVal),
-
-                List<RuntimeValue> list => new RuntimeValue(new ListObject(list)),
-
-                Dictionary<RuntimeValue, RuntimeValue> dictionary => new RuntimeValue(new DictionaryObject(dictionary)),
-
-                _ => SignalError<RuntimeValue>(
-                    $"Unsupported type '{value.GetType().FullName}' for SetGlobal. " +
-                    "Supported types are null, bool, int, long, float, double, string, char, list, dictionary (Map).")
-            };
-
-            if (_globalVariableRegister.TryGetValue(name, out VariableValue var))
-            {
-                AssignVariable(var, runtimeValue, null!);
+                throw new FluenceException($"Invalid global variable name: '{name}'. Unable to set new value. Is the name correct and defined as a global in the script?");
             }
-            else
-            {
-                throw new FluenceException($"Invalid global variable name: {name}, unable to set new value. Is the name of the global variable correct? Is it defined in the code?");
-            }
+
+            RuntimeValue runtimeValue = ConvertToRuntimeValue(value, this);
+
+            AssignVariable(var, runtimeValue, null!);
         }
 
         /// <summary>
@@ -1679,6 +1654,7 @@ namespace Fluence.VirtualMachine
             }
 
             RuntimeValue valueToSet = GetRuntimeValue(instruction.Rhs2, instruction);
+
             instance.SetField(fieldName.Value, valueToSet);
         }
 

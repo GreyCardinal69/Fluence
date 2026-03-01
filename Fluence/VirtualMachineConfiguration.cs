@@ -47,5 +47,11 @@
         /// Defaults to infinite (<see cref="TimeSpan.MaxValue"/>, no timeout).
         /// </remarks>
         public TimeSpan ExecutionTimeout { get; set; } = TimeSpan.MaxValue;
+
+        /// <summary>
+        /// Gets or sets the lifecycle mode of the Virtual Machine.
+        /// Defaults to <see cref="FluenceExecutionMode.Stateless"/>.
+        /// </summary>
+        public FluenceExecutionMode ExecutionMode { get; set; } = FluenceExecutionMode.Stateless;
     }
 }

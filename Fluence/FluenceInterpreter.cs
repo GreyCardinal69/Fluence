@@ -4,6 +4,7 @@ using Fluence.RuntimeTypes;
 using Fluence.VirtualMachine;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceParser;
+using static Fluence.VirtualMachine.FluenceVirtualMachine;
 
 namespace Fluence
 {
@@ -94,12 +95,11 @@ namespace Fluence
         /// </summary>
         public bool IsDone => _vm.State == FluenceVMState.Finished;
 
+        internal FluenceVirtualMachine VM => _vm;
+
         private readonly Dictionary<string, Action<LibraryBuilder>> _customLibraries = new();
 
-        public void RegisterLibrary(string namespaceName, Action<LibraryBuilder> registrar)
-        {
-            _customLibraries[namespaceName] = registrar;
-        }
+        public void RegisterLibrary(string namespaceName, Action<LibraryBuilder> registrar) => _customLibraries[namespaceName] = registrar;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="FluenceInterpreter"/>.
@@ -204,7 +204,7 @@ namespace Fluence
             try
             {
                 RuntimeValue result = _vm.ExecuteFunctionDirect(funcSymbol, vmArgs);
-                return ConvertToObject(result);
+                return ConvertToObject(result, this);
             }
             catch (FluenceException ex)
             {
@@ -213,21 +213,54 @@ namespace Fluence
             }
         }
 
-        private static RuntimeValue ConvertToRuntimeValue(object? value, FluenceVirtualMachine vm) => value switch
+        /// <summary>
+        /// Recursively converts a standard C# object into a Fluence RuntimeValue.
+        /// </summary>
+        internal static RuntimeValue ConvertToRuntimeValue(object? value, FluenceVirtualMachine vm) => value switch
         {
             null => RuntimeValue.Nil,
+
             int intVal => new RuntimeValue(intVal),
             long longVal => new RuntimeValue(longVal),
             double doubleVal => new RuntimeValue(doubleVal),
             float floatVal => new RuntimeValue(floatVal),
             bool boolVal => new RuntimeValue(boolVal),
+
             string stringVal => vm.ResolveStringObjectRuntimeValue(stringVal),
             char charVal => vm.ResolveCharObjectRuntimeValue(charVal),
 
-            _ => throw new ArgumentException($"Unsupported argument type: {value.GetType().Name}")
+            System.Collections.IDictionary dict => PackDictionary(dict, vm),
+
+            System.Collections.IEnumerable list => PackList(list, vm),
+
+            Wrapper wrapper => new RuntimeValue(wrapper),
+
+            _ => new RuntimeValue(new Wrapper(value, new Dictionary<string, IntrinsicRuntimeMethod>()))
         };
 
-        private static object? ConvertToObject(RuntimeValue val) => val.Type switch
+        private static RuntimeValue PackList(System.Collections.IEnumerable enumerable, FluenceVirtualMachine vm)
+        {
+            ListObject listObj = new ListObject();
+            foreach (object? item in enumerable)
+            {
+                listObj.Elements.Add(ConvertToRuntimeValue(item, vm));
+            }
+            return new RuntimeValue(listObj);
+        }
+
+        private static RuntimeValue PackDictionary(System.Collections.IDictionary dict, FluenceVirtualMachine vm)
+        {
+            DictionaryObject dictObj = new DictionaryObject();
+            foreach (System.Collections.DictionaryEntry kvp in dict)
+            {
+                RuntimeValue key = ConvertToRuntimeValue(kvp.Key, vm);
+                RuntimeValue val = ConvertToRuntimeValue(kvp.Value, vm);
+                dictObj.Dictionary[key] = val;
+            }
+            return new RuntimeValue(dictObj);
+        }
+
+        internal static object? ConvertToObject(RuntimeValue val, FluenceInterpreter interpreter) => val.Type switch
         {
             RuntimeValueType.Nil => null,
             RuntimeValueType.Boolean => val.IntValue != 0,
@@ -239,8 +272,26 @@ namespace Fluence
                 RuntimeNumberType.Double => val.DoubleValue,
                 _ => 0d
             },
-            RuntimeValueType.Object => val.ObjectReference,
-            _ => null
+            RuntimeValueType.Object => val.ObjectReference switch
+            {
+                StringObject str => str.Value,
+                CharObject chr => chr.Value,
+
+                ListObject list => list.Elements.Select(e => ConvertToObject(e, interpreter)).ToList(),
+
+                DictionaryObject dict => dict.Dictionary.ToDictionary(
+                    kvp => ConvertToObject(kvp.Key, interpreter)!,
+                    kvp => ConvertToObject(kvp.Value, interpreter)
+                ),
+
+                Wrapper wrapper => wrapper.Instance,
+
+                InstanceObject inst => new FluenceStructAccessor(inst, interpreter),
+
+                _ => val.ObjectReference
+            },
+
+            _ => null,
         };
 
         /// <summary>
@@ -382,6 +433,7 @@ namespace Fluence
                 {
                     _vm = new FluenceVirtualMachine(_byteCode, _vmConfiguration, _parseState, OnOutput, OnOutputLine, OnInput);
                 }
+
                 _vm.SetIntrinsicLibraryWhiteAndBlackLists(AllowedLibraries, DisallowedLibraries);
                 _vm.RunFor(duration);
 #if DEBUG
@@ -393,6 +445,49 @@ namespace Fluence
                 ConstructAndThrowException(ex);
                 _vm.Stop();
             }
+        }
+
+        private void EnsureVMInitialized()
+        {
+            if (_vm == null || _vm.State == FluenceVMState.Error)
+            {
+                _vm = new FluenceVirtualMachine(_byteCode, Configuration, _parseState, OnOutput, OnOutputLine, OnInput);
+                return;
+            }
+
+            if (_vm.State == FluenceVMState.Finished)
+            {
+                if (Configuration.ExecutionMode == FluenceExecutionMode.Stateless)
+                {
+                    _vm = new FluenceVirtualMachine(_byteCode, Configuration, _parseState, OnOutput, OnOutputLine, OnInput);
+                }
+                else
+                {
+                    // Do nothing.
+                }
+            }
+        }
+
+        /// <summary>
+        /// Initializes the Virtual Machine's global state without executing the Main function.
+        /// This allows the host to set globals or inspect initial state before running the script.
+        /// </summary>
+        public void InitializeGlobals()
+        {
+            if (_byteCode == null) ConstructAndThrowException(new FluenceException("The code must be compiled successfully before the global state can be initialized."));
+
+            EnsureVMInitialized();
+            _vm.InitializeGlobals();
+        }
+
+        /// <summary>
+        /// Forcibly resets the Virtual Machine, clearing all global state and resetting the instruction pointer to 0.
+        /// Use this if you are in <see cref="FluenceExecutionMode.Persistent"/> mode but want to restart the script from scratch.
+        /// </summary>
+        public void Restart()
+        {
+            if (_byteCode == null) return;
+            _vm = new FluenceVirtualMachine(_byteCode, Configuration, _parseState, OnOutput, OnOutputLine, OnInput);
         }
 
         /// <summary>
@@ -420,35 +515,10 @@ namespace Fluence
         /// <returns>The value of the variable, or null if not found.</returns>
         public object? GetGlobal(string name)
         {
-            if (_vm.TryGetGlobalVariable(name, out RuntimeValue val))
+            if (_vm != null && _vm.TryGetGlobalVariable(name, out RuntimeValue val))
             {
-                switch (val.Type)
-                {
-                    case RuntimeValueType.Nil:
-                        return null;
-                    case RuntimeValueType.Boolean:
-                        return Convert.ToBoolean(val.IntValue);
-                    case RuntimeValueType.Number:
-                        return val.NumberType switch
-                        {
-                            RuntimeNumberType.Int => Convert.ToInt32(val.IntValue),
-                            RuntimeNumberType.Long => Convert.ToInt64(val.LongValue),
-                            RuntimeNumberType.Float => Convert.ToSingle(val.FloatValue),
-                            RuntimeNumberType.Double => (object)Convert.ToDouble(val.DoubleValue),
-                            _ => throw new NotImplementedException(),
-                        };
-                    case RuntimeValueType.Object:
-                        return val.ObjectReference switch
-                        {
-                            CharObject ch => ch.Value,
-                            StringObject str => str.Value,
-                            ListObject list => list.Elements,
-                            DictionaryObject dictionary => dictionary.Dictionary,
-                            _ => throw new NotImplementedException()
-                        };
-                }
+                return ConvertToObject(val, this);
             }
-
             return null;
         }
 

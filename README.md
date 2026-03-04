@@ -1389,6 +1389,9 @@ Fluence comes with a comprehensive standard library for File I/O, Math, Collecti
 
 *   **[Full Standard Library Reference](docs/StandardLibrary.md)** – Complete documentation of all built-in functions and types.
 
+## For syntax highligting there exists a Visual Studio Code extension:
+https://github.com/GreyCardinal69/Fluence-VS-Code-Extension
+
 ## Examples
 
 ## A simple calculator in Fluence:

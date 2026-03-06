@@ -18,7 +18,7 @@ namespace Fluence.RuntimeTypes
         internal int StartAddress { get; private set; }
 
         /// <summary>
-        /// Sets the bytecode start address for this function. Called by the parser during the second pass.
+        /// The line in the source file where the function is defined, pointing to the line where the function name is declared.
         /// </summary>
         internal int StartAddressInSource { get; private set; }
 

@@ -16,7 +16,6 @@ This document contains performance metrics for the Fluence programming language 
 ### Code
 ```rust
 func Main() => {
-    # 1 Billion Iterations
     1_000_000_000 times {
         a = 5;
         b = 5; 
@@ -37,8 +36,6 @@ func Main() => {
 
 ### Code
 ```rust
-use FluenceIO;
-
 func fib(n) =>
     match n {
         n < 0 -> 0;
@@ -61,8 +58,6 @@ func Main() => fib(30);
 
 ### Code
 ```rust
-use FluenceIO;
-
 WIDTH = 20;
 HEIGHT = 10;
 TOTAL_CELLS = WIDTH * HEIGHT;
@@ -141,7 +136,6 @@ func Main() => {
 ### Code
 ```rust
 use FluenceMath;
-use FluenceIO;
 
 func primes(limit) => {
     maxSquareRoot = sqrt(limit);
@@ -212,7 +206,6 @@ func Main() => Collatz();
 
 ### Code
 ```rust
-use FluenceIO;
 use FluenceMath;
 
 func min(a, b, c) => (a < b ? (a < c ? a : c) : (b < c ? b : c));

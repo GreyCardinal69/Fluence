@@ -51,8 +51,6 @@ Have questions, ideas, want to contact me or just want to chat about Fluence? Jo
 - [Getting Started](#getting-started)
 - [Miscellanea](#miscellanea)
 - [Examples](#examples)
-- [TO DO](#to-do)
-
 
 
 
@@ -1396,6 +1394,7 @@ Fluence comes with a comprehensive standard library for File I/O, Math, Collecti
 https://github.com/GreyCardinal69/Fluence-VS-Code-Extension
 
 ## Examples
+You can find more examples at **[Benchmarks](docs/Benchmarks.md)**.
 
 ## A simple calculator in Fluence:
 ```cs
@@ -1437,10 +1436,6 @@ func Collatz() => {
 
 func Main() => printl(Collatz());
 ```
-## TO DO
-Fluence is still in its very early stages, as such much is yet to be done and added.
-
-
 
 
 

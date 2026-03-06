@@ -2227,7 +2227,7 @@ namespace Fluence
             // Parameters get the next available slots.
             for (int i = 0; i < func.Arguments.Count; i++)
             {
-                _variableSlotMap[func.ArgumentHashCodes[i]] = nextSlotIndex++;
+                _variableSlotMap[func.Arguments[i].GetHashCode()] = nextSlotIndex++;
             }
 
             for (int i = functionStartAddress; i < functionCodeEnd; i++)
@@ -5100,7 +5100,7 @@ namespace Fluence
 
             for (int i = 0; i < lambdaFunction.Arguments.Count; i++)
             {
-                variableSlotMap[lambdaFunction.ArgumentHashCodes[i]] = nextSlotIndex++;
+                variableSlotMap[lambdaFunction.Arguments[i].GetHashCode()] = nextSlotIndex++;
             }
 
             for (int i = lambdaFunction.StartAddress; i < functionCodeEnd; i++)

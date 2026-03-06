@@ -36,9 +36,6 @@ namespace Fluence.RuntimeTypes
         /// <summary>The names of the function's parameters.</summary>
         internal List<string> Arguments { get; private set; }
 
-        /// <summary>The hash codes of the function's parameters.</summary>
-        internal List<int> ArgumentHashCodes { get; private set; }
-
         /// <summary>
         /// A bitmask identifying which arguments are passed by reference. 
         /// If the bit at position 'i' is set, the argument at index 'i' is passed by reference.
@@ -68,7 +65,6 @@ namespace Fluence.RuntimeTypes
             Name = name;
             Arity = arity;
             Arguments = parameters;
-            ArgumentHashCodes = parametersHash;
             StartAddress = startAddress;
             DefiningScope = definingScope;
             IsIntrinsic = false;
@@ -85,7 +81,6 @@ namespace Fluence.RuntimeTypes
             Name = function.Name;
             Arity = function.Arity;
             Arguments = function.Arguments;
-            ArgumentHashCodes = function.ArgumentHashCodes;
             StartAddress = function.StartAddress;
             DefiningScope = function.DefiningScope;
             StartAddressInSource = function.StartAddressInSource;
@@ -99,7 +94,6 @@ namespace Fluence.RuntimeTypes
             Name = function.Name;
             Arity = function.Arity;
             Arguments = function.Arguments;
-            ArgumentHashCodes = function.ArgumentHashCodes;
             StartAddress = function.StartAddress;
             DefiningScope = function.DefiningScope;
             BluePrint = function;

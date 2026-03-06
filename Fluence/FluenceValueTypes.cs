@@ -407,9 +407,6 @@ namespace Fluence
         /// <summary>The arguments of the function by name.</summary>
         internal List<string> Arguments { get; init; }
 
-        /// <summary>The hash codes of the function's arguments.</summary>
-        internal List<int> ArgumentHashCodes { get; init; }
-
         /// <summary>
         /// A bitmask identifying which arguments are passed by reference. 
         /// If the bit at position 'i' is set, the argument at index 'i' is passed by reference.
@@ -442,12 +439,6 @@ namespace Fluence
             Arity = arity;
             StartAddress = startAddress;
             Arguments = arguments;
-
-            ArgumentHashCodes = new List<int>();
-            for (int i = 0; i < Arguments.Count; i++)
-            {
-                ArgumentHashCodes.Add(Arguments[i].GetHashCode());
-            }
 
             RefMask = refMask;
             StartAddressInSource = lineInSource;

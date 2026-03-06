@@ -53,5 +53,37 @@
         /// Defaults to <see cref="FluenceExecutionMode.Stateless"/>.
         /// </summary>
         public FluenceExecutionMode ExecutionMode { get; set; } = FluenceExecutionMode.Stateless;
+
+        /// <summary>
+        /// Defines logical halt points within the compilation and execution pipeline.
+        /// </summary>
+        internal enum ExecutionPipelineEndpoint
+        {
+            /// <summary>
+            /// Halts execution immediately after the Lexer finishes tokenizing the source code.
+            /// The Parser and Virtual Machine will not run.
+            /// </summary>
+            StopAtLexer,
+
+            /// <summary>
+            /// Halts execution after the Parser generates and optimizes the bytecode.
+            /// The Virtual Machine will not run.
+            /// </summary>
+            StopAtParser,
+
+            /// <summary>
+            /// Allows the pipeline to run completely from Lexing through Virtual Machine execution.
+            /// </summary>
+            DontStop,
+        }
+
+        /// <summary>
+        /// Gets or sets an internal flag indicating where the interpreter should halt its pipeline.
+        /// </summary>
+        /// <remarks>
+        /// This is utilized only for granular benchmarking and low-level debugging without triggering subsequent compilation phases.
+        /// Defaults to <see cref="ExecutionPipelineEndpoint.DontStop"/>.
+        /// </remarks>
+        internal ExecutionPipelineEndpoint ExecutionEndPoint { get; set; } = ExecutionPipelineEndpoint.DontStop;
     }
 }

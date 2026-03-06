@@ -335,6 +335,14 @@ namespace Fluence
                 _intrinsicsInstance.RegisterCustomIntrinsics(_customLibraries);
                 parser.Parse(partialCode);
 
+                if (_vmConfiguration.ExecutionEndPoint == VirtualMachineConfiguration.ExecutionPipelineEndpoint.StopAtLexer)
+                {
+#if DEBUG
+                    parser.Lexer.DumpTokenStream("Token Stream [StopAtLexer]", OnOutputLine);
+#endif
+                    return true;
+                }
+
 #if DEBUG
                 FluenceDebug.DumpSymbolTables(parser.CurrentParseState, OnOutputLine);
 #endif
@@ -422,9 +430,19 @@ namespace Fluence
         /// <exception cref="FluenceException">Thrown if no code has been compiled.</exception>
         public void RunFor(TimeSpan duration)
         {
+            if (_vmConfiguration.ExecutionEndPoint == VirtualMachineConfiguration.ExecutionPipelineEndpoint.StopAtLexer)
+            {
+                return;
+            }
+
             if (_byteCode == null)
             {
                 throw new FluenceException("Code must be compiled successfully before it can be run.");
+            }
+
+            if (_vmConfiguration.ExecutionEndPoint == VirtualMachineConfiguration.ExecutionPipelineEndpoint.StopAtParser)
+            {
+                return;
             }
 
             try

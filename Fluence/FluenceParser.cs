@@ -35,7 +35,7 @@ namespace Fluence
 
         private readonly List<List<Token>> _tokenStreams = new List<List<Token>>();
 
-        private readonly ObjectPool<FluenceLexer> _lexerPool = new ObjectPool<FluenceLexer>(lexer => lexer.Reset(), 4);
+        private readonly ObjectPool<FluenceLexer> _lexerPool = new ObjectPool<FluenceLexer>(lexer => lexer.Reset(), 2);
 
         /// <summary>
         /// Indicates that we are parsing a multi-file Fluence project.
@@ -134,7 +134,7 @@ namespace Fluence
         /// <summary>
         /// A pool of lists for the initialization of arguments, be it expression, function call or other.
         /// </summary>
-        readonly ObjectPool<List<Value>> _lhsPool = new ObjectPool<List<Value>>(list => list.Clear());
+        readonly ObjectPool<List<Value>> _lhsPool = new ObjectPool<List<Value>>(list => list.Clear(), 2);
 
         /// <summary>
         /// Exposes the global scope of the current parsing state, primarily for the intrinsic registrar.
@@ -241,16 +241,10 @@ namespace Fluence
 
             internal readonly Dictionary<int, VariableValue> LocalVariableInterner = new Dictionary<int, VariableValue>();
 
-            internal void ResetLocalInterner()
-            {
-                LocalVariableInterner.Clear();
-            }
+            internal void ResetLocalInterner() => LocalVariableInterner.Clear();
 
-            internal void AddFunctionVariableDeclaration(InstructionLine instructionLine)
-            {
-                FunctionVariableDeclarations.Add(instructionLine);
-            }
-
+            internal void AddFunctionVariableDeclaration(InstructionLine instructionLine) => FunctionVariableDeclarations.Add(instructionLine);
+ 
             /// <summary>
             /// Indicates that we are working with test code, usually test units, which use incomplete code,
             /// simple statements or expressions. In this case we add all instructions into <see cref="CodeInstructions"/> regardless of state.
@@ -344,6 +338,11 @@ namespace Fluence
             else
             {
                 ParseTokens();
+            }
+
+            if (_vmConfiguration.ExecutionEndPoint == VirtualMachineConfiguration.ExecutionPipelineEndpoint.StopAtLexer)
+            {
+                return;
             }
 
             _lhsPool.Clear();
@@ -443,6 +442,7 @@ namespace Fluence
             _currentParseState.NameSpaces.TryAdd(nameSpace.Name.GetHashCode(), nameSpace);
         }
 
+        // This doesn't quite suppport ExecutionPipelineEndPoint.
         private void ParseProjectTokens()
         {
             foreach (string path in _allProjectFiles)
@@ -493,6 +493,11 @@ namespace Fluence
         private void ParseTokens()
         {
             _lexer.LexFullSource();
+
+            if (_vmConfiguration.ExecutionEndPoint == VirtualMachineConfiguration.ExecutionPipelineEndpoint.StopAtLexer)
+            {
+                return;
+            }
 
 #if DEBUG
             _lexer.DumpTokenStream("Initial Token Stream (Before Pre-Parsing declarations)", _outputLine);
@@ -2182,7 +2187,7 @@ namespace Fluence
             else
             {
                 Value returnValue = NilValue.NilInstance;
-                // It is pleasant to do things like ... => self.x, self.t <~| ....
+                // It is pleasant to do things like ... => self.x, self.y <~| ....
                 // But those are statements not expressions, to allow them we check for, as of now, only assignment pipes
                 // if found we parse a statement, and return nil.
                 if (IsChainAssignmentAhead(out _))

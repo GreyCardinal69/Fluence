@@ -248,7 +248,7 @@ namespace Fluence.VirtualMachine
             _input = input ?? Console.ReadLine!;
 
             // This represents the top-level global execution context.
-            FunctionObject mainScriptFunc = new FunctionObject("<script>", 0, null!, null!, 0, _globalScope);
+            FunctionObject mainScriptFunc = new FunctionObject("<script>", 0, null!, 0, _globalScope);
 
             int maxOpCode = (int)InstructionCode.NumberOfOpcodes;
 

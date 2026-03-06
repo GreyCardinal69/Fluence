@@ -155,28 +155,6 @@ namespace Fluence
                 return _buffer[_head].Type == type;
             }
 
-            /// <summary>
-            /// Removes a range of tokens from the buffer.
-            /// </summary>
-            /// <param name="startIndex">The absolute index in the buffer to start removing from.</param>
-            /// <param name="count">The number of tokens to remove.</param>
-            internal void RemoveRange(int startIndex, int count)
-            {
-                if (startIndex < 0 || count <= 0 || (startIndex + count) > _buffer.Count)
-                {
-                    return;
-                }
-
-                _buffer.RemoveRange(startIndex, count);
-
-                if (_head > startIndex)
-                {
-                    // If the head was at index 50 and we removed 20 tokens from the start,
-                    // the new head must be at index 30.
-                    _head -= Math.Min(count, _head - startIndex);
-                }
-            }
-
             internal void AddRange(List<Token> tokens) => _buffer.AddRange(tokens);
 
             internal void ClearTokens() => _buffer.Clear();
@@ -381,13 +359,6 @@ namespace Fluence
         /// Consumes and returns the next token from the stream.
         /// </summary>
         internal Token ConsumeToken() => _tokenBuffer.Consume();
-
-        /// <summary>
-        /// Removes a range of tokens from the buffer, used primarily in the first pass of the parser.
-        /// </summary>
-        /// <param name="startIndex">The start index of the range.</param>
-        /// <param name="count">How many tokens to remove.</param>
-        internal void RemoveTokenRange(int startIndex, int count) => _tokenBuffer.RemoveRange(startIndex, count);
 
         /// <summary>
         /// Checks if the provided <see cref="TokenType"/> matches the next token's type in the buffer.

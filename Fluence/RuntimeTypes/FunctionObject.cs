@@ -60,7 +60,7 @@ namespace Fluence.RuntimeTypes
         /// </summary>
         internal bool BelongsToAStruct { get; private set; }
 
-        internal FunctionObject(string name, int arity, List<string> parameters, List<int> parametersHash, int startAddress, FluenceScope definingScope)
+        internal FunctionObject(string name, int arity, List<string> parameters, int startAddress, FluenceScope definingScope)
         {
             Name = name;
             Arity = arity;

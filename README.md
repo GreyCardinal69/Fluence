@@ -57,11 +57,14 @@ Have questions, ideas, want to contact me or just want to chat about Fluence? Jo
 
 
 ## Performance
-All stages of the Fluence Interpreter, those being the Lexer, Parser, Optimizer and the Virtual Machine are heavily optimized and extremely fast, making Fluence into a very fast interpreted language, with minimum memory allocation.
+All stages of the Fluence Interpreter, those being the Lexer, Parser, Optimizer and the Virtual Machine are quite optimized, making Fluence into a very fast interpreted language, with minimum memory allocation.
 You can view some of the tests and their benchmarks here: **[Benchmarks](docs/Benchmarks.md)**.
 Alternatively you can run the benchmarks via the Fluence.Benchmarks VS Solution.
 
 ## Language Fundamentals
+
+While Fluence is not a toy language, it is still an amalgamation of my random ideas, hence some of its features might seem pointless, or over-engineered.
+
 ### Variables
 
 Implicit. Variables are created upon their first assignment.

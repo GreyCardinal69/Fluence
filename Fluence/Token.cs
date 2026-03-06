@@ -135,8 +135,8 @@
             OR_GUARD_CHAIN,                      // <||??|
 
             // Dot-Prefixed Operators.
-            DOT_AND_CHECK,      // .or(...)
-            DOT_OR_CHECK,       // .and(....)
+            DOT_AND_CHECK,      // .and(....)
+            DOT_OR_CHECK,       // .or(...)
             DOT_INCREMENT,      // .++(...)
             DOT_DECREMENT,      // .--(...)
             DOT_PLUS_EQUAL,     // .+=

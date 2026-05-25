@@ -3211,5 +3211,15 @@ namespace Fluence.VirtualMachine
 
             return new FluenceRuntimeException(exception, context);
         }
+
+        public RuntimeValue CreateValue(int value) => new RuntimeValue(value);
+
+        public RuntimeValue CreateValue(float value) => new RuntimeValue(value);
+
+        public RuntimeValue CreateValue(double value) => new RuntimeValue(value);
+
+        public RuntimeValue CreateValue(bool value) => new RuntimeValue(value);
+
+        public RuntimeValue CreateValue(string value) => ResolveStringObjectRuntimeValue(value);
     }
 }

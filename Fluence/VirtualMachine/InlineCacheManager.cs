@@ -891,24 +891,21 @@ namespace Fluence.VirtualMachine
             if (insn.Lhs is TempValue temp)
             {
                 index = temp.RegisterIndex;
-
-                return (i, v) =>
-                {
-                    v.CurrentRegisters[index] = new RuntimeValue(v.CurrentRegisters[index].IntValue + 1);
-                };
             }
             else if (insn.Lhs is VariableValue var)
             {
                 index = var.RegisterIndex;
-
-                return (i, v) =>
-                {
-                    ref RuntimeValue reg = ref v.CurrentRegisters[index];
-                    v.CurrentRegisters[index] = new RuntimeValue(v.CurrentRegisters[index].IntValue + 1);
-                };
+            }
+            else
+            {
+                return null;
             }
 
-            return null;
+            return (i, v) =>
+            {
+                ref RuntimeValue reg = ref v.CurrentRegisters[index];
+                reg = new RuntimeValue(reg.IntValue + 1);
+            };
         }
 
         internal static SpecializedOpcodeHandler? CreateSpecializedIterNextHandler(InstructionLine insn, IteratorObject iterator)

@@ -2,10 +2,7 @@ using Fluence.Unity.Exceptions;
 using Fluence.Unity.Extensions;
 using Fluence.Unity.Global;
 using Fluence.Unity.RuntimeTypes;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using static Fluence.Unity.FluenceByteCode;
@@ -170,7 +167,6 @@ namespace Fluence.Unity.VirtualMachine
         /// </summary>
         internal void DumpPerformanceProfile()
         {
-            return;
             _outputLine("\n--- FLUENCE VM EXECUTION PROFILE ---");
 
             if (_instructionCounts.Count == 0)
@@ -270,8 +266,8 @@ namespace Fluence.Unity.VirtualMachine
             _globalWritableCache = new bool[globalRegisterSlotCount];
 
 #if DEBUG
-            //   FluenceDebug.DumpByteCodeInstructions(_parser.CompiledCode, _outputLine);
-            //   FluenceDebug.GenerateCSharpCodeForInstructionList(_parser.CurrentParseState.CodeInstructions, _outputLine);
+            FluenceDebug.DumpByteCodeInstructions(_parser.CompiledCode, _outputLine);
+            FluenceDebug.GenerateCSharpCodeForInstructionList(_parser.CurrentParseState.CodeInstructions, _outputLine);
 #endif
 
             _dispatchTable = new OpcodeHandler[maxOpCode + 1];
@@ -655,9 +651,9 @@ namespace Fluence.Unity.VirtualMachine
                 InstructionLine instruction = _byteCode[_ip];
                 _ip++;
 
-                //#if DEBUG
-                //                _stopwatch.Restart();
-                //#endif
+#if DEBUG
+                _stopwatch.Restart();
+#endif
 
                 if (instruction.SpecializedHandler != null)
                 {
@@ -668,13 +664,13 @@ namespace Fluence.Unity.VirtualMachine
                     _dispatchTable[(int)instruction.Instruction](instruction);
                 }
 
-                //#if DEBUG
-                //                _stopwatch.Stop();
-                //                _instructionCounts.TryAdd(instruction.Instruction, 0);
-                //                _instructionCounts[instruction.Instruction]++;
-                //                _instructionTimings.TryAdd(instruction.Instruction, 0);
-                //                _instructionTimings[instruction.Instruction] += _stopwatch.ElapsedTicks;
-                //#endif
+#if DEBUG
+                _stopwatch.Stop();
+                _instructionCounts.TryAdd(instruction.Instruction, 0);
+                _instructionCounts[instruction.Instruction]++;
+                _instructionTimings.TryAdd(instruction.Instruction, 0);
+                _instructionTimings[instruction.Instruction] += _stopwatch.ElapsedTicks;
+#endif
             }
 
             // If the loop finishes naturally, the script is done.

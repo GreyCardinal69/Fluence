@@ -1,7 +1,5 @@
 ﻿using Fluence.Unity.RuntimeTypes;
 using Fluence.Unity.VirtualMachine;
-using System;
-using System.Collections.Generic;
 
 namespace Fluence.Unity
 {
@@ -41,7 +39,6 @@ namespace Fluence.Unity
 
             math.StaticFields.Add("Pi", new RuntimeValue(Math.PI));
             math.StaticFields.Add("E", new RuntimeValue(Math.E));
-            // Math.Tau is a .NET 5+ feature. Replaced with raw math expression for total compatibility in Unity
             math.StaticFields.Add("Tau", new RuntimeValue(Math.PI * 2.0));
 
             mathNamespace.Declare("cos__1".GetHashCode(), new FunctionSymbol("cos__1", 1, (vm, argCount) =>
@@ -95,7 +92,7 @@ namespace Fluence.Unity
 
             mathNamespace.Declare("atan2__2".GetHashCode(), new FunctionSymbol("atan2__2", 2, (vm, argCount) =>
             {
-                RuntimeValue x = vm.PopStack(); // Note: Atan2(y, x)
+                RuntimeValue x = vm.PopStack();
                 RuntimeValue y = vm.PopStack();
                 return new RuntimeValue(Math.Atan2(y.AsDouble(vm), x.AsDouble(vm)));
             }, mathNamespace, new List<string>() { "y", "x" }));

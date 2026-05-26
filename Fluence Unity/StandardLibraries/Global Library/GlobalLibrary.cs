@@ -1,8 +1,5 @@
 ﻿using Fluence.Unity.RuntimeTypes;
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Threading;
 using static Fluence.Unity.FluenceInterpreter;
 using static Fluence.Unity.IntrinsicHelpers;
 
@@ -106,7 +103,7 @@ namespace Fluence.Unity.Global
             random.StaticIntrinsics.Add("random", new FunctionSymbol("random", 0, (vm, argCount) =>
             {
                 Random rand = new Random();
-                return new RuntimeValue((float)rand.NextDouble()); // Unity safe fallback for NextSingle()
+                return new RuntimeValue((float)rand.NextDouble());
             }, globalScope, new List<string>()));
 
             //
@@ -277,7 +274,6 @@ namespace Fluence.Unity.Global
             }, globalScope, new List<string>() { "object" }));
         }
 
-        // Replaced C# 11 INumber<T> generic math constraint with runtime reflection/conversion
         private static bool TryConvertToNumeric<T>(ref RuntimeValue value, out T result) where T : struct
         {
             result = default(T);
@@ -330,7 +326,6 @@ namespace Fluence.Unity.Global
             }
             catch
             {
-                // Suppress conversion exceptions
             }
             return false;
         }

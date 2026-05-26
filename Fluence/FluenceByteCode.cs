@@ -221,7 +221,7 @@ namespace Fluence
             }
 
             /// <inheritdoc />
-            public override string ToString()   
+            public override string ToString()
             {
                 string[] parts =
                 [

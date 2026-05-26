@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using static Fluence.Unity.FluenceByteCode;
 using static Fluence.Unity.FluenceByteCode.InstructionLine;
@@ -325,7 +324,6 @@ namespace Fluence.Unity
 
                 if (insn.Lhs is VariableValue varLhs && !varLhs.IsGlobal)
                 {
-                    // Replaced GetValueRefOrAddDefault with safe dictionary assignment
                     if (!_varStatsMap.TryGetValue(varLhs.Hash, out (int Count, Value ConstVal, int DefIndex) stats))
                     {
                         stats = (0, null, 0);
@@ -356,7 +354,6 @@ namespace Fluence.Unity
 
             lambdaDepth = 0;
 
-            // Locally defined helper captures parent environment
             void TryReplace(ref Value operand, bool byteCodeChanged, bool constantFoldingDidWork)
             {
                 if (operand is VariableValue varOp && !varOp.IsGlobal && _varStatsMap.TryGetValue(varOp.Hash, out (int Count, Value ConstVal, int DefIndex) stat))
@@ -415,7 +412,6 @@ namespace Fluence.Unity
 
                 if (insn.Rhs is TempValue temp)
                 {
-                    // Replaced GetValueRefOrAddDefault with TryGetValue
                     bool exists = _registerInfoMap.TryGetValue(temp.Hash, out RegisterInfo info);
 
                     if (!exists)

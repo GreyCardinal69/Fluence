@@ -244,7 +244,7 @@ namespace Fluence
             internal void ResetLocalInterner() => LocalVariableInterner.Clear();
 
             internal void AddFunctionVariableDeclaration(InstructionLine instructionLine) => FunctionVariableDeclarations.Add(instructionLine);
- 
+
             /// <summary>
             /// Indicates that we are working with test code, usually test units, which use incomplete code,
             /// simple statements or expressions. In this case we add all instructions into <see cref="CodeInstructions"/> regardless of state.

@@ -1,6 +1,4 @@
 ﻿using Fluence.Unity.RuntimeTypes;
-using System.Collections.Generic;
-using System.IO;
 
 namespace Fluence.Unity
 {
@@ -38,7 +36,7 @@ namespace Fluence.Unity
             file.StaticIntrinsics.Add("move__2", new FunctionSymbol("move__2", 2, (vm, argCount) =>
             {
                 (string, string) args = IntrinsicHelpers.GetTwoStringArgs(vm, "File.move()");
-                File.Move(args.Item2, args.Item1); // Kept the same argument mapping from your original code
+                File.Move(args.Item2, args.Item1);
                 return nilResult;
             }, ioNamespace, new List<string>() { "old_path" }));
 
@@ -94,7 +92,6 @@ namespace Fluence.Unity
             pathStruct.StaticIntrinsics.Add("exists__1", new FunctionSymbol("exists__1", 1, (vm, argCount) =>
             {
                 string path = IntrinsicHelpers.GetStringArg(vm, "Path.exists()");
-                // Path.Exists is .NET 7+. Changed to check both File and Directory existence to be safe in Unity
                 bool exists = File.Exists(path) || Directory.Exists(path);
                 return new RuntimeValue(exists);
             }, ioNamespace, new List<string>() { "path" }));

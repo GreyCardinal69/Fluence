@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
 namespace Fluence.Unity
 {
@@ -23,7 +21,6 @@ namespace Fluence.Unity
         {
             (string name, int arity) key = (name, arity);
 
-            // Replaced CollectionsMarshal with TryGetValue
             if (_cache.TryGetValue(key, out string? cached))
             {
                 return cached;

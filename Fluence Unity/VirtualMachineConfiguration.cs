@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace Fluence.Unity
+﻿namespace Fluence.Unity
 {
     /// <summary>
     /// Provides a set of configurable options to control the behavior and performance

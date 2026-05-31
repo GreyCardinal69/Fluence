@@ -164,9 +164,6 @@
             COLLECTIVE_OR_GREATER,          // <||>|
             COLLECTIVE_OR_GREATER_EQUAL,    // <||>=|
 
-            TRAIN_PIPE,         // ->>
-            TRAIN_PIPE_END,     // <<-
-
             TYPE_OF,
             THROW,
 
@@ -385,9 +382,6 @@
                 TokenType.COLLECTIVE_OR_LESS_EQUAL => "<||<=|",
                 TokenType.COLLECTIVE_OR_GREATER => "<||>|",
                 TokenType.COLLECTIVE_OR_GREATER_EQUAL => "<||>=|",
-
-                TokenType.TRAIN_PIPE => "->>",
-                TokenType.TRAIN_PIPE_END => "<<-",
 
                 TokenType.TYPE_OF => "typeof",
                 TokenType.UNDERSCORE => "_",

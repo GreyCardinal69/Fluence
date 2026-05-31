@@ -1426,7 +1426,7 @@ namespace Fluence.Unity
                 // Simple Statements that must be terminated.
                 case TokenType.RETURN:
                     ParseReturnStatement();
-                    if (_lexer.PeekNextTokenType() != TokenType.TRAIN_PIPE_END) AdvanceAndExpect(TokenType.EOL, "Expected a ';' or newline after the return statement.");
+                    AdvanceAndExpect(TokenType.EOL, "Expected a ';' or newline after the return statement.");
                     break;
                 case TokenType.BREAK:
                     _lexer.Advance(); // Consume 'break';
@@ -1459,12 +1459,8 @@ namespace Fluence.Unity
 
                     AdvanceAndExpect(TokenType.EOL, "Expected a ';' after the 'break' statement.");
                     break;
-                case TokenType.TRAIN_PIPE:
-                    ParseTrainPipe();
-                    break;
                 default:
                     ParseAssignment();
-                    if (_lexer.PeekNextTokenType() is TokenType.TRAIN_PIPE or TokenType.TRAIN_PIPE_END) return;
                     AdvanceAndExpect(TokenType.EOL, "Expected a ';' to terminate the statement.");
                     break;
             }
@@ -1742,20 +1738,6 @@ namespace Fluence.Unity
             }
 
             _currentParseState.CurrentStructContext = null!;
-        }
-
-        /// <summary>
-        /// Parses a train of statements until a closing train symbol is encountered.
-        /// </summary>
-        private void ParseTrainPipe()
-        {
-            while (_lexer.PeekNextTokenType() == TokenType.TRAIN_PIPE)
-            {
-                _lexer.Advance();
-                ParseStatement();
-            }
-
-            AdvanceAndExpect(TokenType.TRAIN_PIPE_END, "Expected a '<<-' operator to end a train pipe.");
         }
 
         /// <summary>
@@ -2623,11 +2605,7 @@ namespace Fluence.Unity
                     }
                 }
 
-                if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
-                {
-                    ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
-                }
-                else if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW))
+                if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW))
                 {
                     AdvanceAndExpect(TokenType.THIN_ARROW, "Expected a '->' for the match case expression.");
 
@@ -5376,11 +5354,7 @@ namespace Fluence.Unity
         /// <param name="errorMsgForSingleLine">The error to display when there is no '->' in a single line expression body.</param>
         private void ParseStatementBody(string errorMsgForSingleLine)
         {
-            if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
-            {
-                ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
-            }
-            else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
+            if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
             {
                 ParseBlockStatement();
             }

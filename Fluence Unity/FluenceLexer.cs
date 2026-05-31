@@ -520,13 +520,6 @@ namespace Fluence.Unity
                     }
                     return MakeTokenAndTryAdvance(TokenType.PLUS, 1);
                 case '-':
-                    if (CanLookAheadStartInclusive(3))
-                    {
-                        if (PeekString(3).SequenceEqual("->>"))
-                        {
-                            return MakeTokenAndTryAdvance(TokenType.TRAIN_PIPE, 3);
-                        }
-                    }
                     if (CanLookAheadStartInclusive(2))
                     {
                         nextChar = PeekNext();
@@ -1061,10 +1054,6 @@ namespace Fluence.Unity
                     case "<~|": return MakeTokenAndTryAdvance(TokenType.SEQUENTIAL_REST_ASSIGN, 3);
                     case "<!|": return MakeTokenAndTryAdvance(TokenType.UNIQUE_REST_ASSIGN, 3);
                 }
-            }
-            else if (peek.Length >= 3 && peek[0] == '<' && peek[1] == '<' && peek[2] == '-')
-            {
-                return MakeTokenAndTryAdvance(TokenType.TRAIN_PIPE_END, 3);
             }
 
             if (peek.Length >= 2 && (peek[1] == '|' || peek[1] == '<' || peek[1] == '='))

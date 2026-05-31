@@ -537,6 +537,33 @@ namespace Fluence.Unity
         }
 
         /// <summary>
+        /// Attempts to get the value of a global variable from the VM.
+        /// Unlike <see cref="GetGlobal"/>, this method distinguishes between a variable
+        /// that does not exist and a variable whose value is <c>nil</c>.
+        /// </summary>
+        /// <param name="name">The name of the global variable.</param>
+        /// <param name="value">
+        /// When this method returns <see langword="true"/>, contains the value of the variable,
+        /// which may be <see langword="null"/> if the Fluence variable holds <c>nil</c>.
+        /// When this method returns <see langword="false"/>, contains <see langword="null"/>.
+        /// </param>
+        /// <returns>
+        /// <see langword="true"/> if the variable exists in the global scope;
+        /// <see langword="false"/> if no variable with that name was found.
+        /// </returns>
+        public bool TryGetGlobal(string name, out object? value)
+        {
+            if (_vm != null && _vm.TryGetGlobalVariable(name, out RuntimeValue val))
+            {
+                value = ConvertToObject(val, this);
+                return true;
+            }
+
+            value = null;
+            return false;
+        }
+
+        /// <summary>
         /// Sets a global variable in the VM's global scope.
         /// This is how the host application can pass data into the script.
         /// </summary>

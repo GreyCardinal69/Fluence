@@ -40,7 +40,6 @@ Have questions, ideas, want to contact me or just want to chat about Fluence? Jo
   - [Ternary Operator](#ternary-operator)
   - [DOT Family Operators](#dot-family-operators)
   - [Miscellaneous Operators](#miscellaneous-operators)
-  - [Train Operator](#train-operator)
   - [Collective Comparison Operators](#collective-comparison-operators)
   - [Advanced Assignment Operators](#advanced-assignment-operators)
   - [Broadcast Call](#broadcast-call)
@@ -974,19 +973,6 @@ b = 2;
 a >< b; 
 printl(a); # prints 2;
 printl(b); # prints 1;
-```
-
-### Train Operator
-Allows the chaining of expressions and statements without a semicolon.
-Starts with `->>` and must end with `<<-`
-
-```rust
-func Main() => {
-  ->> a = 5 
-      ->>
-      b = 10
-      ->> printl(a + b) <<- # prints 15.
-}
 ```
 
 ### Collective Comparison Operators

@@ -1567,13 +1567,15 @@ namespace Fluence.VirtualMachine
                 }
                 else
                 {
-                    throw ConstructRuntimeException($"Runtime Error: Cannot access property '{fieldName.Value}' on an intrinsic wrapper instance (got type 'Wrapper__{GetDetailedTypeName(instanceValue)}').");
+                    SignalError($"Runtime Error: Property '{fieldName.Value}' does not exist on '{GetDetailedTypeName(instanceValue)}'.");
+                    return;
                 }
             }
 
             if (instanceValue.ObjectReference is not InstanceObject instance)
             {
-                throw ConstructRuntimeException($"Runtime Error: Cannot access property '{fieldName.Value}' on a non-instance value (got type '{GetDetailedTypeName(instanceValue)}').");
+                SignalError($"Runtime Error: Cannot access property '{fieldName.Value}' on a value of type '{GetDetailedTypeName(instanceValue)}'.");
+                return;
             }
 
             SetRegister((TempValue)instruction.Lhs, instance.GetField(fieldName.Value, this));
@@ -1639,18 +1641,20 @@ namespace Fluence.VirtualMachine
                 }
                 else
                 {
-                    throw ConstructRuntimeException($"Runtime Error: Cannot access property '{fieldName.Value}' on an intrinsic wrapper instance (got type 'Wrapper__{GetDetailedTypeName(instanceValue)}').");
+                    SignalError($"Runtime Error: Property '{fieldName.Value}' does not exist on '{GetDetailedTypeName(instanceValue)}'.");
+                    return;
                 }
             }
 
             if (instanceValue.ObjectReference is not InstanceObject instance)
             {
-                throw ConstructRuntimeException($"Runtime Error: Cannot set property '{fieldName.Value}' on a non-instance value (got type '{GetDetailedTypeName(instanceValue)}').");
+                SignalError($"Runtime Error: Cannot set property '{fieldName.Value}' on a value of type '{GetDetailedTypeName(instanceValue)}'.");
+                return;
             }
 
             if (instance.Class.StaticFields.ContainsKey(fieldName.Value))
             {
-                throw ConstructRuntimeException($"Runtime Error: Cannot set solid ( static ) property '{fieldName.Value}' of a struct.");
+                throw ConstructRuntimeException($"Runtime Error: Cannot assign to the solid (static) field '{fieldName.Value}' of struct '{instance.Class.Name}'.");
             }
 
             RuntimeValue valueToSet = GetRuntimeValue(instruction.Rhs2, instruction);
@@ -1804,7 +1808,7 @@ namespace Fluence.VirtualMachine
                 return;
             }
 
-            throw ConstructRuntimeException($"Runtime Error: Cannot create an iterator from a non-iterable type '{GetDetailedTypeName(iterable)}'.");
+            SignalError($"Runtime Error: Cannot iterate over a value of type '{GetDetailedTypeName(iterable)}'. Expected a list or range.");
         }
 
         /// <summary>
@@ -1934,7 +1938,7 @@ namespace Fluence.VirtualMachine
                 return;
             }
 
-            throw ConstructRuntimeException($"Runtime Error: 'throw' keyword allows only either the intrinsic 'Exception' class to be used, or a struct that inherits from the intrinsic 'exception' trait to be used.");
+            SignalError($"Runtime Error: 'throw' requires a value that implements the 'exception' trait, but got '{GetDetailedTypeName(value)}'.");
         }
 
         /// <summary>
@@ -2003,7 +2007,8 @@ namespace Fluence.VirtualMachine
                 }
                 else
                 {
-                    throw ConstructRuntimeException($"Runtime Error: Unknown type or symbol '{typeName}'.");
+                    SignalError($"Runtime Error: Unknown type '{typeName}'.");
+                    return;
                 }
             }
             // Variable or expression.
@@ -2120,7 +2125,8 @@ namespace Fluence.VirtualMachine
 
             if (functionVal.ObjectReference is not FunctionObject function)
             {
-                throw ConstructRuntimeException($"Internal VM Error: Attempted to call a value that is not a function (got type '{GetDetailedTypeName(functionVal)}').");
+                SignalError($"Runtime Error: Attempted to call a value of type '{GetDetailedTypeName(functionVal)}' as a function.");
+                return;
             }
 
             if (!function.DefiningScope.IsTheGlobalScope)
@@ -2136,7 +2142,8 @@ namespace Fluence.VirtualMachine
 
             if (function.Arity != argCount && function.Arity != -100)
             {
-                throw ConstructRuntimeException($"Internal VM Error: Mismatched arguments for function '{function.Name}'. Expected {function.Arity}, but got {argCount}.");
+                SignalError($"Runtime Error: Wrong number of arguments for function '{function.Name}'. Expected {function.Arity}, got {argCount}.");
+                return;
             }
 
             SpecializedOpcodeHandler? handler = CreateSpecializedCallFunctionHandler(this, instruction, function);
@@ -2228,7 +2235,8 @@ namespace Fluence.VirtualMachine
 
             if (instanceVal.ObjectReference is not InstanceObject instance)
             {
-                throw ConstructRuntimeException($"Internal VM Error: Cannot call method '{methodName}' on a non-instance object of type '{GetDetailedTypeName(instanceVal)}'.");
+                SignalError($"Runtime Error: Cannot call method '{methodName}' on a value of type '{GetDetailedTypeName(instanceVal)}'.");
+                return;
             }
 
             FunctionObject functionToExecute = null;
@@ -2263,7 +2271,8 @@ namespace Fluence.VirtualMachine
                 }
                 else if (!instance.Class.Functions.TryGetValue(methodName, out methodBlueprint) && !instance.Class.Constructors.TryGetValue(methodName, out methodBlueprint))
                 {
-                    throw ConstructRuntimeException($"Internal VM Error: Undefined method or lambda '{methodName}' on struct '{instance.Class.Name}'.");
+                    SignalError($"Runtime Error: Method '{Mangler.Demangle(methodName)}' is not defined on struct '{instance.Class.Name}'.");
+                    return;
                 }
             }
 
@@ -2284,7 +2293,8 @@ namespace Fluence.VirtualMachine
             int argCountOnStack = _operandStack.Count;
             if (functionToExecute.Arity != argCountOnStack)
             {
-                throw ConstructRuntimeException($"Internal VM Error: Mismatched arity for method '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
+                SignalError($"Runtime Error: Wrong number of arguments for method '{Mangler.Demangle(functionToExecute.Name)}' on '{instance.Class.Name}'. Expected {functionToExecute.Arity}, got {argCountOnStack}.");
+                return;
             }
 
             CallFrame newFrame = _callFramePool.Get();
@@ -2492,7 +2502,8 @@ namespace Fluence.VirtualMachine
                 int argCount = _operandStack.Count;
                 if (intrinsicSymbol.Arity != argCount)
                 {
-                    CreateAndThrowRuntimeException($"Runtime Error: Mismatched arity for static intrinsic struct function '{intrinsicSymbol.Name}'. Expected {intrinsicSymbol.Arity}, but got {argCount}.");
+                    SignalError($"Runtime Error: Wrong number of arguments for '{structSymbol.Name}.{intrinsicSymbol.Name}'. Expected {intrinsicSymbol.Arity}, got {argCount}.");
+                    return;
                 }
 
                 RuntimeValue resultValue = intrinsicSymbol.IntrinsicBody!(this, argCount);
@@ -2502,7 +2513,8 @@ namespace Fluence.VirtualMachine
 
             if (!structSymbol.Functions.TryGetValue(methodName.Value, out FunctionValue? methodBlueprint))
             {
-                throw ConstructRuntimeException($"Runtime Error: Static function '{methodName.Value}' not found on struct '{structSymbol.Name}'.");
+                SignalError($"Runtime Error: Static function '{methodName.Value}' not found on struct '{structSymbol.Name}'.");
+                return;
             }
 
             FunctionObject functionToExecute = CreateFunctionObject(methodBlueprint);
@@ -2510,7 +2522,8 @@ namespace Fluence.VirtualMachine
             int argCountOnStack = _operandStack.Count;
             if (functionToExecute.Arity != argCountOnStack)
             {
-                CreateAndThrowRuntimeException($"Runtime Error: Mismatched arity for static function '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
+                SignalError($"Runtime Error: Wrong number of arguments for static function '{Mangler.Demangle(functionToExecute.Name)}'. Expected {functionToExecute.Arity}, got {argCountOnStack}.");
+                return;
             }
 
             if (!functionToExecute.DefiningScope.IsTheGlobalScope)
@@ -2538,7 +2551,8 @@ namespace Fluence.VirtualMachine
                     if (argValue.ObjectReference is not ReferenceValue reference)
                     {
                         string argName = functionToExecute.Arguments[i];
-                        SignalError($"Internal VM Error: Argument '{argName}' in function: \"{functionToExecute.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                        SignalError($"Runtime Error: Argument '{argName}' in static function '{functionToExecute.ToCodeLikeString()}' must be passed by reference ('ref').");
+                        _callFramePool.Return(newFrame);
                         return;
                     }
                     else
@@ -3170,16 +3184,6 @@ namespace Fluence.VirtualMachine
         /// <param name="exception">The exception message.</param>
         /// <param name="exceptionType">The type of the exception.</param>
         internal FluenceRuntimeException ConstructRuntimeException(string exception, RuntimeExceptionType exceptionType = RuntimeExceptionType.NonSpecific) => CreateRuntimeException(exception, exceptionType);
-
-        //  These exceptions should not be catchable
-        //
-        //  1. Readonly assignment.
-        //  2. wrong argument count in function call.
-        //  3. undefined variable.
-        //  4. undefined function.
-        //  5. calling non function.
-        //  6. wrong struct field/function.
-        //  8. invalid return.
 
         /// <summary>
         /// Creates and logs to the console a highly detailed exception with the current state of the VM.

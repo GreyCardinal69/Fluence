@@ -49,7 +49,7 @@ Have questions, ideas, want to contact me or just want to chat about Fluence? Jo
 - [Exceptions](#exceptions)
 - [Getting Started](#getting-started)
 - [Coroutines](#coroutines)
-- [embedding](#embedding)
+- [Embedding](#embedding)
 - [Miscellanea](#miscellanea)
 - [Examples](#examples)
 

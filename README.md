@@ -48,6 +48,7 @@ Have questions, ideas, want to contact me or just want to chat about Fluence? Jo
   - [Lambda Pipes](#lambda-pipes)
 - [Exceptions](#exceptions)
 - [Getting Started](#getting-started)
+- [Coroutines](#coroutines)
 - [Miscellanea](#miscellanea)
 - [Examples](#examples)
 
@@ -1270,6 +1271,53 @@ For other info type `-help`
 
 ---
 
+
+
+# Coroutines
+
+Fluence support for stackful coroutines allows you to pause a function's execution and resume it later, preserving the entire call stack and local variable state.
+
+*   **`coroutine`**: Instantiates a new coroutine from a function blueprint. The coroutine is created in a suspended state and does not execute immediately.
+*   **`yield`**: Suspends the running coroutine, returning control (and optionally a value) back to the caller.
+*   **`resume`**: Wakes up a suspended coroutine, optionally passing an argument back into the coroutine where it last yielded.
+
+### Basic Example
+
+```rust
+func conversation(npc_name) => {
+    printl(npc_name + ": Hello traveler!");
+    
+    // Suspend execution, returning "GreetingDone" to Main.
+    player_choice = yield "GreetingDone";
+    
+    printl(npc_name + " responds to choice: '" + player_choice + "'");
+    return "ConversationEnded";
+}
+
+func Main() => {
+    dialogue = coroutine conversation("Guard");
+
+    // Start the coroutine (runs up to the first yield).
+    status = resume dialogue, nil;
+    printl("Main: Received status -> " + status); 
+
+    // Resume the coroutine, passing the player's choice in.
+    final_state = resume dialogue, "Ask about the quest";
+    printl("Main: Received final state -> " + final_state);
+}
+```
+
+### Expected Output
+
+When executed, the VM processes the context switches and prints the following output:
+
+```text
+Guard: Hello traveler!
+Main: Received status -> GreetingDone
+Guard: responds to choice: 'Ask about the quest'
+Main: Received final state -> ConversationEnded
+```
+
 ### 2. Embedding in C#
 Fluence is designed to be embedded. You can run scripts, set variables, and extend the language with C# code.
 
@@ -1378,51 +1426,6 @@ Fluence comes with a comprehensive standard library for File I/O, Math, Collecti
 
 ## For syntax highligting there exists a Visual Studio Code extension:
 https://github.com/GreyCardinal69/Fluence-VS-Code-Extension
-
-## Examples
-You can find more examples at **[Benchmarks](docs/Benchmarks.md)**.
-
-## A simple calculator in Fluence:
-```cs
-use FluenceIO;
-
-func Main() => {
-    num1, num2, op <2!| to_int(input()) <| input();
-
-    if num1, num2, op <!=| nil ->
-        ->> result = match op {
-            "+" -> num1 + num2;
-            "-" -> num1 - num2;
-            "*" -> num1 * num2;
-            "/" -> num2 == 0 ? nil : num1 / num2;
-            rest -> nil;
-        } ->> print(result == nil ?: "Error: Invalid operation or division by zero.", f"Result: {result}") <<-;
-    else -> print("Error: Invalid input, one or more arguments were null.");
-}
-```
-
-## Collatz Conjecture
-```cs
-use FluenceIO;
-
-func Collatz() => {
-    max_len, num_with_max_len, limit <2| 0 <| 100000;
-
-    for n in 1..limit {
-        len, term <~| 1, n;
-        while term != 1 {
-            if term % 2 == 0 -> term /= 2;
-            else -> term = term * 3 + 1;
-            len += 1;
-        }
-        if len > max_len -> max_len, num_with_max_len <~| len, n;
-    }
-    return num_with_max_len; 
-}
-
-func Main() => printl(Collatz());
-```
-
 
 
 

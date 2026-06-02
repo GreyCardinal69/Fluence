@@ -578,6 +578,6 @@ namespace Fluence
         /// <summary>
         /// Handles the formatting and display of runtime exceptions.
         /// </summary>
-        private void ConstructAndThrowException(FluenceException ex) => OnErrorOutput(ex.Message);
+        private static void ConstructAndThrowException(FluenceException ex) => throw ex;
     }
 }

@@ -19,8 +19,9 @@ namespace Fluence.Unity
         private readonly TextOutputMethod _outputLine;
         private readonly TextOutputMethod _output;
         private readonly TextInputMethod _input;
+        private readonly TextOutputMethod _errorOutput;
 
-        internal FluenceIntrinsics(FluenceParser parser, TextOutputMethod outputLine, TextInputMethod input, TextOutputMethod output)
+        internal FluenceIntrinsics(FluenceParser parser, TextOutputMethod outputLine, TextInputMethod input, TextOutputMethod output, TextOutputMethod errorOutput)
         {
             _parser = parser;
             _outputLine = outputLine;
@@ -31,9 +32,10 @@ namespace Fluence.Unity
             _libraryRegistry[FluenceMath.NamespaceName.GetHashCode()] = FluenceMath.Register;
             _libraryRegistry[FluenceIO.NamespaceName.GetHashCode()] = FluenceIO.Register;
 
-            _libraryRegistry[FluenceUnsafe.NamespaceName.GetHashCode()] = (scope) =>
+            _libraryRegistry[FluenceDiagnostics.NamespaceName.GetHashCode()] = (scope) =>
             {
                 FluenceUnsafe.Register(scope, _outputLine, _input, _output);
+                FluenceDiagnostics.Register(scope, _outputLine, _input, errorOutput);
             };
         }
 

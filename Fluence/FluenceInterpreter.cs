@@ -81,7 +81,7 @@ namespace Fluence
         /// <summary>
         /// Gets or sets the output method to report errors and exceptions.
         /// </summary>
-        public TextOutputMethod OnErrorOutput { get; set; } = Console.WriteLine;
+        public TextOutputMethod OnErrorOutput { get; set; } = Console.Error.WriteLine;
 
         internal ParseState ParseState => _parseState;
 
@@ -330,7 +330,7 @@ namespace Fluence
             try
             {
                 FluenceLexer lexer = new FluenceLexer(sourceCode);
-                FluenceParser parser = new FluenceParser(lexer, _vmConfiguration, OnOutputLine, OnOutput, OnInput);
+                FluenceParser parser = new FluenceParser(lexer, _vmConfiguration, OnOutputLine, OnOutput, OnInput, OnErrorOutput);
                 _intrinsicsInstance = parser.Intrinsics;
                 _intrinsicsInstance.RegisterCustomIntrinsics(_customLibraries);
                 parser.Parse(partialCode);
@@ -375,7 +375,7 @@ namespace Fluence
 
             try
             {
-                FluenceParser parser = new FluenceParser(rootDir, _vmConfiguration, OnOutputLine, OnOutput, OnInput);
+                FluenceParser parser = new FluenceParser(rootDir, _vmConfiguration, OnOutputLine, OnOutput, OnInput, OnErrorOutput);
                 _intrinsicsInstance = parser.Intrinsics;
                 _intrinsicsInstance.RegisterCustomIntrinsics(_customLibraries);
                 parser.Parse(partialCode);

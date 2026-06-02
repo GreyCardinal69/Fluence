@@ -290,7 +290,7 @@ namespace Fluence.Unity
             }
         }
 
-        internal FluenceParser(string root, VirtualMachineConfiguration config, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input)
+        internal FluenceParser(string root, VirtualMachineConfiguration config, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input, TextOutputMethod outError)
         {
             _vmConfiguration = config;
             _currentParseState = new ParseState(this);
@@ -301,18 +301,18 @@ namespace Fluence.Unity
             _currentParseState.ProjectFilePaths.AddRange(_allProjectFiles);
 
             _outputLine = outLine;
-            _intrinsicsManager = new FluenceIntrinsics(this, outLine, input, outNormal);
+            _intrinsicsManager = new FluenceIntrinsics(this, outLine, input, outNormal, outError);
             _intrinsicsManager.RegisterCoreGlobals();
         }
 
-        internal FluenceParser(FluenceLexer lexer, VirtualMachineConfiguration config, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input)
+        internal FluenceParser(FluenceLexer lexer, VirtualMachineConfiguration config, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input, TextOutputMethod outError)
         {
             _vmConfiguration = config;
             _currentParseState = new ParseState(this);
             _lexer = lexer;
 
             _outputLine = outLine;
-            _intrinsicsManager = new FluenceIntrinsics(this, outLine, input, outNormal);
+            _intrinsicsManager = new FluenceIntrinsics(this, outLine, input, outNormal, outError);
             _intrinsicsManager.RegisterCoreGlobals();
         }
 

@@ -49,7 +49,7 @@ Have questions, ideas, want to contact me or just want to chat about Fluence? Jo
 - [Exceptions](#exceptions)
 - [Getting Started](#getting-started)
 - [Coroutines](#coroutines)
-- [Embedding in C#](#embedding-in-c#)
+- [embedding](#embedding)
 - [Miscellanea](#miscellanea)
 - [Examples](#examples)
 
@@ -1319,7 +1319,7 @@ Guard: responds to choice: 'Ask about the quest'
 Main: Received final state -> ConversationEnded
 ```
 
-### Embedding in C#
+### Embedding
 Fluence is designed to be embedded. You can run scripts, set variables, and extend the language with C# code.
 
 **Basic Usage:**

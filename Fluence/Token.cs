@@ -170,6 +170,11 @@
             TYPE_OF,
             THROW,
 
+            // Coroutines.
+            YIELD,
+            COROUTINE,
+            RESUME,
+
             UNDERSCORE,     // _
             EOL,            // End Of Line (statement terminator, from ';').
 
@@ -337,6 +342,9 @@
                 TokenType.CATCH => "catch",
                 TokenType.IMPL => "impl",
                 TokenType.TRAIT => "trait",
+                TokenType.YIELD => "yield",
+                TokenType.COROUTINE => "coroutine",
+                TokenType.RESUME => "resume",
 
                 TokenType.PIPE => "|>",
                 TokenType.OPTIONAL_PIPE => "|?",

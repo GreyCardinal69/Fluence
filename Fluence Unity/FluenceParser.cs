@@ -90,10 +90,6 @@ namespace Fluence.Unity
                 }
             }
 
-            // Four operands.
-            SetUsage(OperandUsage.AllFour,
-                InstructionCode.AssignTwo, InstructionCode.PushFourParams);
-
             // Three operands.
             SetUsage(OperandUsage.AllThree,
                 InstructionCode.Add, InstructionCode.Subtract, InstructionCode.Multiply, InstructionCode.Divide,
@@ -106,7 +102,8 @@ namespace Fluence.Unity
                 InstructionCode.AddAssign, InstructionCode.SubAssign, InstructionCode.MulAssign, InstructionCode.DivAssign,
                 InstructionCode.ModAssign, InstructionCode.BranchIfEqual, InstructionCode.BranchIfNotEqual,
                 InstructionCode.BranchIfGreaterThan, InstructionCode.BranchIfGreaterOrEqual, InstructionCode.BranchIfLessThan,
-                InstructionCode.BranchIfLessOrEqual, InstructionCode.PushThreeParams, InstructionCode.IterNext, InstructionCode.IsType, InstructionCode.PushKeyValuePair);
+                InstructionCode.BranchIfLessOrEqual, InstructionCode.PushThreeParams, InstructionCode.IterNext, InstructionCode.IsType, InstructionCode.PushKeyValuePair,
+                InstructionCode.Resume, InstructionCode.NewCoroutine);
 
             // Two operands.
             SetUsage(OperandUsage.LhsAndRhs,
@@ -115,7 +112,7 @@ namespace Fluence.Unity
                 InstructionCode.NewInstance, InstructionCode.GetField, InstructionCode.NewRange,
                 InstructionCode.PushElement, InstructionCode.GetLength, InstructionCode.GetStatic,
                 InstructionCode.ToString, InstructionCode.NewLambda, InstructionCode.PushTwoParams,
-                InstructionCode.NewIterator, InstructionCode.GetType);
+                InstructionCode.NewIterator, InstructionCode.GetType, InstructionCode.Yield);
 
             // One operand.
             SetUsage(OperandUsage.Lhs,
@@ -4400,6 +4397,12 @@ namespace Fluence.Unity
         private Value ParseUnary()
         {
             TokenType type = _lexer.PeekNextTokenType();
+
+            if (type == TokenType.COROUTINE)
+            {
+                return ParseCoroutineExpression();
+            }
+
             if (type is TokenType.BANG or TokenType.MINUS or TokenType.TILDE)
             {
                 Token op = _lexer.ConsumeToken();
@@ -4717,7 +4720,7 @@ namespace Fluence.Unity
         /// This method is called repeatedly in a loop to handle chained accesses.
         /// </summary>
         /// <returns>A Value representing the result of the access chain.</returns>
-        private Value ParseAccess()
+        private Value ParseAccess(bool allowCalls = true)
         {
             Value left = ParsePrimary();
 
@@ -4806,7 +4809,7 @@ namespace Fluence.Unity
                             break;
                     }
                 }
-                else if (type == TokenType.L_PAREN)
+                else if (type == TokenType.L_PAREN && allowCalls)
                 {
                     left = ParseFunctionCall(left);
                 }
@@ -5195,6 +5198,87 @@ namespace Fluence.Unity
             }
         }
 
+
+        /// <summary>
+        /// Parses a coroutine expression.
+        /// </summary>
+        private TempValue ParseCoroutineExpression()
+        {
+            _lexer.Advance(); // Consume 'coroutine'.
+
+            string functionName = _lexer.ConsumeToken().Text;
+
+            AdvanceAndExpect(TokenType.L_PAREN, "Expected '(' after function identifier in coroutine statement.");
+
+            int argCount = 0;
+
+            if (!_lexer.TokenTypeMatches(TokenType.R_PAREN))
+            {
+                do
+                {
+                    Value argValue = ResolveValue(ParseTernary());
+                    _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.PushParam, argValue));
+                    argCount++;
+                }
+                while (AdvanceTokenIfMatch(TokenType.COMMA));
+            }
+
+            AdvanceAndExpect(TokenType.R_PAREN, "Expected ')' after coroutine arguments.");
+
+            TempValue coroRegister = new TempValue(_currentParseState.NextTempNumber++);
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(
+                InstructionCode.NewCoroutine,
+                coroRegister,
+                new VariableValue($"{functionName}__{argCount}", false),
+                new NumberValue(argCount, NumberValue.NumberType.Integer)
+            ));
+
+            return coroRegister;
+        }
+
+        /// <summary>
+        /// Parses a yield coroutine expression.
+        /// </summary>
+        private TempValue ParseYieldExpression()
+        {
+            Value valueToYield = NilValue.NilInstance;
+            TokenType next = _lexer.PeekNextTokenType();
+
+            if (next is not TokenType.EOL and not TokenType.EOF and not TokenType.R_PAREN and not TokenType.R_BRACE and not TokenType.COMMA)
+            {
+                valueToYield = ResolveValue(ParseTernary());
+            }
+
+            TempValue resultRegister = new TempValue(_currentParseState.NextTempNumber++);
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Yield, resultRegister, valueToYield));
+
+            return resultRegister;
+        }
+
+        /// <summary>
+        /// Parses a resume coroutine expression.
+        /// </summary>
+        private TempValue ParseResumeExpression()
+        {
+            Value coroutineToResume = ResolveValue(ParseTernary());
+
+            Value argumentToPassIn = NilValue.NilInstance;
+
+            if (_lexer.PeekNextTokenType() == TokenType.COMMA)
+            {
+                _lexer.Advance();
+                argumentToPassIn = ResolveValue(ParseTernary());
+            }
+
+            TempValue resultRegister = new TempValue(_currentParseState.NextTempNumber++);
+
+            _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Resume, resultRegister, coroutineToResume, argumentToPassIn));
+
+            return resultRegister;
+        }
+
         /// <summary>
         /// Parses a primary expression, which is the highest level of precedence.
         /// This includes literals (numbers, strings, etc.), identifiers, grouping parentheses,
@@ -5313,6 +5397,8 @@ namespace Fluence.Unity
                 case TokenType.L_BRACKET: return ParseList();
                 case TokenType.MATCH: return ParseMatchStatement();
                 case TokenType.L_BRACE: return ParseDictionary();
+                case TokenType.YIELD: return ParseYieldExpression();
+                case TokenType.RESUME: return ParseResumeExpression();
                 case TokenType.THROW:
                     Value val = ResolveValue(ParseExpression());
                     _currentParseState.AddCodeInstruction(new InstructionLine(InstructionCode.Throw, val));

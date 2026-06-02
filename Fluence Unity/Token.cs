@@ -164,6 +164,11 @@
             COLLECTIVE_OR_GREATER,          // <||>|
             COLLECTIVE_OR_GREATER_EQUAL,    // <||>=|
 
+            // Coroutines.
+            YIELD,
+            COROUTINE,
+            RESUME,
+
             TYPE_OF,
             THROW,
 

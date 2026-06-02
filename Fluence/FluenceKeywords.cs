@@ -46,6 +46,9 @@ namespace Fluence
                 TokenType.TRAIT or
                 TokenType.THROW or
                 TokenType.ROOT or
+                TokenType.YIELD or
+                TokenType.RESUME or
+                TokenType.COROUTINE or
                 TokenType.REST => true,
                 _ => false,
             };
@@ -104,14 +107,19 @@ namespace Fluence
                     if (text.SequenceEqual("solid")) return TokenType.SOLID;
                     if (text.SequenceEqual("throw")) return TokenType.THROW;
                     if (text.SequenceEqual("times")) return TokenType.TIMES;
+                    if (text.SequenceEqual("yield")) return TokenType.YIELD;
                     break;
                 case 6:
                     if (text.SequenceEqual("return")) return TokenType.RETURN;
+                    if (text.SequenceEqual("resume")) return TokenType.RESUME;
                     if (text.SequenceEqual("struct")) return TokenType.STRUCT;
                     if (text.SequenceEqual("unless")) return TokenType.UNLESS;
                     break;
                 case 8:
                     if (text.SequenceEqual("continue")) return TokenType.CONTINUE;
+                    break;
+                case 9:
+                    if (text.SequenceEqual("coroutine")) return TokenType.COROUTINE;
                     break;
             }
 

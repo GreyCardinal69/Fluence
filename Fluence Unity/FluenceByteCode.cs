@@ -122,6 +122,10 @@ namespace Fluence.Unity
                 PushThreeParams,
                 PushFourParams,
 
+                NewCoroutine,
+                Yield,
+                Resume,
+
                 //      ==!!==
                 // Low-Level/Internal Operations.
 

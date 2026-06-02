@@ -32,7 +32,7 @@ namespace Fluence.Unity.VirtualMachine
         private readonly List<InstructionLine> _byteCode;
 
         /// <summary>The call stack, containing a <see cref="CallFrame"/> for each active function call.</summary>
-        private readonly Stack<CallFrame> _callStack;
+        private Stack<CallFrame> _callStack;
 
         /// <summary>A direct, cached reference to the registers of the currently executing function's call frame.</summary>
         private RuntimeValue[] _cachedRegisters;
@@ -43,6 +43,9 @@ namespace Fluence.Unity.VirtualMachine
         /// <summary>A dictionary holding all global variables.</summary>
         private readonly RuntimeValue[] _globals;
 
+        private CoroutineObject _activeCoroutine;
+        private readonly CoroutineObject _rootCoroutine;
+
         /// <summary>
         /// A dictionary of all global variable values in the bytecode by their names.
         /// </summary>
@@ -52,12 +55,12 @@ namespace Fluence.Unity.VirtualMachine
         private readonly FluenceScope _globalScope;
 
         /// <summary>The stack used for passing arguments to functions and for temporary operand storage.</summary>
-        private readonly Stack<RuntimeValue> _operandStack = new Stack<RuntimeValue>();
+        private Stack<RuntimeValue> _operandStack;
 
         /// <summary>
         /// The stack used for the tracking of try-catch blocks, if the stack is empty and an error occurs, the vm will crash regardless if the error can be caught.
         /// </summary>
-        private readonly Stack<TryCatchValue> _tryCatchBlocks = new Stack<TryCatchValue>();
+        private Stack<TryCatchValue> _tryCatchBlocks;
 
         /// <summary>
         /// A collection of the standard library names that are permitted to be loaded by a script.
@@ -237,7 +240,12 @@ namespace Fluence.Unity.VirtualMachine
             _byteCode = bytecode;
             _globalScope = parseState.GlobalScope;
 
-            _callStack = new Stack<CallFrame>();
+            _rootCoroutine = new CoroutineObject { State = CoroutineState.Running };
+            _activeCoroutine = _rootCoroutine;
+
+            _callStack = _rootCoroutine.CallStack;
+            _operandStack = _rootCoroutine.OperandStack;
+            _tryCatchBlocks = _rootCoroutine.TryCatchBlocks;
 
             _output = output ?? Console.Write;
             _outputLine = outputLine ?? Console.WriteLine;
@@ -330,6 +338,10 @@ namespace Fluence.Unity.VirtualMachine
             _dispatchTable[(int)InstructionCode.GotoIfFalse] = (inst) => ExecuteGotoIf(inst, false);
             _dispatchTable[(int)InstructionCode.GotoIfTrue] = (inst) => ExecuteGotoIf(inst, true);
 
+            _dispatchTable[(int)InstructionCode.NewCoroutine] = ExecuteNewCoroutine;
+            _dispatchTable[(int)InstructionCode.Resume] = ExecuteResume;
+            _dispatchTable[(int)InstructionCode.Yield] = ExecuteYield;
+
             _dispatchTable[(int)InstructionCode.NewLambda] = ExecuteNewLambda;
             _dispatchTable[(int)InstructionCode.IncrementIntUnrestricted] = ExecuteIncrementIntUnrestricted;
             _dispatchTable[(int)InstructionCode.LoadAddress] = ExecuteLoadAddress;
@@ -400,6 +412,30 @@ namespace Fluence.Unity.VirtualMachine
 
             // We store the global variables to allow the access and setting of their values by the interpreter.
             _globalVariableRegister.Add(variable.Name, variable);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SaveStateToActiveCoroutine()
+        {
+            _activeCoroutine.InstructionPointer = _ip;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void RestoreStateFromCoroutine(CoroutineObject coro)
+        {
+            _activeCoroutine = coro;
+
+            _callStack = coro.CallStack;
+            _operandStack = coro.OperandStack;
+            _tryCatchBlocks = coro.TryCatchBlocks;
+            _ip = coro.InstructionPointer;
+
+            if (_callStack.Count > 0)
+            {
+                CallFrame topFrame = _callStack.Peek();
+                _cachedRegisters = topFrame.Registers;
+                _cachedWritableCache = topFrame.WritableCache;
+            }
         }
 
         /// <summary>
@@ -756,6 +792,105 @@ namespace Fluence.Unity.VirtualMachine
             SetVariable(var, result);
         }
 
+
+        private void ExecuteNewCoroutine(InstructionLine instruction)
+        {
+            RuntimeValue functionVal = GetRuntimeValue(instruction.Rhs, instruction);
+
+            if (functionVal.ObjectReference is not FunctionObject function)
+            {
+                SignalError($"Runtime Error: Attempted to create a coroutine from a non-function type.");
+                return;
+            }
+
+            int argCount = GetRuntimeValue(instruction.Rhs2, instruction).IntValue;
+
+            if (function.Arity != argCount && function.Arity != -100)
+            {
+                SignalError($"Runtime Error: Wrong number of arguments for coroutine '{function.Name}'. Expected {function.Arity}, got {argCount}.");
+                return;
+            }
+
+            CoroutineObject newCoro = new CoroutineObject();
+            CallFrame newFrame = _callFramePool.Get();
+
+            // Return Address -1 acts as a sentinel to signify this is the root frame of a coroutine.
+            newFrame.Initialize(this, function, -1, null!);
+
+            int initialArgIndex = 0;
+            for (int i = argCount - 1; i >= 0; i--)
+            {
+                int paramIndex = initialArgIndex + i;
+                RuntimeValue argValue = _operandStack.Pop();
+                newFrame.Registers[paramIndex] = argValue;
+            }
+
+            newCoro.CallStack.Push(newFrame);
+            newCoro.InstructionPointer = function.StartAddress;
+
+            SetVariableOrRegister(instruction.Lhs, new RuntimeValue(newCoro), instruction);
+        }
+
+        private void ExecuteResume(InstructionLine instruction)
+        {
+            RuntimeValue coroVal = GetRuntimeValue(instruction.Rhs, instruction);
+            if (coroVal.ObjectReference is not CoroutineObject coroToResume)
+            {
+                SignalError("Runtime Error: Cannot resume a non-coroutine value.");
+                return;
+            }
+
+            if (coroToResume.State == CoroutineState.Dead)
+            {
+                SetVariableOrRegister(instruction.Lhs, RuntimeValue.Nil, instruction);
+                return;
+            }
+
+            RuntimeValue argToPass = GetRuntimeValue(instruction.Rhs2, instruction);
+
+            coroToResume.Caller = _activeCoroutine;
+
+            // Where the yielded result will go when it yields.
+            coroToResume.ResumeTarget = instruction.Lhs;
+            coroToResume.State = CoroutineState.Running;
+
+            SaveStateToActiveCoroutine();
+            RestoreStateFromCoroutine(coroToResume);
+
+            if (coroToResume.YieldTarget is not null)
+            {
+                SetVariableOrRegister(coroToResume.YieldTarget, argToPass, instruction);
+                coroToResume.YieldTarget = null;
+            }
+        }
+
+        private void ExecuteYield(InstructionLine instruction)
+        {
+            if (_activeCoroutine.Caller == null)
+            {
+                SignalError("Runtime Error: Cannot yield from the root execution thread.");
+                return;
+            }
+
+            RuntimeValue valueToYield = GetRuntimeValue(instruction.Rhs, instruction);
+
+            CoroutineObject yieldingCoro = _activeCoroutine;
+            CoroutineObject caller = yieldingCoro.Caller;
+
+            yieldingCoro.YieldTarget = instruction.Lhs;
+            yieldingCoro.State = CoroutineState.Suspended;
+            yieldingCoro.Caller = null;
+
+            SaveStateToActiveCoroutine();
+            RestoreStateFromCoroutine(caller);
+
+            if (yieldingCoro.ResumeTarget is not null)
+            {
+                SetVariableOrRegister(yieldingCoro.ResumeTarget, valueToYield, instruction);
+                yieldingCoro.ResumeTarget = null;
+            }
+        }
+
         private void ExecuteLoadAddress(InstructionLine instruction)
         {
             ReferenceValue reference = (ReferenceValue)instruction.Lhs;
@@ -975,8 +1110,8 @@ namespace Fluence.Unity.VirtualMachine
                     return;
                 }
 
-                int start = Convert.ToInt32(startValue.IntValue);
-                int end = Convert.ToInt32(endValue.IntValue);
+                int start = startValue.IntValue;
+                int end = endValue.IntValue;
 
                 if (start <= end)
                 {
@@ -1443,8 +1578,8 @@ namespace Fluence.Unity.VirtualMachine
                             SignalError($"Runtime Error: Cannot get length of a range with non-numeric bounds ({GetDetailedTypeName(range.Start)}, {GetDetailedTypeName(range.End)}).");
                             return;
                         }
-                        int start = Convert.ToInt32(range.Start.IntValue);
-                        int end = Convert.ToInt32(range.End.IntValue);
+                        int start = range.Start.IntValue;
+                        int end = range.End.IntValue;
                         length = end < start ? 0 : end - start + 1;
                         break;
                     default:
@@ -1506,8 +1641,8 @@ namespace Fluence.Unity.VirtualMachine
                     return;
                 }
 
-                int start = Convert.ToInt32(startValue.IntValue);
-                int end = Convert.ToInt32(endValue.IntValue);
+                int start = startValue.IntValue;
+                int end = endValue.IntValue;
 
                 if (start <= end)
                 {
@@ -1843,8 +1978,8 @@ namespace Fluence.Unity.VirtualMachine
             switch (iterator.Iterable)
             {
                 case RangeObject range:
-                    int start = Convert.ToInt32(range.Start.IntValue);
-                    int end = Convert.ToInt32(range.End.IntValue);
+                    int start = range.Start.IntValue;
+                    int end = range.End.IntValue;
                     int currentValue = start + iterator.CurrentIndex;
 
                     if (start <= end ? currentValue <= end : currentValue >= end)
@@ -2554,6 +2689,7 @@ namespace Fluence.Unity.VirtualMachine
             _ip = functionToExecute.StartAddress;
         }
 
+
         /// <summary>
         /// Handles the RETURN instruction, which ends the current function's execution.
         /// </summary>
@@ -2562,17 +2698,43 @@ namespace Fluence.Unity.VirtualMachine
             RuntimeValue returnValue = GetRuntimeValue(instruction.Lhs, instruction);
             CallFrame finishedFrame = _callStack.Pop();
 
-            _cachedRegisters = _callStack.Peek().Registers;
-            _cachedWritableCache = _callStack.Peek().WritableCache;
-
             if (_callStack.Count == 0)
             {
-                // This means we are trying to return from the top-level script.
-                // In this case, we can treat it like a Terminate.
-                _ip = _byteCode.Count;
-                _callFramePool.Return(finishedFrame);
-                return;
+                // Is this a Coroutine finishing?
+                if (_activeCoroutine.Caller != null)
+                {
+                    CoroutineObject deadCoro = _activeCoroutine;
+                    CoroutineObject caller = deadCoro.Caller;
+
+                    deadCoro.State = CoroutineState.Dead;
+                    deadCoro.Caller = null;
+
+                    SaveStateToActiveCoroutine();
+                    RestoreStateFromCoroutine(caller);
+
+                    if (deadCoro.ResumeTarget is not null)
+                    {
+                        SetVariableOrRegister(deadCoro.ResumeTarget, returnValue, instruction);
+                        deadCoro.ResumeTarget = null;
+                    }
+
+                    if (finishedFrame.Function.IsLambda)
+                        _functionObjectPool.Return(finishedFrame.Function);
+
+                    _callFramePool.Return(finishedFrame);
+                    return;
+                }
+                else
+                {
+                    // This means we are terminating the top-level root script.
+                    _ip = _byteCode.Count;
+                    _callFramePool.Return(finishedFrame);
+                    return;
+                }
             }
+
+            _cachedRegisters = _callStack.Peek().Registers;
+            _cachedWritableCache = _callStack.Peek().WritableCache;
 
             _cachedRegisters[finishedFrame.DestinationRegister.RegisterIndex] = returnValue;
 
@@ -2995,7 +3157,7 @@ namespace Fluence.Unity.VirtualMachine
                 return SignalRecoverableErrorAndReturnNil($"Internal VM Error: Cannot multiply a list by a non-integer number ({num.NumberType}).");
             }
 
-            int count = Convert.ToInt32(num.IntValue);
+            int count = num.IntValue;
             ListObject repeatedList = new ListObject();
 
             if (count > 0)
@@ -3053,7 +3215,7 @@ namespace Fluence.Unity.VirtualMachine
                 return SignalRecoverableErrorAndReturnNil($"Internal VM Error: Cannot multiply a string by a non-integer number (got {num.NumberType}).");
             }
 
-            int count = Convert.ToInt32(num.IntValue);
+            int count = num.IntValue;
 
             // Multiplying by 0 or a negative number results in an empty string.
             if (count <= 0)

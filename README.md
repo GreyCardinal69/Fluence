@@ -12,6 +12,8 @@ Fluence is a dynamically-typed, embeddable interpreted scripting language. It pr
 Have questions, ideas, want to contact me or just want to chat about Fluence? Join the following discord server:
 *   **[Discord Server](https://discord.com/invite/p3Vt5MJ)**
 
+You can find the Unity version at: <a>https://github.com/GreyCardinal69/Fluence-Unity</a>
+
 ## Table of Contents
 
 - [Performace](#performance)

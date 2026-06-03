@@ -79,16 +79,18 @@ namespace Fluence
         /// <returns>True if the symbol was found in this scope or any parent scope; otherwise, false.</returns>
         internal bool TryResolve(int hash, out Symbol symbol)
         {
-            ref Symbol localSymbol = ref CollectionsMarshal.GetValueRefOrNullRef(Symbols, hash);
-            if (!Unsafe.IsNullRef(ref localSymbol))
-            {
-                symbol = localSymbol;
-                return true;
-            }
+            FluenceScope current = this;
 
-            if (ParentScope != null)
+            while (current != null)
             {
-                return ParentScope.TryResolve(hash, out symbol);
+                ref Symbol localSymbol = ref CollectionsMarshal.GetValueRefOrNullRef(current.Symbols, hash);
+                if (!Unsafe.IsNullRef(ref localSymbol))
+                {
+                    symbol = localSymbol;
+                    return true;
+                }
+
+                current = current.ParentScope;
             }
 
             symbol = null!;

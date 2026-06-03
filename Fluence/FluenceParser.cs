@@ -35,7 +35,7 @@ namespace Fluence
 
         private readonly List<List<Token>> _tokenStreams = new List<List<Token>>();
 
-        private readonly ObjectPool<FluenceLexer> _lexerPool = new ObjectPool<FluenceLexer>(lexer => lexer.Reset(), 2);
+        private readonly ResettableObjectPool<FluenceLexer> _lexerPool = new ResettableObjectPool<FluenceLexer>(lexer => lexer.Reset(), 2);
 
         /// <summary>
         /// Indicates that we are parsing a multi-file Fluence project.
@@ -135,7 +135,7 @@ namespace Fluence
         /// <summary>
         /// A pool of lists for the initialization of arguments, be it expression, function call or other.
         /// </summary>
-        readonly ObjectPool<List<Value>> _lhsPool = new ObjectPool<List<Value>>(list => list.Clear(), 2);
+        readonly ResettableObjectPool<List<Value>> _lhsPool = new ResettableObjectPool<List<Value>>(list => list.Clear(), 2);
 
         /// <summary>
         /// Exposes the global scope of the current parsing state, primarily for the intrinsic registrar.

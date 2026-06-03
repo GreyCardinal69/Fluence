@@ -15,8 +15,6 @@ namespace Fluence.RuntimeTypes
 
         internal void Initialize(char value) => Value = value;
 
-        internal void Reset() => Value = default;
-
         /// <inheritdoc/>
         public bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method)
         {

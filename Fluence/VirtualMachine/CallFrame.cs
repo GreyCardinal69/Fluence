@@ -93,7 +93,13 @@ namespace Fluence.VirtualMachine
 
             if (requiredSize > 0)
             {
+                Array.Clear(Registers, 0, Registers.Length);
                 Array.Clear(WritableCache, 0, requiredSize);
+            }
+
+            if (RefParameterMap.Count != 0)
+            {
+                RefParameterMap.Clear();
             }
         }
     }

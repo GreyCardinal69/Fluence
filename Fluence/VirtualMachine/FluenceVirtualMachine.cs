@@ -2984,7 +2984,7 @@ namespace Fluence.VirtualMachine
         /// </summary>
         /// <param name="funcSymbol">The blueprint for the <see cref="FunctionObject"/> to create.</param>
         /// <returns>The initialized <see cref="FunctionObject"/>.</returns>
-        private FunctionObject CreateFunctionObject(FunctionValue funcValue)
+        internal FunctionObject CreateFunctionObject(FunctionValue funcValue)
         {
             FunctionObject func = _functionObjectPool.Get();
             func.Initialize(funcValue);
@@ -3208,7 +3208,7 @@ namespace Fluence.VirtualMachine
         /// <param name="libraryName">The name of the library being checked.</param>
         /// <returns>True if the library is permitted to be used.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool IsLibraryAllowed(string libraryName)
+        internal bool IsLibraryAllowed(string libraryName)
         {
             if (_disallowedIntrinsicLibraries.Contains(libraryName))
             {

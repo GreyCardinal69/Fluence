@@ -34,7 +34,6 @@ namespace Fluence.Unity
 
             _libraryRegistry[FluenceDiagnostics.NamespaceName.GetHashCode()] = (scope) =>
             {
-                FluenceUnsafe.Register(scope, _outputLine, _input, _output);
                 FluenceDiagnostics.Register(scope, _outputLine, _input, errorOutput);
             };
         }

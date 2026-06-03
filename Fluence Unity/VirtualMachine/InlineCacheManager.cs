@@ -1572,32 +1572,112 @@ namespace Fluence.Unity.VirtualMachine
             int refMask = functionBlueprint.RefMask;
             int baseArgRegisterIndex = func.BelongsToAStruct ? 1 : 0;
 
-            FunctionObject function = function = vm.CreateFunctionObject(functionBlueprint);
+            FunctionObject function = vm.CreateFunctionObject(functionBlueprint);
 
-            return (instruction, vm) =>
+            if (refMask == 0)
             {
-                CallFrame newFrame = vm.GetCallframe();
-                newFrame.Initialize(vm, function, vm.CurrentInstructionPointer, destinationRegister);
+                // By returning a specific delegate for each count, we eliminate the 'for' loop and 'isRef' checks entirely.
+                switch (argCount)
+                {
+                    case 0:
+                        return (instruction, vmContext) =>
+                        {
+                            CallFrame newFrame = vmContext.GetCallframe();
+                            newFrame.Initialize(vmContext, function, vmContext.CurrentInstructionPointer, destinationRegister);
+                            vmContext.PrepareFunctionCall(newFrame, function);
+                        };
+
+                    case 1:
+                        int p0 = baseArgRegisterIndex;
+                        return (instruction, vmContext) =>
+                        {
+                            CallFrame newFrame = vmContext.GetCallframe();
+                            newFrame.Initialize(vmContext, function, vmContext.CurrentInstructionPointer, destinationRegister);
+                            newFrame.Registers[p0] = vmContext.PopStack();
+                            vmContext.PrepareFunctionCall(newFrame, function);
+                        };
+
+                    case 2:
+                        int p1_2 = baseArgRegisterIndex + 1;
+                        int p0_2 = baseArgRegisterIndex;
+                        return (instruction, vmContext) =>
+                        {
+                            CallFrame newFrame = vmContext.GetCallframe();
+                            newFrame.Initialize(vmContext, function, vmContext.CurrentInstructionPointer, destinationRegister);
+                            newFrame.Registers[p1_2] = vmContext.PopStack();
+                            newFrame.Registers[p0_2] = vmContext.PopStack();
+                            vmContext.PrepareFunctionCall(newFrame, function);
+                        };
+
+                    case 3:
+                        int p2_3 = baseArgRegisterIndex + 2;
+                        int p1_3 = baseArgRegisterIndex + 1;
+                        int p0_3 = baseArgRegisterIndex;
+                        return (instruction, vmContext) =>
+                        {
+                            CallFrame newFrame = vmContext.GetCallframe();
+                            newFrame.Initialize(vmContext, function, vmContext.CurrentInstructionPointer, destinationRegister);
+                            newFrame.Registers[p2_3] = vmContext.PopStack();
+                            newFrame.Registers[p1_3] = vmContext.PopStack();
+                            newFrame.Registers[p0_3] = vmContext.PopStack();
+                            vmContext.PrepareFunctionCall(newFrame, function);
+                        };
+
+                    case 4:
+                        int p3_4 = baseArgRegisterIndex + 3;
+                        int p2_4 = baseArgRegisterIndex + 2;
+                        int p1_4 = baseArgRegisterIndex + 1;
+                        int p0_4 = baseArgRegisterIndex;
+                        return (instruction, vmContext) =>
+                        {
+                            CallFrame newFrame = vmContext.GetCallframe();
+                            newFrame.Initialize(vmContext, function, vmContext.CurrentInstructionPointer, destinationRegister);
+                            newFrame.Registers[p3_4] = vmContext.PopStack();
+                            newFrame.Registers[p2_4] = vmContext.PopStack();
+                            newFrame.Registers[p1_4] = vmContext.PopStack();
+                            newFrame.Registers[p0_4] = vmContext.PopStack();
+                            vmContext.PrepareFunctionCall(newFrame, function);
+                        };
+
+                    default:
+                        // Fallback for 5+ arguments.
+                        return (instruction, vmContext) =>
+                        {
+                            CallFrame newFrame = vmContext.GetCallframe();
+                            newFrame.Initialize(vmContext, function, vmContext.CurrentInstructionPointer, destinationRegister);
+
+                            for (int i = argCount - 1; i >= 0; i--)
+                            {
+                                newFrame.Registers[baseArgRegisterIndex + i] = vmContext.PopStack();
+                            }
+
+                            vmContext.PrepareFunctionCall(newFrame, function);
+                        };
+                }
+            }
+
+            // Function with ref params.
+            return (instruction, vmContext) =>
+            {
+                CallFrame newFrame = vmContext.GetCallframe();
+                newFrame.Initialize(vmContext, function, vmContext.CurrentInstructionPointer, destinationRegister);
 
                 for (int i = argCount - 1; i >= 0; i--)
                 {
                     int paramIndex = baseArgRegisterIndex + i;
+                    RuntimeValue argValue = vmContext.PopStack();
 
-                    RuntimeValue argValue = vm.PopStack();
-                    bool isRef = (refMask & (1 << i)) != 0;
-
-                    if (isRef)
+                    if ((refMask & (1 << i)) != 0)
                     {
-                        if (argValue.ObjectReference is not ReferenceValue reference)
+                        if (argValue.ObjectReference is ReferenceValue reference)
                         {
-                            vm.SignalError($"Internal VM Error: Argument '{function.Arguments[i]}' in function: \"{function.ToCodeLikeString()}\" must be passed by reference ('ref').");
-                            return;
+                            newFrame.RefParameterMap[paramIndex] = reference.Reference.RegisterIndex;
+                            newFrame.Registers[paramIndex] = vmContext.GetRuntimeValue(reference.Reference, instruction);
                         }
                         else
                         {
-                            newFrame.RefParameterMap[paramIndex] = reference.Reference.RegisterIndex;
-                            argValue = vm.GetRuntimeValue(reference.Reference, instruction);
-                            newFrame.Registers[paramIndex] = argValue;
+                            vmContext.SignalError($"Internal VM Error: Argument '{function.Arguments[i]}' in function: \"{function.ToCodeLikeString()}\" must be passed by reference ('ref').");
+                            return;
                         }
                     }
                     else
@@ -1606,7 +1686,7 @@ namespace Fluence.Unity.VirtualMachine
                     }
                 }
 
-                vm.PrepareFunctionCall(newFrame, function);
+                vmContext.PrepareFunctionCall(newFrame, function);
             };
         }
     }

@@ -1,5 +1,5 @@
 ﻿using Fluence.Unity.RuntimeTypes;
-using static Fluence.FluenceInterpreter;
+using static Fluence.Unity.FluenceInterpreter;
 
 namespace Fluence.Unity
 {
@@ -43,7 +43,7 @@ namespace Fluence.Unity
                 RuntimeValue val = vm.PopStack();
                 outputLine($"[WARNING] {val}");
                 return RuntimeValue.Nil;
-            }, diagnosticsNamespace, new List<string>() { "message" } ));
+            }, diagnosticsNamespace, new List<string>() { "message" }));
 
             debugStruct.StaticIntrinsics.Add("log_error__1", new FunctionSymbol("log_error__1", 1, (vm, args) =>
             {

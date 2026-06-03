@@ -1,9 +1,7 @@
 ﻿using Fluence.RuntimeTypes;
-using System.Diagnostics;
-using System.Text;
 using static Fluence.FluenceInterpreter;
 
-namespace Fluence
+namespace Fluence.StandardLibraries
 {
     /// <summary>
     /// A standard library that provides functionality for diagnostics.
@@ -31,28 +29,28 @@ namespace Fluence
                     vm.SignalError($"[Assertion Failed] {msg}");
                 }
                 return RuntimeValue.Nil;
-            }, diagnosticsNamespace, [ "condition", "message" ]));
+            }, diagnosticsNamespace, ["condition", "message"]));
 
             debugStruct.StaticIntrinsics.Add("log_info__1", new FunctionSymbol("log_info__1", 1, (vm, args) =>
             {
                 RuntimeValue val = vm.PopStack();
                 outputLine($"[INFO] {val}");
                 return RuntimeValue.Nil;
-            }, diagnosticsNamespace, [ "message" ]));
+            }, diagnosticsNamespace, ["message"]));
 
             debugStruct.StaticIntrinsics.Add("log_warning__1", new FunctionSymbol("log_warning__1", 1, (vm, args) =>
             {
                 RuntimeValue val = vm.PopStack();
                 outputLine($"[WARNING] {val}");
                 return RuntimeValue.Nil;
-            }, diagnosticsNamespace, [ "message" ]));
+            }, diagnosticsNamespace, ["message"]));
 
             debugStruct.StaticIntrinsics.Add("log_error__1", new FunctionSymbol("log_error__1", 1, (vm, args) =>
             {
                 RuntimeValue val = vm.PopStack();
                 errorOutput($"[ERROR] {val}");
                 return RuntimeValue.Nil;
-            }, diagnosticsNamespace, ["message" ]));
+            }, diagnosticsNamespace, ["message"]));
 
             StructSymbol profilerStruct = new StructSymbol("Profiler", diagnosticsNamespace);
             diagnosticsNamespace.Declare("Profiler".GetHashCode(), profilerStruct);

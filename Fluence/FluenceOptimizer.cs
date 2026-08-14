@@ -335,26 +335,51 @@ namespace Fluence
 
                 if (lambdaDepth > 0) continue;
 
+                static void InvalidateIfReadBeforeAssign(Value operand)
+                {
+                    if (operand is VariableValue varOp && !varOp.IsGlobal)
+                    {
+                        ref (int Count, Value? ConstVal, int DefIndex) stats = ref CollectionsMarshal.GetValueRefOrAddDefault(_varStatsMap, varOp.Hash, out _);
+
+                        if (stats.Count == 0)
+                        {
+                            stats.Count = 1000;
+                        }
+                    }
+                }
+
+                if (insn.Rhs != null) InvalidateIfReadBeforeAssign(insn.Rhs);
+                if (insn.Rhs2 != null) InvalidateIfReadBeforeAssign(insn.Rhs2);
+                if (insn.Rhs3 != null) InvalidateIfReadBeforeAssign(insn.Rhs3);
+
                 if (insn.Lhs is VariableValue varLhs && !varLhs.IsGlobal)
                 {
                     ref (int Count, Value? ConstVal, int DefIndex) stats = ref CollectionsMarshal.GetValueRefOrAddDefault(_varStatsMap, varLhs.Hash, out _);
 
                     if (insn.Instruction == InstructionCode.Assign)
                     {
-                        stats.Count++;
-                        if (IsAConstantValue(insn.Rhs))
+                        if (stats.Count == 0)
                         {
-                            stats.ConstVal = insn.Rhs;
-                            stats.DefIndex = i;
+                            stats.Count = 1;
+                            if (IsAConstantValue(insn.Rhs))
+                            {
+                                stats.ConstVal = insn.Rhs;
+                                stats.DefIndex = i;
+                            }
+                            else
+                            {
+                                stats.ConstVal = null;
+                            }
                         }
                         else
                         {
+                            stats.Count++;
                             stats.ConstVal = null;
                         }
                     }
                     else
                     {
-                        stats.Count = 1000; // Can be whatever except 1.
+                        stats.Count = 1000;
                         stats.ConstVal = null;
                     }
                 }

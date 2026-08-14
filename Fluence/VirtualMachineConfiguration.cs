@@ -85,5 +85,15 @@
         /// Defaults to <see cref="ExecutionPipelineEndpoint.DontStop"/>.
         /// </remarks>
         internal ExecutionPipelineEndpoint ExecutionEndPoint { get; set; } = ExecutionPipelineEndpoint.DontStop;
+
+        /// <summary>
+        /// Instructs all stages of the Fluence pipline to log or not log debug information like the token stream, the bytecode generated and similar.
+        /// </summary>
+        public bool LogDebugInformation { get; set; } = true;
+
+        /// <summary>
+        /// Instructs the Virtual Machine whether to collect information about each instruction executed in debug mode.
+        /// </summary>
+        public bool CollectBytecodeInstructionStatistics { get; set; } = true;
     }
 }

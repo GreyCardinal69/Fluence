@@ -129,6 +129,17 @@ namespace Fluence.RuntimeTypes
             return value != null;
         }
 
+        private static string ExtractStringValue(object obj)
+        {
+            if (obj == null) return "";
+
+            if (obj is StringObject strObj) return strObj.Value ?? "";
+
+            if (obj is string s) return s;
+
+            return obj.ToString() ?? "";
+        }
+
         internal bool IsNot<T>(out T? value) where T : class
         {
             if (ObjectReference is T)

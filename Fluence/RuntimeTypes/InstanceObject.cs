@@ -7,19 +7,29 @@ namespace Fluence.RuntimeTypes
     /// Represents a runtime instance of a user-defined 'struct'. It holds a reference
     /// to its class blueprint (the StructSymbol) and its own set of instance fields.
     /// </summary>
-    internal sealed record class InstanceObject : IFluenceObject
+    internal sealed class InstanceObject : IFluenceObject
     {
         /// <summary>
         /// The compile-time "class" or blueprint that defines the structure and methods for this instance.
         /// </summary>
-        internal StructSymbol Class { get; init; }
+        internal StructSymbol Class
+        {
+            get; private set;
+        }
 
         /// <summary>
         /// A dictionary storing the state of this specific instance.
         /// </summary>
-        private readonly Dictionary<string, RuntimeValue> _fields = new();
+        private readonly Dictionary<string, RuntimeValue> _fields = new Dictionary<string, RuntimeValue>();
 
-        internal InstanceObject(StructSymbol symb) => Class = symb;
+        internal InstanceObject(StructSymbol symb)
+        {
+            Class = symb;
+            foreach (string fieldName in Class.Fields)
+            {
+                _fields[fieldName] = RuntimeValue.Nil;
+            }
+        }
 
         /// <summary>
         /// Gets the value of a field or method from the instance.
@@ -33,6 +43,11 @@ namespace Fluence.RuntimeTypes
             if (_fields.TryGetValue(fieldName, out RuntimeValue value))
             {
                 return value;
+            }
+
+            if (Class.Fields.Contains(fieldName))
+            {
+                return RuntimeValue.Nil;
             }
 
             if (Class.StaticFields.TryGetValue(fieldName, out RuntimeValue value2))
@@ -56,7 +71,6 @@ namespace Fluence.RuntimeTypes
         /// <param name="value">The new value for the field.</param>
         internal void SetField(string fieldName, RuntimeValue value)
         {
-            ArgumentNullException.ThrowIfNull(fieldName);
             _fields[fieldName] = value;
         }
 
@@ -77,7 +91,7 @@ namespace Fluence.RuntimeTypes
         }
 
         /// <inheritdoc/>
-        public bool TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method)
+        bool IFluenceObject.TryGetIntrinsicMethod(string name, out IntrinsicRuntimeMethod method)
         {
             method = name switch
             {

@@ -23,6 +23,8 @@ namespace Fluence
 
         private readonly ParseState _currentParseState;
 
+        private readonly FluenceInterpreter _interpreter;
+
         /// <summary>
         /// Marks the index of the last bytecode instruction, up to which the bytecode has already been passed through by
         /// the <see cref="FluenceOptimizer"/>.
@@ -81,7 +83,7 @@ namespace Fluence
 
         static FluenceParser()
         {
-            InstructionCode[] opcodes = Enum.GetValues<InstructionCode>();
+            InstructionCode[] opcodes = (InstructionCode[])Enum.GetValues(typeof(InstructionCode));
             _operandUsageMap = new OperandUsage[opcodes.Max(op => (int)op) + 1];
 
             static void SetUsage(OperandUsage usage, params InstructionCode[] codes)
@@ -296,7 +298,7 @@ namespace Fluence
             }
         }
 
-        internal FluenceParser(string root, VirtualMachineConfiguration config, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input, TextOutputMethod outError)
+        internal FluenceParser(string root, FluenceInterpreter interpreter, VirtualMachineConfiguration config, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input, TextOutputMethod outError)
         {
             _vmConfiguration = config;
             _currentParseState = new ParseState(this);
@@ -306,16 +308,20 @@ namespace Fluence
             _allProjectFiles.AddRange(Directory.GetFiles(root, "*.fl", SearchOption.AllDirectories));
             _currentParseState.ProjectFilePaths.AddRange(_allProjectFiles);
 
+            _interpreter = interpreter;
+
             _outputLine = outLine;
             _intrinsicsManager = new FluenceIntrinsics(this, outLine, input, outNormal, outError);
             _intrinsicsManager.RegisterCoreGlobals();
         }
 
-        internal FluenceParser(FluenceLexer lexer, VirtualMachineConfiguration config, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input, TextOutputMethod outError)
+        internal FluenceParser(FluenceLexer lexer, FluenceInterpreter interpreter, VirtualMachineConfiguration config, TextOutputMethod outLine, TextOutputMethod outNormal, TextInputMethod input, TextOutputMethod outError)
         {
             _vmConfiguration = config;
             _currentParseState = new ParseState(this);
             _lexer = lexer;
+
+            _interpreter = interpreter;
 
             _outputLine = outLine;
             _intrinsicsManager = new FluenceIntrinsics(this, outLine, input, outNormal, outError);
@@ -440,6 +446,10 @@ namespace Fluence
 
         internal void AddNameSpace(FluenceScope nameSpace)
         {
+            if (_interpreter.DisallowedLibraries.Contains(nameSpace.Name))
+            {
+                throw ConstructParserException($"Security exception, the library: '{nameSpace.Name}' is not allowed to be used due to sandboxing settings.", _lexer.PeekCurrentToken());
+            }
             _currentParseState.NameSpaces.TryAdd(nameSpace.Name.GetHashCode(), nameSpace);
         }
 
@@ -452,8 +462,11 @@ namespace Fluence
                 FluenceLexer lexer = new FluenceLexer(File.ReadAllText(path), path);
                 lexer.LexFullSource();
 
-#if DEBUG
-                lexer.DumpTokenStream($"Initial Token Stream (Before Pre-Parsing declarations) | {path}", _outputLine);
+#if DEBUG     
+                if (_vmConfiguration.LogDebugInformation)
+                {
+                    lexer.DumpTokenStream($"Initial Token Stream (Before Pre-Parsing declarations) | {path}", _outputLine);
+                }
 #endif
 
                 _lexer = lexer;
@@ -475,7 +488,10 @@ namespace Fluence
                 _lexer = new FluenceLexer(_tokenStreams[i], _allProjectFiles[i]);
 
 #if DEBUG
-                _lexer.DumpTokenStream($"Token stream after parsing declarations. | {_currentParsingFileName}", _outputLine);
+                if (_vmConfiguration.LogDebugInformation)
+                {
+                    _lexer.DumpTokenStream($"Token stream after parsing declarations. | {_currentParsingFileName}", _outputLine);
+                }
 #endif
 
                 while (!_lexer.HasReachedEnd)
@@ -501,7 +517,10 @@ namespace Fluence
             }
 
 #if DEBUG
-            _lexer.DumpTokenStream("Initial Token Stream (Before Pre-Parsing declarations)", _outputLine);
+            if (_vmConfiguration.LogDebugInformation)
+            {
+                _lexer.DumpTokenStream("Initial Token Stream (Before Pre-Parsing declarations)", _outputLine);
+            }
 #endif
 
             int parsedUpTo = 0;
@@ -513,7 +532,10 @@ namespace Fluence
             }
 
 #if DEBUG
-            _lexer.DumpTokenStream("Token stream after parsing declarations.", _outputLine);
+            if (_vmConfiguration.LogDebugInformation)
+            {
+                _lexer.DumpTokenStream("Token stream after parsing declarations.", _outputLine);
+            }
 #endif
 
             while (!_lexer.HasReachedEnd)
@@ -1429,7 +1451,7 @@ namespace Fluence
                 // Simple Statements that must be terminated.
                 case TokenType.RETURN:
                     ParseReturnStatement();
-                    if (_lexer.PeekNextTokenType() != TokenType.TRAIN_PIPE_END) AdvanceAndExpect(TokenType.EOL, "Expected a ';' or newline after the return statement.");
+                    AdvanceAndExpect(TokenType.EOL, "Expected a ';' or newline after the return statement.");
                     break;
                 case TokenType.BREAK:
                     _lexer.Advance(); // Consume 'break';
@@ -1462,12 +1484,8 @@ namespace Fluence
 
                     AdvanceAndExpect(TokenType.EOL, "Expected a ';' after the 'break' statement.");
                     break;
-                case TokenType.TRAIN_PIPE:
-                    ParseTrainPipe();
-                    break;
                 default:
                     ParseAssignment();
-                    if (_lexer.PeekNextTokenType() is TokenType.TRAIN_PIPE or TokenType.TRAIN_PIPE_END) return;
                     AdvanceAndExpect(TokenType.EOL, "Expected a ';' to terminate the statement.");
                     break;
             }
@@ -1745,20 +1763,6 @@ namespace Fluence
             }
 
             _currentParseState.CurrentStructContext = null!;
-        }
-
-        /// <summary>
-        /// Parses a train of statements until a closing train symbol is encountered.
-        /// </summary>
-        private void ParseTrainPipe()
-        {
-            while (_lexer.PeekNextTokenType() == TokenType.TRAIN_PIPE)
-            {
-                _lexer.Advance();
-                ParseStatement();
-            }
-
-            AdvanceAndExpect(TokenType.TRAIN_PIPE_END, "Expected a '<<-' operator to end a train pipe.");
         }
 
         /// <summary>
@@ -2105,14 +2109,7 @@ namespace Fluence
 
                     if (expressionTokens == null || expressionTokens.Count == 0)
                     {
-                        _currentParseState.AddCodeInstruction(
-                            new InstructionLine(
-                                InstructionCode.SetField,
-                                VariableValue.SelfVariable,
-                                new StringValue(fieldName),
-                                NilValue.NilInstance
-                            )
-                        );
+
                         continue;
                     }
 
@@ -2298,9 +2295,7 @@ namespace Fluence
         {
             int hash = name.GetHashCode();
 
-            ref VariableValue variable = ref CollectionsMarshal.GetValueRefOrNullRef(_currentParseState.LocalVariableInterner, hash);
-
-            if (!Unsafe.IsNullRef(ref variable))
+            if (_currentParseState.LocalVariableInterner.TryGetValue(hash, out VariableValue variable))
             {
                 return variable;
             }
@@ -2313,29 +2308,26 @@ namespace Fluence
 
         private static void ProcessValue(Value val, Dictionary<int, int> variableSlotMap, Dictionary<int, int> tempSlotMap, ref int nextSlotIndex)
         {
-            if (val is VariableValue var)
+            if (val is VariableValue varVal)
             {
-                if (var.IsGlobal) return; // Globals are handled by a separate pass.
+                if (varVal.IsGlobal) return;
 
-                ref int indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(variableSlotMap, var.Hash);
-
-                if (!Unsafe.IsNullRef(ref indexRef))
+                if (variableSlotMap.TryGetValue(varVal.Hash, out int index))
                 {
-                    var.RegisterIndex = indexRef;
+                    varVal.RegisterIndex = index;
                 }
                 else
                 {
                     int newIndex = nextSlotIndex++;
-                    variableSlotMap[var.Hash] = newIndex;
-                    var.RegisterIndex = newIndex;
+                    variableSlotMap[varVal.Hash] = newIndex;
+                    varVal.RegisterIndex = newIndex;
                 }
             }
             else if (val is TempValue temp)
             {
-                ref int indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(tempSlotMap, temp.Hash);
-                if (!Unsafe.IsNullRef(ref indexRef))
+                if (tempSlotMap.TryGetValue(temp.Hash, out int index))
                 {
-                    temp.RegisterIndex = indexRef;
+                    temp.RegisterIndex = index;
                 }
                 else
                 {
@@ -2356,10 +2348,10 @@ namespace Fluence
             else if (val is TryCatchValue tryCatch && !string.IsNullOrEmpty(tryCatch.ExceptionVarName))
             {
                 int hash = tryCatch.ExceptionVarName.GetHashCode();
-                ref int indexRef = ref CollectionsMarshal.GetValueRefOrNullRef(variableSlotMap, hash);
-                if (!Unsafe.IsNullRef(ref indexRef))
+
+                if (variableSlotMap.TryGetValue(hash, out int index))
                 {
-                    tryCatch.ExceptionAsVarRegisterIndex = indexRef;
+                    tryCatch.ExceptionAsVarRegisterIndex = index;
                 }
                 else
                 {
@@ -2631,11 +2623,7 @@ namespace Fluence
                     }
                 }
 
-                if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
-                {
-                    ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
-                }
-                else if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW))
+                if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW))
                 {
                     AdvanceAndExpect(TokenType.THIN_ARROW, "Expected a '->' for the match case expression.");
 
@@ -3517,7 +3505,7 @@ namespace Fluence
                     {
                         if (!ignoreFirstCopy)
                         {
-                            _currentParseState.CodeInstructions.AddRange(_currentParseState.CodeInstructions[start..end]);
+                            _currentParseState.CodeInstructions.AddRange(_currentParseState.CodeInstructions.GetRange(start, end - start));
                         }
                         ignoreFirstCopy = false;
 
@@ -3756,7 +3744,7 @@ namespace Fluence
 
             // The "value" of this entire ternary expression for the rest of the parser
             // is the temporary variable that holds the chosen result.
-            return result;
+            return ResolveValue(result);
         }
 
         /// <summary>
@@ -5231,6 +5219,7 @@ namespace Fluence
             }
         }
 
+
         /// <summary>
         /// Parses a coroutine expression.
         /// </summary>
@@ -5321,7 +5310,7 @@ namespace Fluence
         {
             if (AdvanceTokenIfMatch(TokenType.TYPE_OF))
             {
-                Value operand = ParseAccess();
+                Value operand = ResolveValue(ParseAccess());
 
                 TempValue resultRegister = new TempValue(_currentParseState.NextTempNumber++);
 
@@ -5472,11 +5461,7 @@ namespace Fluence
         /// <param name="errorMsgForSingleLine">The error to display when there is no '->' in a single line expression body.</param>
         private void ParseStatementBody(string errorMsgForSingleLine)
         {
-            if (_lexer.TokenTypeMatches(TokenType.THIN_ARROW) && _lexer.PeekTokenTypeAheadByN(2) == TokenType.TRAIN_PIPE)
-            {
-                ParseImitationBlockStatement(TokenType.THIN_ARROW, TokenType.EOL);
-            }
-            else if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
+            if (_lexer.TokenTypeMatches(TokenType.L_BRACE))
             {
                 ParseBlockStatement();
             }

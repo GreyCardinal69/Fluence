@@ -325,12 +325,10 @@ namespace Fluence
         /// <returns>True if compilation was successful, false otherwise.</returns>
         public bool Compile(string sourceCode, bool partialCode = false)
         {
-            ArgumentException.ThrowIfNullOrEmpty(sourceCode);
-
             try
             {
                 FluenceLexer lexer = new FluenceLexer(sourceCode);
-                FluenceParser parser = new FluenceParser(lexer, _vmConfiguration, OnOutputLine, OnOutput, OnInput, OnErrorOutput);
+                FluenceParser parser = new FluenceParser(lexer, this, _vmConfiguration, OnOutputLine, OnOutput, OnInput, OnErrorOutput);
                 _intrinsicsInstance = parser.Intrinsics;
                 _intrinsicsInstance.RegisterCustomIntrinsics(_customLibraries);
                 parser.Parse(partialCode);
@@ -338,7 +336,10 @@ namespace Fluence
                 if (_vmConfiguration.ExecutionEndPoint == VirtualMachineConfiguration.ExecutionPipelineEndpoint.StopAtLexer)
                 {
 #if DEBUG
-                    parser.Lexer.DumpTokenStream("Token Stream [StopAtLexer]", OnOutputLine);
+                    if (_vmConfiguration.LogDebugInformation)
+                    {
+                        parser.Lexer.DumpTokenStream("Token Stream [StopAtLexer]", OnOutputLine);
+                    }
 #endif
                     return true;
                 }
@@ -371,11 +372,9 @@ namespace Fluence
         /// <returns>True if compilation was successful, false otherwise.</returns>
         public bool CompileProject(string rootDir, bool partialCode = false)
         {
-            ArgumentException.ThrowIfNullOrEmpty(rootDir);
-
             try
             {
-                FluenceParser parser = new FluenceParser(rootDir, _vmConfiguration, OnOutputLine, OnOutput, OnInput, OnErrorOutput);
+                FluenceParser parser = new FluenceParser(rootDir, this, _vmConfiguration, OnOutputLine, OnOutput, OnInput, OnErrorOutput);
                 _intrinsicsInstance = parser.Intrinsics;
                 _intrinsicsInstance.RegisterCustomIntrinsics(_customLibraries);
                 parser.Parse(partialCode);
@@ -447,16 +446,32 @@ namespace Fluence
 
             try
             {
-                if (_vm.State is FluenceVMState.Finished or FluenceVMState.Error)
+                if (_vm.State == FluenceVMState.Error)
                 {
                     _vm = new FluenceVirtualMachine(_byteCode, _vmConfiguration, _parseState, OnOutput, OnOutputLine, OnInput);
                 }
+                else if (_vm.State == FluenceVMState.Finished)
+                {
+                    if (Configuration.ExecutionMode == FluenceExecutionMode.Stateless)
+                    {
+                        _vm = new FluenceVirtualMachine(_byteCode, _vmConfiguration, _parseState, OnOutput, OnOutputLine, OnInput);
+                    }
+                    else
+                    {
+                        // In Persistent mode, if the global script is finished, 
+                        // do don't reset the VM.
+                        return;
+                    }
 
-                _vm.SetIntrinsicLibraryWhiteAndBlackLists(AllowedLibraries, DisallowedLibraries);
-                _vm.RunFor(duration);
+                    _vm.SetIntrinsicLibraryWhiteAndBlackLists(AllowedLibraries, DisallowedLibraries);
+                    _vm.RunFor(duration);
 #if DEBUG
-                _vm.DumpPerformanceProfile();
+                    if (_vmConfiguration.CollectBytecodeInstructionStatistics)
+                    {
+                        _vm.DumpPerformanceProfile();
+                    }
 #endif
+                }
             }
             catch (FluenceException ex)
             {

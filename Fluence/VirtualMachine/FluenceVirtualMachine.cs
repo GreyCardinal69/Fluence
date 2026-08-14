@@ -270,13 +270,17 @@ namespace Fluence.VirtualMachine
             _callStack.Push(initialFrame);
 
             _cachedRegisters = initialFrame.Registers;
+            _cachedWritableCache = initialFrame.WritableCache;
 
             _globals = new RuntimeValue[globalRegisterSlotCount];
             _globalWritableCache = new bool[globalRegisterSlotCount];
 
 #if DEBUG
-            FluenceDebug.DumpByteCodeInstructions(_parser.CompiledCode, _outputLine);
-            FluenceDebug.GenerateCSharpCodeForInstructionList(_parser.CurrentParseState.CodeInstructions, _outputLine);
+            if (_configuration.LogDebugInformation)
+            {
+                FluenceDebug.DumpByteCodeInstructions(_parser.CompiledCode, _outputLine);
+                FluenceDebug.GenerateCSharpCodeForInstructionList(_parser.CurrentParseState.CodeInstructions, _outputLine);
+            }
 #endif
 
             _dispatchTable = new OpcodeHandler[maxOpCode + 1];
@@ -339,6 +343,10 @@ namespace Fluence.VirtualMachine
             _dispatchTable[(int)InstructionCode.GotoIfFalse] = (inst) => ExecuteGotoIf(inst, false);
             _dispatchTable[(int)InstructionCode.GotoIfTrue] = (inst) => ExecuteGotoIf(inst, true);
 
+            _dispatchTable[(int)InstructionCode.NewCoroutine] = ExecuteNewCoroutine;
+            _dispatchTable[(int)InstructionCode.Resume] = ExecuteResume;
+            _dispatchTable[(int)InstructionCode.Yield] = ExecuteYield;
+
             _dispatchTable[(int)InstructionCode.NewLambda] = ExecuteNewLambda;
             _dispatchTable[(int)InstructionCode.IncrementIntUnrestricted] = ExecuteIncrementIntUnrestricted;
             _dispatchTable[(int)InstructionCode.LoadAddress] = ExecuteLoadAddress;
@@ -349,10 +357,6 @@ namespace Fluence.VirtualMachine
 
             _dispatchTable[(int)InstructionCode.TryBlock] = ExecuteTryBlock;
             _dispatchTable[(int)InstructionCode.CatchBlock] = ExecuteCatchBlock;
-
-            _dispatchTable[(int)InstructionCode.NewCoroutine] = ExecuteNewCoroutine;
-            _dispatchTable[(int)InstructionCode.Resume] = ExecuteResume;
-            _dispatchTable[(int)InstructionCode.Yield] = ExecuteYield;
 
             //      ==!!==
             //      The following are unique opCodes generated only by the FluenceOptimizer.
@@ -404,6 +408,17 @@ namespace Fluence.VirtualMachine
             return false;
         }
 
+        private void RegisterVariableToGlobalRegister(VariableValue variable, HashSet<string> globalVars, ref int registerIndex)
+        {
+            globalVars.Add(variable.Name);
+            variable.IsGlobal = true;
+            variable.RegisterIndex = registerIndex;
+            registerIndex++;
+
+            // We store the global variables to allow the access and setting of their values by the interpreter.
+            _globalVariableRegister.Add(variable.Name, variable);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SaveStateToActiveCoroutine()
         {
@@ -426,17 +441,6 @@ namespace Fluence.VirtualMachine
                 _cachedRegisters = topFrame.Registers;
                 _cachedWritableCache = topFrame.WritableCache;
             }
-        }
-
-        private void RegisterVariableToGlobalRegister(VariableValue variable, HashSet<string> globalVars, ref int registerIndex)
-        {
-            globalVars.Add(variable.Name);
-            variable.IsGlobal = true;
-            variable.RegisterIndex = registerIndex;
-            registerIndex++;
-
-            // We store the global variables to allow the access and setting of their values by the interpreter.
-            _globalVariableRegister.Add(variable.Name, variable);
         }
 
         /// <summary>
@@ -653,7 +657,6 @@ namespace Fluence.VirtualMachine
             bool willRunUntilDone = duration == TimeSpan.MaxValue;
 
             int instructionCount = _byteCode.Count;
-            Span<InstructionLine> byteCodeSpan = CollectionsMarshal.AsSpan(_byteCode);
             bool timeOutEnabled = true;
 
             if (willRunUntilDone && _configuration.ExecutionTimeout == TimeSpan.MaxValue)
@@ -687,11 +690,14 @@ namespace Fluence.VirtualMachine
                     }
                 }
 
-                ref InstructionLine instruction = ref byteCodeSpan[_ip];
+                InstructionLine instruction = _byteCode[_ip];
                 _ip++;
 
 #if DEBUG
-                _stopwatch.Restart();
+                if (_configuration.CollectBytecodeInstructionStatistics)
+                {
+                    _stopwatch.Restart();
+                }
 #endif
 
                 if (instruction.SpecializedHandler != null)
@@ -704,11 +710,14 @@ namespace Fluence.VirtualMachine
                 }
 
 #if DEBUG
-                _stopwatch.Stop();
-                _instructionCounts.TryAdd(instruction.Instruction, 0);
-                _instructionCounts[instruction.Instruction]++;
-                _instructionTimings.TryAdd(instruction.Instruction, 0);
-                _instructionTimings[instruction.Instruction] += _stopwatch.ElapsedTicks;
+                if (_configuration.CollectBytecodeInstructionStatistics)
+                {
+                    _stopwatch.Stop();
+                    _instructionCounts.TryAdd(instruction.Instruction, 0);
+                    _instructionCounts[instruction.Instruction]++;
+                    _instructionTimings.TryAdd(instruction.Instruction, 0);
+                    _instructionTimings[instruction.Instruction] += _stopwatch.ElapsedTicks;
+                }
 #endif
             }
 
@@ -729,6 +738,72 @@ namespace Fluence.VirtualMachine
         internal void SetInstructionPointer(int id) => _ip = id;
 
         internal static void ExecuteSkip(InstructionLine _) { }
+
+        /// <summary>Handles the ADD instruction, which performs numeric addition, string concatenation, or list concatenation.</summary>
+        private void ExecuteAdd(InstructionLine instruction)
+        {
+            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
+            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
+
+            if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
+            {
+                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedAddHandler(instruction, this, left, right);
+                if (handler != null)
+                {
+                    instruction.SpecializedHandler = handler;
+                    handler(instruction, this);
+                    return;
+                }
+
+                // Fallback.
+                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(left.IntValue + right.IntValue), instruction);
+                return;
+            }
+
+            // String concatenation.
+            if ((left.Type == RuntimeValueType.Object && left.Is<StringObject>()) ||
+                (right.Type == RuntimeValueType.Object && right.Is<StringObject>()))
+            {
+                SetVariableOrRegister(instruction.Lhs, ResolveStringObjectRuntimeValue(string.Concat(left.ToString(), right.ToString())), instruction);
+                return;
+            }
+
+            if (left.Type == RuntimeValueType.Object && left.ObjectReference is ListObject leftList &&
+                right.Type == RuntimeValueType.Object && right.ObjectReference is ListObject rightList)
+            {
+                ListObject concatenatedList = new ListObject();
+
+                concatenatedList.Elements.AddRange(leftList.Elements);
+                concatenatedList.Elements.AddRange(rightList.Elements);
+
+                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(concatenatedList), instruction);
+                return;
+            }
+
+            SignalError($"Runtime Error: Cannot apply operator '+' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
+        }
+
+        private void ExecuteIncrementIntUnrestricted(InstructionLine instruction)
+        {
+            SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedIncrementIntUnrestrictedHandler(instruction, this);
+            if (handler != null)
+            {
+                instruction.SpecializedHandler = handler;
+                handler(instruction, this);
+                return;
+            }
+
+            if (instruction.Lhs is TempValue temp)
+            {
+                SetRegister(temp, new RuntimeValue(GetRuntimeValue(temp, instruction).IntValue + 1));
+                return;
+            }
+
+            VariableValue var = (VariableValue)instruction.Lhs;
+            RuntimeValue result = new RuntimeValue(GetRuntimeValue(var, instruction).IntValue + 1);
+            SetVariable(var, result);
+        }
+
 
         private void ExecuteNewCoroutine(InstructionLine instruction)
         {
@@ -826,71 +901,6 @@ namespace Fluence.VirtualMachine
                 SetVariableOrRegister(yieldingCoro.ResumeTarget, valueToYield, instruction);
                 yieldingCoro.ResumeTarget = null;
             }
-        }
-
-        /// <summary>Handles the ADD instruction, which performs numeric addition, string concatenation, or list concatenation.</summary>
-        private void ExecuteAdd(InstructionLine instruction)
-        {
-            RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
-            RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
-
-            if (left.Type == RuntimeValueType.Number && right.Type == RuntimeValueType.Number)
-            {
-                SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedAddHandler(instruction, this, left, right);
-                if (handler != null)
-                {
-                    instruction.SpecializedHandler = handler;
-                    handler(instruction, this);
-                    return;
-                }
-
-                // Fallback.
-                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(left.IntValue + right.IntValue), instruction);
-                return;
-            }
-
-            // String concatenation.
-            if ((left.Type == RuntimeValueType.Object && left.Is<StringObject>()) ||
-                (right.Type == RuntimeValueType.Object && right.Is<StringObject>()))
-            {
-                SetVariableOrRegister(instruction.Lhs, ResolveStringObjectRuntimeValue(string.Concat(left.ObjectReference, right.ObjectReference)), instruction);
-                return;
-            }
-
-            if (left.Type == RuntimeValueType.Object && left.ObjectReference is ListObject leftList &&
-                right.Type == RuntimeValueType.Object && right.ObjectReference is ListObject rightList)
-            {
-                ListObject concatenatedList = new ListObject();
-
-                concatenatedList.Elements.AddRange(leftList.Elements);
-                concatenatedList.Elements.AddRange(rightList.Elements);
-
-                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(concatenatedList), instruction);
-                return;
-            }
-
-            SignalError($"Runtime Error: Cannot apply operator '+' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
-        }
-
-        private void ExecuteIncrementIntUnrestricted(InstructionLine instruction)
-        {
-            SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedIncrementIntUnrestrictedHandler(instruction, this);
-            if (handler != null)
-            {
-                instruction.SpecializedHandler = handler;
-                handler(instruction, this);
-                return;
-            }
-
-            if (instruction.Lhs is TempValue temp)
-            {
-                SetRegister(temp, new RuntimeValue(GetRuntimeValue(temp, instruction).IntValue + 1));
-                return;
-            }
-
-            VariableValue var = (VariableValue)instruction.Lhs;
-            RuntimeValue result = new RuntimeValue(GetRuntimeValue(var, instruction).IntValue + 1);
-            SetVariable(var, result);
         }
 
         private void ExecuteLoadAddress(InstructionLine instruction)
@@ -1072,10 +1082,9 @@ namespace Fluence.VirtualMachine
         /// <summary>Handles the ASSIGN_IF_NIL instruction, which is used for global variable initialization.</summary>
         private void ExecuteAssignIfNil(InstructionLine instruction)
         {
-            VariableValue var = (VariableValue)instruction.Lhs;
-            if (_globals[var.RegisterIndex].Equals(RuntimeValue.Nil))
+            if (_globals[((VariableValue)instruction.Lhs).RegisterIndex] == RuntimeValue.Nil)
             {
-                _globals[var.RegisterIndex] = GetRuntimeValue(instruction.Rhs, instruction);
+                AssignTo(instruction.Lhs, instruction.Rhs, instruction);
             }
         }
 
@@ -1687,31 +1696,29 @@ namespace Fluence.VirtualMachine
         /// </summary>
         private void ExecuteGetField(InstructionLine instruction)
         {
-            if (instruction.Rhs2 is not StringValue fieldName)
-            {
-                throw ConstructRuntimeException("Internal VM Error: GetField requires a string literal for the field name.");
-            }
+            if (instruction.Rhs2 is not StringValue fieldName) throw ConstructRuntimeException("GetField requires a string literal.");
 
             RuntimeValue instanceValue = GetRuntimeValue(instruction.Rhs, instruction);
 
             if (instanceValue.ObjectReference is Wrapper wrapper)
             {
+                if (wrapper.PropertyGetters != null && wrapper.PropertyGetters.TryGetValue(fieldName.Value, out Func<Wrapper, RuntimeValue> getter))
+                {
+                    SetRegister((TempValue)instruction.Lhs, getter(wrapper));
+                    return;
+                }
                 if (wrapper.InstanceFields.TryGetValue(fieldName.Value, out RuntimeValue value))
                 {
                     SetRegister((TempValue)instruction.Lhs, value);
                     return;
                 }
-                else
-                {
-                    SignalError($"Runtime Error: Property '{fieldName.Value}' does not exist on '{GetDetailedTypeName(instanceValue)}'.");
-                    return;
-                }
+                SignalError($"Runtime Error: Property '{fieldName.Value}' does not exist on '{GetDetailedTypeName(instanceValue)}'.");
+                return;
             }
 
             if (instanceValue.ObjectReference is not InstanceObject instance)
             {
-                SignalError($"Runtime Error: Cannot access property '{fieldName.Value}' on a value of type '{GetDetailedTypeName(instanceValue)}'.");
-                return;
+                throw ConstructRuntimeException($"Runtime Error: Cannot access property '{fieldName.Value}' on a non-instance value (got type '{GetDetailedTypeName(instanceValue)}').");
             }
 
             SetRegister((TempValue)instruction.Lhs, instance.GetField(fieldName.Value, this));
@@ -1769,28 +1776,30 @@ namespace Fluence.VirtualMachine
 
             if (instanceValue.ObjectReference is Wrapper wrapper)
             {
+                RuntimeValue newValue = GetRuntimeValue(instruction.Rhs2, instruction);
+
+                if (wrapper.PropertySetters != null && wrapper.PropertySetters.TryGetValue(fieldName.Value, out Action<Wrapper, RuntimeValue> setter))
+                {
+                    setter(wrapper, newValue);
+                    return;
+                }
                 if (wrapper.InstanceFields.ContainsKey(fieldName.Value))
                 {
-                    RuntimeValue newValue = GetRuntimeValue(instruction.Rhs2, instruction);
                     wrapper.InstanceFields[fieldName.Value] = newValue;
                     return;
                 }
-                else
-                {
-                    SignalError($"Runtime Error: Property '{fieldName.Value}' does not exist on '{GetDetailedTypeName(instanceValue)}'.");
-                    return;
-                }
+                SignalError($"Runtime Error: Property '{fieldName.Value}' does not exist on '{GetDetailedTypeName(instanceValue)}'.");
+                return;
             }
 
             if (instanceValue.ObjectReference is not InstanceObject instance)
             {
-                SignalError($"Runtime Error: Cannot set property '{fieldName.Value}' on a value of type '{GetDetailedTypeName(instanceValue)}'.");
-                return;
+                throw ConstructRuntimeException($"Runtime Error: Cannot set property '{fieldName.Value}' on a non-instance value (got type '{GetDetailedTypeName(instanceValue)}').");
             }
 
             if (instance.Class.StaticFields.ContainsKey(fieldName.Value))
             {
-                throw ConstructRuntimeException($"Runtime Error: Cannot assign to the solid (static) field '{fieldName.Value}' of struct '{instance.Class.Name}'.");
+                throw ConstructRuntimeException($"Runtime Error: Cannot set solid ( static ) property '{fieldName.Value}' of a struct.");
             }
 
             RuntimeValue valueToSet = GetRuntimeValue(instruction.Rhs2, instruction);
@@ -1944,7 +1953,7 @@ namespace Fluence.VirtualMachine
                 return;
             }
 
-            SignalError($"Runtime Error: Cannot iterate over a value of type '{GetDetailedTypeName(iterable)}'. Expected a list or range.");
+            throw ConstructRuntimeException($"Runtime Error: Cannot create an iterator from a non-iterable type '{GetDetailedTypeName(iterable)}'.");
         }
 
         /// <summary>
@@ -2074,7 +2083,7 @@ namespace Fluence.VirtualMachine
                 return;
             }
 
-            SignalError($"Runtime Error: 'throw' requires a value that implements the 'exception' trait, but got '{GetDetailedTypeName(value)}'.");
+            throw ConstructRuntimeException($"Runtime Error: 'throw' keyword allows only either the intrinsic 'Exception' class to be used, or a struct that inherits from the intrinsic 'exception' trait to be used.");
         }
 
         /// <summary>
@@ -2143,8 +2152,7 @@ namespace Fluence.VirtualMachine
                 }
                 else
                 {
-                    SignalError($"Runtime Error: Unknown type '{typeName}'.");
-                    return;
+                    throw ConstructRuntimeException($"Runtime Error: Unknown type or symbol '{typeName}'.");
                 }
             }
             // Variable or expression.
@@ -2171,7 +2179,7 @@ namespace Fluence.VirtualMachine
                         bool isLambda = operand is LambdaValue;
 
                         MethodMetadata methodMeta = new MethodMetadata(func.Name, func.Arity, false, func.Arguments, func.RefMask);
-                        metadata = new TypeMetadata("function", "function", TypeCategory.Function, func.Arity, isLambda, null, null, null, [methodMeta], null, func.Arguments, func.RefMask);
+                        metadata = new TypeMetadata("function", "function", TypeCategory.Function, func.Arity, isLambda, null, null, null, new List<MethodMetadata>() { methodMeta }, null, func.Arguments, func.RefMask);
                         break;
                     default:
                         metadata = new TypeMetadata(name, name, TypeCategory.Primitive, 0, false);
@@ -2193,8 +2201,8 @@ namespace Fluence.VirtualMachine
                 category: TypeCategory.Struct,
                 0,
                 false,
-                instanceFields: s.Fields.Select(f => new FieldMetadata(f, IsStatic: false, IsSolid: false)).ToList(),
-                staticFields: s.StaticFields.Keys.Select(f => new FieldMetadata(f, IsStatic: true, IsSolid: true)).ToList(),
+                instanceFields: s.Fields.Select(f => new FieldMetadata(f, false, false)).ToList(),
+                staticFields: s.StaticFields.Keys.Select(f => new FieldMetadata(f, true, true)).ToList(),
                 constructors: s.Constructors.Values.Select(c => new MethodMetadata(c.Name, c.Arity, true, c.Arguments!, c.RefMask)).ToList(),
                 instanceMethods: s.Functions.Values.Select(m => new MethodMetadata(m.Name, m.Arity, false, m.Arguments!, m.RefMask)).ToList(),
                 null!,
@@ -2262,8 +2270,7 @@ namespace Fluence.VirtualMachine
 
             if (functionVal.ObjectReference is not FunctionObject function)
             {
-                SignalError($"Runtime Error: Attempted to call a value of type '{GetDetailedTypeName(functionVal)}' as a function.");
-                return;
+                throw ConstructRuntimeException($"Internal VM Error: Attempted to call a value that is not a function (got type '{GetDetailedTypeName(functionVal)}').");
             }
 
             if (!function.DefiningScope.IsTheGlobalScope)
@@ -2279,8 +2286,7 @@ namespace Fluence.VirtualMachine
 
             if (function.Arity != argCount && function.Arity != -100)
             {
-                SignalError($"Runtime Error: Wrong number of arguments for function '{function.Name}'. Expected {function.Arity}, got {argCount}.");
-                return;
+                throw ConstructRuntimeException($"Internal VM Error: Mismatched arguments for function '{function.Name}'. Expected {function.Arity}, but got {argCount}.");
             }
 
             SpecializedOpcodeHandler? handler = CreateSpecializedCallFunctionHandler(this, instruction, function);
@@ -2328,6 +2334,7 @@ namespace Fluence.VirtualMachine
 
             _callStack.Push(newFrame);
             _cachedRegisters = newFrame.Registers;
+            _cachedWritableCache = newFrame.WritableCache;
             _ip = function.StartAddress;
         }
 
@@ -2372,8 +2379,7 @@ namespace Fluence.VirtualMachine
 
             if (instanceVal.ObjectReference is not InstanceObject instance)
             {
-                SignalError($"Runtime Error: Cannot call method '{methodName}' on a value of type '{GetDetailedTypeName(instanceVal)}'.");
-                return;
+                throw ConstructRuntimeException($"Internal VM Error: Cannot call method '{methodName}' on a non-instance object of type '{GetDetailedTypeName(instanceVal)}'.");
             }
 
             FunctionObject functionToExecute = null;
@@ -2386,6 +2392,11 @@ namespace Fluence.VirtualMachine
             else
             {
                 methodBlueprint = instance.Class.Functions[methodName];
+            }
+
+            if (methodBlueprint == null)
+            {
+                throw ConstructRuntimeException($"Runtime Error: Undefined method '{methodName}' on struct '{instance.Class.Name}'.");
             }
 
             // <script> frame.
@@ -2408,15 +2419,11 @@ namespace Fluence.VirtualMachine
                 }
                 else if (!instance.Class.Functions.TryGetValue(methodName, out methodBlueprint) && !instance.Class.Constructors.TryGetValue(methodName, out methodBlueprint))
                 {
-                    SignalError($"Runtime Error: Method '{Mangler.Demangle(methodName)}' is not defined on struct '{instance.Class.Name}'.");
-                    return;
+                    throw ConstructRuntimeException($"Internal VM Error: Undefined method or lambda '{methodName}' on struct '{instance.Class.Name}'.");
                 }
             }
 
-            if (functionToExecute == null)
-            {
-                functionToExecute = CreateFunctionObject(methodBlueprint);
-            }
+            functionToExecute ??= CreateFunctionObject(methodBlueprint);
 
             if (!functionToExecute.DefiningScope.IsTheGlobalScope)
             {
@@ -2430,8 +2437,7 @@ namespace Fluence.VirtualMachine
             int argCountOnStack = _operandStack.Count;
             if (functionToExecute.Arity != argCountOnStack)
             {
-                SignalError($"Runtime Error: Wrong number of arguments for method '{Mangler.Demangle(functionToExecute.Name)}' on '{instance.Class.Name}'. Expected {functionToExecute.Arity}, got {argCountOnStack}.");
-                return;
+                throw ConstructRuntimeException($"Internal VM Error: Mismatched arity for method '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
             }
 
             CallFrame newFrame = _callFramePool.Get();
@@ -2471,6 +2477,7 @@ namespace Fluence.VirtualMachine
 
             _callStack.Push(newFrame);
             _cachedRegisters = newFrame.Registers;
+            _cachedWritableCache = newFrame.WritableCache;
             _ip = functionToExecute.StartAddress;
         }
 
@@ -2480,31 +2487,41 @@ namespace Fluence.VirtualMachine
         /// <param name="instance">The instance of a struct to call the method on.</param>
         /// <param name="func">The function of the instance to call.</param>
         /// <returns>The result of the function's return.</returns>
-        internal RuntimeValue ExecuteManualMethodCall(InstanceObject instance, FunctionValue func)
+        internal RuntimeValue ExecuteManualMethodCall(InstanceObject instance, FunctionValue func, params RuntimeValue[] args)
         {
             int savedIp = _ip;
             RuntimeValue[] savedRegisters = _cachedRegisters;
+            bool[] savedWritableCache = _cachedWritableCache;
 
             FunctionObject functionToExecute = CreateFunctionObject(func);
             CallFrame newFrame = _callFramePool.Get();
 
             newFrame.Initialize(this, functionToExecute, -1, null!);
 
-            // Sometimes a struct function may have no arguments, or no "self" used, no temps.
             if (newFrame.Registers.Length > 0)
             {
                 newFrame.Registers[0] = new RuntimeValue(instance);
             }
 
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (i + 1 < newFrame.Registers.Length)
+                {
+                    newFrame.Registers[i + 1] = args[i];
+                }
+            }
+
             _callStack.Push(newFrame);
             _cachedRegisters = newFrame.Registers;
+            _cachedWritableCache = newFrame.WritableCache;
             _ip = functionToExecute.StartAddress;
 
             RuntimeValue returnValue = RuntimeValue.Nil;
+            int targetDepth = _callStack.Count - 1;
 
             while (true)
             {
-                if (_callStack.Peek() != newFrame)
+                if (_callStack.Count == targetDepth)
                 {
                     break;
                 }
@@ -2516,9 +2533,17 @@ namespace Fluence.VirtualMachine
                 {
                     returnValue = GetRuntimeValue(instruction.Lhs, instruction);
 
-                    _callStack.Pop();
-                    _callFramePool.Return(newFrame);
-                    break;
+                    if (_callStack.Peek() == newFrame)
+                    {
+                        _callStack.Pop();
+                        _callFramePool.Return(newFrame);
+                        break;
+                    }
+                    else
+                    {
+                        ExecuteReturn(instruction);
+                        continue;
+                    }
                 }
 
                 if (instruction.SpecializedHandler != null)
@@ -2538,6 +2563,7 @@ namespace Fluence.VirtualMachine
 
             _ip = savedIp;
             _cachedRegisters = savedRegisters;
+            _cachedWritableCache = savedWritableCache;
             return returnValue;
         }
 
@@ -2551,14 +2577,18 @@ namespace Fluence.VirtualMachine
         {
             int savedIp = _ip;
             RuntimeValue[] savedRegisters = _cachedRegisters;
+            bool[] savedWritableCache = _cachedWritableCache;
 
             FunctionObject functionToExecute = CreateFunctionObject(funcBlueprint);
             CallFrame newFrame = _callFramePool.Get();
 
             newFrame.Initialize(this, functionToExecute, -1, null!);
 
+            State = FluenceVMState.Running;
+
             _callStack.Push(newFrame);
             _cachedRegisters = newFrame.Registers;
+            _cachedWritableCache = newFrame.WritableCache;
             _ip = functionToExecute.StartAddress;
 
             foreach (RuntimeValue arg in args) _operandStack.Push(arg);
@@ -2583,10 +2613,11 @@ namespace Fluence.VirtualMachine
             _cachedRegisters = newFrame.Registers;
             _cachedWritableCache = newFrame.WritableCache;
             RuntimeValue returnValue = RuntimeValue.Nil;
+            int targetDepth = _callStack.Count - 1;
 
             while (true)
             {
-                if (_callStack.Peek() != newFrame)
+                if (_callStack.Count == targetDepth)
                 {
                     break;
                 }
@@ -2598,9 +2629,17 @@ namespace Fluence.VirtualMachine
                 {
                     returnValue = GetRuntimeValue(instruction.Lhs, instruction);
 
-                    _callStack.Pop();
-                    _callFramePool.Return(newFrame);
-                    break;
+                    if (_callStack.Peek() == newFrame)
+                    {
+                        _callStack.Pop();
+                        _callFramePool.Return(newFrame);
+                        break;
+                    }
+                    else
+                    {
+                        ExecuteReturn(instruction);
+                        continue;
+                    }
                 }
 
                 if (instruction.SpecializedHandler != null)
@@ -2620,6 +2659,8 @@ namespace Fluence.VirtualMachine
 
             _ip = savedIp;
             _cachedRegisters = savedRegisters;
+            _cachedWritableCache = savedWritableCache;
+            State = FluenceVMState.Finished;
             return returnValue;
         }
 
@@ -2636,11 +2677,16 @@ namespace Fluence.VirtualMachine
 
             if (structSymbol.StaticIntrinsics.TryGetValue(methodName.Value, out FunctionSymbol intrinsicSymbol))
             {
-                int argCount = _operandStack.Count;
+                int argCount = intrinsicSymbol.Arity;
+
+                if (_operandStack.Count < argCount)
+                {
+                    CreateAndThrowRuntimeException($"Runtime Error: Stack underflow calling '{intrinsicSymbol.Name}'. Expected {argCount} args.");
+                }
+
                 if (intrinsicSymbol.Arity != argCount)
                 {
-                    SignalError($"Runtime Error: Wrong number of arguments for '{structSymbol.Name}.{intrinsicSymbol.Name}'. Expected {intrinsicSymbol.Arity}, got {argCount}.");
-                    return;
+                    CreateAndThrowRuntimeException($"Runtime Error: Mismatched arity for static intrinsic struct function '{intrinsicSymbol.Name}'. Expected {intrinsicSymbol.Arity}, but got {argCount}.");
                 }
 
                 RuntimeValue resultValue = intrinsicSymbol.IntrinsicBody!(this, argCount);
@@ -2650,8 +2696,7 @@ namespace Fluence.VirtualMachine
 
             if (!structSymbol.Functions.TryGetValue(methodName.Value, out FunctionValue? methodBlueprint))
             {
-                SignalError($"Runtime Error: Static function '{methodName.Value}' not found on struct '{structSymbol.Name}'.");
-                return;
+                throw ConstructRuntimeException($"Runtime Error: Static function '{methodName.Value}' not found on struct '{structSymbol.Name}'.");
             }
 
             FunctionObject functionToExecute = CreateFunctionObject(methodBlueprint);
@@ -2659,8 +2704,7 @@ namespace Fluence.VirtualMachine
             int argCountOnStack = _operandStack.Count;
             if (functionToExecute.Arity != argCountOnStack)
             {
-                SignalError($"Runtime Error: Wrong number of arguments for static function '{Mangler.Demangle(functionToExecute.Name)}'. Expected {functionToExecute.Arity}, got {argCountOnStack}.");
-                return;
+                CreateAndThrowRuntimeException($"Runtime Error: Mismatched arity for static function '{functionToExecute.Name}'. Expected {functionToExecute.Arity}, but got {argCountOnStack}.");
             }
 
             if (!functionToExecute.DefiningScope.IsTheGlobalScope)
@@ -2688,8 +2732,7 @@ namespace Fluence.VirtualMachine
                     if (argValue.ObjectReference is not ReferenceValue reference)
                     {
                         string argName = functionToExecute.Arguments[i];
-                        SignalError($"Runtime Error: Argument '{argName}' in static function '{functionToExecute.ToCodeLikeString()}' must be passed by reference ('ref').");
-                        _callFramePool.Return(newFrame);
+                        SignalError($"Internal VM Error: Argument '{argName}' in function: \"{functionToExecute.ToCodeLikeString()}\" must be passed by reference ('ref').");
                         return;
                     }
                     else
@@ -2707,6 +2750,7 @@ namespace Fluence.VirtualMachine
 
             _callStack.Push(newFrame);
             _cachedRegisters = newFrame.Registers;
+            _cachedWritableCache = newFrame.WritableCache;
             _ip = functionToExecute.StartAddress;
         }
 
@@ -2753,8 +2797,9 @@ namespace Fluence.VirtualMachine
                 }
             }
 
-            _cachedRegisters = _callStack.Peek().Registers;
-            _cachedWritableCache = _callStack.Peek().WritableCache;
+            CallFrame parentFrame = _callStack.Peek();
+            _cachedRegisters = parentFrame.Registers;
+            _cachedWritableCache = parentFrame.WritableCache;
 
             _cachedRegisters[finishedFrame.DestinationRegister.RegisterIndex] = returnValue;
 
@@ -2833,6 +2878,40 @@ namespace Fluence.VirtualMachine
                 // A FunctionValue from the bytecode is just a blueprint.
                 // We must convert it into a live, runtime FunctionObject.
                 return new RuntimeValue(CreateFunctionObject(func));
+            }
+
+            if (val is StaticStructAccess ssa)
+            {
+                if (ssa.Struct.StaticFields.TryGetValue(ssa.Name, out RuntimeValue staticValue))
+                {
+                    return staticValue;
+                }
+                return SignalRecoverableErrorAndReturnNil($"Runtime Error: Static field '{ssa.Name}' not found on struct '{ssa.Struct.Name}'.");
+            }
+
+            if (val is PropertyAccessValue pav)
+            {
+                RuntimeValue instanceValue = GetRuntimeValue(pav.Target, instruction);
+
+                if (instanceValue.ObjectReference is Wrapper wrapper)
+                {
+                    if (wrapper.PropertyGetters != null && wrapper.PropertyGetters.TryGetValue(pav.FieldName, out System.Func<Wrapper, RuntimeValue> getter))
+                    {
+                        return getter(wrapper);
+                    }
+                    if (wrapper.InstanceFields.TryGetValue(pav.FieldName, out RuntimeValue value))
+                    {
+                        return value;
+                    }
+                    return SignalRecoverableErrorAndReturnNil($"Runtime Error: Property '{pav.FieldName}' does not exist on '{GetDetailedTypeName(instanceValue)}'.");
+                }
+
+                if (instanceValue.ObjectReference is InstanceObject instance)
+                {
+                    return instance.GetField(pav.FieldName, this);
+                }
+
+                return SignalRecoverableErrorAndReturnNil($"Runtime Error: Cannot access property '{pav.FieldName}' on non-instance object of type '{GetDetailedTypeName(instanceValue)}'.");
             }
 
             return val switch
@@ -2980,7 +3059,7 @@ namespace Fluence.VirtualMachine
         /// </summary>
         /// <param name="funcSymbol">The blueprint for the <see cref="FunctionObject"/> to create.</param>
         /// <returns>The initialized <see cref="FunctionObject"/>.</returns>
-        internal FunctionObject CreateFunctionObject(FunctionValue funcValue)
+        private FunctionObject CreateFunctionObject(FunctionValue funcValue)
         {
             FunctionObject func = _functionObjectPool.Get();
             func.Initialize(funcValue);
@@ -3204,7 +3283,7 @@ namespace Fluence.VirtualMachine
         /// <param name="libraryName">The name of the library being checked.</param>
         /// <returns>True if the library is permitted to be used.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool IsLibraryAllowed(string libraryName)
+        private bool IsLibraryAllowed(string libraryName)
         {
             if (_disallowedIntrinsicLibraries.Contains(libraryName))
             {
@@ -3341,6 +3420,16 @@ namespace Fluence.VirtualMachine
         /// <param name="exception">The exception message.</param>
         /// <param name="exceptionType">The type of the exception.</param>
         internal FluenceRuntimeException ConstructRuntimeException(string exception, RuntimeExceptionType exceptionType = RuntimeExceptionType.NonSpecific) => CreateRuntimeException(exception, exceptionType);
+
+        //  These exceptions should not be catchable
+        //
+        //  1. Readonly assignment.
+        //  2. wrong argument count in function call.
+        //  3. undefined variable.
+        //  4. undefined function.
+        //  5. calling non function.
+        //  6. wrong struct field/function.
+        //  8. invalid return.
 
         /// <summary>
         /// Creates and logs to the console a highly detailed exception with the current state of the VM.

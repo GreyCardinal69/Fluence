@@ -1,8 +1,6 @@
 ﻿using Fluence.Exceptions;
 using Fluence.RuntimeTypes;
 using Fluence.VirtualMachine;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 using static Fluence.FluenceByteCode;
 using static Fluence.FluenceByteCode.InstructionLine;

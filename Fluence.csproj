@@ -13,6 +13,7 @@
     <RootNamespace>Fluence</RootNamespace>
     <Title>Fluence</Title>
     <Authors>Cardinalius</Authors>
+      
     <Description>The Fluence programming language in C#</Description>
     <Copyright>Copyright © $([System.DateTime]::UtcNow.Year) Cardinalius</Copyright>
     <PackageProjectUrl>https://github.com/GreyCardinal69/Fluence</PackageProjectUrl>
@@ -34,6 +35,10 @@
     <None Remove="Fluence.Benchmarks\**" />
     <None Remove="Fluence.Tests\**" />
   </ItemGroup>
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+    </PropertyGroup>
 
 	<PropertyGroup>
 		<Version>0.1.4-alpha</Version>

@@ -214,8 +214,8 @@ namespace Fluence.VirtualMachine
 
             if (left.Type == RuntimeValueType.Object && right.Type == RuntimeValueType.Object && left.Is<ListObject>() && right.Is<ListObject>())
             {
-                var leftList = left.As<ListObject>();
-                var rightList = right.As<ListObject>();
+                ListObject leftList = left.As<ListObject>();
+                ListObject rightList = right.As<ListObject>();
 
                 return new RuntimeValue(new ListObject(leftList.Elements.Intersect(rightList.Elements).ToList()));
             }

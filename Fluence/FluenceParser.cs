@@ -2084,7 +2084,6 @@ namespace Fluence
 
                     functionValue!.SetStartAddress(functionStartAddress);
                     _currentParseState.AddFunctionVariableDeclaration(new InstructionLine(InstructionCode.Assign, GetOrCreateVariable($"{structName}.{functionValue.Name}"), functionValue));
-
                     return;
                 }
 
@@ -2281,12 +2280,26 @@ namespace Fluence
                 else
                 {
                     _currentParseState.CurrentStructContext.Functions[func.Name] = func;
+
+                    // Name - the __arity.
+                    string cleanName = func.Name[..func.Name.IndexOf("__", StringComparison.OrdinalIgnoreCase)];
+
+                    if (IsOperatorOverload(cleanName, out string opKey))
+                    {
+                        _currentParseState.CurrentStructContext.OperatorOverloads[opKey] = func;
+                    }
                 }
             }
 
             _tempSlotMap.Clear();
             _variableSlotMap.Clear();
             _currentParseState.ResetLocalInterner();
+        }
+
+        private static bool IsOperatorOverload(string name, out string opKey)
+        {
+            opKey = name.ToLowerInvariant();
+            return opKey is "op_add" or "op_sub" or "op_mul" or "op_div" or "op_eq" or "op_neg";
         }
 
         private VariableValue GetOrCreateVariable(string name, bool isReadonly = false, bool isGlobal = false)

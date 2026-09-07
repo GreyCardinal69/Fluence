@@ -160,6 +160,11 @@ namespace Fluence
         internal Dictionary<string, FunctionValue> Functions { get; } = new();
 
         /// <summary>
+        /// A dictionary managing overloaded operators for the struct class, their names and functionValues.
+        /// </summary>
+        internal Dictionary<string, FunctionValue> OperatorOverloads { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
         /// Gets a dictionary mapping field names to the sequence of tokens representing their default value expression.
         /// This is populated during the pre-pass and used during the main pass to generate constructor bytecode.
         /// </summary>

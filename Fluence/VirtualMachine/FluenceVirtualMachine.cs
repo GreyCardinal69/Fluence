@@ -767,16 +767,29 @@ namespace Fluence.VirtualMachine
                 return;
             }
 
-            if (left.Type == RuntimeValueType.Object && left.ObjectReference is ListObject leftList &&
-                right.Type == RuntimeValueType.Object && right.ObjectReference is ListObject rightList)
+            if (left.Type == RuntimeValueType.Object && right.Type == RuntimeValueType.Object)
             {
-                ListObject concatenatedList = new ListObject();
+                if (right.ObjectReference is ListObject leftList and ListObject rightList)
+                {
+                    ListObject concatenatedList = new ListObject();
 
-                concatenatedList.Elements.AddRange(leftList.Elements);
-                concatenatedList.Elements.AddRange(rightList.Elements);
+                    concatenatedList.Elements.AddRange(leftList.Elements);
+                    concatenatedList.Elements.AddRange(rightList.Elements);
 
-                SetVariableOrRegister(instruction.Lhs, new RuntimeValue(concatenatedList), instruction);
-                return;
+                    SetVariableOrRegister(instruction.Lhs, new RuntimeValue(concatenatedList), instruction);
+                    return;
+                }
+
+                if (left.ObjectReference is InstanceObject && right.ObjectReference is InstanceObject)
+                {
+                    InstanceObject leftStruct = left.As<InstanceObject>();
+                    if (leftStruct.Class.OperatorOverloads["op_add"] != null)
+                    {
+                        RuntimeValue result = ExecuteManualMethodCall(leftStruct, leftStruct.Class.OperatorOverloads["op_add"], right);
+                        SetVariableOrRegister(instruction.Lhs, result, instruction);
+                        return;
+                    }
+                }
             }
 
             SignalError($"Runtime Error: Cannot apply operator '+' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
@@ -929,15 +942,28 @@ namespace Fluence.VirtualMachine
                 return;
             }
 
-            if (left.Type == RuntimeValueType.Object && left.ObjectReference is ListObject leftList &&
-                right.Type == RuntimeValueType.Object && right.ObjectReference is ListObject rightList)
+            if (left.Type == RuntimeValueType.Object && right.Type == RuntimeValueType.Object)
             {
-                ListObject concatenatedList = new ListObject();
+                if (right.ObjectReference is ListObject leftList and ListObject rightList)
+                {
+                    ListObject concatenatedList = new ListObject();
 
-                // This performs a set difference, which is the intuitive meaning of list subtraction.
-                concatenatedList.Elements.AddRange(leftList.Elements.Except(rightList.Elements));
-                SetRegister((TempValue)instruction.Lhs, new RuntimeValue(concatenatedList));
-                return;
+                    // This performs a set difference, which is the intuitive meaning of list subtraction.
+                    concatenatedList.Elements.AddRange(leftList.Elements.Except(rightList.Elements));
+                    SetRegister((TempValue)instruction.Lhs, new RuntimeValue(concatenatedList));
+                    return;
+                }
+
+                if (left.ObjectReference is InstanceObject && right.ObjectReference is InstanceObject)
+                {
+                    InstanceObject leftStruct = left.As<InstanceObject>();
+                    if (leftStruct.Class.OperatorOverloads["op_sub"] != null)
+                    {
+                        RuntimeValue result = ExecuteManualMethodCall(leftStruct, leftStruct.Class.OperatorOverloads["op_sub"], right);
+                        SetVariableOrRegister(instruction.Lhs, result, instruction);
+                        return;
+                    }
+                }
             }
 
             SignalError($"Runtime Error: Cannot apply operator '-' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
@@ -997,6 +1023,17 @@ namespace Fluence.VirtualMachine
                 return;
             }
 
+            if (left.Type == RuntimeValueType.Object && right.Type == RuntimeValueType.Number && left.ObjectReference is InstanceObject)
+            {
+                InstanceObject leftStruct = left.As<InstanceObject>();
+                if (leftStruct.Class.OperatorOverloads["op_mul"] != null)
+                {
+                    RuntimeValue result = ExecuteManualMethodCall(leftStruct, leftStruct.Class.OperatorOverloads["op_mul"], right);
+                    SetVariableOrRegister(instruction.Lhs, result, instruction);
+                    return;
+                }
+            }
+
             SignalError($"Runtime Error: Cannot apply operator '*' to types {GetDetailedTypeName(left)} and {GetDetailedTypeName(right)}.");
         }
 
@@ -1005,6 +1042,17 @@ namespace Fluence.VirtualMachine
         {
             RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
+
+            if (left.Type == RuntimeValueType.Object && right.Type == RuntimeValueType.Object && left.ObjectReference is InstanceObject && right.ObjectReference is InstanceObject)
+            {
+                InstanceObject leftStruct = left.As<InstanceObject>();
+                if (leftStruct.Class.OperatorOverloads["op_div"] != null)
+                {
+                    RuntimeValue result = ExecuteManualMethodCall(leftStruct, leftStruct.Class.OperatorOverloads["op_div"], right);
+                    SetVariableOrRegister(instruction.Lhs, result, instruction);
+                    return;
+                }
+            }
 
             SpecializedOpcodeHandler? handler = InlineCacheManager.CreateSpecializedDivHandler(instruction, this, left, right);
             if (handler != null)
@@ -1287,8 +1335,10 @@ namespace Fluence.VirtualMachine
             RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
 
+            bool result;
+
             instruction.SpecializedHandler = InlineCacheManager.CreateSpecializedBranchHandler(instruction, this, right, target);
-            bool result = left.Equals(right);
+            result = left.Equals(right);
 
             if (result == target)
             {
@@ -1413,7 +1463,22 @@ namespace Fluence.VirtualMachine
         {
             RuntimeValue left = GetRuntimeValue(instruction.Rhs, instruction);
             RuntimeValue right = GetRuntimeValue(instruction.Rhs2, instruction);
-            bool result = left.Equals(right);
+
+            bool result;
+
+            if (left.Type == RuntimeValueType.Object && right.Type == RuntimeValueType.Object && left.ObjectReference is InstanceObject && right.ObjectReference is InstanceObject)
+            {
+                InstanceObject leftStruct = left.As<InstanceObject>();
+                if (leftStruct.Class.OperatorOverloads["op_eq"] != null)
+                {
+                    RuntimeValue res = ExecuteManualMethodCall(leftStruct, leftStruct.Class.OperatorOverloads["op_eq"], right);
+                    result = Convert.ToBoolean(res.IntValue);
+                    SetRegister((TempValue)instruction.Lhs, new RuntimeValue(isEqual ? result : !result));
+                    return;
+                }
+            }
+
+            result = left.Equals(right);
             SetRegister((TempValue)instruction.Lhs, new RuntimeValue(isEqual ? result : !result));
         }
 

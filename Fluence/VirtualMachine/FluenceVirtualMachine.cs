@@ -1155,10 +1155,10 @@ namespace Fluence.VirtualMachine
         private void ExecuteBitwiseOperation(InstructionLine instruction)
         {
             RuntimeValue leftValue = GetRuntimeValue(instruction.Rhs, instruction);
-            long leftLong = ToLong(leftValue);
 
             if (instruction.Instruction == InstructionCode.BitwiseNot)
             {
+                long leftLong = ToLong(leftValue);
                 SetRegister((TempValue)instruction.Lhs, new RuntimeValue(~leftLong));
                 return;
             }
@@ -1184,7 +1184,7 @@ namespace Fluence.VirtualMachine
                     break;
             }
 
-            instruction.SpecializedHandler(instruction, this);
+            instruction.SpecializedHandler!(instruction, this);
         }
 
         /// <summary>

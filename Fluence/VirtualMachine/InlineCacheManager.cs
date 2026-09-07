@@ -212,6 +212,14 @@ namespace Fluence.VirtualMachine
                 return new RuntimeValue(left.ToLong() & right.ToLong());
             }
 
+            if (left.Type == RuntimeValueType.Object && right.Type == RuntimeValueType.Object && left.Is<ListObject>() && right.Is<ListObject>())
+            {
+                var leftList = left.As<ListObject>();
+                var rightList = right.As<ListObject>();
+
+                return new RuntimeValue(new ListObject(leftList.Elements.Intersect(rightList.Elements).ToList()));
+            }
+
             return new RuntimeValue(left.IntValue & right.IntValue);
         }
 
@@ -280,8 +288,6 @@ namespace Fluence.VirtualMachine
             FluenceVirtualMachine vm,
             Func<FluenceVirtualMachine, RuntimeValue, RuntimeValue, RuntimeValue> opFunction)
         {
-            if (left.Type != RuntimeValueType.Number || right.Type != RuntimeValueType.Number) return null;
-
             if (AttemptToModifyAReadonlyVariable(insn, vm, out string name))
             {
                 vm.CreateAndThrowRuntimeException($"Runtime Error: Cannot assign to the readonly solid variable '{name}'.");
